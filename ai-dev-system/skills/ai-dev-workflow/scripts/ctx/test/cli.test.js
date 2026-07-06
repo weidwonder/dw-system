@@ -1,0 +1,58 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import path from 'node:path';
+import os from 'node:os';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import {
+  discover,
+  getCard,
+  findScenes,
+  listServices,
+  initScaffold,
+} from '../src/commands.js';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const ctxDir = path.join(here, '..', 'fixtures', 'engineering-context');
+
+test('discover 命中关键词返回相关 card 与 cite', () => {
+  const r = discover(ctxDir, '背单词 记录 接口');
+  assert.ok(r.cards.length >= 1, '应返回至少一个 card');
+  assert.ok(r.cards[0].cite, '每条结果需带 cite');
+  assert.match(r.cards[0].cite, /@/, 'cite 应含确认时间');
+});
+
+test('discover 对无关意图返回空或 out-of-scope 提示', () => {
+  const r = discover(ctxDir, 'zzz-完全无关的东西-qqq');
+  assert.equal(r.cards.length, 0);
+});
+
+test('getCard 返回指定服务的段落', () => {
+  const c = getCard(ctxDir, 'sample-service', '对外接口');
+  assert.ok(c, '应找到 card');
+  assert.match(c.content, /v2\/word\/record/);
+  assert.ok(c.cite);
+});
+
+test('listServices 返回已登记服务', () => {
+  const names = listServices(ctxDir).map((s) => s.service);
+  assert.ok(names.includes('sample-service'));
+});
+
+test('findScenes 无 scenes 目录时返回空数组', () => {
+  const r = findScenes(ctxDir, '背单词');
+  assert.ok(Array.isArray(r));
+});
+
+test('initScaffold 生成 engineering-context 骨架', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ctx-'));
+  try {
+    initScaffold(tmp);
+    const base = path.join(tmp, 'engineering-context');
+    assert.ok(fs.existsSync(path.join(base, 'capability-registry.md')));
+    assert.ok(fs.existsSync(path.join(base, 'cards')));
+    assert.ok(fs.existsSync(path.join(base, 'probe-set.md')));
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});

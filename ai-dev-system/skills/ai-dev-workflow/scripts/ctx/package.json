@@ -1,0 +1,16 @@
+{
+  "name": "ctx",
+  "version": "0.1.0",
+  "description": "Engineering Context CLI — 查代码事实，替代 MCP。零运行时依赖，跨平台。",
+  "type": "module",
+  "bin": {
+    "ctx": "src/cli.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "license": "MIT"
+}

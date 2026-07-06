@@ -1,0 +1,154 @@
+// commands.js — ctx 的命令层。基于 cards.js 的读取层做路由与匹配。
+import fs from 'node:fs';
+import path from 'node:path';
+import { loadCards, loadRegistry, makeCite } from './cards.js';
+
+/** 粗分词：按空白与常见标点切，去掉过短 token。 */
+function tokenize(text) {
+  return (text || '')
+    .split(/[\s,，。、;；:：/()（）\[\]【】"'`]+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 2);
+}
+
+/** 统计 tokens 在 haystack 中命中的个数。 */
+function scoreHits(haystack, tokens) {
+  const h = haystack.toLowerCase();
+  let s = 0;
+  for (const t of tokens) if (h.includes(t.toLowerCase())) s += 1;
+  return s;
+}
+
+/**
+ * discover：意图 → 应加载的 card 清单（带 cite）+ out-of-scope 提示。
+ * 匹配 card 全文与 registry 行，按命中分排序。
+ */
+export function discover(ctxDir, intent) {
+  const tokens = tokenize(intent);
+  const cards = loadCards(ctxDir);
+  const registry = loadRegistry(ctxDir);
+  const scored = [];
+  for (const card of cards) {
+    let score = scoreHits(card.raw, tokens);
+    // registry 中指向该仓库的能力，若命中 intent，给 card 加权
+    const relatedCaps = registry.filter((r) => r.canonicalRepo === card.service);
+    const capHits = relatedCaps.filter((r) => scoreHits(`${r.capability} ${r.businessMeaning}`, tokens) > 0);
+    score += capHits.length * 2;
+    if (score > 0) {
+      const why = capHits.length
+        ? `命中能力：${capHits.map((c) => c.capability).join('、')}`
+        : '文本命中';
+      const confirmedAt = freshnessDate(card) || 'unknown';
+      scored.push({
+        service: card.service,
+        score,
+        why,
+        cite: makeCite(card.path, '职责', confirmedAt),
+      });
+    }
+  }
+  scored.sort((a, b) => b.score - a.score);
+  return {
+    cards: scored,
+    outOfScope:
+      scored.length === 0
+        ? ['未命中任何 card。请确认关键词，或该能力尚未登记（考虑补 card / registry）。']
+        : [],
+  };
+}
+
+/** 从 card 的 Freshness 段落抽一个日期，用于 cite。 */
+function freshnessDate(card) {
+  const sec = card.sections['Freshness / Provenance'] || card.raw;
+  const m = /(\d{4}-\d{2}-\d{2})/.exec(sec);
+  return m ? m[1] : null;
+}
+
+/**
+ * getCard：取某仓 card。domain 传入时只返回该段落，否则返回全文。
+ * @returns {{service, content, cite}|null}
+ */
+export function getCard(ctxDir, service, domain) {
+  const card = loadCards(ctxDir).find((c) => c.service === service);
+  if (!card) return null;
+  const confirmedAt = freshnessDate(card) || 'unknown';
+  if (domain) {
+    const content = card.sections[domain];
+    if (content === undefined) {
+      return {
+        service,
+        content: `（未找到段落 "${domain}"，可用段落：${Object.keys(card.sections).join(', ')}）`,
+        cite: makeCite(card.path, domain, confirmedAt),
+      };
+    }
+    return { service, content, cite: makeCite(card.path, domain, confirmedAt) };
+  }
+  return { service, content: card.raw, cite: makeCite(card.path, '全文', confirmedAt) };
+}
+
+/**
+ * findScenes：从 engineering-context/scenes/*.md 匹配业务场景。目录不存在则返回 []。
+ */
+export function findScenes(ctxDir, keywords) {
+  const dir = path.join(ctxDir, 'scenes');
+  if (!fs.existsSync(dir)) return [];
+  const tokens = tokenize(Array.isArray(keywords) ? keywords.join(' ') : keywords);
+  return fs
+    .readdirSync(dir)
+    .filter((f) => f.endsWith('.md'))
+    .map((f) => {
+      const raw = fs.readFileSync(path.join(dir, f), 'utf8');
+      return { scene: path.basename(f, '.md'), score: scoreHits(raw, tokens), path: path.join('scenes', f) };
+    })
+    .filter((s) => s.score > 0)
+    .sort((a, b) => b.score - a.score);
+}
+
+/** listServices：列出已登记的服务（来自 cards）与能力（来自 registry）。 */
+export function listServices(ctxDir) {
+  const registry = loadRegistry(ctxDir);
+  return loadCards(ctxDir).map((c) => ({
+    service: c.service,
+    capabilities: registry.filter((r) => r.canonicalRepo === c.service).map((r) => r.capability),
+  }));
+}
+
+/** initScaffold：在 targetDir 下生成 engineering-context/ 骨架。 */
+export function initScaffold(targetDir) {
+  const base = path.join(targetDir, 'engineering-context');
+  fs.mkdirSync(path.join(base, 'cards'), { recursive: true });
+  writeIfAbsent(path.join(base, 'cards', '.gitkeep'), '');
+  writeIfAbsent(path.join(base, 'capability-registry.md'), REGISTRY_STUB);
+  writeIfAbsent(path.join(base, 'probe-set.md'), PROBE_STUB);
+  writeIfAbsent(path.join(base, 'README.md'), CTX_README_STUB);
+  return base;
+}
+
+function writeIfAbsent(file, content) {
+  if (!fs.existsSync(file)) fs.writeFileSync(file, content, 'utf8');
+}
+
+const REGISTRY_STUB = `# Capability Registry — 产品能力到权威代码实体的映射
+
+> 人工确认。事实以源码为准，PRD 仅作 scope。每条带 freshness 与理由链。
+
+| Capability | 业务含义 | 权威仓库 | 权威接口(含版本) | 废弃/中间产物替代 | 兼容窗口 | owner | 测试入口 | freshness | 理由链 |
+|---|---|---|---|---|---|---|---|---|---|
+| 【能力】 | 【含义】 | 【repo】 | 【POST /v2/xxx】 | 【旧接口不可用】 | 【切点】 | 【owner】 | 【测试入口】 | 【YYYY-MM-DD / PR】 | 【诞生压力】 |
+`;
+
+const PROBE_STUB = `# Frozen Probe Set — 上下文层防腐检测题集
+
+> 冻结、可打分、每发布周期重跑。种子题取自真实歧义案例，有已知正确答案。
+
+| # | 题型 | 示例 | 期望答案 |
+|---|---|---|---|
+| 1 | Capability Mapping | 概念【X】→ canonical service+接口？ | 【权威实体 + 废弃替代】 |
+| 2 | Deprecated Trap | V1 是中间产物，状态？ | 【中间产物，不可用】 |
+`;
+
+const CTX_README_STUB = `# engineering-context
+
+团队版的代码事实语义层。用 \`ctx\` 查询：discover / get-card / find-scenes / list-services。
+填写指南见 ai-dev-workflow 的 references/company/context-engineering.md。
+`;

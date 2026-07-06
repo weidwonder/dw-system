@@ -1,0 +1,12 @@
+# OS / editor
+.DS_Store
+
+# omc / harness 临时状态
+.omc/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# ctx 语义索引（本地生成，勿提交）
+engineering-context/.index/
