@@ -29,13 +29,16 @@
 
 团队仓库"历史包袱重、文档差"，AI 直接 grep 会读到旧代码/中间产物。所以：
 
-- **凡涉及"这个能力对应哪个仓库/接口""跨服务影响面""哪个是权威实现"的问题，先用 `ctx`**，不要 grep：
+- **凡涉及"这个能力对应哪个仓库/接口""跨服务影响面""哪个是权威实现"的问题，先用 `ctx`**，不要 grep。
+
+- **★ 业务全景门限（排序铁律）**：**除非用户明确把任务限定到某一个具体 repo / 服务 / 代码路径**，否则**第一步必须先 `ctx find-scenes <关键词>` 取端到端业务全景，再据此收窄到具体 card / 源码**。跨服务需求跳过全景直接钻单个 card，最常见的失败就是漏掉链路上的其它服务。提取 2–5 个高置信关键词（需求名、业务入口、核心动作）喂给 find-scenes。
   ```bash
-  ctx discover "给作业辅导加错题重练入口"   # 意图 → 应加载的 card 清单 + out-of-scope 警告
-  ctx get-card <repo> [域]                  # 取某仓 Codebase Card
-  ctx find-scenes <关键词>                   # 端到端业务场景
-  ctx list-services                          # 已登记仓库/能力
+  ctx find-scenes 作业辅导 错题 重练          # ← 未限定单仓时先跑这个，取端到端全景
+  ctx discover "给作业辅导加错题重练入口"      # 意图 → 应加载的 card 清单 + out-of-scope 警告
+  ctx get-card <repo> [域]                     # 收窄后取某仓 Codebase Card
+  ctx list-services                            # 已登记仓库/能力
   ```
+  > 注意：find-scenes 若返回"推断涉及服务"，那是**推断**不是权威，仍需用 card 核实。
 - **每条来自 card 的事实（接口名、字段、topic、Dubbo 签名）必须附 cite**（path + anchor + 最近确认时间）。无 cite 的接口/字段一律视为幻觉，回查。
 - **card 不够用、必须读真实源码时**：明确告诉用户要 clone 哪个仓、找什么类/方法，`git clone --depth=1`，读完把发现回写，别全仓 grep。发现 card 有缺漏，提示补卡，但**不要直接改 card**（改卡走刷新流程）。
 

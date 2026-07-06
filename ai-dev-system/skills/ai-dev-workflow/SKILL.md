@@ -24,7 +24,7 @@ references/
 assets/
   templates/           lean-change-spec / overview / eng-spec / coding-plan / test-spec
   config-snippets/     注入 CLAUDE.md 与 AGENTS.md 的片段（personal / team）
-  context-layer/       capability-registry / card / probe-set 模板
+  context-layer/       capability-registry / card / scene-blueprint / probe-set 模板
 scripts/ctx/           ctx CLI（Node.js，跨平台）：查代码事实
 ```
 

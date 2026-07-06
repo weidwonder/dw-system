@@ -27,6 +27,11 @@
 ### 2.2 Codebase Card（`engineering-context/cards/<repo>.md`）
 每仓一张：职责、对外接口、上下游、废弃标记、测试入口、机器派生事实区。模板见 `assets/context-layer/card.md`。
 
+### 2.3 业务场景蓝图（`engineering-context/scenes/<场景>.md`）★ scene 的生产端
+card 是"单仓视角"，scene 蓝图是"端到端视角"——`ctx find-scenes` 查的就是它。**它不是查询出来的，是生产出来的**：以一个业务场景为粒度，**从入口线索出发闭合追踪每一条跨服务调用链**，产出入口清单、跨服务调用链明细、一页式时序（project.Class 粒度）、核心类方法总览、动态/配置化接口核对，每条标 ✅已确认/⏳待确认/⛔未生效。模板见 `assets/context-layer/scene-blueprint.md`。
+
+> **真相方向同样是"代码→蓝图"**：读入口顺调用链追到底，PRD 仅作 scope。没有 scene 蓝图，业务全景门限（mode-team §2）就没有东西可查——所以高频跨服务场景应优先补蓝图。这套"以 project 为粒度闭合追踪调用链、按代码证据标三态"的方法，个人版调试老系统链路也用得上。
+
 ## 3. 真相方向铁律（最重要）
 
 **card 的事实以合入后的源码为准**，通过读真实 diff（本次发布 vs 上一基线）派生。**PRD/Spec 只用于两件事**：
@@ -80,7 +85,7 @@ runProbeGate():
 
 | 组件 | 本轮 | 说明 |
 |---|---|---|
-| capability-registry / card | ✅ 模板 + 指南 | 真实内容由团队按指南填 |
+| capability-registry / card / scene-blueprint | ✅ 模板 + 指南 | 真实内容由团队按指南填；高频跨服务场景优先补 scene 蓝图 |
 | `ctx` discover/get-card/find-scenes/list-services/init | ✅ 可运行骨架 | 读本地 markdown card，关键词匹配 |
 | `ctx search-semantic`（embedding 语义检索）| ⏳ 仅接口 + 文档 | 见 `scripts/ctx/README.md` 设计章节 |
 | `ctx probe`（Frozen Probe Set 门禁）| ⏳ 模板 + 文档 | 门禁自检伪码见上；自动化 CI 接入待建 |
