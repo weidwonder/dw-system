@@ -33,6 +33,7 @@ sourceOfTruth: true
 | D7 | mode 初始化 | 首次调用写入 CLAUDE.md/AGENTS.md，幂等，之后不再问 |
 | D8 | context 访问 | 做成 **CLI（`ctx`）**，不用 MCP；给设计 + 可运行骨架，其余写文档 |
 | D9 | CLI 语言 | **Node.js**，必须跨平台（路径/shell/行尾） |
+| D10 | 安装形态 + 冲突插件处理 | **改为「随项目安装」为推荐路径**：安装器 `install.mjs`（Node 跨平台）把 skill 复制进 `<项目>/.claude/skills/`，并在**项目级** settings 里把冲突插件设 `false`（覆盖用户级 `true`）→ **只在本项目禁用，全局不动**。默认写 gitignored 的 `.claude/settings.local.json`（仅影响本机），`--shared` 写 committed 的 `.claude/settings.json`（全仓共享）。冲突插件：`superpowers` / `everything-claude-code` / `oh-my-claudecode` / `general-task`（后者可 `--keep` 保留）。依据：Claude Code settings 优先级 Managed>Local>Project>User，`enabledPlugins` 全 scope 可设。前提：项目级 settings 首触发 workspace-trust 对话框；改动下次启动生效。**弃用**上一版「全局禁用冲突插件」方案。 |
 
 ## 3. 架构：单 skill，内含 core / personal / company 三层
 
@@ -157,5 +158,5 @@ ai-dev-system/
 
 ## 10. 开放问题（已定案）
 
-- O1（已定）：**先在当前目录 `ai-dev-system/skills/ai-dev-workflow/` 构建**；最终以**全局安装一次**（`~/.claude/skills/`）为主用法，项目内只做初始化。README 说明两种安装方式。
+- O1（已定，后经 D10 修订）：**先在当前目录 `ai-dev-system/skills/ai-dev-workflow/` 构建**；~~最终以全局安装为主用法~~ → 改为**以「随项目安装」（`install.mjs`）为推荐路径**，同时项目级禁用冲突插件（见 D10）；全局安装保留为可选方式。README 说明两种方式。
 - O2（已定）：**需要 `ctx init` 子命令**，一行生成 `engineering-context/` 目录骨架（registry/card/probe 模板），降低团队上手摩擦。

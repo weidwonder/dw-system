@@ -31,16 +31,40 @@ ai-dev-system/
 
 ## 安装
 
-**方式 A：全局安装一次（推荐）** — 所有项目共用。
+**方式 A：随项目安装（推荐）** — 用安装器装进目标项目的 `.claude/skills/`，并在**本项目**级 settings 里禁用与本流程冲突的插件（只影响本项目，全局其他项目不受影响）。
 
 ```bash
-# Claude Code：拷进用户级 skills 目录
+# 在目标项目根目录下运行（node 必需，ctx CLI 也用它）
+node /path/to/ai-dev-system/install.mjs .
+
+#   --dry-run           先预演，不落盘
+#   --shared            禁用写进 .claude/settings.json（提交进 git，全仓协作者共享）
+#                       默认写 .claude/settings.local.json（gitignored，仅影响你）
+#   --keep=<插件短名>    保留某个插件不禁用（可多次）
+#   --no-plugins        只装 skill，不动任何 settings
+#   --yes               跳过交互确认
+```
+
+安装器会：① 复制 `ai-dev-workflow/`（含 `ctx` CLI）→ `<项目>/.claude/skills/`；② 合并（不覆盖）`enabledPlugins`，在本项目把下列冲突插件设为 `false`：
+
+| 插件 | 为什么与本流程冲突 |
+|---|---|
+| `superpowers` | brainstorming 的 HARD-GATE + `using-superpowers` 强制前置，会截胡 Triage / 直接实现 |
+| `everything-claude-code` | plan/tdd/coding-standards 与本流程重叠 + SessionStart hook 注入 |
+| `oh-my-claudecode` | autopilot/ralph/ultrawork 等端到端引擎替代本流程 + agents-overlay hook |
+| `general-task` | SessionStart 注入 clarify→plan→execute + `using-general-task` 强制前置（默认也禁用，`--keep=general-task` 可保留）|
+
+> **为什么能只在本项目禁用**：Claude Code settings 优先级为 Managed > Local(`.claude/settings.local.json`) > Project(`.claude/settings.json`) > User(`~/.claude/settings.json`)，`enabledPlugins` 在所有 scope 均可设。项目级 `false` 覆盖用户级 `true`，于是这些插件**只在本项目关闭**。
+>
+> ⚠ 两个前提：① 项目级 `.claude/settings.json` 首次打开会弹 **workspace trust** 对话框，信任后才生效；② settings 改动在**下次启动 Claude Code** 时生效，非当前会话。撤销只需删掉本项目 settings 里对应的 `false` 条目。
+
+**方式 B：全局安装一次** — 所有项目共用，但冲突插件需你手动权衡（全局装则全局都在，可能与本流程相互干扰）。
+
+```bash
 cp -r ai-dev-system/skills/ai-dev-workflow ~/.claude/skills/
 ```
 
 之后在任意项目里唤起 skill（提到"AI 辅助开发 / 开发流程 / 生成 spec / coding plan / 需求澄清"即可触发），首次会做一次**初始化**：询问该项目用个人版还是团队版，把结论写进项目根的 `CLAUDE.md` 和 `AGENTS.md`，之后不再询问。
-
-**方式 B：随项目安装** — 把 `skills/ai-dev-workflow/` 放进项目的 `.claude/skills/`，随仓库走。多项目会重复，适合强隔离场景。
 
 > **Codex 用户**：Codex 读 `AGENTS.md`。初始化会同时写入 `AGENTS.md`，其中指明 mode、Engineering Context 位置与 `ctx` 用法；`ctx` CLI 可直接通过 shell 调用，跨工具通用。
 
