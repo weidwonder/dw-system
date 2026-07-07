@@ -34,8 +34,13 @@ ai-dev-system/
 **方式 A：随项目安装（推荐）** — 用安装器装进目标项目的 `.claude/skills/`，并在**本项目**级 settings 里禁用与本流程冲突的插件（只影响本项目，全局其他项目不受影响）。
 
 ```bash
-# 在目标项目根目录下运行（node 必需，ctx CLI 也用它）
+# 在目标项目根目录下运行（需已装 node，ctx CLI 也用它）
+#   macOS / Linux —— install.mjs 带 shebang，直接跑不用写 node：
+/path/to/ai-dev-system/install.mjs .
+#   任意平台的等价写法：
 node /path/to/ai-dev-system/install.mjs .
+#   Windows（cmd / PowerShell）：
+#   \path\to\ai-dev-system\install.cmd .
 
 #   --dry-run           先预演，不落盘
 #   --shared            禁用写进 .claude/settings.json（提交进 git，全仓协作者共享）
