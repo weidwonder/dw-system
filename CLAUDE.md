@@ -4,7 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 这个仓库是什么
 
-**这是一个 AI 辅助开发方法论的分发包**，不是一个应用。它交付的产物是一个 Claude Code / Codex 通用的 **skill**（`ai-dev-workflow`）加一个零依赖的 **CLI**（`ctx`），用来把需求逐层降解成"零上下文 AI agent 也能可靠执行"的任务。
+**这是一个 AI 辅助开发方法论的分发包**，不是一个应用。它交付两个 Claude Code / Codex 通用的 **skill** 加一个零依赖的 **CLI**（`ctx`），把需求逐层降解成"零上下文 AI agent 也能可靠执行"的任务：
+
+- `ai-prd` —— 从零**产出 PRD**（批量提问 + 阶段化 elicitation），补 workflow 的前置空缺。
+- `ai-dev-workflow` —— 从**已有 PRD** 起步，走 Triage → Overview → Spec → Coding Plan → 测试。
+
+`ai-prd` 的产物正是 `ai-dev-workflow` Step 1 的输入，两者松耦合。
 
 核心信念（贯穿全部设计）：AI coding 能否落地，秘密不在流程本身，而在**能不能给 AI 一层可信、新鲜、权威的代码事实**——团队版的 Engineering Context 层正是为此而生。
 
@@ -31,7 +36,7 @@ node ai-dev-system/skills/ai-dev-workflow/scripts/ctx/src/cli.js <命令>
 
 ## 架构：三层 + 一条铁律
 
-**唯一的交付单元是 `ai-dev-system/skills/ai-dev-workflow/`。** 理解它要抓住三点：
+**交付单元是 `ai-dev-system/skills/` 下的两个 skill（`ai-prd` + `ai-dev-workflow`）。** 二者共享同一套约定（mode-aware、references+assets 结构、复用 `ai-dev-workflow` 的 mode 标记块）。`ai-prd` 是 workflow 的前置产 PRD 阶段，结构见 `ai-dev-system/skills/ai-prd/`（纯 markdown，无代码）。下文以 `ai-dev-workflow` 为主展开，抓三点：
 
 ### 1. skill 是 mode-aware 的（`SKILL.md` 是入口）
 
@@ -71,8 +76,12 @@ node ai-dev-system/skills/ai-dev-workflow/scripts/ctx/src/cli.js <命令>
 ## 目录速查
 
 ```
-install.mjs / install.cmd          安装器：复制 skill + 项目级禁用冲突插件
+install.mjs / install.cmd          安装器：复制 skills/ 下所有 skill + 项目级禁用冲突插件
 docs/superpowers/{specs,plans}/    本体系自身的设计与实施文档
+ai-dev-system/skills/ai-prd/        产 PRD skill：批量提问 elicitation + 三类模板
+  SKILL.md                         入口：读 mode → PRD 类型分流 → 4 批提问驱动
+  references/                      00-prd生成流程 / prd写作纪律 / prd质量清单 / mode-*
+  assets/templates/                change-prd（主）/ lite-issue-prd / product-prd
 ai-dev-system/skills/ai-dev-workflow/
   SKILL.md                         skill 入口：路由 + 初始化
   references/core/                 共享内核（流程总纲 / spec写作纪律 / AI-LLM-overlay）
@@ -91,6 +100,7 @@ ai-dev-system/skills/ai-dev-workflow/
 
 ## 改动时注意
 
-- 改 skill 行为 → 改 `references/` 下对应 markdown；改模板 → `assets/templates/`；两者是 skill 的"源码"。
+- 改 skill 行为 → 改对应 skill `references/` 下 markdown；改模板 → `assets/templates/`；两者是 skill 的"源码"。新增 skill 只要放进 `ai-dev-system/skills/<name>/` 并含 `SKILL.md`，`install.mjs` 会自动发现并复制，无需改安装器。
+- `ai-prd` 的北极星参考物是 `orgin/prd.demo/GK1接入板书总控PRD`（brownfield 变更 PRD 骨架）；改 `change-prd.md` 模板前对照设计文档 `docs/superpowers/specs/2026-07-06-ai-prd-design.md §7` 的覆盖度映射，别丢节。
 - 改 `ctx` 逻辑 → 同步更新 `scripts/ctx/test/` 下的测试，跑 `node --test` 保持全绿。card/registry 的格式约定见 `scripts/ctx/README.md` §card 格式约定，解析器依赖它。
 - 本仓库自身文档遵循用户全局的文档治理标准（`docs/` 为准）。

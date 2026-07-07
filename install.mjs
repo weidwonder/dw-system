@@ -99,9 +99,15 @@ async function main() {
   const opt = parseArgs(process.argv.slice(2));
   if (opt.help) { console.log(helpText()); return; }
 
-  const srcSkill = path.join(__dirname, 'ai-dev-system', 'skills', 'ai-dev-workflow');
-  if (!fs.existsSync(path.join(srcSkill, 'SKILL.md'))) {
-    console.error(`✗ 找不到源 skill：${srcSkill}\n  请在 ai-dev-system 仓库根目录内运行本脚本。`);
+  // 发现所有源 skill：ai-dev-system/skills/ 下含 SKILL.md 的子目录
+  const skillsRoot = path.join(__dirname, 'ai-dev-system', 'skills');
+  const skills = fs.existsSync(skillsRoot)
+    ? fs.readdirSync(skillsRoot)
+        .filter(n => fs.existsSync(path.join(skillsRoot, n, 'SKILL.md')))
+        .sort()
+    : [];
+  if (skills.length === 0) {
+    console.error(`✗ 找不到任何源 skill（${skillsRoot} 下无含 SKILL.md 的目录）\n  请在 ai-dev-system 仓库根目录内运行本脚本。`);
     process.exit(1);
   }
 
@@ -111,7 +117,7 @@ async function main() {
     process.exit(1);
   }
 
-  const destSkill = path.join(target, '.claude', 'skills', 'ai-dev-workflow');
+  const skillsDestDir = path.join(target, '.claude', 'skills');
   const settingsFile = path.join(target, '.claude', opt.shared ? 'settings.json' : 'settings.local.json');
   const toDisable = opt.noPlugins ? [] : CONFLICTS.filter(c => !isKept(c.key, opt.keep));
 
@@ -119,8 +125,11 @@ async function main() {
   console.log('\nai-dev-workflow 安装器');
   console.log('目标项目：' + target);
   console.log('\n将执行：');
-  console.log(`  1) 复制 skill → ${path.relative(target, destSkill) || destSkill}` +
-              (fs.existsSync(destSkill) ? '  (已存在，将覆盖)' : ''));
+  console.log(`  1) 复制 ${skills.length} 个 skill → ${path.relative(target, skillsDestDir) || skillsDestDir}/`);
+  for (const name of skills) {
+    const exists = fs.existsSync(path.join(skillsDestDir, name));
+    console.log(`       - ${name}${exists ? '  (已存在，将覆盖)' : ''}`);
+  }
   if (toDisable.length) {
     const scopeNote = opt.shared ? '提交进 git，全仓协作者共享' : 'gitignored，仅影响你本机';
     console.log(`  2) 在本项目禁用以下冲突插件 → ${path.relative(target, settingsFile)}  (${scopeNote})：`);
@@ -139,11 +148,14 @@ async function main() {
     if (ans !== 'y' && ans !== 'yes') { console.log('已取消。'); return; }
   }
 
-  // 1) 复制 skill
-  fs.mkdirSync(path.dirname(destSkill), { recursive: true });
-  fs.rmSync(destSkill, { recursive: true, force: true });
-  fs.cpSync(srcSkill, destSkill, { recursive: true });
-  console.log(`\n✓ skill 已复制 → ${destSkill}`);
+  // 1) 复制所有 skill
+  fs.mkdirSync(skillsDestDir, { recursive: true });
+  for (const name of skills) {
+    const dest = path.join(skillsDestDir, name);
+    fs.rmSync(dest, { recursive: true, force: true });
+    fs.cpSync(path.join(skillsRoot, name), dest, { recursive: true });
+  }
+  console.log(`\n✓ ${skills.length} 个 skill 已复制 → ${skillsDestDir}（${skills.join('、')}）`);
 
   // 2) 合并 enabledPlugins（不覆盖其他键）
   if (toDisable.length) {

@@ -19,15 +19,22 @@
 ├── install.cmd                 # Windows 包装
 ├── docs/                       # 设计 / 实施文档
 └── ai-dev-system/
-    └── skills/ai-dev-workflow/ # 唯一的 skill（Claude Code + Codex 通用）
-        ├── SKILL.md            # 入口：读 mode → 路由；首次调用 → 初始化
-        ├── references/
-        │   ├── core/           # 共享内核（技术栈无关）：流程总纲 / 写作纪律 / AI overlay
-        │   ├── personal/       # 个人薄外壳
-        │   └── company/        # 团队外壳 + Engineering Context 设计
-        ├── assets/             # 模板：spec / plan / test / config 注入片段 / card
-        └── scripts/ctx/        # ctx CLI（Node.js，跨平台）：查代码事实，替代 MCP
+    └── skills/                 # 两个 skill（Claude Code + Codex 通用）
+        ├── ai-prd/             # 产 PRD：批量提问 + 阶段化 elicitation
+        │   ├── SKILL.md        # 入口：读 mode → PRD 类型分流 → 4 批提问
+        │   ├── references/     # 生成流程 / 写作纪律 / 质量清单 / mode-*
+        │   └── assets/         # 模板：change-prd（主）/ lite-issue-prd / product-prd
+        └── ai-dev-workflow/    # 从已有 PRD 起步的主流程
+            ├── SKILL.md        # 入口：读 mode → 路由；首次调用 → 初始化
+            ├── references/
+            │   ├── core/       # 共享内核（技术栈无关）：流程总纲 / 写作纪律 / AI overlay
+            │   ├── personal/   # 个人薄外壳
+            │   └── company/    # 团队外壳 + Engineering Context 设计
+            ├── assets/         # 模板：spec / plan / test / config 注入片段 / card
+            └── scripts/ctx/    # ctx CLI（Node.js，跨平台）：查代码事实，替代 MCP
 ```
+
+> **两个 skill 的分工**：`ai-prd` 从零把需求做成 PRD → 产物作为 `ai-dev-workflow` Step 1 的输入 → workflow 继续做 Overview / Spec / Coding Plan / 测试。唤起 `ai-prd` 只需提到"帮我写 PRD / 生成需求文档 / 把这个需求写成 PRD"。
 
 设计与实施文档见 `docs/superpowers/specs/2026-07-06-ai-dev-system-design.md` 与 `docs/superpowers/plans/2026-07-06-ai-dev-system.md`。
 
@@ -54,7 +61,7 @@ node /path/to/ai-dev-system/install.mjs .
 #   --yes               跳过交互确认
 ```
 
-安装器会：① 复制 `ai-dev-workflow/`（含 `ctx` CLI）→ `<项目>/.claude/skills/`；② 合并（不覆盖）`enabledPlugins`，在本项目把下列冲突插件设为 `false`：
+安装器会：① 复制 `skills/` 下**所有** skill（`ai-prd` + `ai-dev-workflow`，含 `ctx` CLI）→ `<项目>/.claude/skills/`；② 合并（不覆盖）`enabledPlugins`，在本项目把下列冲突插件设为 `false`：
 
 | 插件 | 为什么与本流程冲突 |
 |---|---|
@@ -70,7 +77,7 @@ node /path/to/ai-dev-system/install.mjs .
 **方式 B：全局安装一次** — 所有项目共用，但冲突插件需你手动权衡（全局装则全局都在，可能与本流程相互干扰）。
 
 ```bash
-cp -r ai-dev-system/skills/ai-dev-workflow ~/.claude/skills/
+cp -r ai-dev-system/skills/ai-prd ai-dev-system/skills/ai-dev-workflow ~/.claude/skills/
 ```
 
 之后在任意项目里唤起 skill（提到"AI 辅助开发 / 开发流程 / 生成 spec / coding plan / 需求澄清"即可触发），首次会做一次**初始化**：询问该项目用个人版还是团队版，把结论写进项目根的 `CLAUDE.md` 和 `AGENTS.md`，之后不再询问。
