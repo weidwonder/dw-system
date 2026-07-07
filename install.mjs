@@ -7,7 +7,7 @@
 //      只影响本项目；其他项目照常启用）
 //
 // 用法：
-//   node ai-dev-system/install.mjs [目标目录] [选项]
+//   node install.mjs [目标目录] [选项]   （或 ./install.mjs [目标目录]）
 //
 // 选项：
 //   --yes, -y          跳过交互确认
@@ -57,7 +57,7 @@ function helpText() {
   return `ai-dev-workflow 项目安装器
 
 用法：
-  node ai-dev-system/install.mjs [目标目录] [选项]
+  node install.mjs [目标目录] [选项]   （或 ./install.mjs [目标目录]）
 
 选项：
   --yes, -y        跳过交互确认
@@ -99,9 +99,9 @@ async function main() {
   const opt = parseArgs(process.argv.slice(2));
   if (opt.help) { console.log(helpText()); return; }
 
-  const srcSkill = path.join(__dirname, 'skills', 'ai-dev-workflow');
+  const srcSkill = path.join(__dirname, 'ai-dev-system', 'skills', 'ai-dev-workflow');
   if (!fs.existsSync(path.join(srcSkill, 'SKILL.md'))) {
-    console.error(`✗ 找不到源 skill：${srcSkill}\n  请在 ai-dev-system 仓库内运行本脚本。`);
+    console.error(`✗ 找不到源 skill：${srcSkill}\n  请在 ai-dev-system 仓库根目录内运行本脚本。`);
     process.exit(1);
   }
 

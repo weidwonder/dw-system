@@ -14,18 +14,22 @@
 ## 组成
 
 ```
-ai-dev-system/
-└── skills/ai-dev-workflow/     # 唯一的 skill（Claude Code + Codex 通用）
-    ├── SKILL.md                # 入口：读 mode → 路由；首次调用 → 初始化
-    ├── references/
-    │   ├── core/               # 共享内核（技术栈无关）：流程总纲 / 写作纪律 / AI overlay
-    │   ├── personal/           # 个人薄外壳
-    │   └── company/            # 团队外壳 + Engineering Context 设计
-    ├── assets/                 # 模板：spec / plan / test / config 注入片段 / card
-    └── scripts/ctx/            # ctx CLI（Node.js，跨平台）：查代码事实，替代 MCP
+.                               # 仓库根
+├── install.mjs                 # 安装器（跨平台，直接 ./install.mjs 运行）
+├── install.cmd                 # Windows 包装
+├── docs/                       # 设计 / 实施文档
+└── ai-dev-system/
+    └── skills/ai-dev-workflow/ # 唯一的 skill（Claude Code + Codex 通用）
+        ├── SKILL.md            # 入口：读 mode → 路由；首次调用 → 初始化
+        ├── references/
+        │   ├── core/           # 共享内核（技术栈无关）：流程总纲 / 写作纪律 / AI overlay
+        │   ├── personal/       # 个人薄外壳
+        │   └── company/        # 团队外壳 + Engineering Context 设计
+        ├── assets/             # 模板：spec / plan / test / config 注入片段 / card
+        └── scripts/ctx/        # ctx CLI（Node.js，跨平台）：查代码事实，替代 MCP
 ```
 
-设计与实施文档见 `../docs/superpowers/specs/2026-07-06-ai-dev-system-design.md` 与 `../docs/superpowers/plans/2026-07-06-ai-dev-system.md`。
+设计与实施文档见 `docs/superpowers/specs/2026-07-06-ai-dev-system-design.md` 与 `docs/superpowers/plans/2026-07-06-ai-dev-system.md`。
 
 ---
 
