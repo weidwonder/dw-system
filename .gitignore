@@ -10,3 +10,7 @@ npm-debug.log*
 
 # ctx 语义索引（本地生成，勿提交）
 engineering-context/.index/
+
+# 朋友公司（上游）原始体系与备份 —— 仅本地参考，切勿推送
+orgin/
+orgin.bak/
