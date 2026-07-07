@@ -8,8 +8,8 @@
 node_modules/
 npm-debug.log*
 
-# ctx 语义索引（本地生成，勿提交）
-engineering-context/.index/
+# ctx 语义索引 / probe 历史（本地生成，任意层级，勿提交）
+**/.index/
 
 # 朋友公司（上游）原始体系与备份 —— 仅本地参考，切勿推送
 orgin/

@@ -105,5 +105,5 @@ cp -r ai-dev-system/skills/ai-dev-workflow ~/.claude/skills/
 | `ctx get-card <repo> [域]` | 取某仓 Codebase Card | ✅ |
 | `ctx find-scenes <关键词>` | 端到端业务场景蓝图 | ✅ |
 | `ctx list-services` | 列出已登记仓库/能力 | ✅ |
-| `ctx search-semantic "<q>"` | 语义检索 | ⏳ 预留，见 scripts/ctx/README.md |
-| `ctx probe` | 跑 Frozen Probe Set 防腐门禁 | ⏳ 预留，见 scripts/ctx/README.md |
+| `ctx search-semantic "<q>"` | discover 未命中时的语义兜底（本地向量相似） | ✅ |
+| `ctx probe` | 跑 Frozen Probe Set 防腐门禁（自检 + 棘轮 + 衰减） | ✅ |

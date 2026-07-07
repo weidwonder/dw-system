@@ -9,23 +9,24 @@ import {
   listServices,
   initScaffold,
 } from './commands.js';
+import { loadCards, loadRegistry } from './cards.js';
+import { searchSemantic } from './semantic.js';
+import { loadProbes, evaluateGate, readHistory, writeHistory } from './probe.js';
 
-/** 从 argv 解析 --dir 选项与位置参数。 */
+/** 从 argv 解析选项与位置参数。 */
 function parseArgs(argv) {
   const positional = [];
-  let dir = null;
-  let json = false;
+  const opts = { dir: null, json: false, asOf: null, staleDays: 90, top: 5 };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === '--dir') {
-      dir = argv[++i];
-    } else if (a === '--json') {
-      json = true;
-    } else {
-      positional.push(a);
-    }
+    if (a === '--dir') opts.dir = argv[++i];
+    else if (a === '--json') opts.json = true;
+    else if (a === '--as-of') opts.asOf = argv[++i];
+    else if (a === '--stale-days') opts.staleDays = Number(argv[++i]);
+    else if (a === '--top') opts.top = Number(argv[++i]);
+    else positional.push(a);
   }
-  return { positional, dir, json };
+  return { positional, ...opts };
 }
 
 function resolveCtxDir(dir) {
@@ -46,14 +47,17 @@ const HELP = `ctx — Engineering Context CLI
   ctx get-card <repo> [域] [--dir <ctx目录>]  取某仓 card（可指定段落）
   ctx find-scenes <关键词...> [--dir <ctx目录>]  端到端业务场景
   ctx list-services [--dir <ctx目录>]         列出已登记服务/能力
-  ctx search-semantic "<q>"                  ⏳ 未实现（见 README 设计章节）
-  ctx probe                                  ⏳ 未实现（见 README 设计章节）
+  ctx search-semantic "<q>" [--top N]        discover 未命中时的语义兜底（本地向量相似）
+                          [--as-of YYYY-MM-DD] [--stale-days N]
+  ctx probe [--json]                         跑 Frozen Probe Set 防腐门禁（含自检+棘轮）
 
 选项：--dir 指定 engineering-context 目录（默认 <cwd>/engineering-context）；--json 输出 JSON。
+search-semantic：--as-of 启用 freshness 降权（过期块标 stale 并 ×0.5）。
+probe 退出码：RED / GATE-BROKEN → 1（供 CI 门禁），GREEN / AMBER → 0。
 每条来自 card 的事实带 cite（path#anchor @确认时间）。`;
 
 function main() {
-  const { positional, dir, json } = parseArgs(process.argv.slice(2));
+  const { positional, dir, json, asOf, staleDays, top } = parseArgs(process.argv.slice(2));
   const cmd = positional[0];
 
   if (!cmd || cmd === 'help' || cmd === '--help' || cmd === '-h') {
@@ -100,10 +104,47 @@ function main() {
       out(json, human, r);
       return 0;
     }
-    case 'search-semantic':
-    case 'probe': {
-      console.log(`⏳ 未实现：\`${cmd}\`。设计见 scripts/ctx/README.md 与 references/company/context-engineering.md。`);
+    case 'search-semantic': {
+      const q = positional.slice(1).join(' ');
+      if (!q) { console.error('用法：ctx search-semantic "<query>" [--top N] [--as-of YYYY-MM-DD] [--stale-days N]'); return 2; }
+      const r = searchSemantic(ctxDir, q, { top, asOf, staleDays });
+      const human = r.results.length
+        ? r.results.map((x) => {
+            const flags = [x.authority === 'deprecated' ? '⚠已废弃' : 'canonical', x.stale ? '⏳过期' : ''].filter(Boolean).join(' ');
+            return `• ${x.service} › ${x.section}  (${x.score}) [${flags}]\n    ${x.cite}`;
+          }).join('\n')
+        : '（无语义命中）';
+      out(json, `${human}\n\n提示：\n- ${r.note.join('\n- ')}`, r);
       return 0;
+    }
+    case 'probe': {
+      const cards = loadCards(ctxDir);
+      const registry = loadRegistry(ctxDir);
+      const { probes, baseline } = loadProbes(ctxDir);
+      const ev = evaluateGate(cards, registry, probes, baseline);
+      const prev = readHistory(ctxDir);
+      const delta = prev && ev.passRate != null ? Number((ev.passRate - prev.passRate).toFixed(4)) : null;
+      const report = { ...ev, prevPassRate: prev ? prev.passRate : null, passRateDelta: delta };
+
+      const icon = { GREEN: '✅', AMBER: '🟡', RED: '🛑', 'GATE-BROKEN': '🛑' }[ev.verdict] || '?';
+      const lines = [];
+      lines.push(`门禁自检：${ev.selfCheck.ok ? '✅ 有效' : '🛑 失效'} — ${ev.selfCheck.reason}`);
+      if (ev.verdict === 'GATE-BROKEN') {
+        lines.push('🛑 GATE-BROKEN：门禁自检未通过，拒绝出具结论（流水线应红）。');
+      } else {
+        for (const r of ev.results) {
+          const inBase = baseline.has(String(r.n));
+          lines.push(`  ${r.pass ? '✅' : (inBase ? '🟡' : '🛑')} #${r.n} [${r.type}] ${r.input}` + (r.pass ? '' : `\n       期望：${r.expected}\n       实得：${r.actual}` + (inBase ? '（基线容忍）' : '（新增失败）')));
+        }
+        lines.push(`\n判级：${icon} ${ev.verdict}  通过率 ${(ev.passRate * 100).toFixed(0)}%` + (delta != null ? `（较上周期 ${delta >= 0 ? '+' : ''}${(delta * 100).toFixed(0)}%）` : ''));
+        if (ev.verdict === 'AMBER' && ev.canTightenBaseline) lines.push('棘轮：当前失败数少于基线，可收紧基线（只许变短）。');
+        if (ev.newFailures.length) lines.push(`RED 原因：新增失败 #${ev.newFailures.map((r) => r.n).join(', #')}`);
+      }
+      out(json, lines.join('\n'), report);
+
+      // 写本周期通过率供下次算衰减（时间戳由此处注入，核心逻辑不依赖时钟）
+      if (ev.passRate != null) writeHistory(ctxDir, ev.passRate, new Date().toISOString());
+      return ev.verdict === 'RED' || ev.verdict === 'GATE-BROKEN' ? 1 : 0;
     }
     default:
       console.error(`未知命令：${cmd}\n\n${HELP}`);

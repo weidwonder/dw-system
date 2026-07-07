@@ -28,4 +28,4 @@ runProbeGate():
 
 ## 运行节奏
 - 只在 **CI 发布 / 里程碑节点**运行，**不进 coding agent 的每轮 loop**。
-- 本轮交付：题集模板 + 门禁自检伪码（`ctx probe` 为预留命令，自动化 CI 接入待建，见 `scripts/ctx/README.md`）。
+- `ctx probe` 已可运行：机器可判题型（capability-mapping / deprecated-trap）+ 门禁自检 + 棘轮 + 衰减报告，`--json` 退出码供 CI 门禁（见 `scripts/ctx/README.md`）。"按权威面自动触发重扫"的 CI hook 仍待接。

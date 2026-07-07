@@ -139,12 +139,20 @@ const REGISTRY_STUB = `# Capability Registry — 产品能力到权威代码实�
 
 const PROBE_STUB = `# Frozen Probe Set — 上下文层防腐检测题集
 
-> 冻结、可打分、每发布周期重跑。种子题取自真实歧义案例，有已知正确答案。
+> 冻结、可打分、每发布周期重跑（\`ctx probe\`）。种子题取自真实歧义案例，有已知正确答案。
+> 机器可判题型：
+>   capability-mapping —— 输入=能力名，期望=\`权威仓库 :: 权威接口\`（门禁按 registry 求解并比对）。
+>   deprecated-trap    —— 输入=接口/实体，期望=\`deprecated\`（门禁须从 cards/registry 判其为废弃；被当 canonical 即失败）。
 
-| # | 题型 | 示例 | 期望答案 |
+## 探针
+| # | 类型 | 输入 | 期望 |
 |---|---|---|---|
-| 1 | Capability Mapping | 概念【X】→ canonical service+接口？ | 【权威实体 + 废弃替代】 |
-| 2 | Deprecated Trap | V1 是中间产物，状态？ | 【中间产物，不可用】 |
+| 1 | capability-mapping | 【能力名，如 背单词记录】 | 【repo :: POST /v2/xxx】 |
+| 2 | deprecated-trap | 【废弃接口，如 POST /v1/xxx】 | deprecated |
+
+## 基线（棘轮）
+> 已知、暂时容忍的失败项（按 # 列）。规则：只许变短——新增失败即门禁 RED。
+（空）
 `;
 
 const CTX_README_STUB = `# engineering-context

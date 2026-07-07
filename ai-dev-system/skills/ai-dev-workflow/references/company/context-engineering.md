@@ -87,15 +87,15 @@ runProbeGate():
 |---|---|---|
 | capability-registry / card / scene-blueprint | ✅ 模板 + 指南 | 真实内容由团队按指南填；高频跨服务场景优先补 scene 蓝图 |
 | `ctx` discover/get-card/find-scenes/list-services/init | ✅ 可运行骨架 | 读本地 markdown card，关键词匹配 |
-| `ctx search-semantic`（embedding 语义检索）| ⏳ 仅接口 + 文档 | 见 `scripts/ctx/README.md` 设计章节 |
-| `ctx probe`（Frozen Probe Set 门禁）| ⏳ 模板 + 文档 | 门禁自检伪码见上；自动化 CI 接入待建 |
-| 新鲜度按权威面触发接入 CI / 棘轮自动化 | ⏳ 文档 | 先手动跑 + 人工研判，成熟后接 CI |
+| `ctx search-semantic`（语义兜底检索）| ✅ 可运行（零依赖本地向量）| 字符 bigram 余弦 + 可选 synonyms；结果带 freshness/权威标记，`--as-of` 启用过期降权。神经 embedding 后端为可选升级 |
+| `ctx probe`（Frozen Probe Set 门禁）| ✅ 可运行 | 机器可判题型 + 门禁自检 + 棘轮 + 衰减报告；`--json` 退出码供 CI |
+| 新鲜度按权威面触发接入 CI | ⏳ 文档 | 棘轮/自检已在 `ctx probe` 落地；"按权威面自动触发重扫"仍需接 CI hook |
 
 ## 8. 演进路线（从骨架到完整）
 
-1. **现在**：`ctx init` 建目录 → 团队填 capability-registry + 高频仓 card → 开发时用 `ctx discover`。发布后手动刷卡。
-2. **下一步**：card 生成脚本化（code diff 为真相）；建 40~50 题 Probe Set。
-3. **成熟后**：按权威面触发接入 CI（绑发布周期，hotfix 人工研判）；门禁自检 + 棘轮上线；embedding 语义检索补上。
+1. **现在**：`ctx init` 建目录 → 团队填 capability-registry + 高频仓 card → 开发时用 `ctx discover`；`ctx search-semantic` 做兜底；`ctx probe`（含门禁自检 + 棘轮 + 衰减报告）已可跑。发布后手动刷卡。
+2. **下一步**：把 40~50 题 Probe Set 填实，`ctx probe --json` 接进 CI 发布门禁；card 生成脚本化（code diff 为真相）。
+3. **成熟后**：按权威面自动触发重扫（绑发布周期，hotfix 人工研判）；`search-semantic` 换 embedding 后端（保持"结果带 freshness + 权威标记"契约）。
 
 ## 9. 要避免的误区
 
