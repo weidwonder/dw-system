@@ -60,7 +60,9 @@ node ai-dev-system/skills/ai-dev-workflow/scripts/ctx/src/cli.js <命令>
 
 - `src/cards.js` — 纯读取/解析层：`splitSections`（按 `## 标题` 切段）、`loadCards`（`cards/<repo>.md`，文件名即 service 名）、`loadRegistry`（解析 `capability-registry.md` 的 markdown 表格，表头首列含 `Capability`）、`makeCite`。
 - `src/commands.js` — 命令/匹配层：`discover`（关键词 tokenize + 命中打分，registry 命中的能力给 card 加权）、`getCard`、`findScenes`、`listServices`、`initScaffold`。
-- `src/cli.js` — argv 解析 + 路由 + 人类/`--json` 双输出。`search-semantic` 与 `probe` 是**故意未实现的占位**（设计见 `scripts/ctx/README.md` 与 `references/company/context-engineering.md`）。
+- `src/cli.js` — argv 解析 + 路由 + 人类/`--json` 双输出。
+- `src/semantic.js` — `search-semantic`：零依赖本地向量相似（字符 bigram 余弦 + 可选 synonyms）；结果带 freshness/cite + 权威指针，`--as-of` 启用过期降权。是 discover 未命中时的兜底。
+- `src/probe.js` — `probe`：Frozen Probe Set 防腐门禁，机器可判题型 + 门禁自检（植入必错样本）+ 棘轮（新增失败 RED / 基线内 AMBER）+ 衰减报告；`--json` 退出码供 CI（RED/GATE-BROKEN=1）。
 
 **跨平台是硬约束**：全程用 `node:path`、UTF-8、`os.tmpdir()`，无 bash-only 语法，零第三方依赖。改 `ctx` 时必须保持这些。
 
