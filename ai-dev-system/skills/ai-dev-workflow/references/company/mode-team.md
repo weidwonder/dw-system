@@ -24,6 +24,7 @@
 - 遵循团队 doc-governance：`docs/REQUIREMENTS.md`（PRD 唯一真相源）、`docs/ARCHITECTURE.md`（从属 PRD）、`docs/index.md`（发现层入口）。
 - 影响产品范围的变更**先改 PRD**，再同步架构与 index。
 - Overview / spec / plan 归档到 `docs/` 对应子目录，创建后同步更新 index。
+- **需求准出时归并 PRD**（Step 10 之后）：本次需求若有变更 PRD、或改变了用户旅程 / 成功指标 / 能力状态，把口径变化归并回 `REQUIREMENTS.md`——含旅程叙事回填，不能只翻 Scope 状态位；变更 PRD 加"已归并"头注转归档（详见 ai-prd skill §PRD 生命周期）。
 
 ## 2. Engineering Context 日常用法（关键）
 

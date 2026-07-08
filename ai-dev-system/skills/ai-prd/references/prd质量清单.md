@@ -30,3 +30,4 @@
 - [ ] 写入 `docs/`（变更 PRD → `<name>-PRD-YYYYMMDD.md`；整品 → `docs/REQUIREMENTS.md`）。
 - [ ] 团队版：`docs/index.md` 已同步新增条目。
 - [ ] 已提示可接 `ai-dev-workflow` 做 Overview / 技术 Spec。
+- [ ] 变更 PRD：已注明收尾动作——实现验收后归并回整品 PRD 并转归档（见 `00-prd生成流程.md` §PRD 生命周期）。
