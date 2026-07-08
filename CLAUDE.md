@@ -96,7 +96,9 @@ ai-dev-system/skills/ai-dev-workflow/
 
 ## 安装器的关键设计（`install.mjs`）
 
-装 skill 时会在**目标项目级** settings 里把 4 个冲突插件（`superpowers`、`everything-claude-code`、`oh-my-claudecode`、`general-task`）设为 `false`——它们的 brainstorming HARD-GATE、强制前置 skill、端到端引擎、SessionStart 注入会截胡本流程。原理：Claude Code settings 优先级 `Managed > Local > Project > User`，项目级 `false` 覆盖用户级 `true`，于是**只在本项目禁用，不影响全局**。默认写 `.claude/settings.local.json`（gitignored），`--shared` 才写 `.claude/settings.json`。合并时**不覆盖** `enabledPlugins` 里的其他键。
+装 skill 时会在**目标项目级** settings 里把 4 个 Claude Code 冲突插件（`superpowers`、`everything-claude-code`、`oh-my-claudecode`、`general-task`）设为 `false`——它们的 brainstorming HARD-GATE、强制前置 skill、端到端引擎、SessionStart 注入会截胡本流程。原理：Claude Code settings 优先级 `Managed > Local > Project > User`，项目级 `false` 覆盖用户级 `true`，于是**只在本项目禁用，不影响全局**。默认写 `.claude/settings.local.json`（gitignored），`--shared` 才写 `.claude/settings.json`。合并时**不覆盖** `enabledPlugins` 里的其他键。
+
+Codex 目前不能用同样方式做项目级插件 `enabled=false`：Codex 0.142.5 的插件配置只从用户级 `~/.codex/config.toml` 顶层 `[plugins]` 读取，`[projects."<path>"]` 当前只支持 `trust_level`。因此安装器**不生成**项目根 `.codex/config.toml`，而是在目标项目 `AGENTS.md` 写入 `ai-dev-system:codex-conflicts` 标记块，约束 `superpowers:` 不要自动加载或主动触发，除非用户在当前对话明确要求。`--keep=superpowers` 会同时保留 Claude Code superpowers 插件并跳过 Codex 约束块。
 
 ## 改动时注意
 
