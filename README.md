@@ -42,7 +42,7 @@
 
 ## 安装
 
-**方式 A：随项目安装（推荐）** — 用安装器同时装进目标项目的 `.claude/skills/`（Claude Code）和 `.agents/skills/`（Codex），并在**本项目**级 Claude Code settings 里禁用与本流程冲突的插件（只影响本项目，全局其他项目不受影响）。
+**方式 A：随项目安装（推荐）** — 用安装器同时装进目标项目的 `.claude/skills/`（Claude Code）和 `.agents/skills/`（Codex），并在**本项目**级配置里禁用或约束与本流程冲突的 Claude Code / Codex 插件或技能开关（只影响本项目，全局其他项目不受影响）。
 
 ```bash
 # 在目标项目根目录下运行（需已装 node，ctx CLI 也用它）
@@ -54,10 +54,10 @@ node /path/to/ai-dev-system/install.mjs .
 #   \path\to\ai-dev-system\install.cmd .
 
 #   --dry-run           先预演，不落盘
-#   --shared            Claude Code 插件禁用写进 .claude/settings.json（提交进 git，全仓协作者共享）
+#   --shared            Claude Code 禁用写进 .claude/settings.json（提交进 git，全仓协作者共享）
 #                       默认写 .claude/settings.local.json（gitignored，仅影响你）
 #   --keep=<插件短名>    保留某个插件不禁用（可多次）
-#   --no-plugins        只装 skill，不动任何 settings
+#   --no-plugins        只装 skill，不动任何冲突插件/技能设置或 AGENTS.md 约束
 #   --yes               跳过交互确认
 ```
 
@@ -65,18 +65,22 @@ node /path/to/ai-dev-system/install.mjs .
 
 1. 复制 `skills/` 下**所有** skill（`ai-prd` + `ai-dev-workflow`，含 `ctx` CLI）→ `<项目>/.claude/skills/`，完成 Claude Code 项目级安装；
 2. 复制同一批 skill → `<项目>/.agents/skills/`，完成 Codex 项目级安装；
-3. 合并（不覆盖）Claude Code 的 `enabledPlugins`，在本项目把下列冲突插件设为 `false`：
+3. 合并（不覆盖）Claude Code 的 `enabledPlugins`，在本项目把冲突插件设为 `false`；
+4. 写入项目 `AGENTS.md` 的标记块，在 Codex 中约束冲突技能自动触发。
 
 | 插件 | 为什么与本流程冲突 |
 |---|---|
-| `superpowers` | brainstorming 的 HARD-GATE + `using-superpowers` 强制前置，会截胡 Triage / 直接实现 |
-| `everything-claude-code` | plan/tdd/coding-standards 与本流程重叠 + SessionStart hook 注入 |
-| `oh-my-claudecode` | autopilot/ralph/ultrawork 等端到端引擎替代本流程 + agents-overlay hook |
-| `general-task` | SessionStart 注入 clarify→plan→execute + `using-general-task` 强制前置（默认也禁用，`--keep=general-task` 可保留）|
+| Claude Code `superpowers` | brainstorming 的 HARD-GATE + `using-superpowers` 强制前置，会截胡 Triage / 直接实现 |
+| Claude Code `everything-claude-code` | plan/tdd/coding-standards 与本流程重叠 + SessionStart hook 注入 |
+| Claude Code `oh-my-claudecode` | autopilot/ralph/ultrawork 等端到端引擎替代本流程 + agents-overlay hook |
+| Claude Code `general-task` | SessionStart 注入 clarify→plan→execute + `using-general-task` 强制前置（默认也禁用，`--keep=general-task` 可保留）|
+| Codex `superpowers@openai-api-curated` | Codex 0.142.5 暂无可验证的项目级 plugin `enabled=false`；安装器写入项目 `AGENTS.md` 标记块，要求不要自动加载或主动触发 `superpowers:`，除非用户当前对话明确要求 |
 
 > **为什么能只在本项目禁用**：Claude Code settings 优先级为 Managed > Local(`.claude/settings.local.json`) > Project(`.claude/settings.json`) > User(`~/.claude/settings.json`)，`enabledPlugins` 在所有 scope 均可设。项目级 `false` 覆盖用户级 `true`，于是这些插件**只在本项目关闭**。
 >
-> ⚠ 两个前提：① 项目级 `.claude/settings.json` 首次打开会弹 **workspace trust** 对话框，信任后才生效；② settings 改动在**下次启动 Claude Code** 时生效，非当前会话。撤销只需删掉本项目 settings 里对应的 `false` 条目。
+> Codex 当前插件配置只从用户级 `~/.codex/config.toml` 的顶层 `[plugins]` 读取；源码中的 `ProjectConfig` 当前只支持 `trust_level`。因此安装器**不会**生成无效的项目根 `.codex/config.toml`，而是写入项目 `AGENTS.md` 的 `ai-dev-system:codex-conflicts` 标记块来约束自动触发行为。
+>
+> ⚠ 两个前提：① 项目级 `.claude/settings.json` 首次打开会弹 **workspace trust** 对话框，信任后才生效；② settings / `AGENTS.md` 改动在**下次启动 Claude Code / Codex** 时生效，非当前会话。撤销只需删掉本项目 settings 里对应的 `false` 条目，或删掉 `AGENTS.md` 中的 `ai-dev-system:codex-conflicts` 标记块。
 
 **方式 B：全局安装一次** — 所有项目共用，但冲突插件需你手动权衡（全局装则全局都在，可能与本流程相互干扰）。
 
