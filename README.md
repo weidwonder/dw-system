@@ -42,7 +42,7 @@
 
 ## 安装
 
-**方式 A：随项目安装（推荐）** — 用安装器装进目标项目的 `.claude/skills/`，并在**本项目**级 settings 里禁用与本流程冲突的插件（只影响本项目，全局其他项目不受影响）。
+**方式 A：随项目安装（推荐）** — 用安装器同时装进目标项目的 `.claude/skills/`（Claude Code）和 `.agents/skills/`（Codex），并在**本项目**级 Claude Code settings 里禁用与本流程冲突的插件（只影响本项目，全局其他项目不受影响）。
 
 ```bash
 # 在目标项目根目录下运行（需已装 node，ctx CLI 也用它）
@@ -54,14 +54,18 @@ node /path/to/ai-dev-system/install.mjs .
 #   \path\to\ai-dev-system\install.cmd .
 
 #   --dry-run           先预演，不落盘
-#   --shared            禁用写进 .claude/settings.json（提交进 git，全仓协作者共享）
+#   --shared            Claude Code 插件禁用写进 .claude/settings.json（提交进 git，全仓协作者共享）
 #                       默认写 .claude/settings.local.json（gitignored，仅影响你）
 #   --keep=<插件短名>    保留某个插件不禁用（可多次）
 #   --no-plugins        只装 skill，不动任何 settings
 #   --yes               跳过交互确认
 ```
 
-安装器会：① 复制 `skills/` 下**所有** skill（`ai-prd` + `ai-dev-workflow`，含 `ctx` CLI）→ `<项目>/.claude/skills/`；② 合并（不覆盖）`enabledPlugins`，在本项目把下列冲突插件设为 `false`：
+安装器会：
+
+1. 复制 `skills/` 下**所有** skill（`ai-prd` + `ai-dev-workflow`，含 `ctx` CLI）→ `<项目>/.claude/skills/`，完成 Claude Code 项目级安装；
+2. 复制同一批 skill → `<项目>/.agents/skills/`，完成 Codex 项目级安装；
+3. 合并（不覆盖）Claude Code 的 `enabledPlugins`，在本项目把下列冲突插件设为 `false`：
 
 | 插件 | 为什么与本流程冲突 |
 |---|---|
@@ -78,11 +82,12 @@ node /path/to/ai-dev-system/install.mjs .
 
 ```bash
 cp -r ai-dev-system/skills/ai-prd ai-dev-system/skills/ai-dev-workflow ~/.claude/skills/
+cp -r ai-dev-system/skills/ai-prd ai-dev-system/skills/ai-dev-workflow ~/.agents/skills/
 ```
 
 之后在任意项目里唤起 skill（提到"AI 辅助开发 / 开发流程 / 生成 spec / coding plan / 需求澄清"即可触发），首次会做一次**初始化**：询问该项目用个人版还是团队版，把结论写进项目根的 `CLAUDE.md` 和 `AGENTS.md`，之后不再询问。
 
-> **Codex 用户**：Codex 读 `AGENTS.md`。初始化会同时写入 `AGENTS.md`，其中指明 mode、Engineering Context 位置与 `ctx` 用法；`ctx` CLI 可直接通过 shell 调用，跨工具通用。
+> **Codex 用户**：项目级 skill 安装在 `.agents/skills/`。Codex 读 `AGENTS.md`；初始化会同时写入 `AGENTS.md`，其中指明 mode、Engineering Context 位置与 `ctx` 用法；`ctx` CLI 可直接通过 shell 调用，跨工具通用。
 
 ---
 

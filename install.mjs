@@ -2,8 +2,9 @@
 // ai-dev-workflow 项目安装器（跨平台，零依赖）
 //
 // 作用：
-//   1) 把 skills/ai-dev-workflow/ 复制进 <目标项目>/.claude/skills/ai-dev-workflow/
-//   2) 在【本项目】级 settings 里禁用与本流程冲突的插件（覆盖用户级的 true，
+//   1) 把所有 skill 复制进 <目标项目>/.claude/skills/ 和 <目标项目>/.agents/skills/
+//      分别完成 Claude Code 与 Codex 的项目级安装
+//   2) 在【本项目】级 Claude Code settings 里禁用与本流程冲突的插件（覆盖用户级的 true，
 //      只影响本项目；其他项目照常启用）
 //
 // 用法：
@@ -68,6 +69,10 @@ function helpText() {
   --dry-run        预演，不落盘
   -h, --help       本帮助
 
+默认项目级安装到两个目录：
+  - .claude/skills/  Claude Code 使用
+  - .agents/skills/  Codex 使用
+
 默认在目标项目里禁用这些与本流程冲突的插件（仅本项目，不影响全局）：
 ${CONFLICTS.map(c => '  - ' + c.key).join('\n')}`;
 }
@@ -95,6 +100,15 @@ function ask(question) {
   return new Promise(resolve => rl.question(question, ans => { rl.close(); resolve(ans); }));
 }
 
+function copySkills(skillsRoot, skills, destDir) {
+  fs.mkdirSync(destDir, { recursive: true });
+  for (const name of skills) {
+    const dest = path.join(destDir, name);
+    fs.rmSync(dest, { recursive: true, force: true });
+    fs.cpSync(path.join(skillsRoot, name), dest, { recursive: true });
+  }
+}
+
 async function main() {
   const opt = parseArgs(process.argv.slice(2));
   if (opt.help) { console.log(helpText()); return; }
@@ -117,7 +131,8 @@ async function main() {
     process.exit(1);
   }
 
-  const skillsDestDir = path.join(target, '.claude', 'skills');
+  const claudeSkillsDestDir = path.join(target, '.claude', 'skills');
+  const codexSkillsDestDir = path.join(target, '.agents', 'skills');
   const settingsFile = path.join(target, '.claude', opt.shared ? 'settings.json' : 'settings.local.json');
   const toDisable = opt.noPlugins ? [] : CONFLICTS.filter(c => !isKept(c.key, opt.keep));
 
@@ -125,21 +140,25 @@ async function main() {
   console.log('\nai-dev-workflow 安装器');
   console.log('目标项目：' + target);
   console.log('\n将执行：');
-  console.log(`  1) 复制 ${skills.length} 个 skill → ${path.relative(target, skillsDestDir) || skillsDestDir}/`);
+  console.log(`  1) 复制 ${skills.length} 个 skill → ${path.relative(target, claudeSkillsDestDir) || claudeSkillsDestDir}/  (Claude Code 项目级)`);
+  console.log(`  2) 复制 ${skills.length} 个 skill → ${path.relative(target, codexSkillsDestDir) || codexSkillsDestDir}/  (Codex 项目级)`);
   for (const name of skills) {
-    const exists = fs.existsSync(path.join(skillsDestDir, name));
-    console.log(`       - ${name}${exists ? '  (已存在，将覆盖)' : ''}`);
+    const existsInClaude = fs.existsSync(path.join(claudeSkillsDestDir, name));
+    const existsInCodex = fs.existsSync(path.join(codexSkillsDestDir, name));
+    const existsNote = existsInClaude || existsInCodex ? '  (已存在，将覆盖)' : '';
+    console.log(`       - ${name}${existsNote}`);
   }
   if (toDisable.length) {
     const scopeNote = opt.shared ? '提交进 git，全仓协作者共享' : 'gitignored，仅影响你本机';
-    console.log(`  2) 在本项目禁用以下冲突插件 → ${path.relative(target, settingsFile)}  (${scopeNote})：`);
+    console.log(`  3) 在本项目禁用以下 Claude Code 冲突插件 → ${path.relative(target, settingsFile)}  (${scopeNote})：`);
     for (const c of toDisable) console.log(`       - ${c.key}\n           ↳ ${c.reason}`);
   } else {
-    console.log('  2) 不修改任何插件设置' + (opt.noPlugins ? '（--no-plugins）' : '（全部 --keep）'));
+    console.log('  3) 不修改任何插件设置' + (opt.noPlugins ? '（--no-plugins）' : '（全部 --keep）'));
   }
   console.log('\n  ⚠ 提示：');
   console.log('     · 项目级 .claude/settings.json 首次打开会弹 workspace trust 对话框，信任后才生效。');
   console.log('     · settings 改动在【下次启动 Claude Code】时生效，非当前会话。');
+  console.log('     · Codex 会在项目内读取 .agents/skills/；重新打开项目或下一轮会话后可用。');
   console.log('     · 全局（其他项目）不受影响。撤销：删掉本项目 settings 里对应的 false 条目即可。');
   if (opt.dryRun) { console.log('\n[--dry-run] 未做任何改动。'); return; }
 
@@ -148,14 +167,11 @@ async function main() {
     if (ans !== 'y' && ans !== 'yes') { console.log('已取消。'); return; }
   }
 
-  // 1) 复制所有 skill
-  fs.mkdirSync(skillsDestDir, { recursive: true });
-  for (const name of skills) {
-    const dest = path.join(skillsDestDir, name);
-    fs.rmSync(dest, { recursive: true, force: true });
-    fs.cpSync(path.join(skillsRoot, name), dest, { recursive: true });
-  }
-  console.log(`\n✓ ${skills.length} 个 skill 已复制 → ${skillsDestDir}（${skills.join('、')}）`);
+  // 1) 复制所有 skill 到 Claude Code 与 Codex 的项目级目录
+  copySkills(skillsRoot, skills, claudeSkillsDestDir);
+  copySkills(skillsRoot, skills, codexSkillsDestDir);
+  console.log(`\n✓ ${skills.length} 个 skill 已复制 → ${claudeSkillsDestDir}（${skills.join('、')}）`);
+  console.log(`✓ ${skills.length} 个 skill 已复制 → ${codexSkillsDestDir}（${skills.join('、')}）`);
 
   // 2) 合并 enabledPlugins（不覆盖其他键）
   if (toDisable.length) {
@@ -175,6 +191,7 @@ async function main() {
 
   console.log('\n完成。下一步：');
   console.log('  · 重启 Claude Code（或在本项目重新打开），信任 workspace 后生效。');
+  console.log('  · 在 Codex 中重新打开本项目或开启下一轮会话后，.agents/skills/ 下的 skill 可用。');
   console.log('  · 在项目里唤起 skill（提到"AI 辅助开发 / 生成 spec / coding plan / 需求澄清"即可），');
   console.log('    首次会询问本项目用个人版还是团队版，并写入 CLAUDE.md 与 AGENTS.md。');
 }
