@@ -65,6 +65,8 @@ npx --yes github:weidwonder/ai-dev-system . --ref=<分支或标签>
 
 常用参数：`--shared` 把 Claude Code 项目配置提交给全仓共享；`--keep=<插件短名>` 保留指定冲突插件；`--no-plugins` 只装 skill；`--yes` 跳过安装器自身的交互确认。完整参数用 `npx --yes github:weidwonder/ai-dev-system --help` 查看。
 
+> 命令前面的 `npx --yes` 只跳过 npm 下载确认，安装器仍会在修改项目之前询问一次。需要全自动安装时，在目标目录后再传一次：`npx --yes github:weidwonder/ai-dev-system . --yes`。
+
 **方式 B：本地脚本安装（仓库维护与排障）**
 
 ```bash

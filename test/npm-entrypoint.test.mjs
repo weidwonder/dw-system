@@ -25,6 +25,7 @@ test('root package exposes the GitHub npx installer command', () => {
   assert.match(manifest.repository.url, /github\.com\/weidwonder\/ai-dev-system/)
   assert.match(readme, /npx --yes github:weidwonder\/ai-dev-system \./)
   assert.match(readme, /npx --yes github:weidwonder\/ai-dev-system --help/)
+  assert.match(readme, /npx --yes github:weidwonder\/ai-dev-system \. --yes/)
   assert.doesNotMatch(readme, /github:weidwonder\/ai-dev-system -- --help/)
 })
 
