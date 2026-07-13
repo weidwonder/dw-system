@@ -27,12 +27,16 @@ cd ai-dev-system/skills/ai-dev-workflow/scripts/ctx && node --test test/cli.test
 # 直接运行 ctx CLI（无需 install）
 node ai-dev-system/skills/ai-dev-workflow/scripts/ctx/src/cli.js <命令>
 
-# 把 skill 安装进某个目标项目（跨平台，install.mjs 带 shebang 可直接运行）
-./install.mjs <目标项目目录>            # 默认 --dry-run 前先预演
+# 把 GitHub 发布源的 skill 安装进某个目标项目（需要 Node.js 与 Git）
+./install.mjs <目标项目目录>
 ./install.mjs <目标项目目录> --dry-run  # 预演，不落盘
+./install.mjs <目标项目目录> --ref=<分支或标签>
+
+# 仅测试当前工作区尚未发布的 skill
+./install.mjs <目标项目目录> --source-dir=.
 ```
 
-没有 build 步骤、没有 lint 配置、没有运行时依赖——整个包是纯 Node.js ESM + markdown。
+没有 build 步骤、没有 lint 配置、没有 npm 运行时依赖——整个包是纯 Node.js ESM + markdown；安装器额外调用 Git 获取发布源。
 
 ## 架构：三层 + 一条铁律
 
@@ -76,15 +80,15 @@ node ai-dev-system/skills/ai-dev-workflow/scripts/ctx/src/cli.js <命令>
 ## 目录速查
 
 ```
-install.mjs / install.cmd          安装器：复制 skills/ + Claude 插件禁用 + Codex AGENTS 约束
+install.mjs / install.cmd          安装器：拉取 GitHub 发布源 + 安装 skills + 项目级冲突约束
 docs/{spec,plan,report}/           本体系自身的规范 / 计划 / 报告
 ai-dev-system/skills/ai-prd/        产 PRD skill：批量提问 elicitation + 三类模板
   SKILL.md                         入口：读 mode → PRD 类型分流 → 4 批提问驱动
-  references/                      00-prd生成流程 / prd写作纪律 / prd质量清单 / mode-*
+  references/                      PRD 流程 / 业务语言纪律 / 写作纪律 / 质量清单 / mode-*
   assets/templates/                change-prd（主）/ lite-issue-prd / product-prd
 ai-dev-system/skills/ai-dev-workflow/
   SKILL.md                         skill 入口：路由 + 初始化
-  references/core/                 共享内核（流程总纲 / 写作纪律 / AI overlay / 文档治理）
+  references/core/                 共享内核（流程 / worktree / 用户沟通 / 写作 / AI overlay / 文档治理）
   references/personal/             个人薄外壳
   references/company/              团队外壳 + Engineering Context 完整设计
   references/init-初始化.md         幂等写入 CLAUDE.md/AGENTS.md 的规则
@@ -96,13 +100,17 @@ ai-dev-system/skills/ai-dev-workflow/
 
 ## 安装器的关键设计（`install.mjs`）
 
+默认安装源是 `https://github.com/weidwonder/ai-dev-system.git` 的 `main` 分支。安装器先把 `--repo` / `--ref` 指定的版本拉到系统临时目录，确认其中存在有效 skill 后，才读取并修改目标项目；下载或源校验失败时目标项目保持不变，临时目录在成功、取消、预演和异常场景都会清理。`--source-dir` 仅用于验证当前工作区未发布内容，不是正式安装路径。
+
 装 skill 时会在**目标项目级** settings 里把 4 个 Claude Code 冲突插件（`superpowers`、`everything-claude-code`、`oh-my-claudecode`、`general-task`）设为 `false`——它们的 brainstorming HARD-GATE、强制前置 skill、端到端引擎、SessionStart 注入会截胡本流程。原理：Claude Code settings 优先级 `Managed > Local > Project > User`，项目级 `false` 覆盖用户级 `true`，于是**只在本项目禁用，不影响全局**。默认写 `.claude/settings.local.json`（gitignored），`--shared` 才写 `.claude/settings.json`。合并时**不覆盖** `enabledPlugins` 里的其他键。
 
 Codex 安装不修改用户级全局插件配置，而是在目标项目 `AGENTS.md` 写入并校验 `ai-dev-system:codex-conflicts` 标记块，约束 `superpowers:` 不要自动加载或主动触发，除非用户在当前对话明确要求。若 `CLAUDE.md` 或 `AGENTS.md` 已有 workflow mode，安装器会幂等补齐另一入口。`--keep=superpowers` 会保留 Claude Code 插件，并移除安装器此前写入的 Claude 禁用项与 Codex 约束块。
 
 ## 改动时注意
 
-- 改 skill 行为 → 改对应 skill `references/` 下 markdown；改模板 → `assets/templates/`；两者是 skill 的"源码"。新增 skill 只要放进 `ai-dev-system/skills/<name>/` 并含 `SKILL.md`，`install.mjs` 会自动发现并复制，无需改安装器。
+- 改 skill 行为 → 改对应 skill `references/` 下 markdown；改模板 → `assets/templates/`；两者是 skill 的"源码"。新增 skill 只要放进 `ai-dev-system/skills/<name>/` 并含 `SKILL.md`，发布到安装源后 `install.mjs` 会自动发现并复制，无需改安装器；发布前用 `--source-dir=.` 验证。
+- 用户沟通必须使用业务语言：大架构交给用户确认，模块内设计只问业务问题，详细程序设计不要求用户确认；`ai-prd` 的对话与成稿不得包含程序实现。
+- 进入 workflow 后，任何文档或代码落盘前必须按 `references/core/worktree开发纪律.md` 建立独立 worktree；Lean 也不例外。全部门禁通过后自动合并主分支，失败保留 worktree，禁止处理主工作树的用户改动或绕过保护分支。
 - `ai-prd` 的北极星参考物是 `orgin/prd.demo/GK1接入板书总控PRD`（brownfield 变更 PRD 骨架）；改 `change-prd.md` 模板前对照设计文档 `docs/spec/2026-07-06-ai-prd-design.md §7` 的覆盖度映射，别丢节。
 - 改 `ctx` 逻辑 → 同步更新 `scripts/ctx/test/` 下的测试，跑 `node --test` 保持全绿。card/registry 的格式约定见 `scripts/ctx/README.md` §card 格式约定，解析器依赖它。
 - 本仓库自身与安装目标的文档目录固定为：spec → `docs/spec/`，plan → `docs/plan/`，report → `docs/report/`。

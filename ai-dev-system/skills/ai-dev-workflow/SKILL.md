@@ -13,9 +13,11 @@ description: "AI 辅助开发主流程。当用户要做需求落地、AI 辅助
 references/
   core/                共享内核（任何 mode 都加载）
     00-流程总纲.md       Triage 分流 + 10 步流程，每步配 prompt 和模板
+    worktree开发纪律.md  独立 worktree 全程开发 + 完成后自动合并主分支
     spec写作纪律.md      零上下文可动手 / RFC2119 / 无占位符
     AI-LLM-overlay.md    含 AI/LLM 时叠加的 AI 契约清单
     文档治理.md          spec / plan / report 的唯一输出目录与命名
+    用户沟通纪律.md      业务语言 + 大架构确认 + 详细设计自主决策
   personal/
     mode-personal.md     个人薄外壳：默认一页 spec、可跳步、memory 约定
   company/
@@ -44,12 +46,12 @@ scripts/ctx/           ctx CLI（Node.js，跨平台）：查代码事实
 
 2b. 若【有】标记块 → 读出 mode，不再询问；若另一文件缺失或无标记块，幂等补齐同一 mode 块。
 
-3. 加载 core（全部四篇），再按 mode 加载对应外壳：
+3. 加载 core（全部六篇），再按 mode 加载对应外壳：
      - personal → references/personal/mode-personal.md
      - team     → references/company/mode-team.md（+ 需要时 context-engineering.md）
 
 4. 按 references/core/00-流程总纲.md 驱动：
-     - 先做 Triage 分流（4 个判定问题）。
+     - 路由完成后先过 worktree 工作区隔离门，再做 Triage 分流（4 个判定问题）。
      - 个人版：4 否走一页 Lean Spec 直接实现；大需求才升级。
      - 团队版：按 10 步走；跨仓需求先出 Overview；查代码事实用 `ctx`，事实带 cite。
 ```
@@ -61,6 +63,8 @@ scripts/ctx/           ctx CLI（Node.js，跨平台）：查代码事实
 - **写文档写到零上下文也能动手**：遵循 references/core/spec写作纪律.md。
 - **含 AI/LLM 功能时叠加 overlay**：模型参与功能行为（生成/总结/分类/检索/OCR/ASR/固定 prompt 流程）时，在基础 spec 上叠加 references/core/AI-LLM-overlay.md 的 AI 契约。
 - **文档只写入标准目录**：spec 写 `docs/spec/`，plan 写 `docs/plan/`，report 写 `docs/report/`；不得写项目根或工具命名目录。遵循 `references/core/文档治理.md`。
+- **用户沟通只用业务语言**：大架构必须由用户确认；模块内设计只通过业务问题取约束；详细程序设计由 AI 自主完成，无需用户确认。遵循 `references/core/用户沟通纪律.md`。
+- **开发全程隔离并自动归并**：任何文档或代码落盘前进入独立 worktree，Lean 与完整流程都不得绕过；全程使用独立 worktree，全部完成并通过门禁后自动合并主分支，无需再次询问。失败时保留现场，不得绕过保护分支或处理用户未提交改动。遵循 `references/core/worktree开发纪律.md`。
 
 ## 何时用哪个模板
 

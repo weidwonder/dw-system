@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-// ai-dev-workflow 项目安装器（跨平台，零依赖）
+// ai-dev-workflow 项目安装器（跨平台，需要 Node.js 与 Git）
 //
 // 作用：
-//   1) 把所有 skill 复制进 <目标项目>/.claude/skills/ 和 <目标项目>/.agents/skills/
+//   1) 从 GitHub 获取指定版本，把所有 skill 复制进
+//      <目标项目>/.claude/skills/ 和 <目标项目>/.agents/skills/
 //      分别完成 Claude Code 与 Codex 的项目级安装
 //   2) 在【本项目】级配置里禁用与本流程冲突的 Claude Code 插件（覆盖用户级启用，
 //      只影响本项目；其他项目照常启用）。
@@ -17,6 +18,9 @@
 //                      默认写 .claude/settings.local.json（gitignored，仅影响你）
 //   --keep=<key>       保留插件，并撤销安装器此前写入的禁用/约束；可多次
 //   --no-plugins       只装 skill，不改任何冲突插件/技能设置
+//   --repo=<url>        安装源 Git 仓库（默认官方 GitHub 仓库）
+//   --ref=<name>        安装版本：分支或标签（默认 main）
+//   --source-dir=<dir>  使用本地仓库源码（仅用于开发和测试）
 //   --dry-run          只打印将做什么，不落盘
 //   -h, --help         显示帮助
 //
@@ -31,9 +35,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
-import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const DEFAULT_REPO = 'https://github.com/weidwonder/ai-dev-system.git';
+const DEFAULT_REF = 'main';
 
 // 与本流程冲突的插件：会抢流程、强制前置、或注入干扰 hook。
 // key 是 enabledPlugins 里的完整标识 name@marketplace（按默认安装源）。
@@ -54,7 +60,18 @@ const WORKFLOW_MODE_START = '<!-- ai-dev-workflow:start -->';
 const WORKFLOW_MODE_END = '<!-- ai-dev-workflow:end -->';
 
 function parseArgs(argv) {
-  const opt = { yes: false, shared: false, keep: [], noPlugins: false, dryRun: false, help: false, target: null };
+  const opt = {
+    yes: false,
+    shared: false,
+    keep: [],
+    noPlugins: false,
+    dryRun: false,
+    help: false,
+    repo: DEFAULT_REPO,
+    ref: DEFAULT_REF,
+    sourceDir: null,
+    target: null,
+  };
   for (const a of argv) {
     if (a === '--yes' || a === '-y') opt.yes = true;
     else if (a === '--shared') opt.shared = true;
@@ -62,9 +79,15 @@ function parseArgs(argv) {
     else if (a === '--dry-run') opt.dryRun = true;
     else if (a === '-h' || a === '--help') opt.help = true;
     else if (a.startsWith('--keep=')) opt.keep.push(a.slice('--keep='.length));
+    else if (a.startsWith('--repo=')) opt.repo = a.slice('--repo='.length);
+    else if (a.startsWith('--ref=')) opt.ref = a.slice('--ref='.length);
+    else if (a.startsWith('--source-dir=')) opt.sourceDir = a.slice('--source-dir='.length);
     else if (a.startsWith('-')) { console.error(`未知选项: ${a}`); process.exit(2); }
     else opt.target = a;
   }
+  if (!opt.repo) throw new Error('--repo 不能为空');
+  if (!opt.ref) throw new Error('--ref 不能为空');
+  if (opt.sourceDir === '') throw new Error('--source-dir 不能为空');
   return opt;
 }
 
@@ -80,8 +103,16 @@ function helpText() {
                    默认写 .claude/settings.local.json（gitignored，仅影响你）
   --keep=<key>     保留插件并撤销旧禁用/约束（短名或 name@marketplace），可多次
   --no-plugins     只装 skill，不动冲突插件/技能设置
+  --repo=<url>     安装源 Git 仓库（默认 ${DEFAULT_REPO}）
+  --ref=<name>     安装版本：分支或标签（默认 ${DEFAULT_REF}）
+  --source-dir=<dir>
+                   使用本地仓库源码，不从 GitHub 下载（仅开发和测试）
   --dry-run        预演，不落盘
   -h, --help       本帮助
+
+安装源：
+  默认从 ${DEFAULT_REPO} 的 ${DEFAULT_REF} 分支获取。
+  下载或源校验失败时，不会修改目标项目。
 
 默认项目级安装到两个目录：
   - .claude/skills/  Claude Code 使用
@@ -106,9 +137,7 @@ function readJSON(file) {
   if (!raw) return {};
   try { return JSON.parse(raw); }
   catch (e) {
-    console.error(`\n✗ 无法解析已存在的 ${file}：${e.message}`);
-    console.error('  为避免破坏你的配置，安装已中止。请修复该文件的 JSON 后重试。');
-    process.exit(1);
+    throw new Error(`无法解析已存在的 ${file}：${e.message}\n  为避免破坏你的配置，安装已中止。请修复该文件的 JSON 后重试。`);
   }
 }
 
@@ -194,27 +223,76 @@ function copySkills(skillsRoot, skills, destDir) {
   }
 }
 
+function discoverSkills(skillsRoot) {
+  const skills = fs.existsSync(skillsRoot)
+    ? fs.readdirSync(skillsRoot)
+        .filter(name => fs.existsSync(path.join(skillsRoot, name, 'SKILL.md')))
+        .sort()
+    : [];
+  if (skills.length === 0) {
+    throw new Error(`找不到任何源 skill（${skillsRoot} 下无含 SKILL.md 的目录）`);
+  }
+  return skills;
+}
+
+function acquireSource(opt) {
+  if (opt.sourceDir) {
+    const repoRoot = path.resolve(opt.sourceDir);
+    const skillsRoot = path.join(repoRoot, 'ai-dev-system', 'skills');
+    const skills = discoverSkills(skillsRoot);
+    return {
+      skillsRoot,
+      skills,
+      label: `本地开发源 ${repoRoot}`,
+      cleanup() {},
+    };
+  }
+
+  const tempRoot = fs.mkdtempSync(path.join(tmpdir(), 'ai-dev-system-download-'));
+  const checkout = path.join(tempRoot, 'repo');
+  const result = spawnSync(
+    'git',
+    ['clone', '--depth=1', '--single-branch', '--branch', opt.ref, '--', opt.repo, checkout],
+    { encoding: 'utf8' },
+  );
+
+  if (result.error || result.status !== 0) {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+    if (result.error?.code === 'ENOENT') {
+      throw new Error('无法运行 Git。请先安装 Git 并确保 git 命令可用。');
+    }
+    const detail = (result.stderr || result.stdout || result.error?.message || '未知错误').trim();
+    throw new Error(`无法从安装源获取 ${opt.ref}：${detail}`);
+  }
+
+  try {
+    const skillsRoot = path.join(checkout, 'ai-dev-system', 'skills');
+    const skills = discoverSkills(skillsRoot);
+    return {
+      skillsRoot,
+      skills,
+      label: `${opt.repo} @ ${opt.ref}`,
+      cleanup() { fs.rmSync(tempRoot, { recursive: true, force: true }); },
+    };
+  } catch (error) {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+    throw error;
+  }
+}
+
 async function main() {
   const opt = parseArgs(process.argv.slice(2));
   if (opt.help) { console.log(helpText()); return; }
 
-  // 发现所有源 skill：ai-dev-system/skills/ 下含 SKILL.md 的子目录
-  const skillsRoot = path.join(__dirname, 'ai-dev-system', 'skills');
-  const skills = fs.existsSync(skillsRoot)
-    ? fs.readdirSync(skillsRoot)
-        .filter(n => fs.existsSync(path.join(skillsRoot, n, 'SKILL.md')))
-        .sort()
-    : [];
-  if (skills.length === 0) {
-    console.error(`✗ 找不到任何源 skill（${skillsRoot} 下无含 SKILL.md 的目录）\n  请在 ai-dev-system 仓库根目录内运行本脚本。`);
-    process.exit(1);
-  }
-
   const target = path.resolve(opt.target || process.cwd());
   if (!fs.existsSync(target) || !fs.statSync(target).isDirectory()) {
-    console.error(`✗ 目标目录不存在：${target}`);
-    process.exit(1);
+    throw new Error(`目标目录不存在：${target}`);
   }
+
+  let source;
+  try {
+    source = acquireSource(opt);
+    const { skillsRoot, skills } = source;
 
   const claudeSkillsDestDir = path.join(target, '.claude', 'skills');
   const codexSkillsDestDir = path.join(target, '.agents', 'skills');
@@ -250,6 +328,7 @@ async function main() {
   // 计划
   console.log('\nai-dev-workflow 安装器');
   console.log('目标项目：' + target);
+  console.log('安装源：' + source.label);
   console.log('\n将执行：');
   console.log(`  1) 复制 ${skills.length} 个 skill → ${path.relative(target, claudeSkillsDestDir) || claudeSkillsDestDir}/  (Claude Code 项目级)`);
   console.log(`  2) 复制 ${skills.length} 个 skill → ${path.relative(target, codexSkillsDestDir) || codexSkillsDestDir}/  (Codex 项目级)`);
@@ -351,6 +430,9 @@ async function main() {
   console.log('  · 重启 Claude Code / Codex（或在本项目重新打开），项目级配置/指令才会进入新会话。');
   console.log('  · 在项目里唤起 skill（提到"AI 辅助开发 / 生成 spec / coding plan / 需求澄清"即可），');
   console.log('    首次会询问本项目用个人版还是团队版，并写入 CLAUDE.md 与 AGENTS.md。');
+  } finally {
+    source?.cleanup();
+  }
 }
 
-main().catch(e => { console.error(e); process.exit(1); });
+main().catch(e => { console.error(`✗ ${e.message}`); process.exit(1); });
