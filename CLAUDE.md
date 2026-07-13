@@ -28,12 +28,16 @@ cd ai-dev-system/skills/ai-dev-workflow/scripts/ctx && node --test test/cli.test
 node ai-dev-system/skills/ai-dev-workflow/scripts/ctx/src/cli.js <命令>
 
 # 把 GitHub 发布源的 skill 安装进某个目标项目（需要 Node.js 与 Git）
+npx --yes github:weidwonder/ai-dev-system <目标项目目录>
 ./install.mjs <目标项目目录>
 ./install.mjs <目标项目目录> --dry-run  # 预演，不落盘
 ./install.mjs <目标项目目录> --ref=<分支或标签>
 
 # 仅测试当前工作区尚未发布的 skill
 ./install.mjs <目标项目目录> --source-dir=.
+
+# 验证 npm 命令入口（会打包到临时目录并真实执行 --help）
+node --test test/npm-entrypoint.test.mjs
 ```
 
 没有 build 步骤、没有 lint 配置、没有 npm 运行时依赖——整个包是纯 Node.js ESM + markdown；安装器额外调用 Git 获取发布源。

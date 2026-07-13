@@ -15,6 +15,7 @@
 
 ```
 .                               # 仓库根
+├── package.json                # npx GitHub 命令入口
 ├── install.mjs                 # 安装器（从 GitHub 获取指定版本，跨平台）
 ├── install.cmd                 # Windows 包装
 ├── docs/
@@ -49,22 +50,29 @@
 
 ## 安装
 
-**方式 A：随项目安装（推荐）** — 安装器默认从 GitHub 官方仓库的 `main` 分支获取技能包，同时装进目标项目的 `.claude/skills/`（Claude Code）和 `.agents/skills/`（Codex），并在**本项目**级配置里禁用或约束与本流程冲突的 Claude Code / Codex 插件或技能开关（只影响本项目，全局其他项目不受影响）。需要 Node.js 和 Git。
+**方式 A：npx 随项目安装（推荐）** — 在目标项目根目录运行下面一条命令。npx 从 GitHub 获取安装入口，安装器再从官方仓库的 `main` 分支获取技能包，同时装进目标项目的 `.claude/skills/`（Claude Code）和 `.agents/skills/`（Codex）。需要 Node.js 20+、npm 和 Git。
 
 ```bash
-# 已克隆本仓库时，在目标项目根目录运行：
+# 在目标项目根目录运行，macOS、Linux、Windows 通用：
+npx --yes github:weidwonder/ai-dev-system .
+
+# 先预演，不落盘：
+npx --yes github:weidwonder/ai-dev-system . --dry-run
+
+# 安装指定分支或标签，便于灰度和回滚：
+npx --yes github:weidwonder/ai-dev-system . --ref=<分支或标签>
+```
+
+常用参数：`--shared` 把 Claude Code 项目配置提交给全仓共享；`--keep=<插件短名>` 保留指定冲突插件；`--no-plugins` 只装 skill；`--yes` 跳过安装器自身的交互确认。完整参数用 `npx --yes github:weidwonder/ai-dev-system -- --help` 查看。
+
+**方式 B：本地脚本安装（仓库维护与排障）**
+
+```bash
+# 已克隆本仓库时：
 node /path/to/ai-dev-system/install.mjs .
+
 # Windows 也可使用包装脚本：
 #   \path\to\ai-dev-system\install.cmd .
-
-#   --dry-run           先预演，不落盘
-#   --ref=<分支或标签>   指定安装版本；默认 main，可用于灰度和回滚
-#   --repo=<Git 地址>    指定镜像或分叉仓库；默认 https://github.com/weidwonder/ai-dev-system.git
-#   --shared            Claude Code 禁用写进 .claude/settings.json（提交进 git，全仓协作者共享）
-#                       默认写 .claude/settings.local.json（gitignored，仅影响你）
-#   --keep=<插件短名>    保留插件，并撤销安装器此前写入的禁用/约束（可多次）
-#   --no-plugins        只装 skill，不动任何冲突插件/技能设置或 AGENTS.md 约束
-#   --yes               跳过交互确认
 
 # 仅在开发、测试本仓库未发布改动时使用本地源码：
 node /path/to/ai-dev-system/install.mjs . --source-dir=/path/to/ai-dev-system
@@ -92,7 +100,7 @@ node /path/to/ai-dev-system/install.mjs . --source-dir=/path/to/ai-dev-system
 >
 > ⚠ 两个前提：① 项目级 `.claude/settings.json` 首次打开会弹 **workspace trust** 对话框，信任后才生效；② settings / `AGENTS.md` 改动在**下次启动 Claude Code / Codex** 时生效，非当前会话。撤销只需删掉本项目 settings 里对应的 `false` 条目，或删掉 `AGENTS.md` 中的 `ai-dev-system:codex-conflicts` 标记块。
 
-**方式 B：全局安装一次** — 所有项目共用，但冲突插件需你手动权衡（全局装则全局都在，可能与本流程相互干扰）。
+**方式 C：全局安装一次** — 所有项目共用，但冲突插件需你手动权衡（全局装则全局都在，可能与本流程相互干扰）。
 
 ```bash
 cp -r ai-dev-system/skills/ai-prd ai-dev-system/skills/ai-dev-workflow ~/.claude/skills/
