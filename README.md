@@ -63,7 +63,7 @@ npx --yes github:weidwonder/ai-dev-system . --dry-run
 npx --yes github:weidwonder/ai-dev-system . --ref=<分支或标签>
 ```
 
-常用参数：`--shared` 把 Claude Code 项目配置提交给全仓共享；`--keep=<插件短名>` 保留指定冲突插件；`--no-plugins` 只装 skill；`--yes` 跳过安装器自身的交互确认。完整参数用 `npx --yes github:weidwonder/ai-dev-system -- --help` 查看。
+常用参数：`--shared` 把 Claude Code 项目配置提交给全仓共享；`--keep=<插件短名>` 保留指定冲突插件；`--no-plugins` 只装 skill；`--yes` 跳过安装器自身的交互确认。完整参数用 `npx --yes github:weidwonder/ai-dev-system --help` 查看。
 
 **方式 B：本地脚本安装（仓库维护与排障）**
 
