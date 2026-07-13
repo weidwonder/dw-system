@@ -1,6 +1,7 @@
 # Lean Change Spec（一页）— 【改动标题】
 
 > 用于 Triage 4 问全否的小改动。这一页就是唯一交付物，写完直接实现。
+> 输出：`docs/spec/<change-name>-lean-change-spec.md`。
 > Triage 复核：AI/LLM 行为？【否】 鉴权/安全/设备？【否】 跨服务/迁移/不可逆？【否】 指标/规则/对外承诺？【否】
 
 ## 改什么

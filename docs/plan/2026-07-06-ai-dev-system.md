@@ -1,6 +1,6 @@
 # 自有 AI 辅助开发体系 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> 按任务逐项执行；每项完成后运行对应验证命令并记录结果。
 
 **Goal:** 生成一个 mode-aware 的 `ai-dev-workflow` skill（内含 core/personal/company 三层）+ 一个跨平台 Node.js `ctx` CLI 骨架，作为我们自己的 AI 辅助开发体系。
 

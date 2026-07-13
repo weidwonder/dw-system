@@ -1,7 +1,7 @@
 # 【功能名】Coding Plan
 
 > 把 spec 拆成"执行者对代码库零上下文"也能做的 bite-sized 任务。每步一个动作（2–5 分钟）。DRY / YAGNI / TDD / 勤 commit。
-> 执行：按流程总纲 Step 7，逐任务"加载→批判性 review→实现→跑验证→commit"，每 2–3 个任务过一次 checkpoint。（若环境装了 superpowers，也可用其 executing-plans / subagent-driven-development，但本流程不依赖它。）
+> 输出：`docs/plan/<feature>-coding-plan.md`。按流程总纲 Step 7 逐任务"加载→批判性 review→实现→跑验证→commit"，每 2–3 个任务过一次 checkpoint。
 
 **Goal:** 【一句话，这个 plan 建成什么】
 **Architecture:** 【2-3 句方法】

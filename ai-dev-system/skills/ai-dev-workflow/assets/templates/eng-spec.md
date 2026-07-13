@@ -1,6 +1,7 @@
 # 【repo】_技术 Spec — 【功能名】
 
 > 单仓库的详细技术规范。遵循 `references/core/spec写作纪律.md`：零上下文可动手、RFC2119、无占位符。
+> 输出：`docs/spec/<repo>-<feature>-eng-spec.md`。
 > 含 AI/LLM 功能时，在下列相应章节**叠加** `references/core/AI-LLM-overlay.md` 的 AI 契约。
 
 ## 1. 范围

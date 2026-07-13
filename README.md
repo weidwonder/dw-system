@@ -17,7 +17,10 @@
 .                               # 仓库根
 ├── install.mjs                 # 安装器（跨平台，直接 ./install.mjs 运行）
 ├── install.cmd                 # Windows 包装
-├── docs/                       # 设计 / 实施文档
+├── docs/
+│   ├── spec/                  # PRD / Requirements / Overview / Spec / 设计 / 契约
+│   ├── plan/                  # Coding Plan / 实施计划 / 迁移计划
+│   └── report/                # 执行 / 验证 / 测试 / 审计报告
 └── ai-dev-system/
     └── skills/                 # 两个 skill（Claude Code + Codex 通用）
         ├── ai-prd/             # 产 PRD：批量提问 + 阶段化 elicitation
@@ -36,7 +39,7 @@
 
 > **两个 skill 的分工**：`ai-prd` 从零把需求做成 PRD → 产物作为 `ai-dev-workflow` Step 1 的输入 → workflow 继续做 Overview / Spec / Coding Plan / 测试。唤起 `ai-prd` 只需提到"帮我写 PRD / 生成需求文档 / 把这个需求写成 PRD"。
 
-设计与实施文档见 `docs/superpowers/specs/2026-07-06-ai-dev-system-design.md` 与 `docs/superpowers/plans/2026-07-06-ai-dev-system.md`。
+设计与实施文档见 `docs/spec/2026-07-06-ai-dev-system-design.md` 与 `docs/plan/2026-07-06-ai-dev-system.md`。
 
 ---
 
@@ -56,7 +59,7 @@ node /path/to/ai-dev-system/install.mjs .
 #   --dry-run           先预演，不落盘
 #   --shared            Claude Code 禁用写进 .claude/settings.json（提交进 git，全仓协作者共享）
 #                       默认写 .claude/settings.local.json（gitignored，仅影响你）
-#   --keep=<插件短名>    保留某个插件不禁用（可多次）
+#   --keep=<插件短名>    保留插件，并撤销安装器此前写入的禁用/约束（可多次）
 #   --no-plugins        只装 skill，不动任何冲突插件/技能设置或 AGENTS.md 约束
 #   --yes               跳过交互确认
 ```
@@ -66,7 +69,7 @@ node /path/to/ai-dev-system/install.mjs .
 1. 复制 `skills/` 下**所有** skill（`ai-prd` + `ai-dev-workflow`，含 `ctx` CLI）→ `<项目>/.claude/skills/`，完成 Claude Code 项目级安装；
 2. 复制同一批 skill → `<项目>/.agents/skills/`，完成 Codex 项目级安装；
 3. 合并（不覆盖）Claude Code 的 `enabledPlugins`，在本项目把冲突插件设为 `false`；
-4. 写入项目 `AGENTS.md` 的标记块，在 Codex 中约束冲突技能自动触发。
+4. 写入并校验项目 `AGENTS.md` 的标记块，在 Codex 中约束冲突技能自动触发；若任一入口已有 workflow mode，同时补齐 `CLAUDE.md` 与 `AGENTS.md`。
 
 | 插件 | 为什么与本流程冲突 |
 |---|---|
@@ -74,11 +77,11 @@ node /path/to/ai-dev-system/install.mjs .
 | Claude Code `everything-claude-code` | plan/tdd/coding-standards 与本流程重叠 + SessionStart hook 注入 |
 | Claude Code `oh-my-claudecode` | autopilot/ralph/ultrawork 等端到端引擎替代本流程 + agents-overlay hook |
 | Claude Code `general-task` | SessionStart 注入 clarify→plan→execute + `using-general-task` 强制前置（默认也禁用，`--keep=general-task` 可保留）|
-| Codex `superpowers@openai-api-curated` | Codex 0.142.5 暂无可验证的项目级 plugin `enabled=false`；安装器写入项目 `AGENTS.md` 标记块，要求不要自动加载或主动触发 `superpowers:`，除非用户当前对话明确要求 |
+| Codex `superpowers@openai-curated` | 安装器不修改用户级全局插件开关；改为写入并校验项目 `AGENTS.md` 标记块，要求不要自动加载或主动触发 `superpowers:`，除非用户当前对话明确要求 |
 
 > **为什么能只在本项目禁用**：Claude Code settings 优先级为 Managed > Local(`.claude/settings.local.json`) > Project(`.claude/settings.json`) > User(`~/.claude/settings.json`)，`enabledPlugins` 在所有 scope 均可设。项目级 `false` 覆盖用户级 `true`，于是这些插件**只在本项目关闭**。
 >
-> Codex 当前插件配置只从用户级 `~/.codex/config.toml` 的顶层 `[plugins]` 读取；源码中的 `ProjectConfig` 当前只支持 `trust_level`。因此安装器**不会**生成无效的项目根 `.codex/config.toml`，而是写入项目 `AGENTS.md` 的 `ai-dev-system:codex-conflicts` 标记块来约束自动触发行为。
+> Codex 安装采用项目级 `AGENTS.md` 自动触发约束，不改用户级 `~/.codex/config.toml`，避免安装一个项目 skill 时影响其他项目。安装器会写后校验 `ai-dev-system:codex-conflicts`，并补齐缺失的 workflow mode 标记。
 >
 > ⚠ 两个前提：① 项目级 `.claude/settings.json` 首次打开会弹 **workspace trust** 对话框，信任后才生效；② settings / `AGENTS.md` 改动在**下次启动 Claude Code / Codex** 时生效，非当前会话。撤销只需删掉本项目 settings 里对应的 `false` 条目，或删掉 `AGENTS.md` 中的 `ai-dev-system:codex-conflicts` 标记块。
 
@@ -92,6 +95,8 @@ cp -r ai-dev-system/skills/ai-prd ai-dev-system/skills/ai-dev-workflow ~/.agents
 之后在任意项目里唤起 skill（提到"AI 辅助开发 / 开发流程 / 生成 spec / coding plan / 需求澄清"即可触发），首次会做一次**初始化**：询问该项目用个人版还是团队版，把结论写进项目根的 `CLAUDE.md` 和 `AGENTS.md`，之后不再询问。
 
 > **Codex 用户**：项目级 skill 安装在 `.agents/skills/`。Codex 读 `AGENTS.md`；初始化会同时写入 `AGENTS.md`，其中指明 mode、Engineering Context 位置与 `ctx` 用法；`ctx` CLI 可直接通过 shell 调用，跨工具通用。
+
+> **文档目录**：spec 固定写 `docs/spec/`，plan 固定写 `docs/plan/`，report 固定写 `docs/report/`。不得生成工具命名目录或把交付物散放到项目根。
 
 ---
 

@@ -44,7 +44,7 @@ assets/
 4. 按 00-prd生成流程.md 的【4 批提问】驱动：一次抛一批，用户答完起草该批章节；
    只有对回复有疑问或有缺口时才再批量追问，否则直接进下一批。
 
-5. 组稿：按模板拼装 → 跑 prd质量清单.md → 写入 docs/ →
+5. 组稿：按模板拼装 → 跑 prd质量清单.md → 写入 docs/spec/ →
    团队版更新 docs/index.md → 提示可接 ai-dev-workflow 做 Overview/Spec。
 ```
 

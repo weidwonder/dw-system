@@ -76,15 +76,15 @@ node ai-dev-system/skills/ai-dev-workflow/scripts/ctx/src/cli.js <命令>
 ## 目录速查
 
 ```
-install.mjs / install.cmd          安装器：复制 skills/ 下所有 skill + 项目级禁用冲突插件
-docs/superpowers/{specs,plans}/    本体系自身的设计与实施文档
+install.mjs / install.cmd          安装器：复制 skills/ + Claude 插件禁用 + Codex AGENTS 约束
+docs/{spec,plan,report}/           本体系自身的规范 / 计划 / 报告
 ai-dev-system/skills/ai-prd/        产 PRD skill：批量提问 elicitation + 三类模板
   SKILL.md                         入口：读 mode → PRD 类型分流 → 4 批提问驱动
   references/                      00-prd生成流程 / prd写作纪律 / prd质量清单 / mode-*
   assets/templates/                change-prd（主）/ lite-issue-prd / product-prd
 ai-dev-system/skills/ai-dev-workflow/
   SKILL.md                         skill 入口：路由 + 初始化
-  references/core/                 共享内核（流程总纲 / spec写作纪律 / AI-LLM-overlay）
+  references/core/                 共享内核（流程总纲 / 写作纪律 / AI overlay / 文档治理）
   references/personal/             个人薄外壳
   references/company/              团队外壳 + Engineering Context 完整设计
   references/init-初始化.md         幂等写入 CLAUDE.md/AGENTS.md 的规则
@@ -98,11 +98,11 @@ ai-dev-system/skills/ai-dev-workflow/
 
 装 skill 时会在**目标项目级** settings 里把 4 个 Claude Code 冲突插件（`superpowers`、`everything-claude-code`、`oh-my-claudecode`、`general-task`）设为 `false`——它们的 brainstorming HARD-GATE、强制前置 skill、端到端引擎、SessionStart 注入会截胡本流程。原理：Claude Code settings 优先级 `Managed > Local > Project > User`，项目级 `false` 覆盖用户级 `true`，于是**只在本项目禁用，不影响全局**。默认写 `.claude/settings.local.json`（gitignored），`--shared` 才写 `.claude/settings.json`。合并时**不覆盖** `enabledPlugins` 里的其他键。
 
-Codex 目前不能用同样方式做项目级插件 `enabled=false`：Codex 0.142.5 的插件配置只从用户级 `~/.codex/config.toml` 顶层 `[plugins]` 读取，`[projects."<path>"]` 当前只支持 `trust_level`。因此安装器**不生成**项目根 `.codex/config.toml`，而是在目标项目 `AGENTS.md` 写入 `ai-dev-system:codex-conflicts` 标记块，约束 `superpowers:` 不要自动加载或主动触发，除非用户在当前对话明确要求。`--keep=superpowers` 会同时保留 Claude Code superpowers 插件并跳过 Codex 约束块。
+Codex 安装不修改用户级全局插件配置，而是在目标项目 `AGENTS.md` 写入并校验 `ai-dev-system:codex-conflicts` 标记块，约束 `superpowers:` 不要自动加载或主动触发，除非用户在当前对话明确要求。若 `CLAUDE.md` 或 `AGENTS.md` 已有 workflow mode，安装器会幂等补齐另一入口。`--keep=superpowers` 会保留 Claude Code 插件，并移除安装器此前写入的 Claude 禁用项与 Codex 约束块。
 
 ## 改动时注意
 
 - 改 skill 行为 → 改对应 skill `references/` 下 markdown；改模板 → `assets/templates/`；两者是 skill 的"源码"。新增 skill 只要放进 `ai-dev-system/skills/<name>/` 并含 `SKILL.md`，`install.mjs` 会自动发现并复制，无需改安装器。
-- `ai-prd` 的北极星参考物是 `orgin/prd.demo/GK1接入板书总控PRD`（brownfield 变更 PRD 骨架）；改 `change-prd.md` 模板前对照设计文档 `docs/superpowers/specs/2026-07-06-ai-prd-design.md §7` 的覆盖度映射，别丢节。
+- `ai-prd` 的北极星参考物是 `orgin/prd.demo/GK1接入板书总控PRD`（brownfield 变更 PRD 骨架）；改 `change-prd.md` 模板前对照设计文档 `docs/spec/2026-07-06-ai-prd-design.md §7` 的覆盖度映射，别丢节。
 - 改 `ctx` 逻辑 → 同步更新 `scripts/ctx/test/` 下的测试，跑 `node --test` 保持全绿。card/registry 的格式约定见 `scripts/ctx/README.md` §card 格式约定，解析器依赖它。
-- 本仓库自身文档遵循用户全局的文档治理标准（`docs/` 为准）。
+- 本仓库自身与安装目标的文档目录固定为：spec → `docs/spec/`，plan → `docs/plan/`，report → `docs/report/`。

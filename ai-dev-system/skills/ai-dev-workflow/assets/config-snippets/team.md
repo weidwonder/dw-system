@@ -7,5 +7,6 @@
 > - 流程：Triage → Overview → 按仓 Spec → Coding Plan → 测试。跨 ≥3 仓需求先出 Overview 并评审。
 > - 改动触碰权威面（接口签名/废弃标记/路由配置/DB schema/兼容窗口）即使只有几行也要刷对应 card。
 > - 协作约定见团队版 mode-team；Engineering Context 设计见 context-engineering。
+> - 文档目录固定：spec → `docs/spec/`，plan → `docs/plan/`，report → `docs/report/`。
 > - 唤起 `ai-dev-workflow` skill 时按团队版路由，不再询问 mode。
 <!-- ai-dev-workflow:end -->

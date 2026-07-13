@@ -1,6 +1,7 @@
 # 【repo】_测试方案 — 【功能名】
 
 > 只专注当前代码仓库涉及的部分（功能代码已开发完成）。配合 PRD / Overview / spec / coding plan。
+> 输出：`docs/spec/<repo>-<feature>-test-spec.md`。
 
 ## 1. 测试范围
 - 覆盖的接口 / 流程：【】

@@ -58,15 +58,15 @@
 
 1. 按所选模板把四批产出拼装成完整 PRD，补流程图（mermaid）与 changelog。
 2. 跑 `prd质量清单.md` 自检；不过则就缺项再批量追问或补写。
-3. 写入 `docs/`（命名：变更 PRD → `<name>-PRD-YYYYMMDD.md`；整品 → `docs/REQUIREMENTS.md`）。
+3. 写入 `docs/spec/`（命名：变更 PRD → `docs/spec/<name>-PRD-YYYYMMDD.md`；整品 → `docs/spec/REQUIREMENTS.md`）。
 4. **团队版**：同步更新 `docs/index.md`（doc 治理要求）。
 5. 收尾提示：这份 PRD 可作为 `ai-dev-workflow` Step 1 的输入，接着做 Overview / 技术 Spec。
 
 ## PRD 生命周期（两次动笔）
 
 - **开发前**：本流程产出的是**意图**——变更 PRD 或整品 PRD 新章节，先于代码定稿；影响产品范围的变更必须先改 PRD 再动代码。
-- **开发后（准出必做）**：需求实现验收后，把变更 PRD 中**改变了口径**的部分归并回整品 PRD（`docs/REQUIREMENTS.md`）：更新 Product Scope 能力状态；若用户旅程 / 成功指标被改变，**同步回填旅程叙事**——不能只翻状态位，否则旅程随迭代漂移成史前文档。归并后变更 PRD 加"已归并"头注原地转归档，不再作为平行真相源维护。
-- **膨胀分层**：整品 PRD 过大时，主文档只留骨架（Summary / Success Criteria / Scope 状态 / User Journeys / FR 摘要），FR/NFR 明细与验收基线移入 `REQUIREMENTS-appendix.md`（附录从属主文档，冲突以主文档为准）；主文档永远单一，附录可按域再拆。**实现细节不进 PRD**——怎么做归 spec，代码现状归 card；PRD 的细节边界是"用户可感知的行为契约与验收口径"。
+- **开发后（准出必做）**：需求实现验收后，把变更 PRD 中**改变了口径**的部分归并回整品 PRD（`docs/spec/REQUIREMENTS.md`）：更新 Product Scope 能力状态；若用户旅程 / 成功指标被改变，**同步回填旅程叙事**——不能只翻状态位，否则旅程随迭代漂移成史前文档。归并后变更 PRD 加"已归并"头注原地转归档，不再作为平行真相源维护。
+- **膨胀分层**：整品 PRD 过大时，主文档只留骨架（Summary / Success Criteria / Scope 状态 / User Journeys / FR 摘要），FR/NFR 明细与验收基线移入 `docs/spec/REQUIREMENTS-appendix.md`（附录从属主文档，冲突以主文档为准）；主文档永远单一，附录可按域再拆。**实现细节不进 PRD**——怎么做归 spec，代码现状归 card；PRD 的细节边界是"用户可感知的行为契约与验收口径"。
 
 ## 个人版 vs 团队版裁剪
 
@@ -77,4 +77,4 @@
 | B 现状边界 | 口述 + 追问 | **ctx 预填带 cite** + 确认 |
 | C 细节 | 关键行为 + 主要 case | 全字段 + 穷举 case |
 | D 准出 | 验收够勾验即可，埋点精简 | 三类验收 + 埋点公式 + 风险兜底 |
-| 组稿 | 写 docs/ | 写 docs/ + 更新 index.md + 评审 |
+| 组稿 | 写 docs/spec/ | 写 docs/spec/ + 更新 index.md + 评审 |

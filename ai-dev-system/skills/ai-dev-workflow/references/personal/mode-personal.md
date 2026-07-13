@@ -8,6 +8,7 @@
 2. **流程可跳步**。个人项目里 Step 3（PRD 细澄清）、Step 2（Overview）通常省略——你既是产品又是技术，没有协作方要对齐。
 3. **不需要评审会 / 多仓协作 / owner 归属**。这些团队机制在个人版全部关掉。
 4. **无 Engineering Context 层 / 无 ctx CLI**。个人项目仓库你自己熟，直接读代码即可，不建 card 体系。
+5. **目录不裁剪**。轻量不等于散放：spec 仍写 `docs/spec/`，plan 写 `docs/plan/`，report 写 `docs/report/`。
 
 ## 什么时候升级到完整流程
 

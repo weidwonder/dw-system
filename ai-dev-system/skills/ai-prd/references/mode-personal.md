@@ -15,4 +15,4 @@
 
 ## 收尾
 
-写进 `docs/`（或项目约定位置）。若接着要做技术设计，直接把这份 PRD 喂给 `ai-dev-workflow`。
+写进 `docs/spec/`。若接着要做技术设计，直接把这份 PRD 喂给 `ai-dev-workflow`。

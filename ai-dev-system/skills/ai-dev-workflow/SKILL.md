@@ -15,6 +15,7 @@ references/
     00-流程总纲.md       Triage 分流 + 10 步流程，每步配 prompt 和模板
     spec写作纪律.md      零上下文可动手 / RFC2119 / 无占位符
     AI-LLM-overlay.md    含 AI/LLM 时叠加的 AI 契约清单
+    文档治理.md          spec / plan / report 的唯一输出目录与命名
   personal/
     mode-personal.md     个人薄外壳：默认一页 spec、可跳步、memory 约定
   company/
@@ -41,9 +42,9 @@ scripts/ctx/           ctx CLI（Node.js，跨平台）：查代码事实
      - 若团队版：提示用 `ctx init` 初始化 engineering-context/ 目录。
      - 然后继续第 3 步。
 
-2b. 若【有】标记块 → 读出 mode，不再询问。
+2b. 若【有】标记块 → 读出 mode，不再询问；若另一文件缺失或无标记块，幂等补齐同一 mode 块。
 
-3. 加载 core（全部三篇），再按 mode 加载对应外壳：
+3. 加载 core（全部四篇），再按 mode 加载对应外壳：
      - personal → references/personal/mode-personal.md
      - team     → references/company/mode-team.md（+ 需要时 context-engineering.md）
 
@@ -59,6 +60,7 @@ scripts/ctx/           ctx CLI（Node.js，跨平台）：查代码事实
 - **团队版禁止 grep 旧代码找权威实体**：先 `ctx discover "<意图>"`，再按结果读 card；每条来自 card 的接口/字段/topic 必须附 cite（path + anchor + 最近确认时间），无 cite 视为幻觉。
 - **写文档写到零上下文也能动手**：遵循 references/core/spec写作纪律.md。
 - **含 AI/LLM 功能时叠加 overlay**：模型参与功能行为（生成/总结/分类/检索/OCR/ASR/固定 prompt 流程）时，在基础 spec 上叠加 references/core/AI-LLM-overlay.md 的 AI 契约。
+- **文档只写入标准目录**：spec 写 `docs/spec/`，plan 写 `docs/plan/`，report 写 `docs/report/`；不得写项目根或工具命名目录。遵循 `references/core/文档治理.md`。
 
 ## 何时用哪个模板
 
