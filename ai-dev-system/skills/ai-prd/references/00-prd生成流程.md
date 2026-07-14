@@ -66,9 +66,10 @@
 
 1. 按所选模板把四批产出拼装成完整 PRD，补流程图（mermaid）与 changelog。
 2. 跑 `prd质量清单.md` 自检；不过则就缺项再批量追问或补写。
-3. 写入 `docs/spec/`（命名：变更 PRD → `docs/spec/<name>-PRD-YYYYMMDD.md`；整品 → `docs/spec/REQUIREMENTS.md`）。
-4. **团队版**：同步更新 `docs/index.md`（doc 治理要求）。
-5. 收尾提示：这份 PRD 可作为 `ai-dev-workflow` Step 1 的输入，接着做 Overview / 技术 Spec。
+3. **交付门：先取得用户确认再落盘**。组稿后把关键取舍/非目标/验收口径回述给用户，**达成共识后才写文件**——不要在用户还没确认的情况下就当成定稿交付。
+4. 写入 `docs/spec/`（命名：变更 PRD → `docs/spec/<name>-PRD-YYYYMMDD.md`；整品 → `docs/spec/REQUIREMENTS.md`）。
+5. **团队版**：同步更新 `docs/index.md`（doc 治理要求）。
+6. 收尾提示：这份 PRD 可作为 `ai-dev-workflow` Step 1 的输入，接着做 Overview / 技术 Spec。
 
 ## PRD 生命周期（两次动笔）
 

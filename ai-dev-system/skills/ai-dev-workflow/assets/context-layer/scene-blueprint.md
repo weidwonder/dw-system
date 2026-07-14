@@ -18,7 +18,14 @@
 |---|---|---|---|---|---|---|
 | 1 | 【】 | 【】 | 【】 | 【】 | 【】 | ✅/⏳/⛔ |
 
+## 服务级时序（project 粒度，先看这张）
+> 双图的第一张：只画服务之间怎么走，不下到类。给读者一个"哪几个服务、什么顺序"的骨架。
+```
+【mermaid sequence：participant 用服务名；一跳一条边，只画本链路触碰的服务。】
+```
+
 ## 一页式跨服务时序（project.ClassName 粒度）
+> 第二张：在服务级骨架上下钻到 project.Class 粒度，看关键类/方法怎么衔接。
 ```
 【mermaid sequence：participant 用 project 名；只画这条链上被触碰的节点。】
 ```
@@ -38,3 +45,6 @@
 ## Freshness / Provenance
 - 最近确认：【YYYY-MM-DD】
 - 来源：【追踪所依据的发布/commit】
+
+---
+> **完成后（finish）**：把本蓝图登记进 `engineering-context/scenes/README.md` 索引（场景名 + 一句话业务口径 + 文件路径），让 `ctx find-scenes` 与人都能发现它；同一业务的多张蓝图在索引里归到一组。待澄清点（⏳）清完再标"已澄清"。
