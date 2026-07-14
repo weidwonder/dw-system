@@ -22,9 +22,20 @@ test('discover 命中关键词返回相关 card 与 cite', () => {
   assert.match(r.cards[0].cite, /@/, 'cite 应含确认时间');
 });
 
+test('discover 命中含废弃标记的 card 时给出 out-of-scope 警告', () => {
+  const r = discover(ctxDir, '背单词 记录 接口');
+  assert.ok(r.cards.length >= 1);
+  assert.ok(r.outOfScope.length >= 1, '命中含废弃标记的 card 应产生 out-of-scope 警告');
+  assert.ok(
+    r.outOfScope.some((w) => /v1\/word\/record/.test(w)),
+    'out-of-scope 应点名废弃的 v1 接口',
+  );
+});
+
 test('discover 对无关意图返回空或 out-of-scope 提示', () => {
   const r = discover(ctxDir, 'zzz-完全无关的东西-qqq');
   assert.equal(r.cards.length, 0);
+  assert.ok(r.outOfScope.length >= 1, '零命中时应给出提示');
 });
 
 test('getCard 返回指定服务的段落', () => {
