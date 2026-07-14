@@ -121,7 +121,7 @@ function main() {
       const cards = loadCards(ctxDir);
       const registry = loadRegistry(ctxDir);
       const { probes, baseline } = loadProbes(ctxDir);
-      const ev = evaluateGate(cards, registry, probes, baseline);
+      const ev = evaluateGate(cards, registry, probes, baseline, { floor: 0.9 });
       const prev = readHistory(ctxDir);
       const delta = prev && ev.passRate != null ? Number((ev.passRate - prev.passRate).toFixed(4)) : null;
       const report = { ...ev, prevPassRate: prev ? prev.passRate : null, passRateDelta: delta };
@@ -136,9 +136,13 @@ function main() {
           const inBase = baseline.has(String(r.n));
           lines.push(`  ${r.pass ? '✅' : (inBase ? '🟡' : '🛑')} #${r.n} [${r.type}] ${r.input}` + (r.pass ? '' : `\n       期望：${r.expected}\n       实得：${r.actual}` + (inBase ? '（基线容忍）' : '（新增失败）')));
         }
-        lines.push(`\n判级：${icon} ${ev.verdict}  通过率 ${(ev.passRate * 100).toFixed(0)}%` + (delta != null ? `（较上周期 ${delta >= 0 ? '+' : ''}${(delta * 100).toFixed(0)}%）` : ''));
-        if (ev.verdict === 'AMBER' && ev.canTightenBaseline) lines.push('棘轮：当前失败数少于基线，可收紧基线（只许变短）。');
+        lines.push(`\n判级：${icon} ${ev.verdict}  加权通过率 ${(ev.passRate * 100).toFixed(0)}%` + (delta != null ? `（较上周期 ${delta >= 0 ? '+' : ''}${(delta * 100).toFixed(0)}%）` : ''));
         if (ev.newFailures.length) lines.push(`RED 原因：新增失败 #${ev.newFailures.map((r) => r.n).join(', #')}`);
+        if (ev.blockingFailures.length) lines.push(`RED 原因：blocking 探针失败（零容忍）#${ev.blockingFailures.map((r) => r.n).join(', #')}`);
+        if (ev.staleBaseline.length) lines.push(`RED 原因：基线 #${ev.staleBaseline.join(', #')} 已不再失败，必须从基线删除（棘轮只许变短）。`);
+        if (ev.belowFloor) lines.push(`RED 原因：加权通过率 ${(ev.passRate * 100).toFixed(0)}% 低于地板 ${(ev.floor * 100).toFixed(0)}%。`);
+        if (ev.needsReconfirm.length) lines.push(`⚠ ${ev.needsReconfirm.length} 道探针 needs-reconfirm/quarantined（权威面已变，暂不计分，待重认）。`);
+        if (ev.verdict === 'AMBER' && ev.canTightenBaseline) lines.push('棘轮：当前失败数少于基线，可收紧基线（只许变短）。');
       }
       out(json, lines.join('\n'), report);
 

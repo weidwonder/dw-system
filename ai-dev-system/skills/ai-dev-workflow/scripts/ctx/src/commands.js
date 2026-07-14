@@ -170,13 +170,14 @@ const PROBE_STUB = `# Frozen Probe Set — 上下文层防腐检测题集
 >   deprecated-trap    —— 输入=接口/实体，期望=\`deprecated\`（门禁须从 cards/registry 判其为废弃；被当 canonical 即失败）。
 
 ## 探针
-| # | 类型 | 输入 | 期望 |
-|---|---|---|---|
-| 1 | capability-mapping | 【能力名，如 背单词记录】 | 【repo :: POST /v2/xxx】 |
-| 2 | deprecated-trap | 【废弃接口，如 POST /v1/xxx】 | deprecated |
+> 列 severity（blocking=零容忍 / scored=计入加权通过率）、weight（scored 权重，默认 1）可选，不填按 scored/1。
+| # | 类型 | 输入 | 期望 | severity | weight |
+|---|---|---|---|---|---|
+| 1 | capability-mapping | 【能力名，如 背单词记录】 | 【repo :: POST /v2/xxx】 | scored | 1 |
+| 2 | deprecated-trap | 【废弃接口，如 POST /v1/xxx】 | deprecated | blocking | 1 |
 
 ## 基线（棘轮）
-> 已知、暂时容忍的失败项（按 # 列）。规则：只许变短——新增失败即门禁 RED。
+> 已知、暂时容忍的失败项（按 # 列）。规则：**只许变短**——基线外新增失败即 RED；基线内已修复也 RED（强制删除该条）。
 （空）
 `;
 
