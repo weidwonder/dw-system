@@ -155,6 +155,11 @@ ai-dev-system/
 - 不实现完整 MCP server。
 - 不替团队填写真实 card / registry 内容。
 - 不引入需要 `npm install` 第三方依赖的重实现（骨架零依赖）。
+- **不随包分发完整的 Agent 平台重型骨架**（Agent 能力扩展/平台核心 eng-spec 指南全量、AGENT_BASELINE）：高度贴具体平台，超出"技术栈无关内核"定位。只在 `AI-LLM-overlay.md` 给平台无关的最小 agent 契约（判定边界 + 自主级别/审批闸门 + 继承声明 + 缺口清单）；平台核心改造去 doc-principles 取重型骨架。（2026-07-14 补记，对齐审计后确认为有意裁剪）
+- **不随包分发 Agentic / Agent 能力扩展产品 PRD 的整套模板**：`ai-prd` 分流表声明边界并指向源头 `doc-principles/prd-principles`。
+- **不实现 MCP 的 `list_changes`/`get_readme`/`find_skills`/`info`**：MCP→ctx 有意改形态（D3/D8）。跨会话变更感知改用 `git diff engineering-context/`（mode-team §3）。
+
+> **源头仍在演进**：本体系裁剪自持续更新的上游，回灌基线与机制见 `docs/spec/2026-07-14-源头对齐基线与回灌机制.md`。
 
 ## 10. 开放问题（已定案）
 

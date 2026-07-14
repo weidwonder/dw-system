@@ -12,9 +12,10 @@
 - 跨 ≥3 仓的需求，**Step 2 出 Overview 后开评审会**，用 Overview 的"开放问题"一节驱动讨论，逐条冻结。
 - 评审结论回写进 Overview 的"已定决策"表，避免每份 spec 重新吵。
 
-### 按仓拆 spec
+### 按仓拆 spec / 按 feature 拆 Issue
 - 一个需求涉及多仓时，**按代码仓库划分 spec**，每个仓库一份，明确该仓做什么、不做什么、上下游契约。
 - 每份 spec 写入对应仓库的 `docs/spec/`，coding plan 写入 `docs/plan/`，报告写入 `docs/report/`。
+- **大 PRD 先做垂直切片再拆仓**：当一份 PRD 含多个可独立交付的能力时，先按**垂直切片（INVEST：独立/可协商/有价值/可估/小/可测）**拆成一组 feature Issue，每个 Issue 带 Scope 锚点 + 参照的现有实现指针 + 约束护栏 + 测试信号，并标出 Issue 间依赖顺序与显式 out-of-scope；再对每个切片走 Overview→按仓 spec。切片尺寸控制在可 review 的粒度（约 3–8 文件/PR）。完整拆解方法参照团队《PRD 拆解指南 / prd-decompose》。
 
 ### PR 流程
 - 一个 coding plan 的任务对应小而可 review 的 PR。
@@ -53,6 +54,7 @@
 - 你的改动若**触碰权威面**（canonical 接口签名、废弃标记、路由/配置版本、DB schema、兼容窗口）——哪怕只有 3 行——都要触发对应 card 刷新（见 `context-engineering.md` §新鲜度）。
 - 纯内部实现改动（不碰接口/权威）可不刷卡。
 - 判断标准是**是否碰权威面**，不是改了多少行。
+- **会话开始时先看增量**：`ctx` 读的是本地活文件，没有跨会话的变更推送。开一个新任务前，先 `git -C engineering-context log --oneline -20` / `git -C engineering-context diff <上次>..HEAD -- cards/ capability-registry.md`，看清"上次到现在 card/registry 变了什么"，避免拿脑子里的旧上下文干活（等价于在线 MCP 的 list_changes 变更感知）。
 
 ## 一句话
 
