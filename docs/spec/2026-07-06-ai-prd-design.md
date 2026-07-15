@@ -7,13 +7,13 @@ sourceOfTruth: '../../REQUIREMENTS.md 不适用（本仓库为方法论分发包
 
 # ai-prd skill 设计文档
 
-> 目标：新增一个 skill `ai-prd`，用**批量提问 + 阶段化 elicitation** 协助产出结构完备、非目标够硬、验收可判定的 PRD，形状对齐 `orgin/prd.demo/GK1接入板书总控PRD`。补齐 `ai-dev-workflow` 从"已有 PRD"起步、缺"产 PRD"前置的空缺。
+> 目标：新增一个 skill `ai-prd`，用**批量提问 + 阶段化 elicitation** 协助产出结构完备、非目标够硬、验收可判定的 PRD，形状对齐 `orgin/prd.demo/` 下的 brownfield 变更 PRD 范例（本地参考，不入库）。补齐 `ai-dev-workflow` 从"已有 PRD"起步、缺"产 PRD"前置的空缺。
 
 ## 1. 动机与定位
 
 `ai-dev-workflow` 的 Step 1「PRD 粗澄清」的 prompt 是 `参考 PRD @【PRD 文件】`——它**假设 PRD 已存在**，全流程没有一步负责从零产出 PRD。`ai-prd` 补这个前置：产物作为 `ai-dev-workflow` Step 1 的输入，两者松耦合。
 
-north-star 参考物是 `orgin/prd.demo/GK1接入板书总控PRD-20260615.md`——一份 brownfield **变更/功能 PRD**（非整品 PRD），它的价值在一套可复用的骨架 + 纪律。
+north-star 参考物是 `orgin/prd.demo/` 下的变更 PRD 范例（本地参考，不入库）——一份 brownfield **变更/功能 PRD**（非整品 PRD），它的价值在一套可复用的骨架 + 纪律。
 
 ## 2. 已定决策
 
@@ -81,7 +81,7 @@ ai-dev-system/skills/ai-prd/
 | 3 目标与非目标 | ## 目标 / ## 非目标 |
 | 4 当前逻辑/现状 | ## 现状与当前逻辑 |
 | 4.x 本次改动范围 / 不改的线上逻辑 | ## 改动范围 / ## 不改的线上逻辑（边界） |
-| 5-7 动作分类/字段/总控条目 | ## 详细行为与字段要求 |
+| 5-7 动作分类/字段/规则条目 | ## 详细行为与字段要求 |
 | 8/9.3 流程图 | ## 流程图（mermaid） |
 | 9 词级调度规则 | ## 核心规则（表格化） |
 | 11 冲突与边界 case | ## 边界 case 与冲突 |

@@ -15,14 +15,14 @@
 ### 按仓拆 spec / 按 feature 拆 Issue
 - 一个需求涉及多仓时，**按代码仓库划分 spec**，每个仓库一份，明确该仓做什么、不做什么、上下游契约。
 - 每份 spec 写入对应仓库的 `docs/spec/`，coding plan 写入 `docs/plan/`，报告写入 `docs/report/`。
-- **大 PRD 先做垂直切片再拆仓**：当一份 PRD 含多个可独立交付的能力时，先按**垂直切片（INVEST：独立/可协商/有价值/可估/小/可测）**拆成一组 feature Issue，每个 Issue 带 Scope 锚点 + 参照的现有实现指针 + 约束护栏 + 测试信号，并标出 Issue 间依赖顺序与显式 out-of-scope；再对每个切片走 Overview→按仓 spec。切片尺寸控制在可 review 的粒度（约 3–8 文件/PR）。完整拆解方法参照团队《PRD 拆解指南 / prd-decompose》。
+- **大 PRD 先做垂直切片再拆仓**：当一份 PRD 含多个可独立交付的能力时，先按**垂直切片（INVEST：独立/可协商/有价值/可估/小/可测）**拆成一组 feature Issue，每个 Issue 带 Scope 锚点 + 参照的现有实现指针 + 约束护栏 + 测试信号，并标出 Issue 间依赖顺序与显式 out-of-scope；再对每个切片走 Overview→按仓 spec。切片尺寸控制在可 review 的粒度（约 3–8 文件/PR）。团队若有自己的 PRD 拆解规范，完整拆解方法以其为准。
 
 ### PR 流程
 - 一个 coding plan 的任务对应小而可 review 的 PR。
 - PR 描述引用对应 spec / plan 任务号，附影响范围说明（为什么没扩大）。
 
 ### 文档治理
-- 遵循团队 doc-governance：`docs/spec/REQUIREMENTS.md`（PRD 唯一真相源）、`docs/spec/ARCHITECTURE.md`（从属 PRD）、`docs/index.md`（发现层入口）。
+- 遵循团队 doc-governance：`docs/REQUIREMENTS.md`（PRD 唯一真相源，放 `docs/` 根）、`docs/ARCHITECTURE.md`（从属 PRD）、`docs/index.md`（发现层入口）。
 - 影响产品范围的变更**先改 PRD**，再同步架构与 index。
 - Overview / spec 写入 `docs/spec/`，plan 写入 `docs/plan/`，report 写入 `docs/report/`；创建后同步更新 index。
 - **需求准出时归并 PRD**（Step 10 之后）：本次需求若有变更 PRD、或改变了用户旅程 / 成功指标 / 能力状态，把口径变化归并回 `REQUIREMENTS.md`——含旅程叙事回填，不能只翻 Scope 状态位；变更 PRD 加"已归并"头注转归档（详见 ai-prd skill §PRD 生命周期）。

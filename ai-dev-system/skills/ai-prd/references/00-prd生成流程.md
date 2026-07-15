@@ -15,7 +15,7 @@
 
 > Triage 4 问（沿用 ai-dev-workflow）：①改 AI/LLM 行为？②改鉴权/安全/设备形态？③跨服务/迁移/不可逆？④改指标/业务规则/对外承诺？
 
-> **AI-native / Agent 产品的边界（重要）**：上面三个模板给的是 PRD 的"软件外壳"。若产品的**核心价值来自 AI 行为**（模型自主规划、直接调用工具/接口、跨会话记忆影响决策，或置信度/降级是产品级决策），本 skill 的模板**不足以**承载 AI 产品决策——你**必须额外补一张 AI Capability Card**（见批 C 的 AI 追问），写清自主级别、允许/禁止行为、置信度与降级策略、评测（eval）准出标准；**Agent 类产品**还要写自主级别 A0–A4 与审批闸门、No-Ship Questions。这些属产品/安全决策，**必须在 PRD 定，不能下沉给工程 spec 补**。完整骨架参照团队的《Agentic 产品 PRD 指南》《Agent 能力扩展产品 PRD 指南》（在 doc-principles/prd-principles 下）——本 skill 不随包分发这两套重型模板，只负责把你引到该写它们。
+> **AI-native / Agent 产品的边界（重要）**：上面三个模板给的是 PRD 的"软件外壳"。若产品的**核心价值来自 AI 行为**（模型自主规划、直接调用工具/接口、跨会话记忆影响决策，或置信度/降级是产品级决策），本 skill 的模板**不足以**承载 AI 产品决策——你**必须额外补一张 AI Capability Card**（见批 C 的 AI 追问），写清自主级别、允许/禁止行为、置信度与降级策略、评测（eval）准出标准；**Agent 类产品**还要写自主级别 A0–A4 与审批闸门、No-Ship Questions。这些属产品/安全决策，**必须在 PRD 定，不能下沉给工程 spec 补**。完整骨架参照你所在团队自有的 Agentic 产品 PRD 规范——本 skill 不随包分发这类重型模板，只负责把你引到该写它们。
 
 ## 4 批提问
 
@@ -67,15 +67,15 @@
 1. 按所选模板把四批产出拼装成完整 PRD，补流程图（mermaid）与 changelog。
 2. 跑 `prd质量清单.md` 自检；不过则就缺项再批量追问或补写。
 3. **交付门：先取得用户确认再落盘**。组稿后把关键取舍/非目标/验收口径回述给用户，**达成共识后才写文件**——不要在用户还没确认的情况下就当成定稿交付。
-4. 写入 `docs/spec/`（命名：变更 PRD → `docs/spec/<name>-PRD-YYYYMMDD.md`；整品 → `docs/spec/REQUIREMENTS.md`）。
+4. 落盘（命名：变更 PRD → `docs/spec/<name>-PRD-YYYYMMDD.md`；整品 → `docs/REQUIREMENTS.md`，唯一真相源放 `docs/` 根）。
 5. **团队版**：同步更新 `docs/index.md`（doc 治理要求）。
 6. 收尾提示：这份 PRD 可作为 `ai-dev-workflow` Step 1 的输入，接着做 Overview / 技术 Spec。
 
 ## PRD 生命周期（两次动笔）
 
 - **开发前**：本流程产出的是**意图**——变更 PRD 或整品 PRD 新章节，先于代码定稿；影响产品范围的变更必须先改 PRD 再动代码。
-- **开发后（准出必做）**：需求实现验收后，把变更 PRD 中**改变了口径**的部分归并回整品 PRD（`docs/spec/REQUIREMENTS.md`）：更新 Product Scope 能力状态；若用户旅程 / 成功指标被改变，**同步回填旅程叙事**——不能只翻状态位，否则旅程随迭代漂移成史前文档。归并后变更 PRD 加"已归并"头注原地转归档，不再作为平行真相源维护。
-- **膨胀分层**：整品 PRD 过大时，主文档只留骨架（Summary / Success Criteria / Scope 状态 / User Journeys / FR 摘要），FR/NFR 明细与验收基线移入 `docs/spec/REQUIREMENTS-appendix.md`（附录从属主文档，冲突以主文档为准）；主文档永远单一，附录可按域再拆。**实现细节不进 PRD**——怎么做归 spec，代码现状归 card；PRD 的细节边界是"用户可感知的行为契约与验收口径"。
+- **开发后（准出必做）**：需求实现验收后，把变更 PRD 中**改变了口径**的部分归并回整品 PRD（`docs/REQUIREMENTS.md`）：更新 Product Scope 能力状态；若用户旅程 / 成功指标被改变，**同步回填旅程叙事**——不能只翻状态位，否则旅程随迭代漂移成史前文档。归并后变更 PRD 加"已归并"头注原地转归档，不再作为平行真相源维护。
+- **膨胀分层**：整品 PRD 过大时，主文档只留骨架（Summary / Success Criteria / Scope 状态 / User Journeys / FR 摘要），FR/NFR 明细与验收基线移入 `docs/REQUIREMENTS-appendix.md`（附录从属主文档、与主文档同放 `docs/` 根，冲突以主文档为准）；主文档永远单一，附录可按域再拆。**实现细节不进 PRD**——怎么做归 spec，代码现状归 card；PRD 的细节边界是"用户可感知的行为契约与验收口径"。
 
 ## 个人版 vs 团队版裁剪
 

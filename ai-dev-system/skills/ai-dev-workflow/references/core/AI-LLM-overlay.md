@@ -19,7 +19,7 @@
    - **给已有稳定 agent 加能力**（约 80% 的日常：新增 skill / tool / 配套服务，agent loop 不动）→ 采用"**继承 + 只写增量**"的写法：先写一份 **Inheritance Declaration**（声明从现有平台基线 as-built 继承什么，不重复），spec 只写新增的 Skill + Tools + Service，其余继承；并维护一份 **平台缺口清单（Gap Watchlist）**（如：无审批闸门、无 turn 上限、工具结果未筛查），在能力层顺手补齐已知缺口。工具类要写清 side-effect 分级与写操作保护、不可信工具输出的处理、预算/loop 交互。
    - **改 agent 平台核心**（改 loop、预算、可观测/eval 平台，或补基线缺口）→ 需要完整的 agent loop 状态机、Autonomy Levels & HITL 审批闸门、工具契约登记、轨迹级可观测与 trajectory eval。
 
-   > **范围声明**：本 skill **不随包分发**完整的 agent 平台重型骨架（agent loop 状态机、Autonomy Levels 全表、trajectory eval 平台那套）——它高度贴具体平台，超出本体系"技术栈无关内核"的定位。真要做 agent 平台核心改造时，去团队的《Agent 能力扩展 eng-spec 指南》与《Agent 平台核心 eng-spec 指南》（在 doc-principles/eng-principles 下）取重型骨架，别在这份 overlay 里硬塞。但下面这份**平台无关**的最小 agent 契约（判定 + 继承声明 + 缺口清单 + 自主级别/审批闸门要点）本 skill 会给，足以覆盖"给已有 agent 加能力"的 80% 日常场景；"**声明继承、只 spec 增量、维护平台缺口清单**"这个思路对任何在既有 agent 上加能力的迭代都通用。
+   > **范围声明**：本 skill **不随包分发**完整的 agent 平台重型骨架（agent loop 状态机、Autonomy Levels 全表、trajectory eval 平台那套）——它高度贴具体平台，超出本体系"技术栈无关内核"的定位。真要做 agent 平台核心改造时，参照你所在团队自有的 agent 平台规范（Agent 能力扩展 / 平台核心类的 eng-spec 指南）取重型骨架；若团队还没有这类规范，先为你的平台立一份，别在这份 overlay 里硬塞。但下面这份**平台无关**的最小 agent 契约（判定 + 继承声明 + 缺口清单 + 自主级别/审批闸门要点）本 skill 会给，足以覆盖"给已有 agent 加能力"的 80% 日常场景；"**声明继承、只 spec 增量、维护平台缺口清单**"这个思路对任何在既有 agent 上加能力的迭代都通用。
 
 ## 硬规则（不可协商，MUST）
 
