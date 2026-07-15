@@ -7,6 +7,8 @@ description: "AI 辅助开发主流程。当用户要做需求落地、AI 辅助
 
 把一个需求，逐层降解成"零上下文的 AI agent 也能可靠执行"的任务。本 skill 是 **mode-aware** 的：同一套内核（core），根据项目是「个人版」还是「团队版」加载不同外壳。
 
+> **触发提示**：自动触发不总是稳定。若发现某一步没走本流程，直接在 prompt 里**点名 skill / 步骤**（如"用 ai-dev-workflow 的 Step 2 出 Overview""按 eng-spec 模板写"），比依赖关键词更可靠。
+
 ## 目录结构（本 skill 自身）
 
 ```

@@ -19,15 +19,33 @@ function scoreHits(haystack, tokens) {
   return s;
 }
 
+/** 是否为模板占位内容（含【】的行视为未填，跳过）。 */
+function isPlaceholder(line) {
+  return /[【】]/.test(line);
+}
+
+/** 取 card 中"废弃/中间产物标记 ★防误用"段落的真实条目（跳过占位）。 */
+function deprecationMarkers(card) {
+  const key = Object.keys(card.sections).find((k) => /废弃|防误用|中间产物/.test(k));
+  if (!key) return [];
+  return card.sections[key]
+    .split(/\r?\n/)
+    .map((l) => l.replace(/^[-*]\s*/, '').trim())
+    .filter((l) => l.length > 0 && !isPlaceholder(l));
+}
+
 /**
- * discover：意图 → 应加载的 card 清单（带 cite）+ out-of-scope 提示。
+ * discover：意图 → 应加载的 card 清单（带 cite）+ out-of-scope 警告。
  * 匹配 card 全文与 registry 行，按命中分排序。
+ * out-of-scope 警告（"哪些是陷阱、别当权威用"）来自：命中 card 的废弃/中间产物标记段，
+ * 与 registry 中命中能力的"废弃/中间产物替代"列——这是本层的立身之本，不能只在零命中时给。
  */
 export function discover(ctxDir, intent) {
   const tokens = tokenize(intent);
   const cards = loadCards(ctxDir);
   const registry = loadRegistry(ctxDir);
   const scored = [];
+  const outOfScope = [];
   for (const card of cards) {
     let score = scoreHits(card.raw, tokens);
     // registry 中指向该仓库的能力，若命中 intent，给 card 加权
@@ -45,16 +63,23 @@ export function discover(ctxDir, intent) {
         why,
         cite: makeCite(card.path, '职责', confirmedAt),
       });
+      // 命中 card 的废弃标记 → 逐条变成"别碰"警告
+      for (const marker of deprecationMarkers(card)) {
+        outOfScope.push(`${card.service}: ${marker}（废弃/中间产物，别当权威用）`);
+      }
+      // 命中能力若在 registry 标了废弃替代 → 同样提示
+      for (const cap of capHits) {
+        if (cap.deprecated && !isPlaceholder(cap.deprecated)) {
+          outOfScope.push(`能力「${cap.capability}」的废弃替代：${cap.deprecated}`);
+        }
+      }
     }
   }
   scored.sort((a, b) => b.score - a.score);
-  return {
-    cards: scored,
-    outOfScope:
-      scored.length === 0
-        ? ['未命中任何 card。请确认关键词，或该能力尚未登记（考虑补 card / registry）。']
-        : [],
-  };
+  if (scored.length === 0) {
+    outOfScope.push('未命中任何 card。请确认关键词，或该能力尚未登记（考虑补 card / registry）。');
+  }
+  return { cards: scored, outOfScope };
 }
 
 /** 从 card 的 Freshness 段落抽一个日期，用于 cite。 */
@@ -95,7 +120,8 @@ export function findScenes(ctxDir, keywords) {
   const tokens = tokenize(Array.isArray(keywords) ? keywords.join(' ') : keywords);
   return fs
     .readdirSync(dir)
-    .filter((f) => f.endsWith('.md'))
+    // README.md 是给人看的场景索引，不是场景本身；它汇集各场景关键词，几乎必命中，须排除。
+    .filter((f) => f.endsWith('.md') && f.toLowerCase() !== 'readme.md')
     .map((f) => {
       const raw = fs.readFileSync(path.join(dir, f), 'utf8');
       return { scene: path.basename(f, '.md'), score: scoreHits(raw, tokens), path: path.join('scenes', f) };
@@ -145,13 +171,14 @@ const PROBE_STUB = `# Frozen Probe Set — 上下文层防腐检测题集
 >   deprecated-trap    —— 输入=接口/实体，期望=\`deprecated\`（门禁须从 cards/registry 判其为废弃；被当 canonical 即失败）。
 
 ## 探针
-| # | 类型 | 输入 | 期望 |
-|---|---|---|---|
-| 1 | capability-mapping | 【能力名，如 背单词记录】 | 【repo :: POST /v2/xxx】 |
-| 2 | deprecated-trap | 【废弃接口，如 POST /v1/xxx】 | deprecated |
+> 列 severity（blocking=零容忍 / scored=计入加权通过率）、weight（scored 权重，默认 1）、status（正常留空；权威面变更待重认填 needs-reconfirm、退役填 quarantined，均暂不计分）可选。
+| # | 类型 | 输入 | 期望 | severity | weight | status |
+|---|---|---|---|---|---|---|
+| 1 | capability-mapping | 【能力名，如 背单词记录】 | 【repo :: POST /v2/xxx】 | scored | 1 | |
+| 2 | deprecated-trap | 【废弃接口，如 POST /v1/xxx】 | deprecated | blocking | 1 | |
 
 ## 基线（棘轮）
-> 已知、暂时容忍的失败项（按 # 列）。规则：只许变短——新增失败即门禁 RED。
+> 已知、暂时容忍的失败项（按 # 列）。规则：**只许变短**——基线外新增失败即 RED；基线内已修复也 RED（强制删除该条）。
 （空）
 `;
 

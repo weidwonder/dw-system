@@ -22,9 +22,20 @@ test('discover 命中关键词返回相关 card 与 cite', () => {
   assert.match(r.cards[0].cite, /@/, 'cite 应含确认时间');
 });
 
+test('discover 命中含废弃标记的 card 时给出 out-of-scope 警告', () => {
+  const r = discover(ctxDir, '背单词 记录 接口');
+  assert.ok(r.cards.length >= 1);
+  assert.ok(r.outOfScope.length >= 1, '命中含废弃标记的 card 应产生 out-of-scope 警告');
+  assert.ok(
+    r.outOfScope.some((w) => /v1\/word\/record/.test(w)),
+    'out-of-scope 应点名废弃的 v1 接口',
+  );
+});
+
 test('discover 对无关意图返回空或 out-of-scope 提示', () => {
   const r = discover(ctxDir, 'zzz-完全无关的东西-qqq');
   assert.equal(r.cards.length, 0);
+  assert.ok(r.outOfScope.length >= 1, '零命中时应给出提示');
 });
 
 test('getCard 返回指定服务的段落', () => {
@@ -42,6 +53,21 @@ test('listServices 返回已登记服务', () => {
 test('findScenes 无 scenes 目录时返回空数组', () => {
   const r = findScenes(ctxDir, '背单词');
   assert.ok(Array.isArray(r));
+});
+
+test('findScenes 排除 scenes/README.md 索引文件', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'scenes-'));
+  try {
+    const scenesDir = path.join(tmp, 'scenes');
+    fs.mkdirSync(scenesDir, { recursive: true });
+    fs.writeFileSync(path.join(scenesDir, 'README.md'), '# 场景索引\n- 背单词提交链路\n');
+    fs.writeFileSync(path.join(scenesDir, '背单词提交链路.md'), '# 背单词提交链路\n覆盖背单词记录提交。\n');
+    const r = findScenes(tmp, '背单词 提交');
+    assert.ok(r.length >= 1, '真实场景文件应命中');
+    assert.ok(!r.some((s) => s.scene.toLowerCase() === 'readme'), 'README 索引不得作为场景返回');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
 });
 
 test('initScaffold 生成 engineering-context 骨架', () => {

@@ -14,11 +14,18 @@
 
 ## 跨服务调用链明细
 从入口逐跳追踪，一行一跳，直到链路闭合（返回/落库/下发）。
-| # | 调用方(project.Class#method) | 被调方(project.Class#method) | 方式(HTTP/Dubbo/MQ) | 传递关键数据 | 证据(文件:行/cite) | 状态 |
+| # | 调用方(project.Class#method) | 被调方(project.Class#method) | 方式(HTTP/RPC/MQ) | 传递关键数据 | 证据(文件:行/cite) | 状态 |
 |---|---|---|---|---|---|---|
 | 1 | 【】 | 【】 | 【】 | 【】 | 【】 | ✅/⏳/⛔ |
 
+## 服务级时序（project 粒度，先看这张）
+> 双图的第一张：只画服务之间怎么走，不下到类。给读者一个"哪几个服务、什么顺序"的骨架。
+```
+【mermaid sequence：participant 用服务名；一跳一条边，只画本链路触碰的服务。】
+```
+
 ## 一页式跨服务时序（project.ClassName 粒度）
+> 第二张：在服务级骨架上下钻到 project.Class 粒度，看关键类/方法怎么衔接。
 ```
 【mermaid sequence：participant 用 project 名；只画这条链上被触碰的节点。】
 ```
@@ -38,3 +45,6 @@
 ## Freshness / Provenance
 - 最近确认：【YYYY-MM-DD】
 - 来源：【追踪所依据的发布/commit】
+
+---
+> **完成后（finish）**：把本蓝图登记进 `engineering-context/scenes/README.md` 索引（场景名 + 一句话业务口径 + 文件路径），供人快速浏览与归组——`ctx find-scenes` 靠扫描蓝图正文关键词发现场景（索引 README 本身不参与检索），蓝图落进 `scenes/` 即可被检索到。同一业务的多张蓝图在索引里归到一组。待澄清点（⏳）清完再标"已澄清"。
