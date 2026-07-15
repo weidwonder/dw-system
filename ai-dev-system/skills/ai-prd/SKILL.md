@@ -15,6 +15,7 @@ description: "AI 协助产出 PRD。当用户要写/生成 PRD、把需求或想
 references/
   00-prd生成流程.md      核心：分流 + 4 批提问（A 立项 / B 现状边界 / C 细节 / D 准出）+ 组稿
   prd写作纪律.md         非目标要硬 / 边界要显式 / 验收可判定 / 真相方向 / 无占位符
+  业务语言纪律.md        对话、提问和 PRD 成稿只用业务语言
   prd质量清单.md         成稿前自检 gate（对照骨架查完备）
   mode-personal.md      个人薄外壳（可裁到最短）
   mode-team.md          团队外壳（现状接 ctx、评审、doc 治理落位）
@@ -32,7 +33,7 @@ assets/
    - 无 → 本会话临时问一次 mode（个人版/团队版），但【不写文件】
      （初始化写入是 ai-dev-workflow 的职责，本 skill 不抢）。
 
-2. 加载 references/00-prd生成流程.md + prd写作纪律.md，再按 mode 加载对应外壳：
+2. 加载 references/00-prd生成流程.md + prd写作纪律.md + 业务语言纪律.md，再按 mode 加载对应外壳：
    - personal → references/mode-personal.md
    - team     → references/mode-team.md
 
@@ -56,6 +57,7 @@ assets/
 - **验收可判定**：禁止"提升体验"这类不可勾验表述，用 RFC2119。
 - **真相方向（团队版）**：现状以代码为准，用 `ctx discover`/`get-card` 取事实并附 cite；**不得把意图/愿景写成现状**（呼应 ai-dev-workflow 的 context-engineering §3）。
 - **无占位符成稿**：交付前 `【】` 必须清零。
+- **全程只用业务语言**：对话、问题和 PRD 成稿不得要求用户理解程序实现；技术事实必须先翻译成业务事实。遵循 `references/业务语言纪律.md`。
 
 ## 何时用哪个模板
 

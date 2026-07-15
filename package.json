@@ -1,0 +1,21 @@
+{
+  "name": "ai-dev-system",
+  "version": "0.0.0",
+  "description": "Project installer for the ai-dev-workflow and ai-prd skills",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "ai-dev-system": "./install.mjs"
+  },
+  "files": [
+    "install.mjs"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/weidwonder/ai-dev-system.git"
+  },
+  "license": "UNLICENSED"
+}

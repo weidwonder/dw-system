@@ -15,7 +15,8 @@
 
 ```
 .                               # 仓库根
-├── install.mjs                 # 安装器（跨平台，直接 ./install.mjs 运行）
+├── package.json                # npx GitHub 命令入口
+├── install.mjs                 # 安装器（从 GitHub 获取指定版本，跨平台）
 ├── install.cmd                 # Windows 包装
 ├── docs/
 │   ├── spec/                  # PRD / Requirements / Overview / Spec / 设计 / 契约
@@ -25,12 +26,12 @@
     └── skills/                 # 两个 skill（Claude Code + Codex 通用）
         ├── ai-prd/             # 产 PRD：批量提问 + 阶段化 elicitation
         │   ├── SKILL.md        # 入口：读 mode → PRD 类型分流 → 4 批提问
-        │   ├── references/     # 生成流程 / 写作纪律 / 质量清单 / mode-*
+        │   ├── references/     # 生成流程 / 业务语言纪律 / 写作纪律 / 质量清单 / mode-*
         │   └── assets/         # 模板：change-prd（主）/ lite-issue-prd / product-prd
         └── ai-dev-workflow/    # 从已有 PRD 起步的主流程
             ├── SKILL.md        # 入口：读 mode → 路由；首次调用 → 初始化
             ├── references/
-            │   ├── core/       # 共享内核（技术栈无关）：流程总纲 / 写作纪律 / AI overlay
+            │   ├── core/       # 共享内核：流程 / worktree / 用户沟通 / 写作 / AI overlay / 文档治理
             │   ├── personal/   # 个人薄外壳
             │   └── company/    # 团队外壳 + Engineering Context 设计
             ├── assets/         # 模板：spec / plan / test / config 注入片段 / card
@@ -39,37 +40,53 @@
 
 > **两个 skill 的分工**：`ai-prd` 从零把需求做成 PRD → 产物作为 `ai-dev-workflow` Step 1 的输入 → workflow 继续做 Overview / Spec / Coding Plan / 测试。唤起 `ai-prd` 只需提到"帮我写 PRD / 生成需求文档 / 把这个需求写成 PRD"。
 
+> **沟通边界**：所有用户沟通使用业务语言。大架构由用户确认；模块内设计通过业务问题取得约束；详细程序设计由 AI 与工程侧自主完成。`ai-prd` 的提问和成稿全部使用业务语言，不包含程序实现和技术选型。
+>
+> **开发隔离**：进入 `ai-dev-workflow` 后，任何文档或代码落盘前必须创建独立 Git worktree，Lean 小改动也不例外。全部工作和门禁完成后自动合并仓库主分支；失败时保留 worktree，不处理主工作树中的用户改动，也不绕过 PR、CI 或保护分支。
+
 设计与实施文档见 `docs/spec/2026-07-06-ai-dev-system-design.md` 与 `docs/plan/2026-07-06-ai-dev-system.md`。
 
 ---
 
 ## 安装
 
-**方式 A：随项目安装（推荐）** — 用安装器同时装进目标项目的 `.claude/skills/`（Claude Code）和 `.agents/skills/`（Codex），并在**本项目**级配置里禁用或约束与本流程冲突的 Claude Code / Codex 插件或技能开关（只影响本项目，全局其他项目不受影响）。
+**方式 A：npx 随项目安装（推荐）** — 在目标项目根目录运行下面一条命令。npx 从 GitHub 获取安装入口，安装器再从官方仓库的 `main` 分支获取技能包，同时装进目标项目的 `.claude/skills/`（Claude Code）和 `.agents/skills/`（Codex）。需要 Node.js 20+、npm 和 Git。
 
 ```bash
-# 在目标项目根目录下运行（需已装 node，ctx CLI 也用它）
-#   macOS / Linux —— install.mjs 带 shebang，直接跑不用写 node：
-/path/to/ai-dev-system/install.mjs .
-#   任意平台的等价写法：
+# 在目标项目根目录运行，macOS、Linux、Windows 通用：
+npx --yes github:weidwonder/ai-dev-system .
+
+# 先预演，不落盘：
+npx --yes github:weidwonder/ai-dev-system . --dry-run
+
+# 安装指定分支或标签，便于灰度和回滚：
+npx --yes github:weidwonder/ai-dev-system . --ref=<分支或标签>
+```
+
+常用参数：`--shared` 把 Claude Code 项目配置提交给全仓共享；`--keep=<插件短名>` 保留指定冲突插件；`--no-plugins` 只装 skill；`--yes` 跳过安装器自身的交互确认。完整参数用 `npx --yes github:weidwonder/ai-dev-system --help` 查看。
+
+> 命令前面的 `npx --yes` 只跳过 npm 下载确认，安装器仍会在修改项目之前询问一次。需要全自动安装时，在目标目录后再传一次：`npx --yes github:weidwonder/ai-dev-system . --yes`。
+
+**方式 B：本地脚本安装（仓库维护与排障）**
+
+```bash
+# 已克隆本仓库时：
 node /path/to/ai-dev-system/install.mjs .
-#   Windows（cmd / PowerShell）：
+
+# Windows 也可使用包装脚本：
 #   \path\to\ai-dev-system\install.cmd .
 
-#   --dry-run           先预演，不落盘
-#   --shared            Claude Code 禁用写进 .claude/settings.json（提交进 git，全仓协作者共享）
-#                       默认写 .claude/settings.local.json（gitignored，仅影响你）
-#   --keep=<插件短名>    保留插件，并撤销安装器此前写入的禁用/约束（可多次）
-#   --no-plugins        只装 skill，不动任何冲突插件/技能设置或 AGENTS.md 约束
-#   --yes               跳过交互确认
+# 仅在开发、测试本仓库未发布改动时使用本地源码：
+node /path/to/ai-dev-system/install.mjs . --source-dir=/path/to/ai-dev-system
 ```
 
 安装器会：
 
-1. 复制 `skills/` 下**所有** skill（`ai-prd` + `ai-dev-workflow`，含 `ctx` CLI）→ `<项目>/.claude/skills/`，完成 Claude Code 项目级安装；
-2. 复制同一批 skill → `<项目>/.agents/skills/`，完成 Codex 项目级安装；
-3. 合并（不覆盖）Claude Code 的 `enabledPlugins`，在本项目把冲突插件设为 `false`；
-4. 写入并校验项目 `AGENTS.md` 的标记块，在 Codex 中约束冲突技能自动触发；若任一入口已有 workflow mode，同时补齐 `CLAUDE.md` 与 `AGENTS.md`。
+1. 从 GitHub 获取 `--repo` 对应仓库的 `--ref` 版本，并校验其中至少有一个有效 skill；下载或校验失败时不修改目标项目；
+2. 复制该版本的**所有** skill（默认含 `ai-prd` + `ai-dev-workflow` 和 `ctx` CLI）→ `<项目>/.claude/skills/`，完成 Claude Code 项目级安装；
+3. 复制同一批 skill → `<项目>/.agents/skills/`，完成 Codex 项目级安装；
+4. 合并（不覆盖）Claude Code 的 `enabledPlugins`，在本项目把冲突插件设为 `false`；
+5. 写入并校验项目 `AGENTS.md` 的标记块，在 Codex 中约束冲突技能自动触发；若任一入口已有 workflow mode，同时补齐 `CLAUDE.md` 与 `AGENTS.md`。
 
 | 插件 | 为什么与本流程冲突 |
 |---|---|
@@ -85,7 +102,7 @@ node /path/to/ai-dev-system/install.mjs .
 >
 > ⚠ 两个前提：① 项目级 `.claude/settings.json` 首次打开会弹 **workspace trust** 对话框，信任后才生效；② settings / `AGENTS.md` 改动在**下次启动 Claude Code / Codex** 时生效，非当前会话。撤销只需删掉本项目 settings 里对应的 `false` 条目，或删掉 `AGENTS.md` 中的 `ai-dev-system:codex-conflicts` 标记块。
 
-**方式 B：全局安装一次** — 所有项目共用，但冲突插件需你手动权衡（全局装则全局都在，可能与本流程相互干扰）。
+**方式 C：全局安装一次** — 所有项目共用，但冲突插件需你手动权衡（全局装则全局都在，可能与本流程相互干扰）。
 
 ```bash
 cp -r ai-dev-system/skills/ai-prd ai-dev-system/skills/ai-dev-workflow ~/.claude/skills/
@@ -104,7 +121,8 @@ cp -r ai-dev-system/skills/ai-prd ai-dev-system/skills/ai-dev-workflow ~/.agents
 
 ### 个人项目
 1. 在项目里唤起 skill → 选"个人版"。
-2. 直接描述你的需求。小改动会走一页 Lean Spec 直接实现；大需求才升级到完整流程。
+2. 直接描述你的需求。AI 会先建立独立 worktree；小改动走一页 Lean Spec，大需求升级到完整流程。
+3. 全部验证通过后自动合并主分支并清理 worktree，无需再次确认合并。
 
 ### 团队项目
 1. 在项目里唤起 skill → 选"团队版"。
@@ -113,7 +131,8 @@ cp -r ai-dev-system/skills/ai-prd ai-dev-system/skills/ai-dev-workflow ~/.agents
    node <skill>/scripts/ctx/src/cli.js init
    ```
    生成 `engineering-context/` 骨架（capability-registry + cards + probe-set 模板），团队按指南逐步填充。
-3. 之后开发时，AI 会先用 `ctx discover "<意图>"` 找权威代码实体，而不是 grep 旧代码；每条事实带 cite 溯源。
+3. 之后开发时，AI 会为每个仓库建立独立 worktree，再用 `ctx discover "<意图>"` 找权威代码实体，而不是 grep 旧代码；每条事实带 cite 溯源。
+4. 多仓全部就绪后，按依赖顺序走 PR、CI 和保护分支门禁并自动合并。
 
 ---
 
