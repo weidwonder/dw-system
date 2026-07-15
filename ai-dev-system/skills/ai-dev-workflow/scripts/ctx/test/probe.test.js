@@ -114,3 +114,10 @@ test('evaluateGate needs-reconfirm 探针不计入打分', () => {
   assert.equal(ev.verdict, 'GREEN', 'needs-reconfirm 的失败暂不计分，其余全过 → GREEN');
   assert.equal(ev.passRate, 1);
 });
+
+test('evaluateGate 基线内探针置 needs-reconfirm 时不算 staleBaseline（暂停≠修复）', () => {
+  const ev = evaluateGate(cards, registry, [failProbe(2, { status: 'needs-reconfirm' })], new Set(['2']));
+  assert.deepEqual(ev.staleBaseline, [], '待重认的基线条目不得被判为"已修复须删除"');
+  assert.equal(ev.verdict, 'GREEN');
+  assert.equal(ev.needsReconfirm.length, 1);
+});

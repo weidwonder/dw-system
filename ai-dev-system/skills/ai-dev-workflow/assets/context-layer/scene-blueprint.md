@@ -14,7 +14,7 @@
 
 ## 跨服务调用链明细
 从入口逐跳追踪，一行一跳，直到链路闭合（返回/落库/下发）。
-| # | 调用方(project.Class#method) | 被调方(project.Class#method) | 方式(HTTP/Dubbo/MQ) | 传递关键数据 | 证据(文件:行/cite) | 状态 |
+| # | 调用方(project.Class#method) | 被调方(project.Class#method) | 方式(HTTP/RPC/MQ) | 传递关键数据 | 证据(文件:行/cite) | 状态 |
 |---|---|---|---|---|---|---|
 | 1 | 【】 | 【】 | 【】 | 【】 | 【】 | ✅/⏳/⛔ |
 
@@ -47,4 +47,4 @@
 - 来源：【追踪所依据的发布/commit】
 
 ---
-> **完成后（finish）**：把本蓝图登记进 `engineering-context/scenes/README.md` 索引（场景名 + 一句话业务口径 + 文件路径），让 `ctx find-scenes` 与人都能发现它；同一业务的多张蓝图在索引里归到一组。待澄清点（⏳）清完再标"已澄清"。
+> **完成后（finish）**：把本蓝图登记进 `engineering-context/scenes/README.md` 索引（场景名 + 一句话业务口径 + 文件路径），供人快速浏览与归组——`ctx find-scenes` 靠扫描蓝图正文关键词发现场景（索引 README 本身不参与检索），蓝图落进 `scenes/` 即可被检索到。同一业务的多张蓝图在索引里归到一组。待澄清点（⏳）清完再标"已澄清"。

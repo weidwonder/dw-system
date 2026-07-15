@@ -55,6 +55,21 @@ test('findScenes 无 scenes 目录时返回空数组', () => {
   assert.ok(Array.isArray(r));
 });
 
+test('findScenes 排除 scenes/README.md 索引文件', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'scenes-'));
+  try {
+    const scenesDir = path.join(tmp, 'scenes');
+    fs.mkdirSync(scenesDir, { recursive: true });
+    fs.writeFileSync(path.join(scenesDir, 'README.md'), '# 场景索引\n- 背单词提交链路\n');
+    fs.writeFileSync(path.join(scenesDir, '背单词提交链路.md'), '# 背单词提交链路\n覆盖背单词记录提交。\n');
+    const r = findScenes(tmp, '背单词 提交');
+    assert.ok(r.length >= 1, '真实场景文件应命中');
+    assert.ok(!r.some((s) => s.scene.toLowerCase() === 'readme'), 'README 索引不得作为场景返回');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('initScaffold 生成 engineering-context 骨架', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ctx-'));
   try {

@@ -42,7 +42,7 @@
   ```
   > 注意：`ctx find-scenes` 返回的是**场景蓝图指针**（scene 名 + 命中分 + 路径），本身不直接给"涉及哪些服务"。你从蓝图正文里读到 / 推断出的涉及服务，都是**推断**，必须逐个用 `ctx get-card` 核实到权威 card 才能当事实用。
   > discover 会随命中结果给出 **out-of-scope 警告**（哪些是废弃/中间产物、别当权威用），这些警告要抄进 Step 1 的〈既有系统清单〉，并在 Step 2 的 A 核查里逐条确认。
-- **每条来自 card 的事实（接口名、字段、topic、Dubbo 签名）必须附 cite**（path + anchor + 最近确认时间）。无 cite 的接口/字段一律视为幻觉，回查。
+- **每条来自 card 的事实（接口名、字段、topic、RPC 签名）必须附 cite**（path + anchor + 最近确认时间）。无 cite 的接口/字段一律视为幻觉，回查。
 - **检索纪律**：查**精确 token**（字段名/接口名/表名）时优先用精确匹配（`ctx get-card <repo> <域>`、grep card 正文），不要只靠 `ctx search-semantic`；**语义检索结果只作"去哪找"的索引，不能当最终事实直接引用**——命中后仍要落到权威 card 段并附 cite。card 没有独立的 README 段，服务级 README 信息（部署/排障/路径）已并入 card 的对应节。
 - **card 不够用、必须读真实源码时（clone 决策树）**：
   1. **先穷尽文档路径**——接口签名/字段去 card 的"对外接口"段；部署/配置/排障去 card 对应段；跨服务流程去 `ctx find-scenes`。以上都不够，才真正 clone。

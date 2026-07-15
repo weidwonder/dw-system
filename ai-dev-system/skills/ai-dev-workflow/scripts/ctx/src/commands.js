@@ -120,7 +120,8 @@ export function findScenes(ctxDir, keywords) {
   const tokens = tokenize(Array.isArray(keywords) ? keywords.join(' ') : keywords);
   return fs
     .readdirSync(dir)
-    .filter((f) => f.endsWith('.md'))
+    // README.md 是给人看的场景索引，不是场景本身；它汇集各场景关键词，几乎必命中，须排除。
+    .filter((f) => f.endsWith('.md') && f.toLowerCase() !== 'readme.md')
     .map((f) => {
       const raw = fs.readFileSync(path.join(dir, f), 'utf8');
       return { scene: path.basename(f, '.md'), score: scoreHits(raw, tokens), path: path.join('scenes', f) };
@@ -170,11 +171,11 @@ const PROBE_STUB = `# Frozen Probe Set — 上下文层防腐检测题集
 >   deprecated-trap    —— 输入=接口/实体，期望=\`deprecated\`（门禁须从 cards/registry 判其为废弃；被当 canonical 即失败）。
 
 ## 探针
-> 列 severity（blocking=零容忍 / scored=计入加权通过率）、weight（scored 权重，默认 1）可选，不填按 scored/1。
-| # | 类型 | 输入 | 期望 | severity | weight |
-|---|---|---|---|---|---|
-| 1 | capability-mapping | 【能力名，如 背单词记录】 | 【repo :: POST /v2/xxx】 | scored | 1 |
-| 2 | deprecated-trap | 【废弃接口，如 POST /v1/xxx】 | deprecated | blocking | 1 |
+> 列 severity（blocking=零容忍 / scored=计入加权通过率）、weight（scored 权重，默认 1）、status（正常留空；权威面变更待重认填 needs-reconfirm、退役填 quarantined，均暂不计分）可选。
+| # | 类型 | 输入 | 期望 | severity | weight | status |
+|---|---|---|---|---|---|---|
+| 1 | capability-mapping | 【能力名，如 背单词记录】 | 【repo :: POST /v2/xxx】 | scored | 1 | |
+| 2 | deprecated-trap | 【废弃接口，如 POST /v1/xxx】 | deprecated | blocking | 1 | |
 
 ## 基线（棘轮）
 > 已知、暂时容忍的失败项（按 # 列）。规则：**只许变短**——基线外新增失败即 RED；基线内已修复也 RED（强制删除该条）。
