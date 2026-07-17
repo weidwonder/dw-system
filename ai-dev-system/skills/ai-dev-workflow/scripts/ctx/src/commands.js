@@ -146,6 +146,7 @@ export function initScaffold(targetDir) {
   writeIfAbsent(path.join(base, 'cards', '.gitkeep'), '');
   writeIfAbsent(path.join(base, 'capability-registry.md'), REGISTRY_STUB);
   writeIfAbsent(path.join(base, 'probe-set.md'), PROBE_STUB);
+  writeIfAbsent(path.join(base, 'glossary.md'), GLOSSARY_STUB);
   writeIfAbsent(path.join(base, 'README.md'), CTX_README_STUB);
   return base;
 }
@@ -180,6 +181,16 @@ const PROBE_STUB = `# Frozen Probe Set — 上下文层防腐检测题集
 ## 基线（棘轮）
 > 已知、暂时容忍的失败项（按 # 列）。规则：**只许变短**——基线外新增失败即 RED；基线内已修复也 RED（强制删除该条）。
 （空）
+`;
+
+const GLOSSARY_STUB = `# Glossary — 领域词汇表
+
+> 纯词汇表，禁实现细节：glossary 管说法一致，card 管事实权威，registry 管能力落点。
+> 条目里出现表/接口/类名即为越界，移去 card。同义词列供 synonyms.md 参考。
+
+| 术语 | 定义（一句话，业务语言） | 同义词/曾用名（标明弃用） | 易混淆项（差异一句话） | 备注 |
+|---|---|---|---|---|
+| 【术语】 | 【业务定义】 | 【曾用名（弃用）】 | 【≠ 某相近概念】 | 【】 |
 `;
 
 const CTX_README_STUB = `# engineering-context

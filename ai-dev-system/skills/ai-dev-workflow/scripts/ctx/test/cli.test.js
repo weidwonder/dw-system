@@ -78,6 +78,7 @@ test('initScaffold 生成 engineering-context 骨架', () => {
     assert.ok(fs.existsSync(path.join(base, 'capability-registry.md')));
     assert.ok(fs.existsSync(path.join(base, 'cards')));
     assert.ok(fs.existsSync(path.join(base, 'probe-set.md')));
+    assert.ok(fs.existsSync(path.join(base, 'glossary.md')));
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
