@@ -1,4 +1,4 @@
-# Engineering Context 完整设计（team mode，方案 B）
+# Engineering Context 完整设计（team mode）
 
 > 团队版的核心资产层。目标：**让 AI 在具体任务中读到正确代码、避开错误的相似旧代码，并能证明这层上下文"一直新鲜"。**
 > 落地形态：项目内 `engineering-context/` 目录（markdown card）+ `ctx` CLI（查询）。用 `ctx init` 生成骨架。
@@ -31,6 +31,10 @@
 card 是"单仓视角"，scene 蓝图是"端到端视角"——`ctx find-scenes` 查的就是它。**它不是查询出来的，是生产出来的**：以一个业务场景为粒度，**从入口线索出发闭合追踪每一条跨服务调用链**，产出入口清单、跨服务调用链明细、一页式时序（project.Class 粒度）、核心类方法总览、动态/配置化接口核对，每条标 ✅已确认/⏳待确认/⛔未生效。模板见 `assets/context-layer/scene-blueprint.md`。
 
 > **真相方向同样是"代码→蓝图"**：读入口顺调用链追到底，PRD 仅作 scope。没有 scene 蓝图，业务全景门限（mode-team §2）就没有东西可查——所以高频跨服务场景应优先补蓝图。这套"以 project 为粒度闭合追踪调用链、按代码证据标三态"的方法，个人版调试老系统链路也用得上。
+
+### 2.4 领域词汇表（`engineering-context/glossary.md`，辅助资产）
+
+**纯词汇表，禁实现细节**：术语 / 业务定义 / 同义词与弃用叫法 / 易混淆项。分工：**glossary 管说法一致，card 管事实权威，registry 管能力落点**——词汇表条目里出现表名/接口/类名即为越界，移去 card。价值：人与 AI 对同一概念用同一个词，堵住"同一实体多种叫法"这一相似陷阱的源头；同义词列供 `synonyms.md`（search-semantic 查询扩展）参考。模板见 `assets/context-layer/glossary.md`，`ctx init` 生成骨架。属"耐用的人工判断"层（§4），低频人工维护。
 
 ## 3. 真相方向铁律（最重要）
 

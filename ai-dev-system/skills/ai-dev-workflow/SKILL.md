@@ -20,11 +20,13 @@ references/
     AI-LLM-overlay.md    含 AI/LLM 时叠加的 AI 契约清单
     文档治理.md          spec / plan / report 的唯一输出目录与命名
     用户沟通纪律.md      业务语言 + 大架构确认 + 详细设计自主决策
+    bug诊断纪律.md       红回路优先：先造能变红的复现命令，再谈假设
+    上下文卫生.md        聪明区决策 / 交接不硬撑 / 编码任务零上下文起步
   personal/
     mode-personal.md     个人薄外壳：默认一页 spec、可跳步、memory 约定
   company/
     mode-team.md         团队外壳：评审/owner/PR/文档治理/context 层用法
-    context-engineering.md  Engineering Context 完整设计（方案 B）
+    context-engineering.md  Engineering Context 完整设计
   init-初始化.md         如何幂等写入 CLAUDE.md/AGENTS.md
 assets/
   templates/           lean-change-spec / overview / eng-spec / coding-plan / test-spec
@@ -48,7 +50,7 @@ scripts/ctx/           ctx CLI（Node.js，跨平台）：查代码事实
 
 2b. 若【有】标记块 → 读出 mode，不再询问；若另一文件缺失或无标记块，幂等补齐同一 mode 块。
 
-3. 加载 core（全部六篇），再按 mode 加载对应外壳：
+3. 加载 core（全部八篇），再按 mode 加载对应外壳：
      - personal → references/personal/mode-personal.md
      - team     → references/company/mode-team.md（+ 需要时 context-engineering.md）
 
@@ -66,6 +68,8 @@ scripts/ctx/           ctx CLI（Node.js，跨平台）：查代码事实
 - **含 AI/LLM 功能时叠加 overlay**：模型参与功能行为（生成/总结/分类/检索/OCR/ASR/固定 prompt 流程）时，在基础 spec 上叠加 references/core/AI-LLM-overlay.md 的 AI 契约。
 - **文档只写入标准目录**：spec 写 `docs/spec/`，plan 写 `docs/plan/`，report 写 `docs/report/`；不得写项目根或工具命名目录。遵循 `references/core/文档治理.md`。
 - **用户沟通只用业务语言**：大架构必须由用户确认；模块内设计只通过业务问题取约束；详细程序设计由 AI 自主完成，无需用户确认。遵循 `references/core/用户沟通纪律.md`。
+- **bug 类任务先过红回路门**：修 bug / 查回归 / 解释异常行为前，先构造"能变红、确定性、快、可自跑"的复现命令；回路不存在不许提假设、不许改代码。遵循 `references/core/bug诊断纪律.md`。
+- **上下文卫生**：方向性决策（澄清/Overview/spec/plan）在聪明区内完成；逼近上限写交接文档开新会话，不硬撑；编码任务零上下文起步，重探索交子 agent。遵循 `references/core/上下文卫生.md`。
 - **开发全程隔离并自动归并**：任何文档或代码落盘前进入独立 worktree，Lean 与完整流程都不得绕过；全程使用独立 worktree，全部完成并通过门禁后自动合并主分支，无需再次询问。失败时保留现场，不得绕过保护分支或处理用户未提交改动。遵循 `references/core/worktree开发纪律.md`。
 
 ## 何时用哪个模板

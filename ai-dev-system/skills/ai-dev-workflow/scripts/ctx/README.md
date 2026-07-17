@@ -16,7 +16,7 @@ cd <skill>/scripts/ctx && npm link      # 之后可直接 `ctx <命令>`
 
 | 命令 | 作用 | 状态 |
 |---|---|---|
-| `ctx init [--dir <目标>]` | 生成 `engineering-context/` 骨架（registry + cards/ + probe-set） | ✅ |
+| `ctx init [--dir <目标>]` | 生成 `engineering-context/` 骨架（registry + cards/ + probe-set + glossary） | ✅ |
 | `ctx discover "<意图>"` | 意图 → 应加载的 card 清单（按命中分排序）+ out-of-scope 提示 | ✅ |
 | `ctx get-card <repo> [域]` | 取某仓 card；域为 `## 段落标题` | ✅ |
 | `ctx find-scenes <关键词...>` | 匹配 `scenes/*.md` 业务场景 | ✅ |

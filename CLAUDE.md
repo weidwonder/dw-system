@@ -18,7 +18,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 常用命令
 
 ```bash
-# ctx CLI 的单元测试（Node 内置 test runner，21 项，零第三方依赖，需 Node ≥20）
+# ctx CLI 的单元测试（Node 内置 test runner，30 项，零第三方依赖，需 Node ≥20）
 cd ai-dev-system/skills/ai-dev-workflow/scripts/ctx && node --test
 
 # 跑单个测试文件
@@ -98,7 +98,7 @@ ai-dev-system/skills/ai-dev-workflow/
   references/init-初始化.md         幂等写入 CLAUDE.md/AGENTS.md 的规则
   assets/templates/                spec/plan/test/overview/lean-change-spec 模板
   assets/config-snippets/          注入 CLAUDE.md/AGENTS.md 的 personal/team 片段
-  assets/context-layer/            capability-registry/card/scene-blueprint/probe-set 模板
+  assets/context-layer/            capability-registry/card/scene-blueprint/probe-set/glossary 模板
   scripts/ctx/                     ctx CLI（src/ + test/ + fixtures/）
 ```
 
@@ -112,9 +112,10 @@ Codex 安装不修改用户级全局插件配置，而是在目标项目 `AGENTS
 
 ## 改动时注意
 
-- 改 skill 行为 → 改对应 skill `references/` 下 markdown；改模板 → `assets/templates/`；两者是 skill 的"源码"。新增 skill 只要放进 `ai-dev-system/skills/<name>/` 并含 `SKILL.md`，发布到安装源后 `install.mjs` 会自动发现并复制，无需改安装器；发布前用 `--source-dir=.` 验证。
+- 改 skill 行为 → 改对应 skill `references/` 下 markdown；改模板 → `assets/templates/`；两者是 skill 的"源码"。改前后过一遍 `docs/spec/2026-07-16-skill写作自检清单.md`（信息层级 / 六大失败模式 / 交叉引用同步）。新增 skill 只要放进 `ai-dev-system/skills/<name>/` 并含 `SKILL.md`，发布到安装源后 `install.mjs` 会自动发现并复制，无需改安装器；发布前用 `--source-dir=.` 验证。
 - 用户沟通必须使用业务语言：大架构交给用户确认，模块内设计只问业务问题，详细程序设计不要求用户确认；`ai-prd` 的对话与成稿不得包含程序实现。
 - 进入 workflow 后，任何文档或代码落盘前必须按 `references/core/worktree开发纪律.md` 建立独立 worktree；Lean 也不例外。全部门禁通过后自动合并主分支，失败保留 worktree，禁止处理主工作树的用户改动或绕过保护分支。
 - `ai-prd` 的北极星参考物是 `orgin/prd.demo/` 下的变更 PRD 范例（brownfield 变更 PRD 骨架，本地参考、不入库）；改 `change-prd.md` 模板前对照设计文档 `docs/spec/2026-07-06-ai-prd-design.md §7` 的覆盖度映射，别丢节。
 - 改 `ctx` 逻辑 → 同步更新 `scripts/ctx/test/` 下的测试，跑 `node --test` 保持全绿。card/registry 的格式约定见 `scripts/ctx/README.md` §card 格式约定，解析器依赖它。
 - 本仓库自身与安装目标的文档目录固定为：spec → `docs/spec/`，plan → `docs/plan/`，report → `docs/report/`。
+- **版本管理**：分发版本在 `ai-dev-system/VERSION`（旧无 stamp 安装追认为 1.0.0）。凡改变已安装项目的行为契约或目录约定就 bump；需要用户动作的升级必须同时新增 `ai-dev-system/migrations/<新版本>.md`（安装器会在升级时高亮全文打印，指南保持一屏内）。安装器把版本 stamp 写入目标两个 skills 目录的 `ai-dev-system.version`。**每次版本变更合入 main 后必须打 annotated tag `v<版本>`**（如 `v1.1.0`），tag 与 VERSION 始终一致，供 `--ref=v<版本>` 锁版本安装与回溯。机制详见 `docs/spec/2026-07-16-skill版本管理与迁移机制.md`；改动后跑 `node --test test/installer-migration.test.mjs`。
