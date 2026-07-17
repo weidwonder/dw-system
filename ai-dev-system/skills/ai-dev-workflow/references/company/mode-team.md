@@ -23,7 +23,7 @@
 - 保护分支仓库在审批与 CI 全部通过后启用平台自动合并；不得绕过保护分支直接写主分支。多仓需求全部就绪后再按依赖顺序合并。
 
 ### 文档治理
-- 遵循团队 doc-governance：`docs/REQUIREMENTS.md`（PRD 唯一真相源，放 `docs/` 根）、`docs/ARCHITECTURE.md`（从属 PRD）、`docs/index.md`（发现层入口）。
+- 在 `core/文档治理.md` 之上，团队版额外维护：`docs/REQUIREMENTS.md`（PRD 唯一真相源，放 `docs/` 根）、`docs/ARCHITECTURE.md`（从属 PRD）、`docs/index.md`（发现层入口）。
 - 影响产品范围的变更**先改 PRD**，再同步架构与 index。
 - Overview / spec 写入 `docs/spec/`，plan 写入 `docs/plan/`，report 写入 `docs/report/`；创建后同步更新 index。
 - **需求准出时归并 PRD**（Step 10 之后）：本次需求若有变更 PRD、或改变了用户旅程 / 成功指标 / 能力状态，把口径变化归并回 `REQUIREMENTS.md`——含旅程叙事回填，不能只翻 Scope 状态位；变更 PRD 加"已归并"头注转归档（详见 ai-prd skill §PRD 生命周期）。
@@ -32,7 +32,9 @@
 
 团队仓库"历史包袱重、文档差"，AI 直接 grep 会读到旧代码/中间产物。所以：
 
+- **调用方式**：`ctx` 未全局安装时，用 `node <本skill路径>/scripts/ctx/src/cli.js <命令>` 运行；或一次性 `cd <本skill路径>/scripts/ctx && npm link` 后直接 `ctx <命令>`。命令清单与输出格式见 `scripts/ctx/README.md`。下文简写为 `ctx`。
 - **凡涉及"这个能力对应哪个仓库/接口""跨服务影响面""哪个是权威实现"的问题，先用 `ctx`**，不要 grep。
+- **术语说法不一致时查 `engineering-context/glossary.md`**（领域词汇表）：glossary 管说法一致，card 管事实权威，registry 管能力落点；发现"同一实体多种叫法"造成误会时提示 owner 补词条（见 `context-engineering.md` §2.4）。
 
 - **★ 业务全景门限（排序铁律）**：**除非用户明确把任务限定到某一个具体 repo / 服务 / 代码路径**，否则**第一步必须先 `ctx find-scenes <关键词>` 取端到端业务全景，再据此收窄到具体 card / 源码**。跨服务需求跳过全景直接钻单个 card，最常见的失败就是漏掉链路上的其它服务。提取 2–5 个高置信关键词（需求名、业务入口、核心动作）喂给 find-scenes。
   ```bash

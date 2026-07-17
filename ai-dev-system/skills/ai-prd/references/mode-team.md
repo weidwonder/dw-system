@@ -24,7 +24,7 @@
 
 - PRD 写入 `docs/spec/`；影响产品范围的以 PRD 为唯一真相源。
 - 变更 PRD → `docs/spec/<name>-PRD-YYYYMMDD.md`；整品 → `docs/REQUIREMENTS.md`（唯一真相源放 `docs/` 根）。
-- **创建后必须同步更新 `docs/index.md`**（doc-governance 强制规则）。
+- **创建后必须同步更新 `docs/index.md`**（团队文档治理强制规则，呼应 ai-dev-workflow 的 `references/core/文档治理.md`）。
 - **归并纪律**：变更 PRD 实现验收后，把口径变化归并回 `docs/REQUIREMENTS.md`（Scope 状态 + 被改变的旅程叙事），变更 PRD加"已归并"头注转归档——防止只有状态位在更新、旅程叙事漂移（见 `00-prd生成流程.md` §PRD 生命周期）。
 - 整品 PRD 过大时：FR/NFR 明细与验收基线拆到 `docs/REQUIREMENTS-appendix.md`（附录从属主文档，同放 `docs/` 根）；主文档只留骨架与旅程。
 

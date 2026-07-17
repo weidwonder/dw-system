@@ -26,7 +26,7 @@ references/
     mode-personal.md     个人薄外壳：默认一页 spec、可跳步、memory 约定
   company/
     mode-team.md         团队外壳：评审/owner/PR/文档治理/context 层用法
-    context-engineering.md  Engineering Context 完整设计（方案 B）
+    context-engineering.md  Engineering Context 完整设计
   init-初始化.md         如何幂等写入 CLAUDE.md/AGENTS.md
 assets/
   templates/           lean-change-spec / overview / eng-spec / coding-plan / test-spec

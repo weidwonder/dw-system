@@ -1,4 +1,4 @@
-# Engineering Context 完整设计（team mode，方案 B）
+# Engineering Context 完整设计（team mode）
 
 > 团队版的核心资产层。目标：**让 AI 在具体任务中读到正确代码、避开错误的相似旧代码，并能证明这层上下文"一直新鲜"。**
 > 落地形态：项目内 `engineering-context/` 目录（markdown card）+ `ctx` CLI（查询）。用 `ctx init` 生成骨架。
