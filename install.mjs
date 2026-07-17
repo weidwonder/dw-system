@@ -54,6 +54,11 @@ const CODEX_CONFLICTS = [
   { key: 'superpowers@openai-curated', short: 'superpowers', skillPrefix: 'superpowers:', reason: 'Codex 插件版 superpowers 会通过 skill 规则强制前置，和本流程分流/执行规则冲突' },
 ];
 
+// 版本 stamp 文件名：安装时写入目标项目的两个 skills 目录，升级时据此判断是否需要迁移提示。
+const VERSION_STAMP = 'ai-dev-system.version';
+// 显式版本化之前的旧安装（有 skill 无 stamp）一律按该版本处理。
+const LEGACY_VERSION = '1.0.0';
+
 const CODEX_GUARD_START = '<!-- ai-dev-system:codex-conflicts:start -->';
 const CODEX_GUARD_END = '<!-- ai-dev-system:codex-conflicts:end -->';
 const WORKFLOW_MODE_START = '<!-- ai-dev-workflow:start -->';
@@ -209,6 +214,30 @@ function getWorkflowMode(block) {
   return match?.[1] || null;
 }
 
+function readVersionFile(file) {
+  if (!fs.existsSync(file)) return null;
+  const v = fs.readFileSync(file, 'utf8').trim();
+  return /^\d+\.\d+\.\d+$/.test(v) ? v : null;
+}
+
+function cmpVersion(a, b) {
+  const pa = a.split('.').map(Number);
+  const pb = b.split('.').map(Number);
+  for (let i = 0; i < 3; i++) if (pa[i] !== pb[i]) return pa[i] - pb[i];
+  return 0;
+}
+
+// migrations/ 下每个 <version>.md 是"升级到该版本"的迁移指南；
+// 取 (installed, source] 区间内的全部指南，按版本升序。
+function collectMigrations(migrationsDir, fromVersion, toVersion) {
+  if (!fs.existsSync(migrationsDir)) return [];
+  return fs.readdirSync(migrationsDir)
+    .filter(f => /^\d+\.\d+\.\d+\.md$/.test(f))
+    .map(f => ({ version: f.slice(0, -3), file: path.join(migrationsDir, f) }))
+    .filter(m => cmpVersion(m.version, fromVersion) > 0 && cmpVersion(m.version, toVersion) <= 0)
+    .sort((x, y) => cmpVersion(x.version, y.version));
+}
+
 function ask(question) {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   return new Promise(resolve => rl.question(question, ans => { rl.close(); resolve(ans); }));
@@ -238,11 +267,13 @@ function discoverSkills(skillsRoot) {
 function acquireSource(opt) {
   if (opt.sourceDir) {
     const repoRoot = path.resolve(opt.sourceDir);
-    const skillsRoot = path.join(repoRoot, 'ai-dev-system', 'skills');
+    const pkgRoot = path.join(repoRoot, 'ai-dev-system');
+    const skillsRoot = path.join(pkgRoot, 'skills');
     const skills = discoverSkills(skillsRoot);
     return {
       skillsRoot,
       skills,
+      pkgRoot,
       label: `本地开发源 ${repoRoot}`,
       cleanup() {},
     };
@@ -266,11 +297,13 @@ function acquireSource(opt) {
   }
 
   try {
-    const skillsRoot = path.join(checkout, 'ai-dev-system', 'skills');
+    const pkgRoot = path.join(checkout, 'ai-dev-system');
+    const skillsRoot = path.join(pkgRoot, 'skills');
     const skills = discoverSkills(skillsRoot);
     return {
       skillsRoot,
       skills,
+      pkgRoot,
       label: `${opt.repo} @ ${opt.ref}`,
       cleanup() { fs.rmSync(tempRoot, { recursive: true, force: true }); },
     };
@@ -292,10 +325,26 @@ async function main() {
   let source;
   try {
     source = acquireSource(opt);
-    const { skillsRoot, skills } = source;
+    const { skillsRoot, skills, pkgRoot } = source;
 
   const claudeSkillsDestDir = path.join(target, '.claude', 'skills');
   const codexSkillsDestDir = path.join(target, '.agents', 'skills');
+
+  // 版本与迁移：源版本来自 ai-dev-system/VERSION；已装版本来自目标 stamp，
+  // 无 stamp 但已存在源同名 skill 的旧安装按 LEGACY_VERSION 处理；全新安装无需迁移。
+  const sourceVersion = readVersionFile(path.join(pkgRoot, 'VERSION'));
+  const stampFiles = [path.join(claudeSkillsDestDir, VERSION_STAMP), path.join(codexSkillsDestDir, VERSION_STAMP)];
+  let installedVersion = readVersionFile(stampFiles[0]) || readVersionFile(stampFiles[1]);
+  if (!installedVersion) {
+    const hasLegacyInstall = skills.some(name =>
+      fs.existsSync(path.join(claudeSkillsDestDir, name)) || fs.existsSync(path.join(codexSkillsDestDir, name)));
+    if (hasLegacyInstall) installedVersion = LEGACY_VERSION;
+  }
+  const isUpgrade = sourceVersion && installedVersion && cmpVersion(sourceVersion, installedVersion) > 0;
+  const isDowngrade = sourceVersion && installedVersion && cmpVersion(sourceVersion, installedVersion) < 0;
+  const migrations = isUpgrade
+    ? collectMigrations(path.join(pkgRoot, 'migrations'), installedVersion, sourceVersion)
+    : [];
   const claudeSettingsFile = path.join(target, '.claude', opt.shared ? 'settings.json' : 'settings.local.json');
   const codexAgentsFile = path.join(target, 'AGENTS.md');
   const claudeToDisable = opt.noPlugins ? [] : CLAUDE_CONFLICTS.filter(c => !isKept(c.key, opt.keep));
@@ -328,7 +377,8 @@ async function main() {
   // 计划
   console.log('\nai-dev-workflow 安装器');
   console.log('目标项目：' + target);
-  console.log('安装源：' + source.label);
+  console.log('安装源：' + source.label + (sourceVersion ? `（v${sourceVersion}）` : ''));
+  if (installedVersion) console.log('已安装版本：v' + installedVersion + (installedVersion === LEGACY_VERSION && !readVersionFile(stampFiles[0]) && !readVersionFile(stampFiles[1]) ? '（旧安装无版本 stamp，按此版本处理）' : ''));
   console.log('\n将执行：');
   console.log(`  1) 复制 ${skills.length} 个 skill → ${path.relative(target, claudeSkillsDestDir) || claudeSkillsDestDir}/  (Claude Code 项目级)`);
   console.log(`  2) 复制 ${skills.length} 个 skill → ${path.relative(target, codexSkillsDestDir) || codexSkillsDestDir}/  (Codex 项目级)`);
@@ -355,6 +405,22 @@ async function main() {
   } else {
     console.log('  3) 不修改任何冲突插件/技能设置' + (opt.noPlugins ? '（--no-plugins）' : '（全部 --keep）'));
   }
+  // 版本升级的迁移高亮提示（dry-run 同样展示）
+  const [HL, HL_END] = process.stdout.isTTY ? ['\x1b[1;33m', '\x1b[0m'] : ['', ''];
+  if (migrations.length) {
+    console.log(`\n${HL}  ━━━━ ⚠ 版本升级 v${installedVersion} → v${sourceVersion}：检测到 ${migrations.length} 份迁移指南，继续前请阅读 ━━━━${HL_END}`);
+    for (const m of migrations) {
+      console.log(`${HL}  ▶ 升级到 v${m.version} 的迁移指南（源仓库 ai-dev-system/migrations/${m.version}.md）：${HL_END}`);
+      const body = fs.readFileSync(m.file, 'utf8').trimEnd();
+      console.log(body.split('\n').map(l => '    │ ' + l).join('\n'));
+    }
+    console.log(`${HL}  ━━━━ 迁移指南结束（安装完成后请按上述"需要的动作"逐项执行）━━━━${HL_END}`);
+  } else if (isUpgrade) {
+    console.log(`\n  版本升级 v${installedVersion} → v${sourceVersion}：本次升级无迁移指南，无需额外动作。`);
+  } else if (isDowngrade) {
+    console.log(`\n${HL}  ⚠ 降级安装：目标已装 v${installedVersion}，高于安装源 v${sourceVersion}。请自行确认兼容性。${HL_END}`);
+  }
+
   console.log('\n  ⚠ 提示：');
   console.log('     · 项目级 .claude/settings.json 首次打开会弹 workspace trust 对话框，信任后才生效。');
   console.log('     · Claude Code settings 改动在【下次启动 Claude Code】时生效，非当前会话。');
@@ -372,6 +438,13 @@ async function main() {
   copySkills(skillsRoot, skills, codexSkillsDestDir);
   console.log(`\n✓ ${skills.length} 个 skill 已复制 → ${claudeSkillsDestDir}（${skills.join('、')}）`);
   console.log(`✓ ${skills.length} 个 skill 已复制 → ${codexSkillsDestDir}（${skills.join('、')}）`);
+  if (sourceVersion) {
+    for (const f of stampFiles) fs.writeFileSync(f, sourceVersion + '\n');
+    console.log(`✓ 已写入版本 stamp v${sourceVersion}（${VERSION_STAMP}）`);
+  }
+  if (migrations.length) {
+    console.log(`${HL}⚠ 别忘了执行上方 v${installedVersion} → v${sourceVersion} 迁移指南中"需要的动作"。${HL_END}`);
+  }
 
   // 2a) 合并 Claude Code enabledPlugins（不覆盖其他键）
   if (claudeSettings) {
