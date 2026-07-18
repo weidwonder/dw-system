@@ -121,6 +121,14 @@ ai-dev-system/
 
 **真相方向铁律**（写进 context-engineering.md）：card 的事实以合入后源码为准，PRD/Spec 仅作扫描范围约束 + 业务语境；禁止从 PRD 生成 card 事实。
 
+### 6.1 演进路线（从骨架到完整）
+
+> 2026-07-18 自 skill 的 `references/company/context-engineering.md` §8 迁入（规划叙事不属于 runtime 文档）；skill 内保留 §7「本轮交付程度」表告知哪些能力当前可用。
+
+1. **现在**：`ctx init` 建目录 → 团队填 capability-registry + 高频仓 card → 开发时用 `ctx discover`；`ctx search-semantic` 做兜底；`ctx probe`（含门禁自检 + 棘轮 + 衰减报告）已可跑。发布后手动刷卡。
+2. **下一步**：把 40~50 题 Probe Set 填实，`ctx probe --json` 接进 CI 发布门禁；card 生成脚本化（code diff 为真相）。
+3. **成熟后**：按权威面自动触发重扫（绑发布周期，hotfix 人工研判）；`search-semantic` 换 embedding 后端（保持"结果带 freshness + 权威标记"契约）。
+
 ## 7. ctx CLI 设计（Node.js 跨平台）
 
 **命令**（骨架实现读本地 `engineering-context/cards/*.md` 与 `capability-registry.md`）：

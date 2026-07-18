@@ -32,6 +32,12 @@ test('discover 命中含废弃标记的 card 时给出 out-of-scope 警告', () 
   );
 });
 
+test('discover 的 cite 锚点指向命中段落而非固定值', () => {
+  const r = discover(ctxDir, '背单词 记录 接口');
+  const anchor = /#([^@\]]+?) @/.exec(r.cards[0].cite)?.[1];
+  assert.ok(anchor && anchor.trim().length > 0, 'cite 应含非空锚点');
+});
+
 test('discover 对无关意图返回空或 out-of-scope 提示', () => {
   const r = discover(ctxDir, 'zzz-完全无关的东西-qqq');
   assert.equal(r.cards.length, 0);
@@ -79,6 +85,8 @@ test('initScaffold 生成 engineering-context 骨架', () => {
     assert.ok(fs.existsSync(path.join(base, 'cards')));
     assert.ok(fs.existsSync(path.join(base, 'probe-set.md')));
     assert.ok(fs.existsSync(path.join(base, 'glossary.md')));
+    assert.ok(fs.existsSync(path.join(base, 'scenes', 'README.md')), 'scenes/ 目录与索引 README 应被脚手架创建');
+    assert.equal(findScenes(base, '任意关键词').length, 0, 'scenes 索引 README 不得被当作场景命中');
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }

@@ -25,7 +25,8 @@
 4. **团队版额外引导**：
    > "团队版建议初始化 Engineering Context 目录：
    > `node <skill路径>/scripts/ctx/src/cli.js init`
-   > 它会生成 engineering-context/（capability-registry + cards + probe-set + glossary 模板），按 references/company/context-engineering.md 逐步填充。"
+   > 它会生成 engineering-context/（capability-registry + cards + scenes + probe-set + glossary 模板），按 references/company/context-engineering.md 逐步填充；
+   > 场景蓝图（scenes/）是 `ctx find-scenes` 的数据源，高频跨服务场景应优先补。"
 
 ## 幂等规则（重要）
 

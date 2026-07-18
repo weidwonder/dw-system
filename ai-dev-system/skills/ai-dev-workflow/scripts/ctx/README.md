@@ -37,7 +37,7 @@ cd <skill>/scripts/ctx && npm link      # 之后可直接 `ctx <命令>`
 ## 测试
 
 ```bash
-cd <skill>/scripts/ctx && node --test        # 21 项，覆盖 cards 解析与全部命令（含 semantic / probe）
+cd <skill>/scripts/ctx && node --test        # 全部用例，覆盖 cards 解析与全部命令（含 semantic / probe）
 ```
 
 ## CI / 脚本用法（`--json`）

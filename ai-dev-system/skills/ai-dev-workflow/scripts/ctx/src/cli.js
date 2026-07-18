@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // cli.js — ctx 命令行入口。跨平台：全程用 path，输出 UTF-8。
+import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import {
@@ -94,7 +95,14 @@ function main() {
     }
     case 'find-scenes': {
       const r = findScenes(ctxDir, positional.slice(1));
-      const human = r.length ? r.map((s) => `• ${s.scene} (score ${s.score}) — ${s.path}`).join('\n') : '（无匹配场景，或无 scenes/ 目录）';
+      let human;
+      if (r.length) {
+        human = r.map((s) => `• ${s.scene} (score ${s.score}) — ${s.path}`).join('\n');
+      } else if (!fs.existsSync(path.join(ctxDir, 'scenes'))) {
+        human = '（scenes/ 目录不存在：场景层尚未建立。按 scene-blueprint 模板生产蓝图落入 engineering-context/scenes/ 后方可检索）';
+      } else {
+        human = '（无匹配场景：换关键词重试，或该场景尚未有蓝图）';
+      }
       out(json, human, r);
       return 0;
     }

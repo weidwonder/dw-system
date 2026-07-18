@@ -1,6 +1,6 @@
 ---
 name: ai-dev-workflow
-description: "AI 辅助开发主流程。当用户要做需求落地、AI 辅助开发、生成/澄清 PRD、顶层架构 Overview、技术 spec、coding plan、拆任务、测试方案，或提到'开发流程/怎么用 AI 把需求做成代码/需求澄清/技术设计'时使用。首次在某项目调用会初始化 mode（个人版/团队版）并写入 CLAUDE.md 与 AGENTS.md，之后按已记录的 mode 路由。团队版会用 ctx CLI 查 Engineering Context 而非 grep 旧代码。"
+description: "AI 辅助开发主流程。当用户要做需求落地、AI 辅助开发、澄清已有 PRD、顶层架构 Overview、技术 spec、coding plan、拆任务、测试方案，或提到'开发流程/怎么用 AI 把需求做成代码/技术设计'时使用。从零产出一份新 PRD 时不要用本 skill，用 ai-prd（本 skill 从已有 PRD 起步，其产物即本 skill Step 1 的输入）。首次在某项目调用会初始化 mode（个人版/团队版）并写入 CLAUDE.md 与 AGENTS.md，之后按已记录的 mode 路由。团队版会用 ctx CLI 查 Engineering Context 而非 grep 旧代码。"
 ---
 
 # ai-dev-workflow
@@ -31,7 +31,7 @@ references/
 assets/
   templates/           lean-change-spec / overview / eng-spec / coding-plan / test-spec
   config-snippets/     注入 CLAUDE.md 与 AGENTS.md 的片段（personal / team）
-  context-layer/       capability-registry / card / scene-blueprint / probe-set 模板
+  context-layer/       capability-registry / card / scene-blueprint / probe-set / glossary 模板
 scripts/ctx/           ctx CLI（Node.js，跨平台）：查代码事实
 ```
 
@@ -50,9 +50,13 @@ scripts/ctx/           ctx CLI（Node.js，跨平台）：查代码事实
 
 2b. 若【有】标记块 → 读出 mode，不再询问；若另一文件缺失或无标记块，幂等补齐同一 mode 块。
 
-3. 加载 core（全部八篇），再按 mode 加载对应外壳：
+3. 加载 core 常驻六篇（00-流程总纲 / worktree开发纪律 / spec写作纪律 /
+   文档治理 / 用户沟通纪律 / 上下文卫生），再按 mode 加载对应外壳：
      - personal → references/personal/mode-personal.md
      - team     → references/company/mode-team.md（+ 需要时 context-engineering.md）
+   另两篇 core 按条件加载：
+     - AI-LLM-overlay.md：仅当需求含 AI/LLM 功能、Step 4 需叠加 AI 契约时读。
+     - bug诊断纪律.md：仅当任务是修 bug / 查回归 / 解释异常行为时读。
 
 4. 按 references/core/00-流程总纲.md 驱动：
      - 路由完成后先过 worktree 工作区隔离门，再做 Triage 分流（4 个判定问题）。

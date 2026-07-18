@@ -61,7 +61,7 @@ export function discover(ctxDir, intent) {
         service: card.service,
         score,
         why,
-        cite: makeCite(card.path, '职责', confirmedAt),
+        cite: makeCite(card.path, bestSection(card, tokens) || '职责', confirmedAt),
       });
       // 命中 card 的废弃标记 → 逐条变成"别碰"警告
       for (const marker of deprecationMarkers(card)) {
@@ -80,6 +80,20 @@ export function discover(ctxDir, intent) {
     outOfScope.push('未命中任何 card。请确认关键词，或该能力尚未登记（考虑补 card / registry）。');
   }
   return { cards: scored, outOfScope };
+}
+
+/** cite 锚点指向命中最多的段落；无段落命中时由调用方退回"职责"。 */
+function bestSection(card, tokens) {
+  let bestKey = null;
+  let bestScore = 0;
+  for (const [key, content] of Object.entries(card.sections)) {
+    const s = scoreHits(`${key}\n${content}`, tokens);
+    if (s > bestScore) {
+      bestScore = s;
+      bestKey = key;
+    }
+  }
+  return bestKey;
 }
 
 /** 从 card 的 Freshness 段落抽一个日期，用于 cite。 */
@@ -144,6 +158,8 @@ export function initScaffold(targetDir) {
   const base = path.join(targetDir, 'engineering-context');
   fs.mkdirSync(path.join(base, 'cards'), { recursive: true });
   writeIfAbsent(path.join(base, 'cards', '.gitkeep'), '');
+  fs.mkdirSync(path.join(base, 'scenes'), { recursive: true });
+  writeIfAbsent(path.join(base, 'scenes', 'README.md'), SCENES_README_STUB);
   writeIfAbsent(path.join(base, 'capability-registry.md'), REGISTRY_STUB);
   writeIfAbsent(path.join(base, 'probe-set.md'), PROBE_STUB);
   writeIfAbsent(path.join(base, 'glossary.md'), GLOSSARY_STUB);
@@ -155,8 +171,18 @@ function writeIfAbsent(file, content) {
   if (!fs.existsSync(file)) fs.writeFileSync(file, content, 'utf8');
 }
 
+const SCENES_README_STUB = `# 场景索引
+
+> 场景蓝图按 ai-dev-workflow skill 的 assets/context-layer/scene-blueprint.md 生产，
+> 落 \`scenes/<场景名>.md\` 即可被 \`ctx find-scenes\` 检索（本索引文件不参与检索）。
+> 每收一张蓝图，在下面登记一行：场景名 + 一句话业务口径 + 文件路径。
+`;
+
+// 注意：以下三个 stub 是 assets/context-layer/ 同名模板的精简副本（init 脚手架用）。
+// 改 assets 模板须同步这里，反之亦然——两处漂移会让脚手架与文档教的模板不一致。
 const REGISTRY_STUB = `# Capability Registry — 产品能力到权威代码实体的映射
 
+> 精简骨架；完整字段说明与填写指南见 ai-dev-workflow skill 的 assets/context-layer/capability-registry.md。
 > 人工确认。事实以源码为准，PRD 仅作 scope。每条带 freshness 与理由链。
 
 | Capability | 业务含义 | 权威仓库 | 权威接口(含版本) | 废弃/中间产物替代 | 兼容窗口 | owner | 测试入口 | freshness | 理由链 |
@@ -166,6 +192,7 @@ const REGISTRY_STUB = `# Capability Registry — 产品能力到权威代码实�
 
 const PROBE_STUB = `# Frozen Probe Set — 上下文层防腐检测题集
 
+> 精简骨架；完整题型示例与 authority_refs 自防腐机制见 ai-dev-workflow skill 的 assets/context-layer/probe-set.md。
 > 冻结、可打分、每发布周期重跑（\`ctx probe\`）。种子题取自真实歧义案例，有已知正确答案。
 > 机器可判题型：
 >   capability-mapping —— 输入=能力名，期望=\`权威仓库 :: 权威接口\`（门禁按 registry 求解并比对）。
@@ -185,6 +212,7 @@ const PROBE_STUB = `# Frozen Probe Set — 上下文层防腐检测题集
 
 const GLOSSARY_STUB = `# Glossary — 领域词汇表
 
+> 精简骨架；完整维护说明见 ai-dev-workflow skill 的 assets/context-layer/glossary.md。
 > 纯词汇表，禁实现细节：glossary 管说法一致，card 管事实权威，registry 管能力落点。
 > 条目里出现表/接口/类名即为越界，移去 card。同义词列供 synonyms.md 参考。
 

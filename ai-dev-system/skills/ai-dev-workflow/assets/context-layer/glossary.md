@@ -9,3 +9,4 @@
 | 【背单词记录】 | 【用户完成一次单词学习后系统留存的学习凭证】 | 【打卡记录（弃用，2025-Q3 前叫法）】 | 【≠ 复习记录：复习不产生新凭证】 | 【】 |
 
 > 同义词列同时供 `ctx search-semantic` 的 `synonyms.md` 参考——两处 SHOULD 保持一致，词汇表是人读的权威，synonyms 是检索扩展的机器副本。
+> `synonyms.md` 不由 `ctx init` 生成，需人工创建于 `engineering-context/synonyms.md`（每行 `- 词: 近义1, 近义2`，格式见 scripts/ctx/README.md §search-semantic），并从本表同义词列同步。

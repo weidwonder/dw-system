@@ -95,4 +95,4 @@
 | OQ1 | 【】 | 【PRD §x / 派生自 A/B 核查】 | 【】 | 【一句话影响】 | 【】 | 【owner-policy 待定 / external-blocked+原因】 | 【】 |
 
 ## 16. 引用
-【每条来自 PRD/plan/架构源的事实的出处（团队版附 ctx cite）。】
+【每条来自 PRD/plan/架构源的事实的出处（团队版附 ctx 输出的 cite）。】

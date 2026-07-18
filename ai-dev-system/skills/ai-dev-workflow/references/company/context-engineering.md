@@ -2,6 +2,7 @@
 
 > 团队版的核心资产层。目标：**让 AI 在具体任务中读到正确代码、避开错误的相似旧代码，并能证明这层上下文"一直新鲜"。**
 > 落地形态：项目内 `engineering-context/` 目录（markdown card）+ `ctx` CLI（查询）。用 `ctx init` 生成骨架。
+> 目录：§0 为什么自建 ｜ §1 四层栈 ｜ §2 核心资产（registry / card / scene / glossary）｜ §3 真相方向铁律 ｜ §4 资产分层 ｜ §5 新鲜度 ｜ §6 Validation ｜ §7 本轮交付程度 ｜ §8 要避免的误区
 
 ## 0. 为什么必须自建这一层
 
@@ -97,13 +98,7 @@ runProbeGate():
 | `ctx probe`（Frozen Probe Set 门禁）| ✅ 可运行 | 机器可判题型 + 门禁自检 + 棘轮 + 衰减报告；`--json` 退出码供 CI |
 | 新鲜度按权威面触发接入 CI | ⏳ 文档 | 棘轮/自检已在 `ctx probe` 落地；"按权威面自动触发重扫"仍需接 CI hook |
 
-## 8. 演进路线（从骨架到完整）
-
-1. **现在**：`ctx init` 建目录 → 团队填 capability-registry + 高频仓 card → 开发时用 `ctx discover`；`ctx search-semantic` 做兜底；`ctx probe`（含门禁自检 + 棘轮 + 衰减报告）已可跑。发布后手动刷卡。
-2. **下一步**：把 40~50 题 Probe Set 填实，`ctx probe --json` 接进 CI 发布门禁；card 生成脚本化（code diff 为真相）。
-3. **成熟后**：按权威面自动触发重扫（绑发布周期，hotfix 人工研判）；`search-semantic` 换 embedding 后端（保持"结果带 freshness + 权威标记"契约）。
-
-## 9. 要避免的误区
+## 8. 要避免的误区
 
 - ❌ 让 AI 直接访问全仓 → 先走 `ctx` 路由。
 - ❌ 从 PRD 生 card 事实 → 事实以代码为准，PRD 仅作 scope。
