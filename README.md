@@ -1,149 +1,161 @@
-# ai-dev-system — 我们自己的 AI 辅助开发体系
+# ai-dev-system — Ship With AI, Reliably
 
-把一个需求，逐层降解成"零上下文的 AI agent 也能可靠执行"的任务——从 Triage 分流、顶层设计、技术 spec、coding plan，到编码与测试。
+**English** | [中文](./README_zh.md)
 
-本体系裁剪自一套在真实生产环境（50~60 个 brownfield 仓库、双周高速迭代）验证过的 AI 辅助开发体系，收敛为**一个 mode-aware 的 skill**，同时服务两种场景：
+![Node ≥20](https://img.shields.io/badge/Node-%E2%89%A520-brightgreen) ![Zero runtime dependencies](https://img.shields.io/badge/dependencies-zero-blue) ![Claude Code · Codex](https://img.shields.io/badge/works%20with-Claude%20Code%20%C2%B7%20Codex-8A2BE2) ![Cross platform](https://img.shields.io/badge/platform-macOS%20%C2%B7%20Linux%20%C2%B7%20Windows-lightgrey)
 
-- **个人版**：一个人的轻量项目。默认走一页 Lean Spec、流程可跳步、决策沉淀进 memory。
-- **团队版**：多人多项目（5~20 人、10~30 仓）。加上团队协作约定 + 一层轻量 **Engineering Context**（给 AI 供给"可信、新鲜、权威"的代码事实，避免它读错旧代码）。
+**The methodology layer your AI coding stack is missing.** Prompting harder doesn't make AI coding reliable — engineering does. ai-dev-system decomposes a raw requirement, layer by layer, into tasks so well-specified that **a zero-context AI agent can execute them dependably** — through Triage, top-level design, engineering specs, coding plans, coding, and tests.
 
-> 核心信念：AI coding 能不能落地，秘密不在流程本身（谁都能抄），而在**能不能给 AI 一层可信赖的代码事实**。团队版正是为此而生。
+This is not a whiteboard framework. It is distilled from an AI-assisted development system **proven in real production across 50–60 brownfield repositories under bi-weekly, high-velocity iteration**, condensed into two **mode-aware skills** that serve both worlds:
+
+- **Personal mode**: lightweight solo projects. Defaults to a one-page Lean Spec, skippable steps, decisions persisted to memory.
+- **Team mode**: multi-person, multi-repo organizations (5–20 people, 10–30 repos). Adds collaboration conventions plus a lightweight **Engineering Context** layer that feeds AI *trusted, fresh, authoritative* code facts — so it stops being misled by stale code.
+
+**Why teams pick it:**
+
+- 🎯 **One-command install** into any project — Claude Code and Codex at the same time, personal or team mode auto-routed after a single question.
+- 🧠 **Engineering Context as the moat** — capability registry, per-repo codebase cards, end-to-end scene blueprints, a frozen probe set as an anti-rot gate. Every fact cited (`path#anchor @confirmed-date`); **no cite = treated as hallucination**.
+- 🪶 **Zero runtime dependencies** — pure Node.js standard library + markdown. No build step, no lockfile drift, nothing to babysit.
+- 🔒 **Discipline built in, not bolted on** — mandatory git-worktree isolation for every change, auto-merge only after all gates pass, business-language-only user communication, RFC2119 spec writing with zero placeholders.
+- ⚖️ **Right-sized process** — a 4-question Triage routes small changes to a one-page Lean Spec and real risk (AI behavior, security, cross-service, irreversibility, external commitments) to the full pipeline. No cargo-cult ceremony.
+
+> Core belief: whether AI coding lands in production is decided not by the process itself (anyone can copy a process), but by **whether you can hand the AI a trustworthy layer of code facts**. Team mode exists precisely for that.
 
 ---
 
-## 组成
+## What's Inside
 
 ```
-.                               # 仓库根
-├── package.json                # npx GitHub 命令入口
-├── install.mjs                 # 安装器（从 GitHub 获取指定版本，跨平台）
-├── install.cmd                 # Windows 包装
+.                               # repo root
+├── package.json                # npx GitHub command entry
+├── install.mjs                 # installer (fetches a pinned version from GitHub, cross-platform)
+├── install.cmd                 # Windows wrapper
 ├── docs/
-│   ├── spec/                  # PRD / Requirements / Overview / Spec / 设计 / 契约
-│   ├── plan/                  # Coding Plan / 实施计划 / 迁移计划
-│   └── report/                # 执行 / 验证 / 测试 / 审计报告
+│   ├── spec/                  # PRD / requirements / overview / spec / design / contracts
+│   ├── plan/                  # coding plans / implementation & migration plans
+│   └── report/                # execution / verification / test / audit reports
 └── ai-dev-system/
-    └── skills/                 # 两个 skill（Claude Code + Codex 通用）
-        ├── ai-prd/             # 产 PRD：批量提问 + 阶段化 elicitation
-        │   ├── SKILL.md        # 入口：读 mode → PRD 类型分流 → 4 批提问
-        │   ├── references/     # 生成流程 / 业务语言纪律 / 写作纪律 / 质量清单 / mode-*
-        │   └── assets/         # 模板：change-prd（主）/ lite-issue-prd / product-prd
-        └── ai-dev-workflow/    # 从已有 PRD 起步的主流程
-            ├── SKILL.md        # 入口：读 mode → 路由；首次调用 → 初始化
+    └── skills/                 # two skills (shared by Claude Code + Codex)
+        ├── ai-prd/             # PRD authoring: batched questioning + staged elicitation
+        │   ├── SKILL.md        # entry: read mode → PRD type routing → 4 question batches
+        │   ├── references/     # generation flow / business-language & writing discipline / quality gate / mode-*
+        │   └── assets/         # templates: change-prd (primary) / lite-issue-prd / product-prd
+        └── ai-dev-workflow/    # the main pipeline, starting from an existing PRD
+            ├── SKILL.md        # entry: read mode → route; first call → initialization
             ├── references/
-            │   ├── core/       # 共享内核：流程 / worktree / 用户沟通 / 写作 / AI overlay / 文档治理
-            │   ├── personal/   # 个人薄外壳
-            │   └── company/    # 团队外壳 + Engineering Context 设计
-            ├── assets/         # 模板：spec / plan / test / config 注入片段 / card
-            └── scripts/ctx/    # ctx CLI（Node.js，跨平台）：查代码事实，替代 MCP
+            │   ├── core/       # shared kernel: process / worktree / communication / writing / AI overlay / doc governance
+            │   ├── personal/   # thin personal shell
+            │   └── company/    # team shell + Engineering Context design
+            ├── assets/         # templates: spec / plan / test / config snippets / cards
+            └── scripts/ctx/    # ctx CLI (Node.js, cross-platform): query code facts, no MCP required
 ```
 
-> **两个 skill 的分工**：`ai-prd` 从零把需求做成 PRD → 产物作为 `ai-dev-workflow` Step 1 的输入 → workflow 继续做 Overview / Spec / Coding Plan / 测试。唤起 `ai-prd` 只需提到"帮我写 PRD / 生成需求文档 / 把这个需求写成 PRD"。
+> **How the two skills divide the work**: `ai-prd` turns a raw idea into a PRD → that PRD is the input of `ai-dev-workflow` Step 1 → the workflow carries on with Overview / Spec / Coding Plan / tests. To invoke `ai-prd`, just say "write me a PRD / turn this requirement into a requirements doc".
 
-> **沟通边界**：所有用户沟通使用业务语言。大架构由用户确认；模块内设计通过业务问题取得约束；详细程序设计由 AI 与工程侧自主完成。`ai-prd` 的提问和成稿全部使用业务语言，不包含程序实现和技术选型。
+> **Communication boundary**: all user-facing communication uses business language. Users confirm the big architecture; module-level design is constrained through business questions only; detailed program design is completed autonomously by AI and engineering. `ai-prd` conversations and deliverables never require the user to understand implementation details.
 >
-> **开发隔离**：进入 `ai-dev-workflow` 后，任何文档或代码落盘前必须创建独立 Git worktree，Lean 小改动也不例外。全部工作和门禁完成后自动合并仓库主分支；失败时保留 worktree，不处理主工作树中的用户改动，也不绕过 PR、CI 或保护分支。
+> **Development isolation**: once inside `ai-dev-workflow`, every document or code change lands in a dedicated git worktree first — Lean changes included. After all work and gates complete, the branch auto-merges into main; on failure the worktree is preserved, the user's uncommitted changes in the main working tree are never touched, and PR / CI / protected-branch rules are never bypassed.
 
-设计与实施文档见 `docs/spec/2026-07-06-ai-dev-system-design.md` 与 `docs/plan/2026-07-06-ai-dev-system.md`。
+Design and implementation docs: `docs/spec/2026-07-06-ai-dev-system-design.md` and `docs/plan/2026-07-06-ai-dev-system.md` (in Chinese).
 
 ---
 
-## 安装
+## Install
 
-**方式 A：npx 随项目安装（推荐）** — 在目标项目根目录运行下面一条命令。npx 从 GitHub 获取安装入口，安装器再从官方仓库的 `main` 分支获取技能包，同时装进目标项目的 `.claude/skills/`（Claude Code）和 `.agents/skills/`（Codex）。需要 Node.js 20+、npm 和 Git。
+**Option A: npx per-project install (recommended)** — run one command at the target project root. npx fetches the installer entry from GitHub; the installer then pulls the skill package from the official repo's `main` branch and installs into both `.claude/skills/` (Claude Code) and `.agents/skills/` (Codex). Requires Node.js 20+, npm, and Git.
 
 ```bash
-# 在目标项目根目录运行，macOS、Linux、Windows 通用：
+# Run at the target project root — macOS, Linux, Windows:
 npx --yes github:weidwonder/ai-dev-system .
 
-# 先预演，不落盘：
+# Dry-run first, nothing written:
 npx --yes github:weidwonder/ai-dev-system . --dry-run
 
-# 安装指定分支或标签，便于灰度和回滚：
-npx --yes github:weidwonder/ai-dev-system . --ref=<分支或标签>
+# Install a specific branch or tag, for canary or rollback:
+npx --yes github:weidwonder/ai-dev-system . --ref=<branch-or-tag>
 ```
 
-常用参数：`--shared` 把 Claude Code 项目配置提交给全仓共享；`--keep=<插件短名>` 保留指定冲突插件；`--no-plugins` 只装 skill；`--yes` 跳过安装器自身的交互确认。完整参数用 `npx --yes github:weidwonder/ai-dev-system --help` 查看。
+Common flags: `--shared` commits the Claude Code project settings for the whole team; `--keep=<plugin-short-name>` keeps a specific conflicting plugin; `--no-plugins` installs skills only; `--yes` skips the installer's own confirmation. See all flags with `npx --yes github:weidwonder/ai-dev-system --help`.
 
-> 命令前面的 `npx --yes` 只跳过 npm 下载确认，安装器仍会在修改项目之前询问一次。需要全自动安装时，在目标目录后再传一次：`npx --yes github:weidwonder/ai-dev-system . --yes`。
+> The leading `npx --yes` only skips npm's download prompt; the installer still asks once before modifying your project. For fully unattended installs, pass `--yes` again after the target directory: `npx --yes github:weidwonder/ai-dev-system . --yes`.
 
-**方式 B：本地脚本安装（仓库维护与排障）**
+**Option B: local script install (repo maintenance & troubleshooting)**
 
 ```bash
-# 已克隆本仓库时：
+# With this repo already cloned:
 node /path/to/ai-dev-system/install.mjs .
 
-# Windows 也可使用包装脚本：
+# Windows wrapper also works:
 #   \path\to\ai-dev-system\install.cmd .
 
-# 仅在开发、测试本仓库未发布改动时使用本地源码：
+# Only for developing/testing unpublished changes of this repo:
 node /path/to/ai-dev-system/install.mjs . --source-dir=/path/to/ai-dev-system
 ```
 
-安装器会：
+What the installer does:
 
-1. 从 GitHub 获取 `--repo` 对应仓库的 `--ref` 版本，并校验其中至少有一个有效 skill；下载或校验失败时不修改目标项目；
-2. 复制该版本的**所有** skill（默认含 `ai-prd` + `ai-dev-workflow` 和 `ctx` CLI）→ `<项目>/.claude/skills/`，完成 Claude Code 项目级安装；
-3. 复制同一批 skill → `<项目>/.agents/skills/`，完成 Codex 项目级安装；
-4. 合并（不覆盖）Claude Code 的 `enabledPlugins`，在本项目把冲突插件设为 `false`；
-5. 写入并校验项目 `AGENTS.md` 的标记块，在 Codex 中约束冲突技能自动触发；若任一入口已有 workflow mode，同时补齐 `CLAUDE.md` 与 `AGENTS.md`。
+1. Fetches the `--ref` version of the `--repo` repository from GitHub and verifies it contains at least one valid skill; if download or verification fails, the target project is left untouched;
+2. Copies **all** skills of that version (by default `ai-prd` + `ai-dev-workflow` with the `ctx` CLI) → `<project>/.claude/skills/` for Claude Code;
+3. Copies the same skills → `<project>/.agents/skills/` for Codex;
+4. Merges (never overwrites) Claude Code's `enabledPlugins`, disabling conflicting plugins **for this project only**;
+5. Writes and verifies the `AGENTS.md` marker block that constrains conflicting Codex skills from auto-triggering; if either entry file already has a workflow mode, both `CLAUDE.md` and `AGENTS.md` are reconciled.
 
-| 插件 | 为什么与本流程冲突 |
+| Plugin | Why it conflicts with this pipeline |
 |---|---|
-| Claude Code `superpowers` | brainstorming 的 HARD-GATE + `using-superpowers` 强制前置，会截胡 Triage / 直接实现 |
-| Claude Code `everything-claude-code` | plan/tdd/coding-standards 与本流程重叠 + SessionStart hook 注入 |
-| Claude Code `oh-my-claudecode` | autopilot/ralph/ultrawork 等端到端引擎替代本流程 + agents-overlay hook |
-| Claude Code `general-task` | SessionStart 注入 clarify→plan→execute + `using-general-task` 强制前置（默认也禁用，`--keep=general-task` 可保留）|
-| Codex `superpowers@openai-curated` | 安装器不修改用户级全局插件开关；改为写入并校验项目 `AGENTS.md` 标记块，要求不要自动加载或主动触发 `superpowers:`，除非用户当前对话明确要求 |
+| Claude Code `superpowers` | brainstorming HARD-GATE + `using-superpowers` forced preamble hijacks Triage / direct implementation |
+| Claude Code `everything-claude-code` | plan/tdd/coding-standards overlap + SessionStart hook injection |
+| Claude Code `oh-my-claudecode` | autopilot/ralph/ultrawork end-to-end engines replace this pipeline + agents-overlay hook |
+| Claude Code `general-task` | SessionStart injects clarify→plan→execute + `using-general-task` forced preamble (disabled by default too; `--keep=general-task` to retain) |
+| Codex `superpowers@openai-curated` | the installer never touches user-level global plugin switches; instead it writes and verifies a project `AGENTS.md` marker block requiring `superpowers:` not to auto-load or self-trigger unless the user explicitly asks in the current conversation |
 
-> **为什么能只在本项目禁用**：Claude Code settings 优先级为 Managed > Local(`.claude/settings.local.json`) > Project(`.claude/settings.json`) > User(`~/.claude/settings.json`)，`enabledPlugins` 在所有 scope 均可设。项目级 `false` 覆盖用户级 `true`，于是这些插件**只在本项目关闭**。
+> **Why project-only disabling works**: Claude Code settings precedence is Managed > Local (`.claude/settings.local.json`) > Project (`.claude/settings.json`) > User (`~/.claude/settings.json`), and `enabledPlugins` is honored at every scope. A project-level `false` overrides a user-level `true`, so these plugins are switched off **in this project only**.
 >
-> Codex 安装采用项目级 `AGENTS.md` 自动触发约束，不改用户级 `~/.codex/config.toml`，避免安装一个项目 skill 时影响其他项目。安装器会写后校验 `ai-dev-system:codex-conflicts`，并补齐缺失的 workflow mode 标记。
+> Codex installs use a project-level `AGENTS.md` auto-trigger constraint instead of editing `~/.codex/config.toml`, so installing skills for one project never affects the others. The installer verifies the `ai-dev-system:codex-conflicts` block after writing and reconciles missing workflow mode markers.
 >
-> ⚠ 两个前提：① 项目级 `.claude/settings.json` 首次打开会弹 **workspace trust** 对话框，信任后才生效；② settings / `AGENTS.md` 改动在**下次启动 Claude Code / Codex** 时生效，非当前会话。撤销只需删掉本项目 settings 里对应的 `false` 条目，或删掉 `AGENTS.md` 中的 `ai-dev-system:codex-conflicts` 标记块。
+> ⚠ Two prerequisites: ① a project-level `.claude/settings.json` triggers a **workspace trust** dialog on first open — it takes effect after you trust it; ② settings / `AGENTS.md` changes take effect on the **next start** of Claude Code / Codex, not the current session. To undo, delete the corresponding `false` entries in the project settings, or remove the `ai-dev-system:codex-conflicts` block from `AGENTS.md`.
 
-**方式 C：全局安装一次** — 所有项目共用，但冲突插件需你手动权衡（全局装则全局都在，可能与本流程相互干扰）。
+**Option C: one-time global install** — shared by all projects, but you must weigh the conflicting plugins yourself (globally installed means globally active, which may interfere with this pipeline).
 
 ```bash
 cp -r ai-dev-system/skills/ai-prd ai-dev-system/skills/ai-dev-workflow ~/.claude/skills/
 cp -r ai-dev-system/skills/ai-prd ai-dev-system/skills/ai-dev-workflow ~/.agents/skills/
 ```
 
-之后在任意项目里唤起 skill（提到"AI 辅助开发 / 开发流程 / 生成 spec / coding plan / 需求澄清"即可触发），首次会做一次**初始化**：询问该项目用个人版还是团队版，把结论写进项目根的 `CLAUDE.md` 和 `AGENTS.md`，之后不再询问。
+Then invoke the skill in any project (mentioning "AI-assisted development / dev workflow / generate a spec / coding plan" triggers it). The first call runs a one-time **initialization**: it asks whether this project uses personal or team mode, writes the answer into the project root `CLAUDE.md` and `AGENTS.md`, and never asks again.
 
-> **Codex 用户**：项目级 skill 安装在 `.agents/skills/`。Codex 读 `AGENTS.md`；初始化会同时写入 `AGENTS.md`，其中指明 mode、Engineering Context 位置与 `ctx` 用法；`ctx` CLI 可直接通过 shell 调用，跨工具通用。
-
-> **文档目录**：spec 固定写 `docs/spec/`，plan 固定写 `docs/plan/`，report 固定写 `docs/report/`。不得生成工具命名目录或把交付物散放到项目根。
+> **Codex users**: project-level skills are installed under `.agents/skills/`. Codex reads `AGENTS.md`; initialization writes it too, recording the mode, the Engineering Context location, and `ctx` usage. The `ctx` CLI is invoked via plain shell, so it works across tools.
+>
+> **Document directories**: specs go to `docs/spec/`, plans to `docs/plan/`, reports to `docs/report/` — no tool-named directories, no deliverables scattered at the project root.
 
 ---
 
-## 快速开始
+## Quick Start
 
-### 个人项目
-1. 在项目里唤起 skill → 选"个人版"。
-2. 直接描述你的需求。AI 会先建立独立 worktree；小改动走一页 Lean Spec，大需求升级到完整流程。
-3. 全部验证通过后自动合并主分支并清理 worktree，无需再次确认合并。
+### Personal project
+1. Invoke the skill in your project → choose "personal mode".
+2. Describe your requirement. The AI creates an isolated worktree first; small changes go through a one-page Lean Spec, large ones escalate to the full pipeline.
+3. After all verification passes, the branch auto-merges into main and the worktree is cleaned up — no second confirmation needed.
 
-### 团队项目
-1. 在项目里唤起 skill → 选"团队版"。
-2. 首次建议初始化 Engineering Context：
+### Team project
+1. Invoke the skill in your project → choose "team mode".
+2. On first use, initialize the Engineering Context:
    ```bash
    node <skill>/scripts/ctx/src/cli.js init
    ```
-   生成 `engineering-context/` 骨架（capability-registry + cards + probe-set 模板），团队按指南逐步填充。
-3. 之后开发时，AI 会为每个仓库建立独立 worktree，再用 `ctx discover "<意图>"` 找权威代码实体，而不是 grep 旧代码；每条事实带 cite 溯源。
-4. 多仓全部就绪后，按依赖顺序走 PR、CI 和保护分支门禁并自动合并。
+   This scaffolds `engineering-context/` (capability-registry + cards + scenes + probe-set + glossary templates) for the team to fill in incrementally.
+3. From then on, the AI creates a dedicated worktree per repo, then uses `ctx discover "<intent>"` to locate authoritative code entities instead of grepping stale code — every fact carries a traceable cite.
+4. When all repos are ready, changes merge in dependency order through PR, CI, and protected-branch gates.
 
 ---
 
-## ctx CLI 速览
+## ctx CLI at a Glance
 
-| 命令 | 作用 | 状态 |
+| Command | What it does | Status |
 |---|---|---|
-| `ctx init` | 生成 engineering-context 目录骨架 | ✅ |
-| `ctx discover "<意图>"` | 意图 → 应加载的 card 清单 + out-of-scope 警告 | ✅ |
-| `ctx get-card <repo> [域]` | 取某仓 Codebase Card | ✅ |
-| `ctx find-scenes <关键词>` | 端到端业务场景蓝图 | ✅ |
-| `ctx list-services` | 列出已登记仓库/能力 | ✅ |
-| `ctx search-semantic "<q>"` | discover 未命中时的语义兜底（本地向量相似） | ✅ |
-| `ctx probe` | 跑 Frozen Probe Set 防腐门禁（自检 + 棘轮 + 衰减） | ✅ |
+| `ctx init` | Scaffold the engineering-context directory | ✅ |
+| `ctx discover "<intent>"` | Intent → cards to load + out-of-scope warnings | ✅ |
+| `ctx get-card <repo> [section]` | Fetch a repo's Codebase Card | ✅ |
+| `ctx find-scenes <keywords>` | End-to-end business scene blueprints | ✅ |
+| `ctx list-services` | List registered repos/capabilities | ✅ |
+| `ctx search-semantic "<q>"` | Semantic fallback when discover misses (local vector similarity) | ✅ |
+| `ctx probe` | Run the Frozen Probe Set anti-rot gate (self-check + ratchet + decay report) | ✅ |

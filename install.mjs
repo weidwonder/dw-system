@@ -8,6 +8,8 @@
 //   2) 在【本项目】级配置里禁用与本流程冲突的 Claude Code 插件（覆盖用户级启用，
 //      只影响本项目；其他项目照常启用）。
 //   3) 为 Codex 写入项目级 AGENTS.md 覆盖指令，避免自动触发冲突技能。
+//   4) 在目标项目 .gitignore 幂等追加所有已安装 skill 目录与版本 stamp，
+//      避免本体系随目标仓库提交。
 //
 // 用法：
 //   node install.mjs [目标目录] [选项]   （或 ./install.mjs [目标目录]）
@@ -61,6 +63,9 @@ const LEGACY_VERSION = '1.0.0';
 
 const CODEX_GUARD_START = '<!-- ai-dev-system:codex-conflicts:start -->';
 const CODEX_GUARD_END = '<!-- ai-dev-system:codex-conflicts:end -->';
+// .gitignore 标记块：# 开头对 git 是注释行，机器可精确定位、可幂等替换。
+const GITIGNORE_START = '# ai-dev-system:gitignore:start';
+const GITIGNORE_END = '# ai-dev-system:gitignore:end';
 const WORKFLOW_MODE_START = '<!-- ai-dev-workflow:start -->';
 const WORKFLOW_MODE_END = '<!-- ai-dev-workflow:end -->';
 
@@ -122,6 +127,8 @@ function helpText() {
 默认项目级安装到两个目录：
   - .claude/skills/  Claude Code 使用
   - .agents/skills/  Codex 使用
+  安装后会在目标项目 .gitignore 幂等追加已安装 skill 目录与版本 stamp 的
+  忽略规则（标记块，重复安装不重复追加），避免本体系随目标仓库提交。
 
 默认在目标项目里处理这些与本流程冲突的插件/技能（仅本项目，不影响全局）：
 ${[
@@ -159,6 +166,17 @@ function codexGuardBlock(conflicts) {
 本项目使用 ai-dev-workflow。不要自动加载或主动触发 ${names} 等与本流程冲突的技能；仅当用户在当前对话中明确要求使用对应技能时才可加载。
 
 ${CODEX_GUARD_END}`;
+}
+
+// 只忽略本体系安装的具体 skill 目录与版本 stamp，不整目录忽略，
+// 避免误伤用户自己放在 .claude/skills/ 或 .agents/skills/ 下的 skill。
+function gitignoreBlock(skills) {
+  const lines = [];
+  for (const dir of ['.claude/skills', '.agents/skills']) {
+    for (const name of skills) lines.push(`/${dir}/${name}/`);
+    lines.push(`/${dir}/${VERSION_STAMP}`);
+  }
+  return [GITIGNORE_START, ...lines, GITIGNORE_END].join('\n');
 }
 
 function mergeMarkedBlock(raw, block, startMarker, endMarker) {
@@ -405,6 +423,7 @@ async function main() {
   } else {
     console.log('  3) 不修改任何冲突插件/技能设置' + (opt.noPlugins ? '（--no-plugins）' : '（全部 --keep）'));
   }
+  console.log('  4) 在 .gitignore 追加已安装 skill 目录与版本 stamp（幂等标记块，避免本体系随仓库提交）');
   // 版本升级的迁移高亮提示（dry-run 同样展示）
   const [HL, HL_END] = process.stdout.isTTY ? ['\x1b[1;33m', '\x1b[0m'] : ['', ''];
   if (migrations.length) {
@@ -444,6 +463,16 @@ async function main() {
   }
   if (migrations.length) {
     console.log(`${HL}⚠ 别忘了执行上方 v${installedVersion} → v${sourceVersion} 迁移指南中"需要的动作"。${HL_END}`);
+  }
+
+  // 1b) 幂等追加 .gitignore 标记块，避免安装的 skill 随目标仓库提交
+  const gitignoreFile = path.join(target, '.gitignore');
+  const gitignoreRaw = readTextIfExists(gitignoreFile);
+  const gitignoreMerged = mergeMarkedBlock(gitignoreRaw, gitignoreBlock(skills), GITIGNORE_START, GITIGNORE_END);
+  if (gitignoreMerged !== gitignoreRaw) {
+    fs.writeFileSync(gitignoreFile, gitignoreMerged);
+    assertMarkedBlock(readTextIfExists(gitignoreFile), GITIGNORE_START, GITIGNORE_END, gitignoreFile);
+    console.log(`✓ 已在 ${path.relative(target, gitignoreFile)} 追加已安装 skill 的忽略规则（幂等标记块）`);
   }
 
   // 2a) 合并 Claude Code enabledPlugins（不覆盖其他键）

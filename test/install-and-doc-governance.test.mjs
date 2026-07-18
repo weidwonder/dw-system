@@ -57,6 +57,41 @@ test('installer writes the Codex guard and backfills the workflow mode', () => {
   }
 })
 
+test('installer appends installed skill ignore rules to .gitignore idempotently', () => {
+  const target = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-gitignore-'))
+  try {
+    writeFileSync(path.join(target, '.gitignore'), 'node_modules/\n')
+
+    const first = spawnSync(process.execPath, localInstallArgs(target, '--yes'), { cwd: repoRoot, encoding: 'utf8' })
+    assert.equal(first.status, 0, first.stderr || first.stdout)
+
+    const gitignore = read(target, '.gitignore')
+    assert.match(gitignore, /node_modules\//)
+    assert.match(gitignore, /# ai-dev-system:gitignore:start/)
+    assert.match(gitignore, /\/\.claude\/skills\/ai-dev-workflow\//)
+    assert.match(gitignore, /\/\.claude\/skills\/ai-prd\//)
+    assert.match(gitignore, /\/\.agents\/skills\/ai-dev-workflow\//)
+    assert.match(gitignore, /\/\.agents\/skills\/ai-prd\//)
+    assert.match(gitignore, /\/\.claude\/skills\/ai-dev-system\.version/)
+    assert.match(gitignore, /\/\.agents\/skills\/ai-dev-system\.version/)
+
+    const rerun = spawnSync(process.execPath, localInstallArgs(target, '--yes'), { cwd: repoRoot, encoding: 'utf8' })
+    assert.equal(rerun.status, 0, rerun.stderr || rerun.stdout)
+    const rerunGitignore = read(target, '.gitignore')
+    assert.equal((rerunGitignore.match(/# ai-dev-system:gitignore:start/g) || []).length, 1)
+    assert.match(rerunGitignore, /node_modules\//)
+
+    runGit(target, 'init', '-b', 'main')
+    const check = spawnSync('git', ['check-ignore', '.claude/skills/ai-dev-workflow/SKILL.md'], {
+      cwd: target,
+      encoding: 'utf8',
+    })
+    assert.equal(check.status, 0, 'installed skill files should be git-ignored')
+  } finally {
+    rmSync(target, { recursive: true, force: true })
+  }
+})
+
 test('--keep=superpowers removes a guard and Claude disable left by a previous install', () => {
   const target = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-keep-'))
   try {

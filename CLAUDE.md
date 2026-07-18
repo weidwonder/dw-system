@@ -104,7 +104,7 @@ ai-dev-system/skills/ai-dev-workflow/
 
 ## 安装器的关键设计（`install.mjs`）
 
-默认安装源是 `https://github.com/weidwonder/ai-dev-system.git` 的 `main` 分支。安装器先把 `--repo` / `--ref` 指定的版本拉到系统临时目录，确认其中存在有效 skill 后，才读取并修改目标项目；下载或源校验失败时目标项目保持不变，临时目录在成功、取消、预演和异常场景都会清理。`--source-dir` 仅用于验证当前工作区未发布内容，不是正式安装路径。
+默认安装源是 `https://github.com/weidwonder/ai-dev-system.git` 的 `main` 分支。安装后会在目标项目 `.gitignore` 幂等追加标记块（`# ai-dev-system:gitignore:start/end`），按 skill 名逐条忽略 `.claude/skills/<name>/`、`.agents/skills/<name>/` 与版本 stamp，避免本体系随目标仓库提交，且不误伤用户自己的 skill。安装器先把 `--repo` / `--ref` 指定的版本拉到系统临时目录，确认其中存在有效 skill 后，才读取并修改目标项目；下载或源校验失败时目标项目保持不变，临时目录在成功、取消、预演和异常场景都会清理。`--source-dir` 仅用于验证当前工作区未发布内容，不是正式安装路径。
 
 装 skill 时会在**目标项目级** settings 里把 4 个 Claude Code 冲突插件（`superpowers`、`everything-claude-code`、`oh-my-claudecode`、`general-task`）设为 `false`——它们的 brainstorming HARD-GATE、强制前置 skill、端到端引擎、SessionStart 注入会截胡本流程。原理：Claude Code settings 优先级 `Managed > Local > Project > User`，项目级 `false` 覆盖用户级 `true`，于是**只在本项目禁用，不影响全局**。默认写 `.claude/settings.local.json`（gitignored），`--shared` 才写 `.claude/settings.json`。合并时**不覆盖** `enabledPlugins` 里的其他键。
 
