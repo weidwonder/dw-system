@@ -10,5 +10,6 @@
 > - 文档目录固定：spec → `docs/spec/`，plan → `docs/plan/`，report → `docs/report/`。
 > - 用户沟通只用业务语言；大架构需确认，模块内设计问业务问题，详细程序设计由工程侧内部完成。
 > - 每个仓库全程使用独立 worktree；全部完成后按 PR / CI / 保护分支规则自动合并主分支。
+> - Worktree 目录固定在各仓库根的 `./.worktrees/`（每次从本设置读取，除非用户显式要求改到其它位置）。
 > - 唤起 `ai-dev-workflow` skill 时按团队版路由，不再询问 mode。
 <!-- ai-dev-workflow:end -->

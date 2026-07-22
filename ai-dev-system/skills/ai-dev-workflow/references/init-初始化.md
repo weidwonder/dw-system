@@ -12,17 +12,23 @@
    ```
    - 任一文件已有标记块 → **不是初始化**，直接读出 mode，并把同一标记块幂等同步到另一文件后走路由，不再询问。
 
-2. **询问**（仅当两文件都无标记块）：
+2. **冲突扫描**：按 `references/环境冲突扫描.md` 扫描项目自带的 `.claude/`、`.agents/` 下
+   rules/skills/agents，产出冲突清单（可能为空）。扫描是事实收集，自动完成，不问用户。
+
+3. **询问**（仅当两文件都无标记块）：
    > "这个项目用 ai-dev-workflow 的哪种模式？
    > - **个人版**：一个人的轻量项目，默认最短流程。
    > - **团队版**：多人多项目，含协作约定 + Engineering Context 层。"
 
-3. **注入**（幂等）：按选择，把 `assets/config-snippets/{personal|team}.md` 的内容，用标记块包裹，写入项目根的 **两个** 文件：
+   若第 2 步冲突清单非空，把冲突决断（逐项 移除/修改/保留 + 建议）与 mode 问题
+   **同一批**抛出，不一问一答；用户答复后先按 `环境冲突扫描.md` §处置流程执行，再继续注入。
+
+4. **注入**（幂等）：按选择，把 `assets/config-snippets/{personal|team}.md` 的内容，用标记块包裹，写入项目根的 **两个** 文件：
    - `CLAUDE.md`（Claude Code 自动加载）
    - `AGENTS.md`（Codex 自动加载）
    - 文件不存在则创建；已存在则在末尾追加标记块（不动其它内容）。
 
-4. **团队版额外引导**：
+5. **团队版额外引导**：
    > "团队版建议初始化 Engineering Context 目录：
    > `node <skill路径>/scripts/ctx/src/cli.js init`
    > 它会生成 engineering-context/（capability-registry + cards + scenes + probe-set + glossary 模板），按 references/company/context-engineering.md 逐步填充；
