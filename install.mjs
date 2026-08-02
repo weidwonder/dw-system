@@ -368,8 +368,16 @@ function readSkillMetaVersion(skillDir) {
 }
 
 // 用户级安装位置：Claude Code 与 Codex 各一个入口，跨项目共享同一份。
+// 注意两侧不对称：Claude Code 用户级是 ~/.claude/，Codex 用户级是 ~/.codex/；
+// `.agents/` 只是 Codex 的【项目级】目录，不存在用户级形态。
 function companionDestDirs(home) {
-  return [path.join(home, '.claude', 'skills'), path.join(home, '.agents', 'skills')];
+  return [path.join(home, '.claude', 'skills'), path.join(home, '.codex', 'skills')];
+}
+
+// v1.6.0 曾把 Codex 侧的伴生 skill 误装到 ~/.agents/skills/。那不是 Codex 的用户级入口，
+// 留在那里只会成为永不更新的陈旧副本 —— 检出后只报告并给出删除命令，不自动删用户家目录里的东西。
+function legacyCompanionDirs(home, name) {
+  return [path.join(home, '.agents', 'skills', name)].filter(dir => fs.existsSync(dir));
 }
 
 // 开发态保护：目标是 symlink（指向本地开发目录）或本身是 git 工作区时，
@@ -429,6 +437,13 @@ function syncCompanions(opt, home) {
       guard: companionGuardReason(dir),
       version: fs.existsSync(dir) ? readSkillMetaVersion(dir) : null,
     }));
+
+    // 陈旧副本的提示与联网无关，放在拉取之前，拉取失败时也能看到。
+    for (const stale of legacyCompanionDirs(home, spec.name)) {
+      console.log(`\n⚠ 伴生 skill ${spec.name}：发现旧版安装器(≤v1.6.0)误装的副本 ${stale}`);
+      console.log('   那不是 Codex 的用户级入口（Codex 用户级是 ~/.codex/，.agents/ 只用于项目级），');
+      console.log(`   留着只会是永不更新的陈旧副本。确认无用后手动删除：rm -rf "${stale}"`);
+    }
 
     let fetched;
     try {

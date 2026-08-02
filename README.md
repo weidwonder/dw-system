@@ -118,12 +118,12 @@ What the installer does:
 
 ```bash
 cp -r ai-dev-system/skills/ai-prd ai-dev-system/skills/ai-dev-workflow ~/.claude/skills/
-cp -r ai-dev-system/skills/ai-prd ai-dev-system/skills/ai-dev-workflow ~/.agents/skills/
+cp -r ai-dev-system/skills/ai-prd ai-dev-system/skills/ai-dev-workflow ~/.codex/skills/
 ```
 
 Then invoke the skill in any project (mentioning "AI-assisted development / dev workflow / generate a spec / coding plan" triggers it). The first call runs a one-time **initialization**: it asks whether this project uses personal or team mode, writes the answer into the project root `CLAUDE.md` and `AGENTS.md`, and never asks again.
 
-> **Codex users**: project-level skills are installed under `.agents/skills/`. Codex reads `AGENTS.md`; initialization writes it too, recording the mode, the Engineering Context location, and `ctx` usage. The `ctx` CLI is invoked via plain shell, so it works across tools.
+> **Codex users**: project-level skills are installed under `<project>/.agents/skills/`; the **user-level** entry point is `~/.codex/skills/` (Codex has no `~/.agents/` user-level directory — don't install there). Codex reads `AGENTS.md`; initialization writes it too, recording the mode, the Engineering Context location, and `ctx` usage. The `ctx` CLI is invoked via plain shell, so it works across tools.
 >
 > **Document directories**: specs go to `docs/spec/`, plans to `docs/plan/`, reports to `docs/report/` — no tool-named directories, no deliverables scattered at the project root.
 

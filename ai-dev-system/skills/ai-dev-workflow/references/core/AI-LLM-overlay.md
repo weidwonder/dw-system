@@ -36,7 +36,7 @@
 
 > **在既有 agent 上加能力时**（平台的场景选型、编排模式、agent loop 已定且本次不动，只新增 skill / 工具 / 服务）：走它的**增量入口**，而不是完整流程——省的是重复论证，不是省该做的判断。判定与退回条件以它为准。
 
-> **两个 skill 保持独立，MUST NOT 互相搬运内容**：本 overlay 只给指针，不复制它的判据；它的版本、结构、术语独立演进。安装器每次运行会检查并更新用户级的 `agentic-principle`（`~/.claude/skills/` 与 `~/.agents/skills/`），本地是 symlink 或 git 工作区时只报告版本、不覆盖。
+> **两个 skill 保持独立，MUST NOT 互相搬运内容**：本 overlay 只给指针，不复制它的判据；它的版本、结构、术语独立演进。安装器每次运行会检查并更新用户级的 `agentic-principle`（`~/.claude/skills/` 与 `~/.codex/skills/`），本地是 symlink 或 git 工作区时只报告版本、不覆盖。
 >
 > **它不在场时**：不要用本 overlay 顶替 agent 架构设计，也不要临时编一套。告知用户它缺失（提示重跑安装器，或手动 `git clone https://github.com/weidwonder/agentic_principle.git`），并在 spec 里把架构选型标为"待补"——本 overlay 能保证的只是运行期契约，保证不了架构选型本身是对的。
 

@@ -59,7 +59,10 @@ function sandbox(fn) {
 }
 
 const claudeSkill = home => path.join(home, '.claude', 'skills', 'agentic-principle')
-const codexSkill = home => path.join(home, '.agents', 'skills', 'agentic-principle')
+// Codex 的【用户级】入口是 ~/.codex/skills/；~/.agents/skills/ 只是它的项目级形态，
+// 用户级不存在，v1.6.0 曾误装到那里（见 legacySkill）。
+const codexSkill = home => path.join(home, '.codex', 'skills', 'agentic-principle')
+const legacySkill = home => path.join(home, '.agents', 'skills', 'agentic-principle')
 
 test('伴生 skill 装到用户级的 Claude 与 Codex 两个入口，不进目标项目', () => {
   sandbox(({ home, target, arg }) => {
@@ -69,10 +72,29 @@ test('伴生 skill 装到用户级的 Claude 与 Codex 两个入口，不进目�
       assert.ok(existsSync(path.join(dir, 'SKILL.md')), `${dir} 应已安装`)
       assert.match(readFileSync(path.join(dir, 'SKILL.md'), 'utf8'), /version: '0\.3\.0'/)
     }
+    // ~/.agents/ 不是 Codex 的用户级入口，绝不能再往那里写
+    assert.equal(existsSync(legacySkill(home)), false)
     // 伴生 skill 是用户级依赖，不该混进目标项目，也不该被写进项目 .gitignore
     assert.equal(existsSync(path.join(target, '.claude', 'skills', 'agentic-principle')), false)
     assert.equal(existsSync(path.join(target, '.agents', 'skills', 'agentic-principle')), false)
     assert.doesNotMatch(readFileSync(path.join(target, '.gitignore'), 'utf8'), /agentic-principle/)
+  })
+})
+
+test('检出 v1.6.0 误装在 ~/.agents/skills 的陈旧副本时报告，但不自动删', () => {
+  sandbox(({ home, target, arg }) => {
+    const stale = legacySkill(home)
+    mkdirSync(stale, { recursive: true })
+    writeFileSync(path.join(stale, 'SKILL.md'), skillMd('0.1.0'))
+
+    const r = runInstaller(target, home, [arg])
+    assert.equal(r.status, 0, r.stderr || r.stdout)
+    assert.match(r.stdout, /旧版安装器\(≤v1\.6\.0\)误装的副本/)
+    assert.match(r.stdout, /rm -rf/)
+    // 只报告：既不删除，也不在那里更新版本
+    assert.match(readFileSync(path.join(stale, 'SKILL.md'), 'utf8'), /version: '0\.1\.0'/)
+    // 正确位置照常安装
+    assert.match(readFileSync(path.join(codexSkill(home), 'SKILL.md'), 'utf8'), /version: '0\.3\.0'/)
   })
 })
 
