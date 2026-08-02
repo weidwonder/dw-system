@@ -9,6 +9,10 @@
 > - 唤起 `ai-dev-workflow` skill 后会自动加载团队版协作约定与 Engineering Context 设计（skill 内部 references）。
 > - 文档目录固定：spec → `docs/spec/`，plan → `docs/plan/`，report → `docs/report/`。
 > - 用户沟通只用业务语言；大架构需确认，模块内设计问业务问题，详细程序设计由工程侧内部完成。
+> - **Agentic 应用必须加载 `agentic-principle` skill**（模型自主规划 / 直接调工具 / 未过闸门就改状态 / 记忆跨会话影响决策）：架构选型、提示词、注意力与并发预算、步骤级测试用它；运行期 AI 契约仍用 ai-dev-workflow 的 AI overlay。两者内容互相独立，不合并。
+> - **编码完成后必须过代码评审门**：派 3 个并行子代理跑规范 / 忠实 / 残留三轴（Lean 用单子代理精简版），子代理需加载 `ai-dev-workflow`，P0/P1 修完才准进测试步与合并门；Agentic 项目增派一个加载 `agentic-principle` 的 agent 架构轴。此门是 PR 前的地板，不替代人审。
+> - **是否向后兼容每次由业务方拍板**，AI 不得默认兼容；被取代的旧逻辑当场删除，保留项必须带理由与到期日（登记在 spec 的替换清单）。
+> - 用户/业务方提供的真实数据固化进 `tests/fixtures/<场景名>/`（凭证进 `secrets/` 并 gitignore，脱敏副本入库）；长链路必须有断言中间结果的端到端用例；未覆盖的重要场景挂账到 `docs/report/测试场景覆盖度.md`，攒批索要素材。
 > - 每个仓库全程使用独立 worktree；全部完成后按 PR / CI / 保护分支规则自动合并主分支。
 > - Worktree 目录固定在各仓库根的 `./.worktrees/`（每次从本设置读取，除非用户显式要求改到其它位置）。
 > - 唤起 `ai-dev-workflow` skill 时按团队版路由，不再询问 mode。

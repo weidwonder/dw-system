@@ -9,9 +9,11 @@ import { fileURLToPath } from 'node:url'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const sourceVersion = readFileSync(path.join(repoRoot, 'ai-dev-system', 'VERSION'), 'utf8').trim()
 
+// --no-agentic：本组测试只关心版本与迁移，不让安装器联网拉伴生 skill、
+// 更不能写进跑测试这台机器的用户级 skills 目录。伴生 skill 另见 companion-skill.test.mjs。
 function runInstaller(target, extraArgs = []) {
   return spawnSync(process.execPath, [
-    path.join(repoRoot, 'install.mjs'), target, `--source-dir=${repoRoot}`, ...extraArgs,
+    path.join(repoRoot, 'install.mjs'), target, `--source-dir=${repoRoot}`, '--no-agentic', ...extraArgs,
   ], { encoding: 'utf8' })
 }
 

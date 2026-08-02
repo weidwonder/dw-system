@@ -16,6 +16,7 @@
 - [ ] 团队版：有**运营度量与看板**，关键指标带公式与粒度。
 - [ ] 有**风险与兜底**：每条风险配兜底。
 - [ ] 有**流程图**（复杂交互时）与 **changelog**（变更/轻量 PRD；整品 PRD 以 frontmatter 的 date/status 追踪，无 changelog 节则本项跳过）。
+- [ ] 涉及 UI 新增/调整：“UI 原型”节五项齐全（原型文件 / 覆盖路径 / 样式依据 / 关键状态 / 不在用户界面内展示）；不涉及 UI 或纯文案改动时写明“不适用 + 原因”。
 
 ## 非功能 / 安全 / 上线（按适用，不适用要显式写"不适用+原因"，不能默默留空）
 
@@ -32,10 +33,12 @@
 - [ ] 非目标与"不改的现有业务"具体到可核对。
 - [ ] 业务术语和信息项命名前后一致。
 - [ ] 对话与成稿只用业务语言，不含需要用户理解的程序实现和技术选型。
+- [ ] UI 原型（如适用）是可打开的 HTML 交互页，不是 Markdown；视觉参考现有设计 token / 组件库 / 现有页面，或明确标注临时假设；用户界面内没有 PM 说明、设计理由、开放问题或占位教学文字。
+- [ ] UI 原型静态自检通过（无浏览器也能查）：文件内外链数为 0（无 `http://`/`https://`、无 `<script src>`/`<link href>`/`@import url(...)`、无网络字体）；全文无 `【` 占位符；声明覆盖的每个状态都有可点击的切换入口。
 
 ## 落位（doc 治理）
 
-- [ ] 落盘位置正确（变更 PRD → `docs/spec/<name>-PRD-YYYYMMDD.md`；整品 → `docs/REQUIREMENTS.md`，放 `docs/` 根）。
-- [ ] 团队版：`docs/index.md` 已同步新增条目。
-- [ ] 已提示可接 `ai-dev-workflow` 做 Overview / 技术 Spec。
+- [ ] 落盘位置正确（变更 PRD → `docs/spec/<name>-PRD-YYYYMMDD.md`；整品 → `docs/REQUIREMENTS.md`，放 `docs/` 根；UI 原型 → `docs/spec/<name>-prototype-YYYYMMDD.html`，与 PRD 同目录且 PRD 里的链接可点开）。
+- [ ] 团队版：`docs/index.md` 已同步新增条目（**PRD 与 UI 原型都进索引**）。
+- [ ] 已提示可接 `ai-dev-workflow` 做 Overview / 技术 Spec，并说明 PRD 与 UI 原型一并作为其 Step 1 输入。
 - [ ] 变更 PRD：已注明收尾动作——实现验收后归并回整品 PRD 并转归档（见 `00-prd生成流程.md` §PRD 生命周期）。

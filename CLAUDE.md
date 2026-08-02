@@ -62,8 +62,9 @@ node --test test/npm-entrypoint.test.mjs
 
 - **Triage 的 4 个判定问题**（AI/LLM 行为？鉴权安全设备？跨服务/迁移/不可逆？指标/业务规则/对外承诺？）——4 项全否走一页 **Lean Change Spec** 直接实现；任一为是升级回完整流程。
 - 个人版默认假设走 Lean，只有 hold 不住才升级；团队版跨仓必升级、出 Overview。
-- 含 AI/LLM 功能时，在基础 spec 上**叠加** `references/core/AI-LLM-overlay.md` 的 AI 契约（判定边界见该文件）。
+- 含 AI/LLM 功能时，在基础 spec 上**叠加** `references/core/AI-LLM-overlay.md` 的 AI 契约（判定边界见该文件）。判定为 **Agentic 应用**时另需加载**独立技能 `agentic-principle`**（见下）。
 - 所有文档遵循 `references/core/spec写作纪律.md`：零上下文可动手、RFC2119、无占位符。
+- 10 步之外还有**四道贯穿两条路径的门**（Lean 也不豁免）：worktree 隔离门 → 兼容取舍确认门（spec 定稿前，用户逐条拍板是否向后兼容）→ 代码评审门（编码后，子代理跑规范/忠实/残留三轴）→ 完成与自动合并门。门的位置见总纲流程总览图。
 
 ### 3. 团队版的 Engineering Context 层 + `ctx` CLI（本仓库的技术核心）
 
@@ -88,15 +89,19 @@ install.mjs / install.cmd          安装器：拉取 GitHub 发布源 + 安装 
 docs/{spec,plan,report}/           本体系自身的规范 / 计划 / 报告
 ai-dev-system/skills/ai-prd/        产 PRD skill：批量提问 elicitation + 三类模板
   SKILL.md                         入口：读 mode → PRD 类型分流 → 4 批提问驱动
-  references/                      PRD 流程 / 业务语言纪律 / 写作纪律 / 质量清单 / mode-*
-  assets/templates/                change-prd（主）/ lite-issue-prd / product-prd
+  references/                      PRD 流程 / 业务语言纪律 / 写作纪律 / UI 原型纪律 / 质量清单 / mode-*
+  assets/templates/                change-prd（主）/ lite-issue-prd / product-prd / ui-prototype
 ai-dev-system/skills/ai-dev-workflow/
   SKILL.md                         skill 入口：路由 + 初始化
-  references/core/                 共享内核（流程 / worktree / 用户沟通 / 写作 / AI overlay / 文档治理）
+  references/core/                 共享内核，分三层加载：
+    00-流程总纲.md                 骨架（常驻）：Triage + 四道门 + 步骤索引
+    路径-lean.md / 步骤-1-7-*.md / 步骤-8-10-*.md   分册，按分流与阶段加载
+    其余                           常驻纪律（worktree / 写作 / 文档治理 / 用户沟通 / 上下文卫生）
+                                   + 条件加载纪律（AI overlay / bug 诊断 / 代码评审 / 测试资产）
   references/personal/             个人薄外壳
   references/company/              团队外壳 + Engineering Context 完整设计
   references/init-初始化.md         幂等写入 CLAUDE.md/AGENTS.md 的规则
-  assets/templates/                spec/plan/test/overview/lean-change-spec 模板
+  assets/templates/                spec/plan/test/overview/lean-change-spec/test-coverage 模板
   assets/config-snippets/          注入 CLAUDE.md/AGENTS.md 的 personal/team 片段
   assets/context-layer/            capability-registry/card/scene-blueprint/probe-set/glossary 模板
   scripts/ctx/                     ctx CLI（src/ + test/ + fixtures/）
@@ -115,6 +120,10 @@ Codex 安装不修改用户级全局插件配置，而是在目标项目 `AGENTS
 - 改 skill 行为 → 改对应 skill `references/` 下 markdown；改模板 → `assets/templates/`；两者是 skill 的"源码"。改前后过一遍 `docs/spec/2026-07-16-skill写作自检清单.md`（信息层级 / 六大失败模式 / 交叉引用同步）。新增 skill 只要放进 `ai-dev-system/skills/<name>/` 并含 `SKILL.md`，发布到安装源后 `install.mjs` 会自动发现并复制，无需改安装器；发布前用 `--source-dir=.` 验证。
 - 用户沟通必须使用业务语言：大架构交给用户确认，模块内设计只问业务问题，详细程序设计不要求用户确认；`ai-prd` 的对话与成稿不得包含程序实现。
 - 进入 workflow 后，任何文档或代码落盘前必须按 `references/core/worktree开发纪律.md` 建立独立 worktree；Lean 也不例外。全部门禁通过后自动合并主分支，失败保留 worktree，禁止处理主工作树的用户改动或绕过保护分支。
+- **`agentic-principle` 是外部伴生技能，严禁把它的内容搬进本仓库**：它管 Agent 系统**怎么设计**（场景选型/提示词/工具边界/注意力与并发预算/长产物分区/步骤级测试与评测），本体系的 `AI-LLM-overlay.md` 只管**运行期 AI 契约**（确定性边界/版本 pin/输出校验/置信度路由/安全管线/降级/预算准入/eval 门/可观测/数据边界/可审计）。两边只用指针互引，各自独立演进。安装器把它装到**用户级** `~/.claude/skills/` 与 `~/.agents/skills/`（`install.mjs` 的 `COMPANION_SKILLS`），每次运行检查远端版本、更旧才更新，symlink 或 git 工作区只报告不覆盖，拉取失败降级为警告；改这条链路要同改 `install.mjs`、`AI-LLM-overlay.md` §Agentic 应用、`代码评审纪律.md` 的 D 轴、两个 config-snippet，并跑 `node --test test/companion-skill.test.mjs`。
+- **替换清单是跨文件的契约**：登记在 spec（`eng-spec.md` §8.2 / `lean-change-spec.md` 替换清单节）、拆成任务在 `coding-plan.md` 核销表、核销在 `代码评审纪律.md` 的残留轴。改判据（该删什么、保留例外认哪几类理由）要四处同改，且与 `eng-spec.md` §8.1 兼容取舍的到期日保持一致——两处日期不一致就是漏洞。
+- **测试资产目录约定**：探测项目既有测试目录优先，兜底 `tests/fixtures/<场景名>/`；凭证进同级 `secrets/`（gitignore）+ `secrets.example/`（入库）。权威定义在 `references/core/测试资产纪律.md` §2，`test-spec.md` §4 Fixture 表与 `文档治理.md` 的表格引用它，改约定要三处同改。
+- **UI 原型是跨 skill 的契约**：`ai-prd` 涉及用户可见界面时产出 `docs/spec/<name>-prototype-YYYYMMDD.html`（单文件、零外链、可离线打开），`ai-dev-workflow` 的 Step 1/2/4/8 把它与 PRD 一并作为输入。改这条链路要三处同改：`ai-prd/references/UI原型纪律.md`（权威定义）、三类 PRD 模板的「UI 原型」五项表、`ai-dev-workflow/references/core/00-流程总纲.md` 的输入声明与参考 prompt。
 - `ai-prd` 的北极星参考物是 `orgin/prd.demo/` 下的变更 PRD 范例（brownfield 变更 PRD 骨架，本地参考、不入库）；改 `change-prd.md` 模板前对照设计文档 `docs/spec/2026-07-06-ai-prd-design.md §7` 的覆盖度映射，别丢节。
 - 改 `ctx` 逻辑 → 同步更新 `scripts/ctx/test/` 下的测试，跑 `node --test` 保持全绿。card/registry 的格式约定见 `scripts/ctx/README.md` §card 格式约定，解析器依赖它。
 - 改 `assets/context-layer/` 模板 → 同步 `scripts/ctx/src/commands.js` 内对应的 init stub（脚手架用的精简副本），反之亦然；两处漂移会让 `ctx init` 生成物与文档教的模板不一致。

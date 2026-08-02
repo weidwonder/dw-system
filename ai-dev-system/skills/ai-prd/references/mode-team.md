@@ -25,7 +25,9 @@
 
 - PRD 写入 `docs/spec/`；影响产品范围的以 PRD 为唯一真相源。
 - 变更 PRD → `docs/spec/<name>-PRD-YYYYMMDD.md`；整品 → `docs/REQUIREMENTS.md`（唯一真相源放 `docs/` 根）。
-- **创建后必须同步更新 `docs/index.md`**（团队文档治理强制规则，呼应 ai-dev-workflow 的 `references/core/文档治理.md`）。
+- 涉及 UI 时，原型 → `docs/spec/<name>-prototype-YYYYMMDD.html`，与 PRD 同目录。
+- **创建后必须同步更新 `docs/index.md`**（团队文档治理强制规则，呼应 ai-dev-workflow 的 `references/core/文档治理.md`）——**PRD 与 UI 原型都要进索引**，原型跟在 PRD 条目后并列标注（如 `**[xxx PRD](./spec/xxx-PRD-20260801.md)** — 一句话描述（配 [UI 原型](./spec/xxx-prototype-20260801.html)）`）。
+- UI 事实的取证在**前端仓代码**（设计 token、组件库、同类页面），不在 card 里——card 记服务能力，不记样式；`ctx` 查不到样式属正常，按 `UI原型纪律.md` §1 自查清单走。
 - **归并纪律**：变更 PRD 实现验收后，把口径变化归并回 `docs/REQUIREMENTS.md`（Scope 状态 + 被改变的旅程叙事），变更 PRD加"已归并"头注转归档——防止只有状态位在更新、旅程叙事漂移（见 `00-prd生成流程.md` §PRD 生命周期）。
 - 整品 PRD 过大时：FR/NFR 明细与验收基线拆到 `docs/REQUIREMENTS-appendix.md`（附录从属主文档，同放 `docs/` 根）；主文档只留骨架与旅程。
 

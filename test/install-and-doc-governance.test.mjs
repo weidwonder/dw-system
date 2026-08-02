@@ -12,7 +12,9 @@ const workflowRoot = path.join(repoRoot, 'ai-dev-system', 'skills', 'ai-dev-work
 const prdRoot = path.join(repoRoot, 'ai-dev-system', 'skills', 'ai-prd')
 
 const read = (...parts) => readFileSync(path.join(...parts), 'utf8')
-const localInstallArgs = (target, ...args) => [installer, target, '--source-dir=' + repoRoot, ...args]
+// --no-agentic：本组测试不涉及伴生 skill，且必须避免安装器联网并写入
+// 跑测试这台机器的用户级 skills 目录。伴生 skill 另见 companion-skill.test.mjs。
+const localInstallArgs = (target, ...args) => [installer, target, '--source-dir=' + repoRoot, '--no-agentic', ...args]
 
 function runGit(cwd, ...args) {
   const result = spawnSync('git', args, { cwd, encoding: 'utf8' })
@@ -165,7 +167,7 @@ test('installer obtains skills from the selected Git repository and ref', () => 
 
     const result = spawnSync(
       process.execPath,
-      [installer, target, '--yes', '--no-plugins', '--repo=' + source, '--ref=main'],
+      [installer, target, '--yes', '--no-plugins', '--no-agentic', '--repo=' + source, '--ref=main'],
       { cwd: repoRoot, encoding: 'utf8' },
     )
 
@@ -189,7 +191,7 @@ test('source download failure leaves the target project unchanged', () => {
 
     const result = spawnSync(
       process.execPath,
-      [installer, target, '--yes', '--repo=' + path.join(target, 'missing-repository'), '--ref=main'],
+      [installer, target, '--yes', '--no-agentic', '--repo=' + path.join(target, 'missing-repository'), '--ref=main'],
       { cwd: repoRoot, encoding: 'utf8' },
     )
 

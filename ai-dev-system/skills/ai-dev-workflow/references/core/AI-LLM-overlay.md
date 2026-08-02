@@ -15,11 +15,30 @@
    - 模型**未经确定性闸门**即创建 / 修改 / 删除 / 发送 / 审批 / **排程 / 购买 / 变更权限**；
    - **模型记忆跨会话影响未来决策**。
 
-   → 本 overlay 之外还要补 agent 循环、工具契约、自主级别与审批闸门、记忆、轨迹可观测与 eval。Agent 主导再分两子档：
-   - **给已有稳定 agent 加能力**（约 80% 的日常：新增 skill / tool / 配套服务，agent loop 不动）→ 采用"**继承 + 只写增量**"的写法：先写一份 **Inheritance Declaration**（声明从现有平台基线 as-built 继承什么，不重复），spec 只写新增的 Skill + Tools + Service，其余继承；并维护一份 **平台缺口清单（Gap Watchlist）**（如：无审批闸门、无 turn 上限、工具结果未筛查），在能力层顺手补齐已知缺口。工具类要写清 side-effect 分级与写操作保护、不可信工具输出的处理、预算/loop 交互。
-   - **改 agent 平台核心**（改 loop、预算、可观测/eval 平台，或补基线缺口）→ 需要完整的 agent loop 状态机、自主级别分档与人工审批闸门、工具契约登记、轨迹级可观测与 trajectory eval。
+   → **MUST 加载 `agentic-principle` skill**（见下节），由它承担 agent 系统的架构设计；本 overlay 继续负责该系统里每一次推理的运行期契约，两者并用。
 
-   > **范围声明**：本 skill **不随包分发**完整的 agent 平台重型骨架（agent loop 状态机、自主级别全表、trajectory eval 平台那套）——它高度贴具体平台，超出本体系"技术栈无关内核"的定位。真要做 agent 平台核心改造时，参照你所在团队自有的 agent 平台规范（Agent 能力扩展 / 平台核心类的 eng-spec 指南）取重型骨架；若团队还没有这类规范，先为你的平台立一份，别在这份 overlay 里硬塞。但下面这份**平台无关**的最小 agent 契约（判定 + 继承声明 + 缺口清单 + 自主级别/审批闸门要点）本 skill 会给，足以覆盖"给已有 agent 加能力"的 80% 日常场景；"**声明继承、只 spec 增量、维护平台缺口清单**"这个思路对任何在既有 agent 上加能力的迭代都通用。
+## Agentic 应用：MUST 加载 agentic-principle
+
+**判定命中上面的"AI Agent 主导场景"（四条任一）时，MUST 加载 `agentic-principle` skill**，与本 overlay **并用**。两者分工正交：
+
+| 关注点 | 归谁 |
+|---|---|
+| **Agent 系统怎么设计**：场景选型与编排、Agent 与工具边界、系统提示词、模型档位、并发与注意力预算、多 Agent 协作与信息传递、工具授权分级与审批闸门、不可信输入的注入防护与输出安全检查、在既有 agent 上加能力的增量写法、步骤级用例与评测 | `agentic-principle`（判据以它为准，本 overlay 不复述）|
+| **每次推理的运行期契约怎么写进 spec**：确定性边界、能力契约、版本 pin、输出校验、置信度路由、安全管线、降级、预算准入、eval 门、可观测、数据边界、可审计 | 本 overlay |
+
+> **两边都有"安全"，边界这样切**：**链路安全**归它——不可信内容在 Agent / 工具 / 子 Agent 之间怎么传播、在哪一层拦住、审批闸门怎么落成确定性代码。**单次推理的安全**归本 overlay——这一次调用的输入过滤、输出内容检查、安全失败 fail-closed。Agentic 项目**两边都要做**，不是二选一：它拦的是"外部内容改写了 Agent 的目标"，本 overlay 拦的是"这一次推理产出了不该产出的内容"。
+
+三处必须用它：
+
+1. **spec 设计（Step 2/4）**：先按它的工作流定场景分类、Agent 划分与信息传递链路，再回本 overlay 补运行期契约。它的设计文档写 `docs/spec/`（遵循本体系 `文档治理.md`，而非它默认的 `docs/specs/`）。
+2. **开发参考（Step 6/7）**：系统提示词、工具描述、并发拆分照它的规则写。
+3. **代码评审门**：Agentic 项目增派一个 **agent 架构轴**子代理，跑它 `references/review-mode.md` 里的**全部评估项**（见 `代码评审纪律.md`）。
+
+> **在既有 agent 上加能力时**（平台的场景选型、编排模式、agent loop 已定且本次不动，只新增 skill / 工具 / 服务）：走它的**增量入口**，而不是完整流程——省的是重复论证，不是省该做的判断。判定与退回条件以它为准。
+
+> **两个 skill 保持独立，MUST NOT 互相搬运内容**：本 overlay 只给指针，不复制它的判据；它的版本、结构、术语独立演进。安装器每次运行会检查并更新用户级的 `agentic-principle`（`~/.claude/skills/` 与 `~/.agents/skills/`），本地是 symlink 或 git 工作区时只报告版本、不覆盖。
+>
+> **它不在场时**：不要用本 overlay 顶替 agent 架构设计，也不要临时编一套。告知用户它缺失（提示重跑安装器，或手动 `git clone https://github.com/weidwonder/agentic_principle.git`），并在 spec 里把架构选型标为"待补"——本 overlay 能保证的只是运行期契约，保证不了架构选型本身是对的。
 
 ## 硬规则（不可协商，MUST）
 
@@ -52,7 +71,7 @@ PRD 里每个 material 的 AI 行为（AI Capability Card），spec MUST 定义�
 - **兜底**：指向降级路径。
 - **风险级别**：`low`/`medium`/`high`，对齐 PRD。`high` MUST 把 eval 质量门作为**上线阻断项**。
 
-> **给已有 agent 加能力时的最小契约**（不做平台核心改造，只新增 skill/tool）：至少写清每个新工具的**自主级别**与**审批闸门**（哪些写操作/高影响动作必须过人工或确定性确认）、不可信工具输出的处理、预算/turn 上限交互；再加一份 **Inheritance Declaration**（继承平台基线什么）+ **Gap Watchlist**（无审批闸门/无 turn 上限/工具结果未筛查等已知缺口）。这就是本 skill 对 agent 场景给到的平台无关下限。
+> **Agentic 应用**的工具授权分级、审批闸门、不可信工具输出处理、在既有 agent 上加能力的增量写法，都归 `agentic-principle`（见上节），本 overlay 不重复定义。上面这份能力契约仍要照填——它是**每个 AI 能力**的契约，不限于 Agent。
 
 ## AI 契约清单（叠加到 spec）
 

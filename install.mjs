@@ -38,10 +38,23 @@ import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
 import { spawnSync } from 'node:child_process';
-import { tmpdir } from 'node:os';
+import { tmpdir, homedir } from 'node:os';
 
 const DEFAULT_REPO = 'https://github.com/weidwonder/ai-dev-system.git';
 const DEFAULT_REF = 'main';
+
+// 伴生 skill：本体系不收录其内容，只负责"装上并保持新"。
+// 装到【用户级】目录（跨项目共享一份），不进目标项目、不写目标项目 .gitignore。
+// 版本取自其 SKILL.md frontmatter 的 metadata.version。
+const COMPANION_SKILLS = [
+  {
+    name: 'agentic-principle',
+    repo: 'https://github.com/weidwonder/agentic_principle.git',
+    ref: 'main',
+    subdir: 'agentic-principle', // skill 本体在仓库的这个子目录里
+    why: 'ai-dev-workflow 判定需求为 Agentic 应用时必须加载：架构选型 / 系统提示词 / 注意力负载 / 步骤级测试与评测',
+  },
+];
 
 // 与本流程冲突的插件：会抢流程、强制前置、或注入干扰 hook。
 // key 是 enabledPlugins 里的完整标识 name@marketplace（按默认安装源）。
@@ -80,6 +93,8 @@ function parseArgs(argv) {
     repo: DEFAULT_REPO,
     ref: DEFAULT_REF,
     sourceDir: null,
+    noCompanions: false,
+    companionRepos: {},
     target: null,
   };
   for (const a of argv) {
@@ -88,6 +103,8 @@ function parseArgs(argv) {
     else if (a === '--no-plugins') opt.noPlugins = true;
     else if (a === '--dry-run') opt.dryRun = true;
     else if (a === '-h' || a === '--help') opt.help = true;
+    else if (a === '--no-agentic' || a === '--no-companions') opt.noCompanions = true;
+    else if (a.startsWith('--agentic-repo=')) opt.companionRepos['agentic-principle'] = a.slice('--agentic-repo='.length);
     else if (a.startsWith('--keep=')) opt.keep.push(a.slice('--keep='.length));
     else if (a.startsWith('--repo=')) opt.repo = a.slice('--repo='.length);
     else if (a.startsWith('--ref=')) opt.ref = a.slice('--ref='.length);
@@ -117,12 +134,20 @@ function helpText() {
   --ref=<name>     安装版本：分支或标签（默认 ${DEFAULT_REF}）
   --source-dir=<dir>
                    使用本地仓库源码，不从 GitHub 下载（仅开发和测试）
+  --no-agentic     跳过伴生 skill 的检查与安装（同义：--no-companions）
+  --agentic-repo=<url>
+                   覆盖 agentic-principle 的来源仓库（默认 ${COMPANION_SKILLS[0].repo}）
   --dry-run        预演，不落盘
   -h, --help       本帮助
 
 安装源：
   默认从 ${DEFAULT_REPO} 的 ${DEFAULT_REF} 分支获取。
   下载或源校验失败时，不会修改目标项目。
+
+伴生 skill（用户级，跨项目共享一份，不进目标项目）：
+${COMPANION_SKILLS.map(c => `  - ${c.name}：${c.repo}\n      ${c.why}`).join('\n')}
+  每次安装都会检查远端版本，本地更旧才更新；本地是 symlink 或 git 工作区时
+  只报告版本差异、不覆盖；拉取失败降级为警告，不影响主安装。用 --no-agentic 跳过。
 
 默认项目级安装到两个目录：
   - .claude/skills/  Claude Code 使用
@@ -331,6 +356,124 @@ function acquireSource(opt) {
   }
 }
 
+// 伴生 skill 的版本写在 SKILL.md frontmatter 的 metadata.version，
+// 与本体系用 VERSION 文件不同；非三段式版本一律按"未知"处理，不做比较。
+function readSkillMetaVersion(skillDir) {
+  const file = path.join(skillDir, 'SKILL.md');
+  if (!fs.existsSync(file)) return null;
+  const front = fs.readFileSync(file, 'utf8').match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!front) return null;
+  const m = front[1].match(/^[ \t]+version:[ \t]*['"]?(\d+\.\d+\.\d+)['"]?[ \t]*$/m);
+  return m ? m[1] : null;
+}
+
+// 用户级安装位置：Claude Code 与 Codex 各一个入口，跨项目共享同一份。
+function companionDestDirs(home) {
+  return [path.join(home, '.claude', 'skills'), path.join(home, '.agents', 'skills')];
+}
+
+// 开发态保护：目标是 symlink（指向本地开发目录）或本身是 git 工作区时，
+// 覆盖会写进用户自己的仓库——一律只报告版本差异，不动它。
+function companionGuardReason(dir) {
+  let st;
+  try { st = fs.lstatSync(dir); } catch { return null; }
+  if (st.isSymbolicLink()) return 'symlink（指向本地开发目录）';
+  if (fs.existsSync(path.join(dir, '.git'))) return 'git 工作区';
+  return null;
+}
+
+function fetchCompanion(spec, repo) {
+  const tempRoot = fs.mkdtempSync(path.join(tmpdir(), `companion-${spec.name}-`));
+  const checkout = path.join(tempRoot, 'repo');
+  const result = spawnSync(
+    'git',
+    ['clone', '--depth=1', '--single-branch', '--branch', spec.ref, '--', repo, checkout],
+    { encoding: 'utf8' },
+  );
+  if (result.error || result.status !== 0) {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+    const detail = (result.stderr || result.stdout || result.error?.message || '未知错误').trim();
+    throw new Error(detail.split('\n').slice(-1)[0]);
+  }
+  const srcDir = spec.subdir ? path.join(checkout, spec.subdir) : checkout;
+  if (!fs.existsSync(path.join(srcDir, 'SKILL.md'))) {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+    throw new Error(`仓库里找不到 ${spec.subdir || '.'}/SKILL.md`);
+  }
+  return {
+    srcDir,
+    version: readSkillMetaVersion(srcDir),
+    cleanup() { fs.rmSync(tempRoot, { recursive: true, force: true }); },
+  };
+}
+
+// 返回 true 表示需要写入（本地缺失，或本地版本更旧，或两侧版本都判不出）。
+function companionNeedsUpdate(localVersion, remoteVersion) {
+  if (localVersion == null) return true;
+  if (remoteVersion == null) return false; // 远端版本判不出时不覆盖已有安装
+  return cmpVersion(remoteVersion, localVersion) > 0;
+}
+
+// 主安装完成后执行；任何失败都只降级为警告，不影响已完成的项目安装。
+function syncCompanions(opt, home) {
+  if (opt.noCompanions) {
+    console.log('\n· 跳过伴生 skill 检查（--no-agentic）');
+    return;
+  }
+  for (const spec of COMPANION_SKILLS) {
+    const repo = opt.companionRepos[spec.name] || spec.repo;
+    const dests = companionDestDirs(home).map(root => path.join(root, spec.name));
+    const locals = dests.map(dir => ({
+      dir,
+      exists: fs.existsSync(dir),
+      guard: companionGuardReason(dir),
+      version: fs.existsSync(dir) ? readSkillMetaVersion(dir) : null,
+    }));
+
+    let fetched;
+    try {
+      fetched = fetchCompanion(spec, repo);
+    } catch (e) {
+      const known = locals.filter(l => l.exists);
+      console.log(`\n⚠ 伴生 skill ${spec.name}：无法访问 ${repo}（${e.message}）`);
+      console.log(known.length
+        ? `   本地已装 v${known[0].version || '未知'}，继续使用；联网后重跑安装器即可检查更新。`
+        : `   本地未安装。它是 Agentic 需求的必需依赖，请稍后重跑安装器，或手动 clone 到 ${dests[0]}。`);
+      continue;
+    }
+
+    try {
+      const remote = fetched.version;
+      console.log(`\n伴生 skill ${spec.name}（${spec.why}）`);
+      console.log(`  远端版本：v${remote || '未知'}（${repo}）`);
+      for (const local of locals) {
+        const shown = local.exists ? `v${local.version || '未知'}` : '未安装';
+        if (local.guard) {
+          const verdict = companionNeedsUpdate(local.version, remote)
+            ? '有更新可用，但不自动覆盖，请自行在该仓库拉取'
+            : '已是最新';
+          console.log(`  · ${local.dir}：${shown}（${local.guard}）→ 保持不动；${verdict}`);
+          continue;
+        }
+        if (!companionNeedsUpdate(local.version, remote)) {
+          console.log(`  · ${local.dir}：${shown} → 已是最新，跳过`);
+          continue;
+        }
+        if (opt.dryRun) {
+          console.log(`  · ${local.dir}：${shown} → [--dry-run] 将安装/更新为 v${remote || '未知'}`);
+          continue;
+        }
+        fs.mkdirSync(path.dirname(local.dir), { recursive: true });
+        fs.rmSync(local.dir, { recursive: true, force: true });
+        fs.cpSync(fetched.srcDir, local.dir, { recursive: true });
+        console.log(`  · ${local.dir}：${shown} → 已${local.exists ? '更新' : '安装'}为 v${remote || '未知'}`);
+      }
+    } finally {
+      fetched.cleanup();
+    }
+  }
+}
+
 async function main() {
   const opt = parseArgs(process.argv.slice(2));
   if (opt.help) { console.log(helpText()); return; }
@@ -424,6 +567,13 @@ async function main() {
     console.log('  3) 不修改任何冲突插件/技能设置' + (opt.noPlugins ? '（--no-plugins）' : '（全部 --keep）'));
   }
   console.log('  4) 在 .gitignore 追加已安装 skill 目录与版本 stamp（幂等标记块，避免本体系随仓库提交）');
+  if (opt.noCompanions) {
+    console.log('  5) 跳过伴生 skill 检查（--no-agentic）');
+  } else {
+    console.log(`  5) 检查并更新【用户级】伴生 skill：${COMPANION_SKILLS.map(c => c.name).join('、')}`);
+    console.log(`       装到 ${companionDestDirs(homedir()).join('、')}（跨项目共享，不进本项目、不写本项目 .gitignore）`);
+    console.log('       本地已是最新则跳过；目标是 symlink 或 git 工作区时只报告版本、不覆盖；无网时降级为警告');
+  }
   // 版本升级的迁移高亮提示（dry-run 同样展示）
   const [HL, HL_END] = process.stdout.isTTY ? ['\x1b[1;33m', '\x1b[0m'] : ['', ''];
   if (migrations.length) {
@@ -445,7 +595,11 @@ async function main() {
   console.log('     · Claude Code settings 改动在【下次启动 Claude Code】时生效，非当前会话。');
   console.log('     · Codex 未使用未经验证的项目级插件 enabled=false；安装器改写并校验 AGENTS.md 自动触发约束，不动全局插件。');
   console.log('     · 全局（其他项目）不受影响。撤销：删掉本项目配置/AGENTS.md 里对应的标记块即可。');
-  if (opt.dryRun) { console.log('\n[--dry-run] 未做任何改动。'); return; }
+  if (opt.dryRun) {
+    syncCompanions(opt, homedir());
+    console.log('\n[--dry-run] 未做任何改动。');
+    return;
+  }
 
   if (!opt.yes) {
     const ans = (await ask('\n继续？[y/N] ')).trim().toLowerCase();
@@ -527,6 +681,9 @@ async function main() {
     assertMarkedBlock(readTextIfExists(codexAgentsFile), WORKFLOW_MODE_START, WORKFLOW_MODE_END, codexAgentsFile);
     console.log('✓ 已同步并校验 CLAUDE.md / AGENTS.md 的 ai-dev-workflow mode 标记');
   }
+
+  // 3) 伴生 skill：装到用户级目录，失败只警告，不影响上面已完成的项目安装
+  syncCompanions(opt, homedir());
 
   console.log('\n完成。下一步：');
   console.log('  · 重启 Claude Code / Codex（或在本项目重新打开），项目级配置/指令才会进入新会话。');

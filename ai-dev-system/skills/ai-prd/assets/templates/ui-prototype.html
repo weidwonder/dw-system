@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>【需求名】高保真交互原型</title>
+  <style>
+    /*
+      【必须替换】以下 token 全部是占位默认值，不是设计成果。
+      产出原型前先按 references/UI原型纪律.md §1 自查现有样式来源：
+      设计 token 文件（tailwind.config.* / theme.* / variables.css / *.tokens.json）→
+      组件库依赖（package.json）→ 同类现有页面 → 全局样式入口。
+      查到就用真实值替换整段；确实查不到时保留默认值，并在 PRD 的 UI 原型节
+      写明"视觉为临时假设，开发前需替换为真实样式依据"。
+      禁止引入外部资源：无 CDN、无网络字体、无远程图片，原型必须能离线打开。
+    */
+    :root {
+      --brand: #2563eb;           /* 【现有品牌主色】 */
+      --brand-strong: #1d4ed8;    /* 【品牌主色的按下/悬停态】 */
+      --surface: #ffffff;         /* 【卡片/容器底色】 */
+      --background: #f5f7fb;      /* 【页面底色】 */
+      --text: #111827;            /* 【正文文字色】 */
+      --muted: #6b7280;           /* 【次级文字色】 */
+      --line: #e5e7eb;            /* 【分割线/描边色】 */
+      --radius: 18px;             /* 【圆角阶】 */
+      --shadow: 0 24px 80px rgba(15, 23, 42, 0.16); /* 【阴影阶】 */
+      /* 只用系统字体栈，禁止 @import 网络字体 */
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top left, rgba(37, 99, 235, 0.14), transparent 32rem), var(--background);
+      color: var(--text);
+    }
+
+    .prototype-meta {
+      max-width: 1120px;
+      margin: 32px auto 18px;
+      padding: 0 24px;
+    }
+
+    .prototype-meta h1 {
+      margin: 0 0 8px;
+      font-size: 24px;
+      line-height: 1.25;
+    }
+
+    .prototype-meta p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .stage {
+      display: grid;
+      grid-template-columns: minmax(360px, 1fr) minmax(300px, 360px);
+      gap: 28px;
+      max-width: 1440px;
+      margin: 0 auto 32px;
+      padding: 0 24px 32px;
+      align-items: start;
+    }
+
+    /* 多屏：.devices 内横向并排若干 .device，每屏一个 */
+    .devices {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px;
+      align-items: flex-start;
+    }
+
+    .device-wrap { width: 380px; }
+
+    .device-name {
+      margin: 0 0 8px;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+
+    .device {
+      overflow: hidden;
+      min-height: 720px;
+      border: 1px solid rgba(17, 24, 39, 0.08);
+      border-radius: 36px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .app-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(18px);
+    }
+
+    .app-title {
+      font-size: 17px;
+      font-weight: 700;
+    }
+
+    .screen { padding: 22px 20px 28px; }
+
+    .hero {
+      padding: 22px;
+      border-radius: 26px;
+      color: #fff;
+      background: linear-gradient(135deg, var(--brand), var(--brand-strong));
+    }
+
+    .hero h2 {
+      margin: 0 0 8px;
+      font-size: 24px;
+    }
+
+    .hero p {
+      margin: 0;
+      opacity: 0.9;
+      line-height: 1.6;
+    }
+
+    .card {
+      margin-top: 16px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .card h3 {
+      margin: 0 0 12px;
+      font-size: 16px;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    label {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    input,
+    select {
+      width: 100%;
+      min-height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 0 13px;
+      color: var(--text);
+      background: #fff;
+      font-size: 15px;
+    }
+
+    .primary {
+      width: 100%;
+      min-height: 48px;
+      margin-top: 18px;
+      border: 0;
+      border-radius: 14px;
+      color: #fff;
+      background: var(--brand);
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .primary:hover { background: var(--brand-strong); }
+
+    .status {
+      display: none;
+      margin-top: 14px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .status.success { color: #166534; background: #dcfce7; }
+    .status.error { color: #991b1b; background: #fee2e2; }
+    .status.loading { color: #1e40af; background: #dbeafe; }
+    .status.empty { color: #92400e; background: #fef3c7; }
+
+    .state-success .success,
+    .state-error .error,
+    .state-loading .loading,
+    .state-empty .empty { display: block; }
+
+    .controls,
+    .notes {
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.86);
+      box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+      padding: 20px;
+    }
+
+    .controls h2,
+    .notes h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+    }
+
+    .state-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .state-buttons button {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      padding: 9px 14px;
+      cursor: pointer;
+    }
+
+    .state-buttons button[aria-pressed="true"] {
+      border-color: var(--brand);
+      color: var(--brand);
+      background: #eff6ff;
+      font-weight: 700;
+    }
+
+    .notes {
+      margin-top: 18px;
+      color: var(--muted);
+      line-height: 1.75;
+    }
+
+    .notes strong { color: var(--text); }
+
+    @media (max-width: 860px) {
+      .stage { grid-template-columns: 1fr; }
+      .device { min-height: 640px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="prototype-meta">
+    <h1>【需求名】高保真交互原型</h1>
+    <p>样式依据：【现有页面 / 设计系统 / 截图 / 临时视觉假设】；覆盖路径：【用户从哪里进入、完成什么任务】。</p>
+  </header>
+
+  <main class="stage">
+    <div class="devices">
+      <!--
+        多屏用法：整块复制下面的 .device-wrap，改屏幕名与内容即可（建议 2–5 屏）。
+        右侧"设计说明"栏全篇只保留一个，不要每屏配一份。
+      -->
+      <section class="device-wrap">
+        <p class="device-name">【屏幕 1：真实页面名，如"错题本 · 列表"】</p>
+        <div class="device" aria-label="用户界面原型">
+          <div class="app-bar">
+            <span class="app-title">【产品 / 页面名称】</span>
+            <span aria-label="当前用户">【真实角色】</span>
+          </div>
+
+          <div class="screen">
+            <section class="hero">
+              <h2>【用户会看到的主标题】</h2>
+              <p>【用户会看到的说明文案，避免写给 PM 的设计解释】</p>
+            </section>
+
+            <section class="card">
+              <h3>【核心任务区】</h3>
+              <div class="field">
+                <label>【业务信息项】
+                  <input value="【接近真实的示例数据】" />
+                </label>
+              </div>
+              <div class="field">
+                <label>【业务选择】
+                  <select>
+                    <option>【真实选项 A】</option>
+                    <option>【真实选项 B】</option>
+                  </select>
+                </label>
+              </div>
+              <button class="primary" type="button" data-submit>【主要行动按钮】</button>
+
+              <div class="status loading">正在处理【用户任务】…</div>
+              <div class="status empty">暂无可处理内容，用户可以【下一步动作】。</div>
+              <div class="status error">当前无法完成操作，原因是【用户可理解原因】，可【兜底动作】。</div>
+              <div class="status success">已完成【用户任务】，下一步可以【业务结果】。</div>
+            </section>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <aside>
+      <section class="controls" aria-label="原型状态切换">
+        <h2>状态切换</h2>
+        <div class="state-buttons">
+          <button type="button" data-state="" aria-pressed="true">默认</button>
+          <button type="button" data-state="state-loading" aria-pressed="false">加载</button>
+          <button type="button" data-state="state-empty" aria-pressed="false">空态</button>
+          <button type="button" data-state="state-error" aria-pressed="false">错误</button>
+          <button type="button" data-state="state-success" aria-pressed="false">成功</button>
+        </div>
+      </section>
+
+      <section class="notes">
+        <h2>设计说明（不属于用户界面）</h2>
+        <p><strong>样式依据：</strong>【列具体来源：设计 token 文件 / 组件库 / 现有页面 / 截图；若确实没有，写“临时视觉假设”。】</p>
+        <p><strong>覆盖范围：</strong>【列本原型覆盖的屏幕、状态和不覆盖的次要路径。】</p>
+        <p><strong>开放问题：</strong>【仅列待确认决策；不要把这些文字绘制进用户界面。】</p>
+      </section>
+    </aside>
+  </main>
+
+  <script>
+    // 状态切换作用于全部屏幕；多屏时整块复制 .device-wrap 即可，无需改脚本。
+    const screenEls = document.querySelectorAll(".screen");
+    const stateButtons = document.querySelectorAll("[data-state]");
+
+    function setState(nextState) {
+      screenEls.forEach((el) => {
+        el.className = ("screen " + nextState).trim();
+      });
+      stateButtons.forEach((button) => {
+        button.setAttribute("aria-pressed", String(button.dataset.state === nextState));
+      });
+    }
+
+    stateButtons.forEach((button) => {
+      button.addEventListener("click", () => setState(button.dataset.state));
+    });
+
+    // 主行动按钮：演示"提交 → 处理中 → 成功"的业务反馈
+    document.querySelectorAll("[data-submit]").forEach((submit) => {
+      submit.addEventListener("click", () => {
+        setState("state-loading");
+        window.setTimeout(() => setState("state-success"), 650);
+      });
+    });
+  </script>
+</body>
+</html>

@@ -51,6 +51,16 @@ sourceOfTruth: true
 
 【角色 → Opening（场景/动机）→ Rising Action（遇到什么）→ Climax（关键时刻）→ Resolution（得到什么）。至少一条主旅程。】
 
+## UI 原型（如适用）
+
+| 项 | 内容 |
+|---|---|
+| 原型文件 | 【docs/spec/<name>-prototype-YYYYMMDD.html；不涉及 UI 或纯文案改动时写“不适用 + 原因”】 |
+| 覆盖路径 | 【核心用户旅程、关键页面和状态】 |
+| 样式依据 | 【现有设计 token / 组件库 / 现有页面 / 截图 / 临时视觉假设，写清具体来源】 |
+| 关键状态 | 【默认 / 加载 / 空态 / 错误或无权限 / 成功反馈等】 |
+| 不在用户界面内展示 | 【面向 PM 的解释、设计理由、开放问题】 |
+
 ## Functional Requirements
 
 【按业务能力或业务流程组织。每条可判定，用 MUST / SHOULD / MAY 表达约束强度。】
