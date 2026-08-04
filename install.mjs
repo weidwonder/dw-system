@@ -7,7 +7,7 @@
 //      分别完成 Claude Code 与 Codex 的项目级安装
 //   2) 在【本项目】级配置里禁用与本流程冲突的 Claude Code 插件（覆盖用户级启用，
 //      只影响本项目；其他项目照常启用）。
-//   3) 为 Codex 写入项目级 AGENTS.md 覆盖指令，避免自动触发冲突技能。
+//   3) 为 Codex 写入项目级 AGENTS.md 覆盖指令，或按用户选择通过 Codex CLI 全局卸载冲突插件。
 //   4) 在目标项目 .gitignore 幂等追加所有已安装 skill 目录与版本 stamp，
 //      避免本体系随目标仓库提交。
 //
@@ -31,8 +31,8 @@
 //   settings 优先级 Managed > Local(.claude/settings.local.json) > Project(.claude/settings.json) > User(~/.claude/settings.json)
 //   enabledPlugins 在所有 scope 均可设 → 项目级 false 覆盖用户级 true = 仅本项目禁用。
 //   Codex CLI：
-//   未验证项目级插件 enabled=false 前，不修改用户级全局插件配置。
-//   这里用项目 AGENTS.md 覆盖自动触发规则，并在安装后验证保护块存在。
+//   默认不修改用户级全局插件配置，改用项目 AGENTS.md 约束自动触发；
+//   用户显式选择全局卸载时，通过 Codex CLI 的 plugin list/remove 操作，影响所有项目。
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -66,8 +66,13 @@ const CLAUDE_CONFLICTS = [
 ];
 
 const CODEX_CONFLICTS = [
-  { key: 'superpowers@openai-curated', short: 'superpowers', skillPrefix: 'superpowers:', reason: 'Codex 插件版 superpowers 会通过 skill 规则强制前置，和本流程分流/执行规则冲突' },
+  { key: 'superpowers@openai-api-curated', short: 'superpowers', skillPrefix: 'superpowers:', reason: 'Codex 插件版 superpowers 会通过 skill 规则强制前置，和本流程分流/执行规则冲突' },
 ];
+const CODEX_PLUGIN_NAME = 'superpowers';
+const CODEX_PLUGIN_IDS = new Set([
+  'superpowers@openai-api-curated',
+  'superpowers@openai-curated',
+]);
 
 // 版本 stamp 文件名：安装时写入目标项目的两个 skills 目录，升级时据此判断是否需要迁移提示。
 const VERSION_STAMP = 'ai-dev-system.version';
@@ -88,6 +93,7 @@ function parseArgs(argv) {
     shared: false,
     keep: [],
     noPlugins: false,
+    codexConflicts: null,
     dryRun: false,
     help: false,
     repo: DEFAULT_REPO,
@@ -101,6 +107,13 @@ function parseArgs(argv) {
     if (a === '--yes' || a === '-y') opt.yes = true;
     else if (a === '--shared') opt.shared = true;
     else if (a === '--no-plugins') opt.noPlugins = true;
+    else if (a.startsWith('--codex-conflicts=')) {
+      const value = a.slice('--codex-conflicts='.length);
+      if (value !== 'guard' && value !== 'uninstall') {
+        throw new Error('--codex-conflicts 只能是 guard 或 uninstall');
+      }
+      opt.codexConflicts = value;
+    }
     else if (a === '--dry-run') opt.dryRun = true;
     else if (a === '-h' || a === '--help') opt.help = true;
     else if (a === '--no-agentic' || a === '--no-companions') opt.noCompanions = true;
@@ -130,6 +143,8 @@ function helpText() {
                    默认写 .claude/settings.local.json（gitignored，仅影响你）
   --keep=<key>     保留插件并撤销旧禁用/约束（短名或 name@marketplace），可多次
   --no-plugins     只装 skill，不动冲突插件/技能设置
+  --codex-conflicts=<mode>
+                   Codex 冲突处理：guard（项目级 AGENTS.md，默认）或 uninstall（全局卸载）
   --repo=<url>     安装源 Git 仓库（默认 ${DEFAULT_REPO}）
   --ref=<name>     安装版本：分支或标签（默认 ${DEFAULT_REF}）
   --source-dir=<dir>
@@ -155,7 +170,7 @@ ${COMPANION_SKILLS.map(c => `  - ${c.name}：${c.repo}\n      ${c.why}`).join('\
   安装后会在目标项目 .gitignore 幂等追加已安装 skill 目录与版本 stamp 的
   忽略规则（标记块，重复安装不重复追加），避免本体系随目标仓库提交。
 
-默认在目标项目里处理这些与本流程冲突的插件/技能（仅本项目，不影响全局）：
+默认在目标项目里处理这些与本流程冲突的插件/技能（Codex 默认仅本项目，不影响全局）：
 ${[
   ...CLAUDE_CONFLICTS.map(c => '  - Claude Code: ' + c.key),
   ...CODEX_CONFLICTS.map(c => '  - Codex AGENTS.md 覆盖: ' + c.key),
@@ -284,6 +299,77 @@ function collectMigrations(migrationsDir, fromVersion, toVersion) {
 function ask(question) {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   return new Promise(resolve => rl.question(question, ans => { rl.close(); resolve(ans); }));
+}
+
+function runCodex(args) {
+  const commands = process.platform === 'win32' ? ['codex.cmd', 'codex.exe', 'codex'] : ['codex'];
+  let lastError = null;
+  for (const command of commands) {
+    const result = spawnSync(command, args, {
+      encoding: 'utf8',
+      // Windows 的 npm 全局命令通常是 .cmd shim，Node 需要通过 shell 调用它。
+      shell: process.platform === 'win32',
+    });
+    const notFound = result.error?.code === 'ENOENT'
+      || (process.platform === 'win32' && result.status === 1
+        && /not recognized|cannot find/i.test(result.stderr || ''));
+    if (!notFound) return result;
+    lastError = result.error;
+  }
+  throw new Error(`找不到 Codex CLI，无法执行全局卸载：${lastError?.message || 'codex'}`);
+}
+
+function codexPluginId(plugin) {
+  if (typeof plugin?.pluginId === 'string') return plugin.pluginId;
+  if (plugin?.name === CODEX_PLUGIN_NAME && typeof plugin?.marketplaceName === 'string') {
+    return `${plugin.name}@${plugin.marketplaceName}`;
+  }
+  return null;
+}
+
+function findInstalledCodexConflicts() {
+  const result = runCodex(['plugin', 'list', '--json']);
+  if (result.status !== 0) {
+    throw new Error(`Codex 插件列表读取失败：${(result.stderr || result.stdout || '').trim()}`);
+  }
+  let payload;
+  try {
+    payload = JSON.parse(result.stdout);
+  } catch (error) {
+    throw new Error(`Codex 插件列表不是有效 JSON：${error.message}`);
+  }
+  if (!payload || typeof payload !== 'object' || !Array.isArray(payload.installed)) {
+    throw new Error('Codex 插件列表缺少有效的 installed 数组');
+  }
+  const installed = payload.installed;
+  return [...new Set(installed
+    .filter(plugin => CODEX_PLUGIN_IDS.has(codexPluginId(plugin)))
+    .map(codexPluginId)
+    .filter(Boolean))];
+}
+
+function uninstallCodexConflicts(pluginIds) {
+  for (const pluginId of pluginIds) {
+    const result = runCodex(['plugin', 'remove', pluginId]);
+    if (result.status !== 0) {
+      throw new Error(`Codex 插件卸载失败（${pluginId}）：${(result.stderr || result.stdout || '').trim()}`);
+    }
+    console.log(`✓ 已全局卸载 Codex 冲突插件：${pluginId}`);
+  }
+  if (!pluginIds.length) console.log('· 未发现已安装的 Codex superpowers 插件，全局卸载无需操作');
+}
+
+async function chooseCodexConflictMode(opt, hasConflict) {
+  if (!hasConflict || opt.noPlugins) return 'none';
+  if (opt.codexConflicts) return opt.codexConflicts;
+  if (opt.yes || opt.dryRun) return 'guard';
+  const answer = (await ask(
+    '\nCodex 冲突技能处理方式：\n' +
+    '  1) 项目级 AGENTS.md 约束（默认，不影响其他项目）\n' +
+    '  2) 全局卸载 Codex superpowers（影响所有项目）\n' +
+    '请选择 [1/2，默认 1]：',
+  )).trim().toLowerCase();
+  return answer === '2' || answer === 'uninstall' ? 'uninstall' : 'guard';
 }
 
 function copySkills(skillsRoot, skills, destDir) {
@@ -549,6 +635,11 @@ async function main() {
     : '';
   const workflowModeBlock = getMarkedBlock(canonicalSnippet, WORKFLOW_MODE_START, WORKFLOW_MODE_END)
     || existingModeBlock;
+  const codexMode = await chooseCodexConflictMode(opt, codexToDisable.length > 0);
+  // 先只读取并校验全局插件清单；真正卸载在用户确认后、目标项目落盘前执行。
+  const codexUninstallIds = codexMode === 'uninstall' && !opt.dryRun
+    ? findInstalledCodexConflicts()
+    : [];
 
   // 计划
   console.log('\nai-dev-workflow 安装器');
@@ -572,7 +663,11 @@ async function main() {
       for (const c of claudeToDisable) console.log(`       - ${c.key}\n           ↳ ${c.reason}`);
     }
     if (codexToDisable.length) {
-      console.log(`       Codex → ${path.relative(target, codexAgentsFile)}  (自动触发约束，仅影响本项目)`);
+      if (codexMode === 'uninstall') {
+        console.log(`       Codex → 全局卸载（影响所有项目）${codexUninstallIds.length ? `：${codexUninstallIds.join('、')}` : ''}`);
+      } else {
+        console.log(`       Codex → ${path.relative(target, codexAgentsFile)}  (自动触发约束，仅影响本项目)`);
+      }
       for (const c of codexToDisable) console.log(`       - ${c.key}\n           ↳ ${c.reason}`);
     }
     if (claudeToKeep.length || codexToKeep.length) {
@@ -608,8 +703,12 @@ async function main() {
   console.log('\n  ⚠ 提示：');
   console.log('     · 项目级 .claude/settings.json 首次打开会弹 workspace trust 对话框，信任后才生效。');
   console.log('     · Claude Code settings 改动在【下次启动 Claude Code】时生效，非当前会话。');
-  console.log('     · Codex 未使用未经验证的项目级插件 enabled=false；安装器改写并校验 AGENTS.md 自动触发约束，不动全局插件。');
-  console.log('     · 全局（其他项目）不受影响。撤销：删掉本项目配置/AGENTS.md 里对应的标记块即可。');
+  if (codexMode === 'uninstall') {
+    console.log('     · Codex 已选择全局卸载；该选择会影响当前用户的其他项目。');
+  } else {
+    console.log('     · Codex 默认采用项目级 AGENTS.md 自动触发约束，不动全局插件。');
+    console.log('     · 全局（其他项目）不受影响。撤销：删掉本项目配置/AGENTS.md 里对应的标记块即可。');
+  }
   if (opt.dryRun) {
     syncCompanions(opt, homedir());
     console.log('\n[--dry-run] 未做任何改动。');
@@ -619,6 +718,12 @@ async function main() {
   if (!opt.yes) {
     const ans = (await ask('\n继续？[y/N] ')).trim().toLowerCase();
     if (ans !== 'y' && ans !== 'yes') { console.log('已取消。'); return; }
+  }
+
+  // 全局卸载是不可逆的用户级副作用，必须在任何目标项目文件写入前完成。
+  // 这样 CLI 不可用或卸载失败时，目标项目保持原样。
+  if (codexMode === 'uninstall' && codexToDisable.length) {
+    uninstallCodexConflicts(codexUninstallIds);
   }
 
   // 1) 复制所有 skill 到 Claude Code 与 Codex 的项目级目录
@@ -666,7 +771,7 @@ async function main() {
   }
 
   // 2b) 写 Codex 项目级自动触发约束
-  if (codexToDisable.length) {
+  if (codexToDisable.length && codexMode === 'guard') {
     const raw = readTextIfExists(codexAgentsFile);
     const merged = mergeMarkedBlock(
       raw,
@@ -695,6 +800,19 @@ async function main() {
     assertMarkedBlock(readTextIfExists(claudeFile), WORKFLOW_MODE_START, WORKFLOW_MODE_END, claudeFile);
     assertMarkedBlock(readTextIfExists(codexAgentsFile), WORKFLOW_MODE_START, WORKFLOW_MODE_END, codexAgentsFile);
     console.log('✓ 已同步并校验 CLAUDE.md / AGENTS.md 的 ai-dev-workflow mode 标记');
+  }
+
+  if (codexMode === 'uninstall' && codexToDisable.length) {
+    const raw = readTextIfExists(codexAgentsFile);
+    const withoutGuard = removeMarkedBlock(raw, CODEX_GUARD_START, CODEX_GUARD_END);
+    if (withoutGuard !== raw) {
+      if (!withoutGuard.trim() && !initialAgentsRaw.trim() && !workflowModeBlock) {
+        fs.rmSync(codexAgentsFile, { force: true });
+      } else {
+        fs.writeFileSync(codexAgentsFile, withoutGuard);
+      }
+      console.log(`✓ 已移除 ${path.relative(target, codexAgentsFile)} 的 Codex 自动触发约束（已改为全局卸载）`);
+    }
   }
 
   // 3) 伴生 skill：装到用户级目录，失败只警告，不影响上面已完成的项目安装
