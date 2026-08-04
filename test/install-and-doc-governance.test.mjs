@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
@@ -21,6 +21,25 @@ function runGit(cwd, ...args) {
   assert.equal(result.status, 0, result.stderr || result.stdout)
 }
 
+function fakeCodex(binDir, logFile) {
+  const script = path.join(binDir, 'codex-fake.js')
+  writeFileSync(script, [
+    "const fs = require('node:fs')",
+    "const args = process.argv.slice(2)",
+    "if (args[0] === 'plugin' && args[1] === 'list') { if (process.env.CODEX_FAKE_LIST_MODE === 'invalid') { console.log('not-json'); process.exit(0) } if (process.env.CODEX_FAKE_LIST_MODE === 'schema') { console.log(JSON.stringify({ available: [] })); process.exit(0) } if (process.env.CODEX_FAKE_LIST_STATUS) process.exit(Number(process.env.CODEX_FAKE_LIST_STATUS)); console.log(JSON.stringify({ installed: [{ pluginId: process.env.CODEX_FAKE_PLUGIN_ID || 'superpowers@openai-api-curated' }], available: [] })); process.exit(0) }",
+    "if (args[0] === 'plugin' && args[1] === 'remove') { if (process.env.CODEX_FAKE_REMOVE_STATUS) { console.error('fake remove failure'); process.exit(Number(process.env.CODEX_FAKE_REMOVE_STATUS)) } fs.appendFileSync(process.env.CODEX_FAKE_LOG, args[2] + '\\n'); process.exit(0) }",
+    'process.exit(2)',
+  ].join('\n'))
+  if (process.platform === 'win32') {
+    writeFileSync(path.join(binDir, 'codex.cmd'), '@echo off\r\nnode "%~dp0codex-fake.js" %*\r\n')
+  } else {
+    const launcher = path.join(binDir, 'codex')
+    writeFileSync(launcher, '#!/bin/sh\nexec node "$(dirname "$0")/codex-fake.js" "$@"\n')
+    chmodSync(launcher, 0o755)
+  }
+  return { ...process.env, PATH: [binDir, process.env.PATH].filter(Boolean).join(path.delimiter), CODEX_FAKE_LOG: logFile }
+}
+
 test('installer writes the Codex guard and backfills the workflow mode', () => {
   const target = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-install-'))
   try {
@@ -35,7 +54,7 @@ test('installer writes the Codex guard and backfills the workflow mode', () => {
     })
 
     assert.equal(result.status, 0, result.stderr || result.stdout)
-    assert.match(result.stdout, /superpowers@openai-curated/)
+    assert.match(result.stdout, /superpowers@openai-api-curated/)
     const agents = read(target, 'AGENTS.md')
     assert.match(agents, /ai-dev-system:codex-conflicts:start/)
     assert.match(agents, /ai-dev-workflow:start/)
@@ -56,6 +75,109 @@ test('installer writes the Codex guard and backfills the workflow mode', () => {
     assert.equal((rerunAgents.match(/ai-dev-workflow:start/g) || []).length, 1)
   } finally {
     rmSync(target, { recursive: true, force: true })
+  }
+})
+
+test('explicit Codex uninstall removes the global plugin and the project guard', () => {
+  const target = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-codex-uninstall-'))
+  const binDir = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-fake-codex-'))
+  const logFile = path.join(binDir, 'removed.log')
+  try {
+    const result = spawnSync(process.execPath, localInstallArgs(target, '--yes', '--codex-conflicts=uninstall'), {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      env: fakeCodex(binDir, logFile),
+    })
+    assert.equal(result.status, 0, result.stderr || result.stdout)
+    assert.match(result.stdout, /全局卸载/)
+    assert.equal(readFileSync(logFile, 'utf8').trim(), 'superpowers@openai-api-curated')
+    assert.equal(existsSync(path.join(target, 'AGENTS.md')), false)
+  } finally {
+    rmSync(target, { recursive: true, force: true })
+    rmSync(binDir, { recursive: true, force: true })
+  }
+})
+
+test('Codex uninstall failure leaves the target project untouched', () => {
+  const target = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-codex-remove-failure-'))
+  const binDir = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-fake-codex-remove-failure-'))
+  const logFile = path.join(binDir, 'removed.log')
+  try {
+    const env = { ...fakeCodex(binDir, logFile), CODEX_FAKE_REMOVE_STATUS: '7' }
+    const result = spawnSync(process.execPath, localInstallArgs(target, '--yes', '--codex-conflicts=uninstall'), {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      env,
+    })
+    assert.notEqual(result.status, 0)
+    assert.match(result.stderr, /Codex 插件卸载失败/)
+    assert.equal(existsSync(path.join(target, '.agents')), false)
+    assert.equal(existsSync(path.join(target, '.claude')), false)
+    assert.equal(existsSync(path.join(target, 'AGENTS.md')), false)
+  } finally {
+    rmSync(target, { recursive: true, force: true })
+    rmSync(binDir, { recursive: true, force: true })
+  }
+})
+
+test('invalid Codex plugin output aborts before target changes', () => {
+  const target = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-codex-list-invalid-'))
+  const binDir = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-fake-codex-list-invalid-'))
+  const logFile = path.join(binDir, 'removed.log')
+  try {
+    const env = { ...fakeCodex(binDir, logFile), CODEX_FAKE_LIST_MODE: 'schema' }
+    const result = spawnSync(process.execPath, localInstallArgs(target, '--yes', '--codex-conflicts=uninstall'), {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      env,
+    })
+    assert.notEqual(result.status, 0)
+    assert.match(result.stderr, /缺少有效的 installed 数组/)
+    assert.equal(existsSync(path.join(target, '.agents')), false)
+    assert.equal(existsSync(path.join(target, '.claude')), false)
+  } finally {
+    rmSync(target, { recursive: true, force: true })
+    rmSync(binDir, { recursive: true, force: true })
+  }
+})
+
+test('missing Codex CLI aborts global uninstall before target changes', () => {
+  const target = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-codex-cli-missing-'))
+  const binDir = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-empty-codex-bin-'))
+  try {
+    const result = spawnSync(process.execPath, localInstallArgs(target, '--yes', '--codex-conflicts=uninstall'), {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      env: { ...process.env, PATH: binDir },
+    })
+    assert.notEqual(result.status, 0)
+    assert.equal(existsSync(path.join(target, '.agents')), false)
+    assert.equal(existsSync(path.join(target, '.claude')), false)
+    assert.equal(existsSync(path.join(target, 'AGENTS.md')), false)
+  } finally {
+    rmSync(target, { recursive: true, force: true })
+    rmSync(binDir, { recursive: true, force: true })
+  }
+})
+
+test('third-party superpowers marketplace entries are not globally removed', () => {
+  const target = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-codex-third-party-'))
+  const binDir = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-fake-codex-third-party-'))
+  const logFile = path.join(binDir, 'removed.log')
+  try {
+    const env = { ...fakeCodex(binDir, logFile), CODEX_FAKE_PLUGIN_ID: 'superpowers@third-party' }
+    const result = spawnSync(process.execPath, localInstallArgs(target, '--yes', '--codex-conflicts=uninstall'), {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      env,
+    })
+    assert.equal(result.status, 0, result.stderr || result.stdout)
+    assert.doesNotMatch(result.stdout, /已全局卸载 Codex 冲突插件/)
+    assert.equal(existsSync(logFile), false)
+    assert.equal(existsSync(path.join(target, 'AGENTS.md')), false)
+  } finally {
+    rmSync(target, { recursive: true, force: true })
+    rmSync(binDir, { recursive: true, force: true })
   }
 })
 
@@ -209,6 +331,7 @@ test('installer help documents the default GitHub source and version controls', 
   assert.match(result.stdout, /https:\/\/github\.com\/weidwonder\/ai-dev-system\.git/)
   assert.match(result.stdout, /--repo=/)
   assert.match(result.stdout, /--ref=/)
+  assert.match(result.stdout, /--codex-conflicts=<mode>/)
 })
 
 test('skills enforce the shared spec plan and report directories', () => {
@@ -242,8 +365,8 @@ test('the distribution repository uses tool-neutral document paths', () => {
   const claude = read(repoRoot, 'CLAUDE.md')
   assert.doesNotMatch(readme, /docs\/superpowers/)
   assert.doesNotMatch(claude, /docs\/superpowers/)
-  assert.doesNotMatch(readme, /superpowers@openai-api-curated/)
-  assert.match(readme, /superpowers@openai-curated/)
+  assert.match(readme, /superpowers@openai-api-curated/)
+  assert.doesNotMatch(readme, /superpowers@openai-curated`/)
 })
 
 test('ai-dev-workflow keeps user communication at the business level', () => {

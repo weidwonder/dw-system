@@ -98,7 +98,7 @@ node /path/to/ai-dev-system/install.mjs . --source-dir=/path/to/ai-dev-system
 2. 复制该版本的**所有** skill（默认含 `ai-prd` + `ai-dev-workflow` 和 `ctx` CLI）→ `<项目>/.claude/skills/`，完成 Claude Code 项目级安装；
 3. 复制同一批 skill → `<项目>/.agents/skills/`，完成 Codex 项目级安装；
 4. 合并（不覆盖）Claude Code 的 `enabledPlugins`，在本项目把冲突插件设为 `false`；
-5. 写入并校验项目 `AGENTS.md` 的标记块，在 Codex 中约束冲突技能自动触发；若任一入口已有 workflow mode，同时补齐 `CLAUDE.md` 与 `AGENTS.md`。
+5. 安装时让用户选择 Codex 冲突技能处理方式：默认写入项目 `AGENTS.md` 约束自动触发，也可明确选择通过 Codex CLI 全局卸载；若任一入口已有 workflow mode，同时补齐 `CLAUDE.md` 与 `AGENTS.md`。
 
 | 插件 | 为什么与本流程冲突 |
 |---|---|
@@ -106,11 +106,11 @@ node /path/to/ai-dev-system/install.mjs . --source-dir=/path/to/ai-dev-system
 | Claude Code `everything-claude-code` | plan/tdd/coding-standards 与本流程重叠 + SessionStart hook 注入 |
 | Claude Code `oh-my-claudecode` | autopilot/ralph/ultrawork 等端到端引擎替代本流程 + agents-overlay hook |
 | Claude Code `general-task` | SessionStart 注入 clarify→plan→execute + `using-general-task` 强制前置（默认也禁用，`--keep=general-task` 可保留）|
-| Codex `superpowers@openai-curated` | 安装器不修改用户级全局插件开关；改为写入并校验项目 `AGENTS.md` 标记块，要求不要自动加载或主动触发 `superpowers:`，除非用户当前对话明确要求 |
+| Codex `superpowers@openai-api-curated` | 默认写入项目 `AGENTS.md` 约束自动触发；安装时明确选择后，也可通过 Codex CLI 全局卸载 |
 
 > **为什么能只在本项目禁用**：Claude Code settings 优先级为 Managed > Local(`.claude/settings.local.json`) > Project(`.claude/settings.json`) > User(`~/.claude/settings.json`)，`enabledPlugins` 在所有 scope 均可设。项目级 `false` 覆盖用户级 `true`，于是这些插件**只在本项目关闭**。
 >
-> Codex 安装采用项目级 `AGENTS.md` 自动触发约束，不改用户级 `~/.codex/config.toml`，避免安装一个项目 skill 时影响其他项目。安装器会写后校验 `ai-dev-system:codex-conflicts`，并补齐缺失的 workflow mode 标记。
+> Codex 安装默认采用项目级 `AGENTS.md` 自动触发约束，不改用户级 `~/.codex/config.toml`，避免安装一个项目 skill 时影响其他项目。交互安装可明确选择全局卸载；自动化安装用 `--codex-conflicts=uninstall`，需要本机有 Codex CLI，且会影响所有项目。安装器会写后校验 `ai-dev-system:codex-conflicts`，并补齐缺失的 workflow mode 标记。
 >
 > ⚠ 两个前提：① 项目级 `.claude/settings.json` 首次打开会弹 **workspace trust** 对话框，信任后才生效；② settings / `AGENTS.md` 改动在**下次启动 Claude Code / Codex** 时生效，非当前会话。撤销只需删掉本项目 settings 里对应的 `false` 条目，或删掉 `AGENTS.md` 中的 `ai-dev-system:codex-conflicts` 标记块。
 

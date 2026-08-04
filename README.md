@@ -98,7 +98,7 @@ What the installer does:
 2. Copies **all** skills of that version (by default `ai-prd` + `ai-dev-workflow` with the `ctx` CLI) → `<project>/.claude/skills/` for Claude Code;
 3. Copies the same skills → `<project>/.agents/skills/` for Codex;
 4. Merges (never overwrites) Claude Code's `enabledPlugins`, disabling conflicting plugins **for this project only**;
-5. Writes and verifies the `AGENTS.md` marker block that constrains conflicting Codex skills from auto-triggering; if either entry file already has a workflow mode, both `CLAUDE.md` and `AGENTS.md` are reconciled.
+5. Prompts how to handle conflicting Codex skills: project-level `AGENTS.md` auto-trigger constraints (default), or explicit global uninstall through the Codex CLI; if either entry file already has a workflow mode, both `CLAUDE.md` and `AGENTS.md` are reconciled.
 
 | Plugin | Why it conflicts with this pipeline |
 |---|---|
@@ -106,11 +106,11 @@ What the installer does:
 | Claude Code `everything-claude-code` | plan/tdd/coding-standards overlap + SessionStart hook injection |
 | Claude Code `oh-my-claudecode` | autopilot/ralph/ultrawork end-to-end engines replace this pipeline + agents-overlay hook |
 | Claude Code `general-task` | SessionStart injects clarify→plan→execute + `using-general-task` forced preamble (disabled by default too; `--keep=general-task` to retain) |
-| Codex `superpowers@openai-curated` | the installer never touches user-level global plugin switches; instead it writes and verifies a project `AGENTS.md` marker block requiring `superpowers:` not to auto-load or self-trigger unless the user explicitly asks in the current conversation |
+| Codex `superpowers@openai-api-curated` | the default is a project `AGENTS.md` auto-trigger constraint; an explicit install choice can globally uninstall the plugin through the Codex CLI |
 
 > **Why project-only disabling works**: Claude Code settings precedence is Managed > Local (`.claude/settings.local.json`) > Project (`.claude/settings.json`) > User (`~/.claude/settings.json`), and `enabledPlugins` is honored at every scope. A project-level `false` overrides a user-level `true`, so these plugins are switched off **in this project only**.
 >
-> Codex installs use a project-level `AGENTS.md` auto-trigger constraint instead of editing `~/.codex/config.toml`, so installing skills for one project never affects the others. The installer verifies the `ai-dev-system:codex-conflicts` block after writing and reconciles missing workflow mode markers.
+> Codex installs default to a project-level `AGENTS.md` auto-trigger constraint instead of editing `~/.codex/config.toml`, so installing skills for one project never affects the others. During an interactive install, you may explicitly choose global uninstall; use `--codex-conflicts=uninstall` for automation. Global uninstall requires the Codex CLI and affects all projects for the current user.
 >
 > ⚠ Two prerequisites: ① a project-level `.claude/settings.json` triggers a **workspace trust** dialog on first open — it takes effect after you trust it; ② settings / `AGENTS.md` changes take effect on the **next start** of Claude Code / Codex, not the current session. To undo, delete the corresponding `false` entries in the project settings, or remove the `ai-dev-system:codex-conflicts` block from `AGENTS.md`.
 
