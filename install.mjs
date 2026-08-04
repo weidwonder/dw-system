@@ -305,15 +305,16 @@ function runCodex(args) {
   const commands = process.platform === 'win32' ? ['codex.cmd', 'codex.exe', 'codex'] : ['codex'];
   let lastError = null;
   for (const command of commands) {
+    if (process.platform === 'win32') {
+      const probe = spawnSync('where.exe', [command], { encoding: 'utf8', windowsHide: true });
+      if (probe.status !== 0) continue;
+    }
     const result = spawnSync(command, args, {
       encoding: 'utf8',
       // Windows 的 npm 全局命令通常是 .cmd shim，Node 需要通过 shell 调用它。
       shell: process.platform === 'win32',
     });
-    const notFound = result.error?.code === 'ENOENT'
-      || (process.platform === 'win32' && result.status === 1
-        && /not recognized|cannot find/i.test(result.stderr || ''));
-    if (!notFound) return result;
+    if (!result.error || result.error.code !== 'ENOENT') return result;
     lastError = result.error;
   }
   throw new Error(`找不到 Codex CLI，无法执行全局卸载：${lastError?.message || 'codex'}`);
