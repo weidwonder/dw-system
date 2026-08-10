@@ -86,6 +86,8 @@ const GITIGNORE_START = '# ai-dev-system:gitignore:start';
 const GITIGNORE_END = '# ai-dev-system:gitignore:end';
 const WORKFLOW_MODE_START = '<!-- ai-dev-workflow:start -->';
 const WORKFLOW_MODE_END = '<!-- ai-dev-workflow:end -->';
+// CLAUDE.md / AGENTS.md 软链接的解析跳数上限，用来在成环时给出明确报错而不是死循环。
+const MAX_LINK_HOPS = 32;
 
 function parseArgs(argv) {
   const opt = {
@@ -196,6 +198,42 @@ function readJSON(file) {
 function readTextIfExists(file) {
   if (!fs.existsSync(file)) return '';
   return fs.readFileSync(file, 'utf8');
+}
+
+// CLAUDE.md / AGENTS.md 常被软链接到同一份指导文件（Claude Code 与 Codex 共用）。
+// 写入必须落到链接指向的实体文件上：链接本身要原样保留，且两个入口指向同一实体时只写一次。
+// 逐层解析（链可能套链），返回实体路径；解析不动 link 之外的任何路径。
+function resolveLinkTarget(file) {
+  let current = file;
+  for (let hops = 0; hops <= MAX_LINK_HOPS; hops++) {
+    let st;
+    try { st = fs.lstatSync(current); } catch { return current; } // 不存在：按普通新建文件处理
+    if (!st.isSymbolicLink()) return current;
+    current = path.resolve(path.dirname(current), fs.readlinkSync(current));
+  }
+  throw new Error(`无法解析 ${file}：软链接层级过深或成环（超过 ${MAX_LINK_HOPS} 跳）`);
+}
+
+// 落盘前的可写性校验：断链（链接目标所在目录不存在）会在写入时才抛 ENOENT，
+// 那时 skill 已复制、目标项目已被改了一半。必须在覆盖任何东西之前先失败。
+function assertWritableEntry(file, target) {
+  const resolved = resolveLinkTarget(file);
+  if (resolved === file) return resolved;
+  const dir = path.dirname(resolved);
+  if (!fs.existsSync(dir)) {
+    throw new Error(
+      `无法写入 ${path.relative(target, file) || file}：它是软链接，指向 ${resolved}，` +
+      `但该路径所在目录不存在。\n  请修复或删除这个断开的软链接后重试（安装未修改目标项目）。`,
+    );
+  }
+  return resolved;
+}
+
+// 日志里始终显示用户认识的入口名；经软链接改写时把真正落盘的文件一并说清楚。
+function entryLabel(file, resolved, target) {
+  const name = path.relative(target, file) || file;
+  if (resolved === file) return name;
+  return `${name} → ${path.relative(target, resolved) || resolved}（软链接目标）`;
 }
 
 function codexGuardBlock(conflicts) {
@@ -620,8 +658,13 @@ async function main() {
     ? readJSON(claudeSettingsFile)
     : null;
   const claudeFile = path.join(target, 'CLAUDE.md');
-  const initialClaudeRaw = readTextIfExists(claudeFile);
-  const initialAgentsRaw = readTextIfExists(codexAgentsFile);
+  // 入口可能是软链接（两个工具共用一份指导文件是常见做法）：写入落到链接目标，
+  // 链接本身保持不变；断链在这里就失败，不留下改了一半的目标项目。
+  const claudeEntry = assertWritableEntry(claudeFile, target);
+  const agentsEntry = assertWritableEntry(codexAgentsFile, target);
+  const sharedEntry = claudeEntry === agentsEntry;
+  const initialClaudeRaw = readTextIfExists(claudeEntry);
+  const initialAgentsRaw = readTextIfExists(agentsEntry);
   const claudeModeBlock = getMarkedBlock(initialClaudeRaw, WORKFLOW_MODE_START, WORKFLOW_MODE_END);
   const agentsModeBlock = getMarkedBlock(initialAgentsRaw, WORKFLOW_MODE_START, WORKFLOW_MODE_END);
   const claudeMode = getWorkflowMode(claudeModeBlock);
@@ -667,7 +710,7 @@ async function main() {
       if (codexMode === 'uninstall') {
         console.log(`       Codex → 全局卸载（影响所有项目）${codexUninstallIds.length ? `：${codexUninstallIds.join('、')}` : ''}`);
       } else {
-        console.log(`       Codex → ${path.relative(target, codexAgentsFile)}  (自动触发约束，仅影响本项目)`);
+        console.log(`       Codex → ${entryLabel(codexAgentsFile, agentsEntry, target)}  (自动触发约束，仅影响本项目)`);
       }
       for (const c of codexToDisable) console.log(`       - ${c.key}\n           ↳ ${c.reason}`);
     }
@@ -773,46 +816,53 @@ async function main() {
 
   // 2b) 写 Codex 项目级自动触发约束
   if (codexToDisable.length && codexMode === 'guard') {
-    const raw = readTextIfExists(codexAgentsFile);
+    const raw = readTextIfExists(agentsEntry);
     const merged = mergeMarkedBlock(
       raw,
       codexGuardBlock(codexToDisable),
       CODEX_GUARD_START,
       CODEX_GUARD_END,
     );
-    fs.writeFileSync(codexAgentsFile, merged);
-    assertCodexGuard(readTextIfExists(codexAgentsFile), codexToDisable, codexAgentsFile);
-    console.log(`✓ 已在 ${path.relative(target, codexAgentsFile)} 写入并校验 Codex 自动触发约束（仅本项目）`);
+    fs.writeFileSync(agentsEntry, merged);
+    assertCodexGuard(readTextIfExists(agentsEntry), codexToDisable, agentsEntry);
+    console.log(`✓ 已在 ${entryLabel(codexAgentsFile, agentsEntry, target)} 写入并校验 Codex 自动触发约束（仅本项目）`);
   } else if (codexToKeep.length) {
-    const raw = readTextIfExists(codexAgentsFile);
+    const raw = readTextIfExists(agentsEntry);
     const withoutGuard = removeMarkedBlock(raw, CODEX_GUARD_START, CODEX_GUARD_END);
     if (withoutGuard !== raw) {
-      fs.writeFileSync(codexAgentsFile, withoutGuard);
-      console.log(`✓ 已从 ${path.relative(target, codexAgentsFile)} 移除 Codex 自动触发约束`);
+      fs.writeFileSync(agentsEntry, withoutGuard);
+      console.log(`✓ 已从 ${entryLabel(codexAgentsFile, agentsEntry, target)} 移除 Codex 自动触发约束`);
     }
   }
 
   // 2c) 若任一入口已有 mode，幂等同步到两个入口，修复旧安装只写一个文件的状态。
-  const claudeRaw = readTextIfExists(claudeFile);
-  const agentsRaw = readTextIfExists(codexAgentsFile);
+  // 两个入口指向同一实体文件（一方是另一方的软链接）时只写一次，避免二次写入
+  // 用过期内容盖掉刚写好的结果。
   if (workflowModeBlock) {
-    fs.writeFileSync(claudeFile, mergeMarkedBlock(claudeRaw, workflowModeBlock, WORKFLOW_MODE_START, WORKFLOW_MODE_END));
-    fs.writeFileSync(codexAgentsFile, mergeMarkedBlock(agentsRaw, workflowModeBlock, WORKFLOW_MODE_START, WORKFLOW_MODE_END));
-    assertMarkedBlock(readTextIfExists(claudeFile), WORKFLOW_MODE_START, WORKFLOW_MODE_END, claudeFile);
-    assertMarkedBlock(readTextIfExists(codexAgentsFile), WORKFLOW_MODE_START, WORKFLOW_MODE_END, codexAgentsFile);
-    console.log('✓ 已同步并校验 CLAUDE.md / AGENTS.md 的 ai-dev-workflow mode 标记');
+    const entries = sharedEntry ? [claudeEntry] : [claudeEntry, agentsEntry];
+    for (const entry of entries) {
+      const raw = readTextIfExists(entry);
+      fs.writeFileSync(entry, mergeMarkedBlock(raw, workflowModeBlock, WORKFLOW_MODE_START, WORKFLOW_MODE_END));
+      assertMarkedBlock(readTextIfExists(entry), WORKFLOW_MODE_START, WORKFLOW_MODE_END, entry);
+    }
+    console.log(sharedEntry
+      ? `✓ 已同步并校验 ${path.relative(target, claudeEntry) || claudeEntry} 的 ai-dev-workflow mode 标记（CLAUDE.md 与 AGENTS.md 共用此文件）`
+      : '✓ 已同步并校验 CLAUDE.md / AGENTS.md 的 ai-dev-workflow mode 标记');
   }
 
   if (codexMode === 'uninstall' && codexToDisable.length) {
-    const raw = readTextIfExists(codexAgentsFile);
+    const raw = readTextIfExists(agentsEntry);
     const withoutGuard = removeMarkedBlock(raw, CODEX_GUARD_START, CODEX_GUARD_END);
     if (withoutGuard !== raw) {
-      if (!withoutGuard.trim() && !initialAgentsRaw.trim() && !workflowModeBlock) {
-        fs.rmSync(codexAgentsFile, { force: true });
+      // 只删安装器自己创建出来的空 AGENTS.md；入口是软链接时既不删链接也不删它
+      // 指向的共用文件，改为写回去掉约束块后的内容。
+      const isPlainOwnFile = agentsEntry === codexAgentsFile;
+      if (!withoutGuard.trim() && !initialAgentsRaw.trim() && !workflowModeBlock && isPlainOwnFile) {
+        fs.rmSync(agentsEntry, { force: true });
       } else {
-        fs.writeFileSync(codexAgentsFile, withoutGuard);
+        fs.writeFileSync(agentsEntry, withoutGuard);
       }
-      console.log(`✓ 已移除 ${path.relative(target, codexAgentsFile)} 的 Codex 自动触发约束（已改为全局卸载）`);
+      console.log(`✓ 已移除 ${entryLabel(codexAgentsFile, agentsEntry, target)} 的 Codex 自动触发约束（已改为全局卸载）`);
     }
   }
 

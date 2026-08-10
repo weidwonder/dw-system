@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
@@ -269,6 +269,84 @@ test('a valid AGENTS mode wins when the CLAUDE mode block is malformed', () => {
     assert.equal(result.status, 0, result.stderr || result.stdout)
     assert.match(read(target, 'CLAUDE.md'), /mode="personal"/)
     assert.match(read(target, 'AGENTS.md'), /mode="personal"/)
+  } finally {
+    rmSync(target, { recursive: true, force: true })
+  }
+})
+
+// CLAUDE.md / AGENTS.md 常被软链接到同一份指导文件。Windows 上无权限时创建软链接会失败，
+// 这类环境跳过而不是让整组测试红。
+function trySymlink(linkTargetPath, linkPath, t) {
+  try {
+    symlinkSync(linkTargetPath, linkPath)
+    return true
+  } catch {
+    t.skip('this environment cannot create symlinks')
+    return false
+  }
+}
+
+const countMatches = (text, pattern) => (text.match(pattern) || []).length
+
+test('an AGENTS.md symlinked to CLAUDE.md keeps the link and is written only once', (t) => {
+  const target = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-symlink-entry-'))
+  try {
+    writeFileSync(
+      path.join(target, 'CLAUDE.md'),
+      '# Fixture\n\n<!-- ai-dev-workflow:start -->\nmode="personal"\n<!-- ai-dev-workflow:end -->\n\nkeep me\n',
+    )
+    if (!trySymlink('CLAUDE.md', path.join(target, 'AGENTS.md'), t)) return
+
+    const result = spawnSync(process.execPath, localInstallArgs(target, '--yes'), { cwd: repoRoot, encoding: 'utf8' })
+
+    assert.equal(result.status, 0, result.stderr || result.stdout)
+    assert.equal(lstatSync(path.join(target, 'AGENTS.md')).isSymbolicLink(), true, 'the symlink must survive the install')
+    const shared = read(target, 'CLAUDE.md')
+    assert.equal(countMatches(shared, /ai-dev-workflow:start/g), 1)
+    assert.equal(countMatches(shared, /ai-dev-system:codex-conflicts:start/g), 1)
+    assert.match(shared, /keep me/)
+  } finally {
+    rmSync(target, { recursive: true, force: true })
+  }
+})
+
+test('both entries symlinked to one shared file receive a single set of blocks', (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-shared-guide-'))
+  const target = path.join(root, 'proj')
+  try {
+    mkdirSync(target)
+    const shared = path.join(root, 'shared-guide.md')
+    writeFileSync(shared, '# Shared\n\n<!-- ai-dev-workflow:start -->\nmode="team"\n<!-- ai-dev-workflow:end -->\n')
+    if (!trySymlink(path.join('..', 'shared-guide.md'), path.join(target, 'CLAUDE.md'), t)) return
+    if (!trySymlink(path.join('..', 'shared-guide.md'), path.join(target, 'AGENTS.md'), t)) return
+
+    const result = spawnSync(process.execPath, localInstallArgs(target, '--yes'), { cwd: repoRoot, encoding: 'utf8' })
+
+    assert.equal(result.status, 0, result.stderr || result.stdout)
+    assert.equal(lstatSync(path.join(target, 'CLAUDE.md')).isSymbolicLink(), true)
+    assert.equal(lstatSync(path.join(target, 'AGENTS.md')).isSymbolicLink(), true)
+    const guide = readFileSync(shared, 'utf8')
+    assert.equal(countMatches(guide, /ai-dev-workflow:start/g), 1)
+    assert.equal(countMatches(guide, /ai-dev-system:codex-conflicts:start/g), 1)
+    assert.match(guide, /mode="team"/)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('a broken symlink entry aborts before the target project is touched', (t) => {
+  const target = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-broken-link-'))
+  try {
+    writeFileSync(path.join(target, 'CLAUDE.md'), '# Fixture\n')
+    if (!trySymlink(path.join('..', 'nowhere', 'shared.md'), path.join(target, 'AGENTS.md'), t)) return
+
+    const result = spawnSync(process.execPath, localInstallArgs(target, '--yes'), { cwd: repoRoot, encoding: 'utf8' })
+
+    assert.notEqual(result.status, 0)
+    assert.match(result.stdout + result.stderr, /软链接/)
+    assert.equal(existsSync(path.join(target, '.claude', 'skills')), false, 'no skill may be installed before the abort')
+    assert.equal(lstatSync(path.join(target, 'AGENTS.md')).isSymbolicLink(), true)
+    assert.equal(read(target, 'CLAUDE.md'), '# Fixture\n')
   } finally {
     rmSync(target, { recursive: true, force: true })
   }
