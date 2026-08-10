@@ -54,10 +54,12 @@ scripts/ctx/           ctx CLI（Node.js，跨平台）：查代码事实
        若扫出冲突，冲突决断（逐项 移除/修改/保留 + 建议）与 mode 询问同一批抛出。
      - 按选择，把 assets/config-snippets/{personal|team}.md 幂等注入
        项目根的 CLAUDE.md 和 AGENTS.md（都要写，兼容 Claude Code + Codex）。
+       任一文件是软链接时写它的目标文件、保留链接；两者指向同一文件时只写一次。
      - 若团队版：提示用 `ctx init` 初始化 engineering-context/ 目录。
      - 然后继续第 3 步。
 
-2b. 若【有】标记块 → 读出 mode，不再询问；若另一文件缺失或无标记块，幂等补齐同一 mode 块。
+2b. 若【有】标记块 → 读出 mode，不再询问；若另一文件缺失或无标记块，幂等补齐同一 mode 块
+     （补齐同样遵守上面的软链接规则）。
 
 2c. 若用户显式要求"扫描/体检项目的 ai-dev 体系" → 单独执行 references/环境冲突扫描.md
     （已有 mode 时不重问 mode），冲突逐项交用户决断后按其选择处置。
