@@ -112,7 +112,11 @@
 ## PRD 生命周期（两次动笔）
 
 - **开发前**：本流程产出的是**意图**——变更 PRD 或整品 PRD 新章节，先于代码定稿；影响产品范围的变更必须先改 PRD 再动代码。
-- **开发后（准出必做）**：需求实现验收后，把变更 PRD 中**改变了口径**的部分归并回整品 PRD（`docs/REQUIREMENTS.md`）：更新 Product Scope 能力状态；若用户旅程 / 成功指标被改变，**同步回填旅程叙事**——不能只翻状态位，否则旅程随迭代漂移成史前文档。归并后变更 PRD **原地**（文件不移动）转归档，三个动作在同一次提交里做完：frontmatter 标 `lifecycle: merged` + `archived: <日期>`、正文首行加"已归并"头注、从 `docs/index.md` 移入 `docs/index-archive.md`。归档后不再作为平行真相源维护。字段与头注格式见 `ai-dev-workflow/references/core/文档治理.md` §文档生命周期与索引门控。**UI 原型不随变更 PRD 归档**：它留在原地并升级为该能力的现行界面依据，整品 PRD 的 UI 原型节与 `docs/index.md` 指向它，供后续需求作为"现有 UI 样式依据"直接继承；界面被后续需求改掉时，由新原型接替，旧原型页面顶部加可见横幅"已被 <新原型> 取代"并移入归档索引。
+- **开发后（准出必做）**——需求实现验收后分三步：
+
+  1. **归并口径**：把变更 PRD 中**改变了口径**的部分并回整品 PRD（`docs/REQUIREMENTS.md`）——更新 Product Scope 能力状态；用户旅程 / 成功指标被改变时**同步回填旅程叙事**。不能只翻状态位，否则旅程随迭代漂移成史前文档。
+  2. **变更 PRD 转归档**：文件**原地不动**，三个动作在同一次提交里做完——frontmatter 标 `lifecycle: merged` + `archived: <日期>`、正文首行加"已归并"头注、从 `docs/index.md` 移入 `docs/index-archive.md`。归档后不再作为平行真相源维护。头注格式见 `ai-dev-workflow/references/core/文档归档与账本收敛.md`。
+  3. **UI 原型不随变更 PRD 归档**：它留在原地并升级为该能力的**现行界面依据**，整品 PRD 的 UI 原型节与 `docs/index.md` 指向它，供后续需求作为"现有 UI 样式依据"直接继承。只有当界面被后续需求改掉时，才由新原型接替——旧原型页面顶部加可见横幅"已被 <新原型> 取代"并移入归档索引（见 `UI原型纪律.md` §4.5）。
 - **膨胀分层**：整品 PRD 过大时，主文档只留骨架（Summary / Success Criteria / Scope 状态 / User Journeys / FR 摘要），FR/NFR 明细与验收基线移入 `docs/REQUIREMENTS-appendix.md`（附录从属主文档、与主文档同放 `docs/` 根，冲突以主文档为准）；主文档永远单一，附录可按域再拆。**实现细节不进 PRD**——怎么做归 spec，代码现状归 card；PRD 的细节边界是"用户可感知的行为契约与验收口径"。
 
 ## 个人版 vs 团队版裁剪
