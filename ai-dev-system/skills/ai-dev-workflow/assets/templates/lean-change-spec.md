@@ -2,7 +2,8 @@
 lifecycle: active          # active | merged | superseded | obsolete，见 references/core/文档治理.md §文档生命周期与索引门控
 superseded_by: ''
 archived: ''
-authority_refs:            # 本文描述的权威面，准出时拿它比对替换清单判定去留
+last_confirmed: ''       # 最近一次被权威面触发复核、判定仍准确的日期；新建时填当天
+authority_refs:            # 本文冻结的权威面；准出时与本次触碰的权威面比对判定去留。没有则写 ['无']
   - '【如：GET /api/coupons 的 status 枚举值】'
 ---
 

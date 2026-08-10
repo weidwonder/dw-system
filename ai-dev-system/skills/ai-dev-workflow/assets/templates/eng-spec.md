@@ -2,7 +2,8 @@
 lifecycle: active          # active | merged | superseded | obsolete，见 references/core/文档治理.md §文档生命周期与索引门控
 superseded_by: ''          # superseded 时填取代它的文档相对路径
 archived: ''               # 非 active 时填转归档日期 YYYY-MM-DD
-authority_refs:            # 本文描述的权威面，准出时拿它比对替换清单判定去留；写到可比对的粒度
+last_confirmed: ''         # 最近一次被权威面触发复核、判定仍准确的日期；新建时填当天
+authority_refs:            # 本文冻结的权威面；准出时与本次触碰的权威面比对判定去留。写到可比对的粒度，没有则写 ['无']
   - '【如：POST /api/v2/orders 请求体契约】'
   - '【如：order 表唯一键 (tenant_id, order_no)】'
 ---

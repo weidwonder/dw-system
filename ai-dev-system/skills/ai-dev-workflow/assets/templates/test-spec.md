@@ -2,6 +2,7 @@
 lifecycle: active          # active | merged | superseded | obsolete，见 references/core/文档治理.md §文档生命周期与索引门控
 superseded_by: ''
 archived: ''
+last_confirmed: ''       # 最近一次被权威面触发复核、判定仍准确的日期；新建时填当天
 authority_refs:            # 本文断言依赖的权威面（被测接口契约 / 落库副作用 / 错误码枚举）
   - '【如：POST /api/v2/orders 的 409 冲突语义】'
 ---
