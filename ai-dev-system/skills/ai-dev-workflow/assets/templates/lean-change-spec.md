@@ -15,7 +15,7 @@ authority_refs:            # 本文冻结的权威面；准出时与本次触碰
 
 - **Issue / 链接**：【tracker URL 或 ID；无则写 N/A】
 - **Owner**：【谁负责，个人版填自己】
-- **写作进度**：【Draft / Ready / Done】——Done 前"如何验证"必须已跑过并记录。这是**写作进度**，与 frontmatter 的 `lifecycle`（文档生命周期）是两回事：写完是 Done，口径归并进代码后才是 `lifecycle: merged`。
+- **写作进度**：【Draft / Ready / Done】——Done 前"如何验证"必须已跑过并记录。与 frontmatter 的 `lifecycle` 是两回事：写完是 Done，口径归并进代码后才是 `lifecycle: merged`。
 - **Triage 复核**：AI/LLM 行为？【否】 鉴权/安全/设备？【否】 跨服务/迁移/不可逆？【否】 指标/规则/对外承诺？【否】
   - 若有任何一项拿不准（borderline），在此记一句：【说明哪一问、为什么倾向"否"】；拿不准就升级到完整流程，别硬塞进这一页。
 
