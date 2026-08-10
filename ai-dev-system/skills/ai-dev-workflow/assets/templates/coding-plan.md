@@ -2,6 +2,7 @@
 lifecycle: active          # 任务全部执行完并合入后，准出时通常转 merged（口径已落进代码）
 superseded_by: ''
 archived: ''
+last_confirmed: ''       # 最近一次被权威面触发复核、判定仍准确的日期；新建时填当天
 authority_refs:            # 本 plan 的 Interfaces 节冻结了哪些权威面
   - '【如：OrderService.create 签名】'
 ---

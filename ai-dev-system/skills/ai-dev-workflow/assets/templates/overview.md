@@ -2,6 +2,7 @@
 lifecycle: active          # active | merged | superseded | obsolete，见 references/core/文档治理.md §文档生命周期与索引门控
 superseded_by: ''
 archived: ''
+last_confirmed: ''       # 最近一次被权威面触发复核、判定仍准确的日期；新建时填当天
 authority_refs:            # 本文冻结的跨仓契约与能力边界
   - '【如：订单域与履约域的职责分界】'
   - '【如：order-created 事件的字段契约 v1】'
