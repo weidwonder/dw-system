@@ -1,3 +1,11 @@
+---
+lifecycle: active          # active | merged | superseded | obsolete，见 references/core/文档治理.md §文档生命周期与索引门控
+superseded_by: ''
+archived: ''
+authority_refs:            # 本文断言依赖的权威面（被测接口契约 / 落库副作用 / 错误码枚举）
+  - '【如：POST /api/v2/orders 的 409 冲突语义】'
+---
+
 # 【repo】_测试方案 — 【功能名】
 
 > 只专注当前代码仓库涉及的部分（功能代码已开发完成）。配合 PRD / Overview / spec / coding plan。

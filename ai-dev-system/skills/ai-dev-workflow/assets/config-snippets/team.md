@@ -8,6 +8,7 @@
 > - 改动触碰权威面（接口签名/废弃标记/路由配置/DB schema/兼容窗口）即使只有几行也要刷对应 card。
 > - 唤起 `ai-dev-workflow` skill 后会自动加载团队版协作约定与 Engineering Context 设计（skill 内部 references）。
 > - 文档目录固定：spec → `docs/spec/`，plan → `docs/plan/`，report → `docs/report/`。
+> - 文档有生命周期：新建文档 frontmatter 带 `lifecycle: active` 与 `authority_refs`；`docs/index.md` 只放现行口径，归档进 `docs/index-archive.md`；准出时按本次替换清单的权威面结算文档去留。
 > - 用户沟通只用业务语言；大架构需确认，模块内设计问业务问题，详细程序设计由工程侧内部完成。
 > - **Agentic 应用必须加载 `agentic-principle` skill**（模型自主规划 / 直接调工具 / 未过闸门就改状态 / 记忆跨会话影响决策）：架构选型、提示词、注意力与并发预算、步骤级测试用它；运行期 AI 契约仍用 ai-dev-workflow 的 AI overlay。两者内容互相独立，不合并。
 > - **编码完成后必须过代码评审门**：派 3 个并行子代理跑规范 / 忠实 / 残留三轴（Lean 用单子代理精简版），子代理需加载 `ai-dev-workflow`，P0/P1 修完才准进测试步与合并门；Agentic 项目增派一个加载 `agentic-principle` 的 agent 架构轴。此门是 PR 前的地板，不替代人审。

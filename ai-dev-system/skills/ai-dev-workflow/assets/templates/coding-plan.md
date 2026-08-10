@@ -1,3 +1,11 @@
+---
+lifecycle: active          # 任务全部执行完并合入后，准出时通常转 merged（口径已落进代码）
+superseded_by: ''
+archived: ''
+authority_refs:            # 本 plan 的 Interfaces 节冻结了哪些权威面
+  - '【如：OrderService.create 签名】'
+---
+
 # 【功能名】Coding Plan
 
 > 把 spec 拆成"执行者对代码库零上下文"也能做的 bite-sized 任务。每步一个动作（2–5 分钟）。DRY / YAGNI / TDD / 勤 commit。

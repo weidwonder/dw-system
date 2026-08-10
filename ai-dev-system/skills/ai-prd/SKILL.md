@@ -55,7 +55,7 @@ assets/
    需求高度模糊时先走【盘问模式】收敛方向，再回批量流程。
 
 5. 组稿：按模板拼装；涉及 UI 时先/同步产出独立 HTML 高保真交互原型 → 跑 prd质量清单.md → 写入 docs/spec/ →
-   团队版更新 docs/index.md（PRD 与原型都要进索引）→
+   团队版更新 docs/index.md（PRD 与原型都要进索引；索引只放现行口径，归档进 docs/index-archive.md）→
    提示可接 ai-dev-workflow 做 Overview/Spec，并说明 PRD 与 UI 原型一并作为其 Step 1 的输入。
 ```
 

@@ -21,7 +21,7 @@ references/
     worktree开发纪律.md  独立 worktree 全程开发 + 完成后自动合并主分支
     spec写作纪律.md      零上下文可动手 / RFC2119 / 无占位符
     AI-LLM-overlay.md    含 AI/LLM 时叠加的 AI 契约清单
-    文档治理.md          spec / plan / report 的唯一输出目录与命名
+    文档治理.md          spec / plan / report 的唯一输出目录与命名 + 文档生命周期与索引门控
     用户沟通纪律.md      业务语言 + 大架构确认 + 详细设计自主决策
     bug诊断纪律.md       红回路优先：先造能变红的复现命令，再谈假设
     代码评审纪律.md      编码后强制子代理三轴评审 + 替换清单（旧逻辑登记与核销）
@@ -94,7 +94,7 @@ scripts/ctx/           ctx CLI（Node.js，跨平台）：查代码事实
 - **不问第二次 mode**：初始化后固化在 CLAUDE.md/AGENTS.md，除非用户显式要求切换。
 - **开发全程隔离并自动归并**：任何文档或代码落盘前进入、并**全程使用独立 worktree**（目录从 CLAUDE.md/AGENTS.md 标记块读，默认 `./.worktrees/`）；门禁全过后自动合并主分支，失败保留现场不绕过保护分支。→ `core/worktree开发纪律.md`
 - **用户沟通只用业务语言**：大架构由用户确认，模块内设计只问业务问题，详细程序设计自主完成。→ `core/用户沟通纪律.md`
-- **文档只写标准目录**：spec→`docs/spec/`、plan→`docs/plan/`、report→`docs/report/`。→ `core/文档治理.md`
+- **文档只写标准目录，且有退出机制**：spec→`docs/spec/`、plan→`docs/plan/`、report→`docs/report/`；新建文档带 `lifecycle` + `authority_refs`，准出时按权威面结算去留，索引只放现行口径。→ `core/文档治理.md`
 - **写到零上下文也能动手**：RFC2119、无占位符、事实带来源。→ `core/spec写作纪律.md`
 - **上下文卫生**：方向性决策在聪明区内完成，逼近上限就交接，重探索外包子代理。→ `core/上下文卫生.md`
 - **团队版禁止 grep 旧代码找权威实体**：先 `ctx discover`/`find-scenes` 再读 card，事实必须附 cite，无 cite 视为幻觉。→ `company/mode-team.md`

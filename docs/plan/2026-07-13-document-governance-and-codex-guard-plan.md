@@ -1,3 +1,10 @@
+---
+lifecycle: merged
+archived: '2026-08-10'
+---
+
+> **已归档（2026-08-10）｜lifecycle: merged**：计划任务已全部执行，规则以 `references/core/文档治理.md` 与 `install.mjs` 为准。与现行文档冲突时**以现行为准**，MUST NOT 据本文实施。
+
 # 文档治理与 Codex 保护实施计划
 
 ## 目标
