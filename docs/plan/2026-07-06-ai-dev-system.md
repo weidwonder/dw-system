@@ -1,3 +1,10 @@
+---
+lifecycle: merged
+archived: '2026-08-10'
+---
+
+> **已归档（2026-08-10）｜lifecycle: merged**：计划任务已全部执行，体系口径以 `CLAUDE.md` 与 `ai-dev-system/skills/` 下的 skill markdown 为准。与现行文档冲突时**以现行为准**，MUST NOT 据本文实施。
+
 # 自有 AI 辅助开发体系 Implementation Plan
 
 > 按任务逐项执行；每项完成后运行对应验证命令并记录结果。

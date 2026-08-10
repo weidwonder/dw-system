@@ -39,6 +39,7 @@
 ## 落位（doc 治理）
 
 - [ ] 落盘位置正确（变更 PRD → `docs/spec/<name>-PRD-YYYYMMDD.md`；整品 → `docs/REQUIREMENTS.md`，放 `docs/` 根；UI 原型 → `docs/spec/<name>-prototype-YYYYMMDD.html`，与 PRD 同目录且 PRD 里的链接可点开）。
-- [ ] 团队版：`docs/index.md` 已同步新增条目（**PRD 与 UI 原型都进索引**）。
+- [ ] frontmatter 带 `lifecycle: active` 与 `authority_refs`（本 PRD 冻结了哪些对用户可见的行为契约）。
+- [ ] 团队版：`docs/index.md` 已同步新增条目（**PRD 与 UI 原型都进索引**），且索引里只有现行口径的文档。
 - [ ] 已提示可接 `ai-dev-workflow` 做 Overview / 技术 Spec，并说明 PRD 与 UI 原型一并作为其 Step 1 输入。
-- [ ] 变更 PRD：已注明收尾动作——实现验收后归并回整品 PRD 并转归档（见 `00-prd生成流程.md` §PRD 生命周期）。
+- [ ] 变更 PRD：已注明收尾动作——实现验收后归并回整品 PRD，并标 `lifecycle: merged` + 加归档头注 + 移入 `index-archive.md`（见 `00-prd生成流程.md` §PRD 生命周期）。

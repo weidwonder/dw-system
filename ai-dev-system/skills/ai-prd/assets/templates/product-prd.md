@@ -1,6 +1,7 @@
 ---
 date: 'YYYY-MM-DD'
-status: '【当前状态描述】'
+status: '【当前状态描述，自由文本】'
+lifecycle: active          # 整品 PRD 是唯一真相源，长期保持 active；它是变更 PRD 归并的去处，自己不归档
 documentRole: 'primary-prd'
 sourceOfTruth: true
 ---

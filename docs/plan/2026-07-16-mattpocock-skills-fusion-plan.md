@@ -1,3 +1,10 @@
+---
+lifecycle: merged
+archived: '2026-08-10'
+---
+
+> **已归档（2026-08-10）｜lifecycle: merged**：融合结论已落进各 skill 的 `references/` 与模板。与现行文档冲突时**以现行为准**，MUST NOT 据本文实施。
+
 # mattpocock/skills（含 grill-me）融合计划
 
 > 日期：2026-07-16 ｜ 分支：`feat/fusion-mattpocock-skills`

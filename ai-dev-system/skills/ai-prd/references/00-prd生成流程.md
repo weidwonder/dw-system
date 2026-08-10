@@ -106,13 +106,13 @@
 3. 跑 `prd质量清单.md` 自检；不过则就缺项再批量追问或补写。
 4. **交付门：先取得用户确认再落盘**。组稿后把关键取舍、非目标、验收口径回述给用户；涉及 UI 时同时回述原型覆盖范围和样式依据，**达成共识后才写文件**——不要在用户还没确认的情况下就当成定稿交付。
 5. 落盘（命名：变更 PRD → `docs/spec/<name>-PRD-YYYYMMDD.md`；UI 原型 → `docs/spec/<name>-prototype-YYYYMMDD.html`；整品 → `docs/REQUIREMENTS.md`，唯一真相源放 `docs/` 根）。
-6. **团队版**：同步更新 `docs/index.md`（doc 治理要求）——**PRD 与 UI 原型都要进索引**，原型与 PRD 同条目并列标注。
+6. **团队版**：同步更新 `docs/index.md`（doc 治理要求）——**PRD 与 UI 原型都要进索引**，原型与 PRD 同条目并列标注。索引只放现行口径，PRD frontmatter 带 `lifecycle: active`；归档进 `docs/index-archive.md`（见下方 §PRD 生命周期）。
 7. 收尾提示：这份 PRD **连同 UI 原型**一并作为 `ai-dev-workflow` Step 1 的输入，接着做 Overview / 技术 Spec；告诉用户下游会按原型落用户可见行为，原型与 PRD 正文冲突会被立为开放问题。
 
 ## PRD 生命周期（两次动笔）
 
 - **开发前**：本流程产出的是**意图**——变更 PRD 或整品 PRD 新章节，先于代码定稿；影响产品范围的变更必须先改 PRD 再动代码。
-- **开发后（准出必做）**：需求实现验收后，把变更 PRD 中**改变了口径**的部分归并回整品 PRD（`docs/REQUIREMENTS.md`）：更新 Product Scope 能力状态；若用户旅程 / 成功指标被改变，**同步回填旅程叙事**——不能只翻状态位，否则旅程随迭代漂移成史前文档。归并后变更 PRD 加"已归并"头注原地转归档，不再作为平行真相源维护。**UI 原型不随变更 PRD 归档**：它留在原地并升级为该能力的现行界面依据，整品 PRD 的 UI 原型节与 `docs/index.md` 指向它，供后续需求作为"现有 UI 样式依据"直接继承；界面被后续需求改掉时，由新原型接替并在旧原型头部注明"已被 <新原型> 取代"。
+- **开发后（准出必做）**：需求实现验收后，把变更 PRD 中**改变了口径**的部分归并回整品 PRD（`docs/REQUIREMENTS.md`）：更新 Product Scope 能力状态；若用户旅程 / 成功指标被改变，**同步回填旅程叙事**——不能只翻状态位，否则旅程随迭代漂移成史前文档。归并后变更 PRD **原地**（文件不移动）转归档，三个动作在同一次提交里做完：frontmatter 标 `lifecycle: merged` + `archived: <日期>`、正文首行加"已归并"头注、从 `docs/index.md` 移入 `docs/index-archive.md`。归档后不再作为平行真相源维护。字段与头注格式见 `ai-dev-workflow/references/core/文档治理.md` §文档生命周期与索引门控。**UI 原型不随变更 PRD 归档**：它留在原地并升级为该能力的现行界面依据，整品 PRD 的 UI 原型节与 `docs/index.md` 指向它，供后续需求作为"现有 UI 样式依据"直接继承；界面被后续需求改掉时，由新原型接替，旧原型页面顶部加可见横幅"已被 <新原型> 取代"并移入归档索引。
 - **膨胀分层**：整品 PRD 过大时，主文档只留骨架（Summary / Success Criteria / Scope 状态 / User Journeys / FR 摘要），FR/NFR 明细与验收基线移入 `docs/REQUIREMENTS-appendix.md`（附录从属主文档、与主文档同放 `docs/` 根，冲突以主文档为准）；主文档永远单一，附录可按域再拆。**实现细节不进 PRD**——怎么做归 spec，代码现状归 card；PRD 的细节边界是"用户可感知的行为契约与验收口径"。
 
 ## 个人版 vs 团队版裁剪

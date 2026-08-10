@@ -1,3 +1,11 @@
+---
+lifecycle: active          # active | merged | superseded | obsolete，见 references/core/文档治理.md §文档生命周期与索引门控
+superseded_by: ''
+archived: ''
+authority_refs:            # 本文描述的权威面，准出时拿它比对替换清单判定去留
+  - '【如：GET /api/coupons 的 status 枚举值】'
+---
+
 # Lean Change Spec（一页）— 【改动标题】
 
 > 用于 Triage 4 问全否的小改动。这一页就是唯一交付物，写完直接实现。
@@ -6,7 +14,7 @@
 
 - **Issue / 链接**：【tracker URL 或 ID；无则写 N/A】
 - **Owner**：【谁负责，个人版填自己】
-- **Status**：【Draft / Ready / Done】——Done 前"如何验证"必须已跑过并记录
+- **写作进度**：【Draft / Ready / Done】——Done 前"如何验证"必须已跑过并记录。这是**写作进度**，与 frontmatter 的 `lifecycle`（文档生命周期）是两回事：写完是 Done，口径归并进代码后才是 `lifecycle: merged`。
 - **Triage 复核**：AI/LLM 行为？【否】 鉴权/安全/设备？【否】 跨服务/迁移/不可逆？【否】 指标/规则/对外承诺？【否】
   - 若有任何一项拿不准（borderline），在此记一句：【说明哪一问、为什么倾向"否"】；拿不准就升级到完整流程，别硬塞进这一页。
 

@@ -1,3 +1,11 @@
+---
+lifecycle: active          # 实现验收后按 00-prd生成流程.md §PRD 生命周期 结算
+superseded_by: ''
+archived: ''
+authority_refs:
+  - '【本次改动冻结的用户可见行为，一两条即可】'
+---
+
 # 【Issue/小需求名】轻量 PRD
 
 > 更新时间：【YYYY-MM-DD】｜状态：【待实现】

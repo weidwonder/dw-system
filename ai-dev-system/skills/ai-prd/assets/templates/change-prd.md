@@ -1,3 +1,11 @@
+---
+lifecycle: active          # 实现验收并归并回整品 PRD 后改 merged，见 00-prd生成流程.md §PRD 生命周期
+superseded_by: ''
+archived: ''
+authority_refs:            # 本 PRD 冻结了哪些对用户可见的行为契约
+  - '【如：优惠券叠加规则（同一订单最多 1 张品类券 + 1 张平台券）】'
+---
+
 # 【项目/需求名】PRD
 
 > 更新时间：【YYYY-MM-DD HH:MM】

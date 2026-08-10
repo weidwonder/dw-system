@@ -25,10 +25,12 @@
 - 保护分支仓库在审批与 CI 全部通过后启用平台自动合并；不得绕过保护分支直接写主分支。多仓需求全部就绪后再按依赖顺序合并。
 
 ### 文档治理
-- 在 `core/文档治理.md` 之上，团队版额外维护：`docs/REQUIREMENTS.md`（PRD 唯一真相源，放 `docs/` 根）、`docs/ARCHITECTURE.md`（从属 PRD）、`docs/index.md`（发现层入口）。
+- 在 `core/文档治理.md` 之上，团队版额外维护：`docs/REQUIREMENTS.md`（PRD 唯一真相源，放 `docs/` 根）、`docs/ARCHITECTURE.md`（从属 PRD）、`docs/index.md`（现行口径发现层）、`docs/index-archive.md`（归档索引）。
 - 影响产品范围的变更**先改 PRD**，再同步架构与 index。
-- Overview / spec 写入 `docs/spec/`，plan 写入 `docs/plan/`，report 写入 `docs/report/`；创建后同步更新 index。
-- **需求准出时归并 PRD**（Step 10 之后）：本次需求若有变更 PRD、或改变了用户旅程 / 成功指标 / 能力状态，把口径变化归并回 `REQUIREMENTS.md`——含旅程叙事回填，不能只翻 Scope 状态位；变更 PRD 加"已归并"头注转归档（详见 ai-prd skill §PRD 生命周期）。
+- Overview / spec 写入 `docs/spec/`，plan 写入 `docs/plan/`，report 写入 `docs/report/`；创建时带 `lifecycle: active` 与 `authority_refs`，并同步更新 `index.md`。
+- **索引分层是团队版硬要求**：`index.md` 只放 `lifecycle: active` 的文档，非 active 一律进 `index-archive.md`。团队仓库文档基数大、交接频繁，单层索引几年就长到没人读、AI 也读不完——分层是 `core/文档治理.md` §文档生命周期与索引门控的规定动作，不是可选优化。
+- **需求准出时归并 PRD**（Step 10 之后）：本次需求若有变更 PRD、或改变了用户旅程 / 成功指标 / 能力状态，把口径变化归并回 `REQUIREMENTS.md`——含旅程叙事回填，不能只翻 Scope 状态位；变更 PRD 标 `lifecycle: merged`、加归档头注并移入归档索引（详见 ai-prd skill §PRD 生命周期）。
+- **准出同时结算文档生命周期**：按 `core/worktree开发纪律.md` §完成与自动合并门，拿本次替换清单比对各文档 `authority_refs`，命中的逐篇判定去留。
 
 ## 2. Engineering Context 日常用法（关键）
 

@@ -1,3 +1,10 @@
+---
+lifecycle: merged
+archived: '2026-08-10'
+---
+
+> **已归档（2026-08-10）｜lifecycle: merged**：计划任务已全部执行，现行行为以 `install.mjs` 与 `CLAUDE.md` §安装器的关键设计为准。与现行文档冲突时**以现行为准**，MUST NOT 据本文实施。
+
 # Codex 冲突技能处理方式计划
 
 1. 在安装器中加入 Codex 冲突处理模式解析、交互选择和全局卸载调用。
