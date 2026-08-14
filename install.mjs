@@ -732,7 +732,7 @@ function ensureCodegraphCli(local, update) {
 
   const localVersion = local.version || update?.current || null;
   const latest = update?.latest || null;
-  console.log(`  · 本机 v${localVersion || '未知'}｜远端 ${latest ? `v${latest}` : '未知'}`);
+  console.log(`  · 本机 v${localVersion || '未知'}｜远端 ${latest ? `v${latest}` : '未知（版本检测失败，下面直接尝试升级）'}`);
   if (latest && localVersion && cmpVersion(latest, localVersion) <= 0) {
     console.log('  · 已是最新，跳过升级');
     return local;
@@ -752,9 +752,11 @@ function ensureCodegraphCli(local, update) {
     codegraphManualHint();
     return null;
   }
-  console.log(upgraded
-    ? `  ✓ 已升级到 v${after.version || '未知'}`
-    : `  ⚠ 升级失败，继续用本机 v${after.version || '未知'}`);
+  // 版本检测失败时我们是"盲升"：upgrade 退出码为 0 只说明命令跑通了，不代表真换了版本
+  // （它自己会打印 Already up to date）。以升级前后的版本号为准报告，别把空转说成升级。
+  if (!upgraded) console.log(`  ⚠ 升级失败，继续用本机 v${after.version || '未知'}`);
+  else if (localVersion && after.version === localVersion) console.log(`  · 已是最新（v${after.version}），版本未变`);
+  else console.log(`  ✓ 已升级到 v${after.version || '未知'}`);
   return after;
 }
 
@@ -811,7 +813,7 @@ function printCodegraphPlan(opt, local, update, indexed) {
     const verdict = latest && localVersion && cmpVersion(latest, localVersion) <= 0
       ? '已是最新，将跳过升级'
       : '将执行 codegraph upgrade';
-    console.log(`  · 本机 v${localVersion || '未知'}｜远端 ${latest ? `v${latest}` : '未知'} → [--dry-run] ${verdict}`);
+    console.log(`  · 本机 v${localVersion || '未知'}｜远端 ${latest ? `v${latest}` : '未知（版本检测失败）'} → [--dry-run] ${verdict}`);
   }
   console.log(`  · [--dry-run] 将执行 codegraph install --target=auto --location=${opt.codegraphLocation} --yes`);
   console.log(indexed
