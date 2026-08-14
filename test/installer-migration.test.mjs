@@ -11,9 +11,11 @@ const sourceVersion = readFileSync(path.join(repoRoot, 'ai-dev-system', 'VERSION
 
 // --no-agentic：本组测试只关心版本与迁移，不让安装器联网拉伴生 skill、
 // 更不能写进跑测试这台机器的用户级 skills 目录。伴生 skill 另见 companion-skill.test.mjs。
+// --no-codegraph：同理——不许升级这台机器的全局 codegraph，也不许对临时目录建索引。
+// codegraph 那条链另见 codegraph.test.mjs（用假 CLI 跑）。
 function runInstaller(target, extraArgs = []) {
   return spawnSync(process.execPath, [
-    path.join(repoRoot, 'install.mjs'), target, `--source-dir=${repoRoot}`, '--no-agentic', ...extraArgs,
+    path.join(repoRoot, 'install.mjs'), target, `--source-dir=${repoRoot}`, '--no-agentic', '--no-codegraph', ...extraArgs,
   ], { encoding: 'utf8' })
 }
 

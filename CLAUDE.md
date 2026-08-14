@@ -38,6 +38,9 @@ npx --yes github:weidwonder/ai-dev-system <目标项目目录>
 
 # 验证 npm 命令入口（会打包到临时目录并真实执行 --help）
 node --test test/npm-entrypoint.test.mjs
+
+# 安装器全部测试（含 codegraph 那段，用假 CLI 跑，不碰本机全局安装）
+node --test test/
 ```
 
 没有 build 步骤、没有 lint 配置、没有 npm 运行时依赖——整个包是纯 Node.js ESM + markdown；安装器额外调用 Git 获取发布源。
@@ -85,7 +88,7 @@ node --test test/npm-entrypoint.test.mjs
 ## 目录速查
 
 ```
-install.mjs / install.cmd          安装器：拉取 GitHub 发布源 + 安装 skills + 项目级冲突约束
+install.mjs / install.cmd          安装器：拉取 GitHub 发布源 + 安装 skills + 项目级冲突约束 + codegraph 保新/接线/建索引
 docs/{spec,plan,report}/           本体系自身的规范 / 计划 / 报告
 ai-dev-system/skills/ai-prd/        产 PRD skill：批量提问 elicitation + 三类模板
   SKILL.md                         入口：读 mode → PRD 类型分流 → 4 批提问驱动
@@ -115,6 +118,8 @@ ai-dev-system/skills/ai-dev-workflow/
 
 `CLAUDE.md` / `AGENTS.md` 允许是软链接（两个工具共用一份指导文件的常见做法）：安装器逐层解析到实体文件再按标记块写入，链接本身保留；两个入口解析到同一实体时只写一次；断链在复制任何 skill 之前就报错退出，目标项目零改动；全局卸载分支也不删作为入口的链接。skill 侧的同一套规则在 `ai-dev-workflow/references/init-初始化.md` §入口是软链接时，改一处要两处同改。
 
+安装的最后一段是 **codegraph**（`github.com/colbymchenry/codegraph`，本地代码知识图谱 CLI）：本机没有就 `npm install -g @colbymchenry/codegraph`（npm 是唯一跨平台可依赖的装法，Node 本就是安装器前提），已有则用它自己的 `codegraph upgrade` 升级——它认得 bundle/npm/npx 三种装法并原地更新，盲目 npm 装会在独立包安装的机器上留下抢 PATH 的第二份副本；`upgrade --check` 报告"已是最新"就跳过，太旧而没有 `upgrade` 子命令时退回 `npm install -g <pkg>@latest`。随后 `codegraph install --target=auto --location=local --yes` 接线（默认项目级；**Codex CLI 没有项目级 MCP 配置，必然被跳过**，所以安装器显式打印手动全局接线命令，`--codegraph-location=global` 可改范围），最后 `.codegraph/` 不存在时 `codegraph init` 建索引，并以 `.codegraph/codegraph.db` 是否存在判定索引真的建成（旧版 `init` 只初始化不索引，缺了就补跑 `codegraph index`）。所有子进程 stdin 一律 `ignore`：codegraph 按 `process.stdin.isTTY` 决定要不要发问，关掉就锁定非交互分支，安装器不会被子命令提问挂住。整段任何失败只降级为警告，不影响已完成的 skill 安装；`--no-codegraph` 整段跳过。
+
 Codex 安装默认不修改用户级全局插件配置，而是在目标项目 `AGENTS.md` 写入并校验 `ai-dev-system:codex-conflicts` 标记块，约束 `superpowers:` 不要自动加载或主动触发，除非用户在当前对话明确要求。交互安装可明确选择全局卸载，自动化安装使用 `--codex-conflicts=uninstall`；该选择影响当前用户的所有项目。若 `CLAUDE.md` 或 `AGENTS.md` 已有 workflow mode，安装器会幂等补齐另一入口。`--keep=superpowers` 会保留 Claude Code 插件，并移除安装器此前写入的 Claude 禁用项与 Codex 约束块。
 
 ## 改动时注意
@@ -123,6 +128,7 @@ Codex 安装默认不修改用户级全局插件配置，而是在目标项目 `
 - 用户沟通必须使用业务语言：大架构交给用户确认，模块内设计只问业务问题，详细程序设计不要求用户确认；`ai-prd` 的对话与成稿不得包含程序实现。
 - 进入 workflow 后，任何文档或代码落盘前必须按 `references/core/worktree开发纪律.md` 建立独立 worktree；Lean 也不例外。全部门禁通过后自动合并主分支，失败保留 worktree，禁止处理主工作树的用户改动或绕过保护分支。
 - **`agentic-principle` 是外部伴生技能，严禁把它的内容搬进本仓库**：它管 Agent 系统**怎么设计**（场景选型/提示词/工具边界/注意力与并发预算/长产物分区/步骤级测试与评测），本体系的 `AI-LLM-overlay.md` 只管**运行期 AI 契约**（确定性边界/版本 pin/输出校验/置信度路由/安全管线/降级/预算准入/eval 门/可观测/数据边界/可审计）。两边只用指针互引，各自独立演进。安装器把它装到**用户级** `~/.claude/skills/` 与 `~/.codex/skills/`（`install.mjs` 的 `COMPANION_SKILLS`；注意两侧目录不对称——`.agents/` 只是 Codex 的**项目级**目录，用户级是 `~/.codex/`），每次运行检查远端版本、更旧才更新，symlink 或 git 工作区只报告不覆盖，拉取失败降级为警告；改这条链路要同改 `install.mjs`、`AI-LLM-overlay.md` §Agentic 应用、`代码评审纪律.md` 的 D 轴、两个 config-snippet，并跑 `node --test test/companion-skill.test.mjs`。
+- **`codegraph` 是外部工具，同样严禁把它的内容搬进本仓库**：它给的是**现状代码事实**（符号源码、调用链、影响面，随文件变更 auto-sync），团队版 Engineering Context 给的是**权威口径**（card + cite）；两者不互相替代，本次也没有把 codegraph 写进任何 skill 的 `references/` 或 config-snippet——想整合要另起一次变更。改这条链路（`install.mjs` 的 `CODEGRAPH` 常量与 `syncCodegraph` 一族函数）要同改 CLAUDE.md §安装器的关键设计 与 `docs/spec/2026-08-14-codegraph自动安装与索引-lean-change-spec.md`，并跑 `node --test test/codegraph.test.mjs`。测试用**假 codegraph + 假 npm 放进收窄的 PATH**，绝不能让任何测试去动跑测试这台机器的全局安装——新增会调用安装器的测试记得带 `--no-codegraph`。
 - **替换清单是跨文件的契约**：登记在 spec（`eng-spec.md` §8.2 / `lean-change-spec.md` 替换清单节）、拆成任务在 `coding-plan.md` 核销表、核销在 `代码评审纪律.md` 的残留轴。改判据（该删什么、保留例外认哪几类理由）要四处同改，且与 `eng-spec.md` §8.1 兼容取舍的到期日保持一致——两处日期不一致就是漏洞。
 - **文档生命周期是跨文件的契约**：判据与字段的权威定义在 `references/core/文档治理.md` §文档生命周期与索引门控（`lifecycle` / `last_confirmed` / `authority_refs`、索引分层、按权威面触发），落地写法（归档头注、结算示例、账本收敛）在条件加载的 `references/core/文档归档与账本收敛.md`，结算动作在 `worktree开发纪律.md` §完成与自动合并门与 `00-流程总纲.md` 门表，字段落在五个 spec/plan 模板与三类 PRD 模板的 frontmatter，账本入口在 `bug诊断纪律.md` Phase 0/3 与 `测试资产纪律.md` §3，PRD 侧对应 `ai-prd` 的 §PRD 生命周期与 `UI原型纪律.md` §4.5。改判据要沿这条链同改。两个易错点：**①触发面是"本次触碰的权威面"，与刷 card 同一个面，MUST NOT 退化成"照抄替换清单"**——只改语义不删东西（枚举加值、可选改必填）的改动替换清单为空，却同样让文档失准；**②字段名是 `lifecycle` 不是 `status`**——`lean-change-spec` 的 `写作进度` 与 `product-prd` frontmatter 的 `status` 都已占用后者语义。
 - **测试资产目录约定**：探测项目既有测试目录优先，兜底 `tests/fixtures/<场景名>/`；凭证进同级 `secrets/`（gitignore）+ `secrets.example/`（入库）。权威定义在 `references/core/测试资产纪律.md` §2，`test-spec.md` §4 Fixture 表与 `文档治理.md` 的表格引用它，改约定要三处同改。

@@ -75,7 +75,7 @@ npx --yes github:weidwonder/ai-dev-system . --dry-run
 npx --yes github:weidwonder/ai-dev-system . --ref=<分支或标签>
 ```
 
-常用参数：`--shared` 把 Claude Code 项目配置提交给全仓共享；`--keep=<插件短名>` 保留指定冲突插件；`--no-plugins` 只装 skill；`--yes` 跳过安装器自身的交互确认。完整参数用 `npx --yes github:weidwonder/ai-dev-system --help` 查看。
+常用参数：`--shared` 把 Claude Code 项目配置提交给全仓共享；`--keep=<插件短名>` 保留指定冲突插件；`--no-plugins` 只装 skill；`--yes` 跳过安装器自身的交互确认；`--no-codegraph` 跳过 codegraph 那一段；`--codegraph-location=global` 把 codegraph 接到所有项目而不只是本项目。完整参数用 `npx --yes github:weidwonder/ai-dev-system --help` 查看。
 
 > 命令前面的 `npx --yes` 只跳过 npm 下载确认，安装器仍会在修改项目之前询问一次。需要全自动安装时，在目标目录后再传一次：`npx --yes github:weidwonder/ai-dev-system . --yes`。
 
@@ -98,7 +98,8 @@ node /path/to/ai-dev-system/install.mjs . --source-dir=/path/to/ai-dev-system
 2. 复制该版本的**所有** skill（默认含 `ai-prd` + `ai-dev-workflow` 和 `ctx` CLI）→ `<项目>/.claude/skills/`，完成 Claude Code 项目级安装；
 3. 复制同一批 skill → `<项目>/.agents/skills/`，完成 Codex 项目级安装；
 4. 合并（不覆盖）Claude Code 的 `enabledPlugins`，在本项目把冲突插件设为 `false`；
-5. 安装时让用户选择 Codex 冲突技能处理方式：默认写入项目 `AGENTS.md` 约束自动触发，也可明确选择通过 Codex CLI 全局卸载；若任一入口已有 workflow mode，同时补齐 `CLAUDE.md` 与 `AGENTS.md`。
+5. 安装时让用户选择 Codex 冲突技能处理方式：默认写入项目 `AGENTS.md` 约束自动触发，也可明确选择通过 Codex CLI 全局卸载；若任一入口已有 workflow mode，同时补齐 `CLAUDE.md` 与 `AGENTS.md`；
+6. 保持 [codegraph](https://github.com/colbymchenry/codegraph)（本地代码知识图谱 CLI）为最新——没装就 `npm install -g @colbymchenry/codegraph`，有新版就 `codegraph upgrade`——随后接线到 agent（默认 `--location=local`，只影响本项目），并在 `.codegraph/` 不存在时用 `codegraph init` 给本仓库建索引。这一段任何失败只降级为警告；`--no-codegraph` 可整段跳过。Codex CLI 没有项目级 MCP 配置，项目级接线会跳过它，安装器会打印手动全局接线命令。
 
 | 插件 | 为什么与本流程冲突 |
 |---|---|
