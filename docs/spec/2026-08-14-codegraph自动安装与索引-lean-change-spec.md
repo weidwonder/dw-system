@@ -58,6 +58,7 @@ authority_refs:
 - [x] 已装且远端更新 → 走 `codegraph upgrade`（它自己认得 bundle/npm/npx 装法），不用 npm 装第二份。
 - [x] 已装且已是最新 → 跳过升级，仍接线并建索引。
 - [x] 太旧、没有 `upgrade` 子命令 → 退回 `npm install -g @colbymchenry/codegraph@latest`。
+- [x] 版本检测偶发失败（真机上升级刚完成时遇到过）→ 打印"远端未知（版本检测失败，下面直接尝试升级）"并盲升；`upgrade` 跑通但版本没变时报"已是最新，版本未变"，**不得**说成"已升级"。
 - [x] 目标项目已有 `.codegraph/` → 不重复建索引。
 - [x] `init` 只初始化没产出 `.codegraph/codegraph.db` → 补跑一次 `codegraph index`。
 - [x] `--codegraph-location=global` → 接线参数透传，且不打印 Codex 项目级缺口提示。

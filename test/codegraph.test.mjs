@@ -41,6 +41,8 @@ if (args[0] === 'upgrade') {
     process.exit(1)
   }
   if (args.includes('--check')) {
+    // checkFails：只有版本检测这一次失败（真机上升级刚完成时遇到过的偶发网络失败）。
+    if (state.checkFails) process.exit(1)
     console.log('CodeGraph  current v' + state.version + '  latest v' + state.latest)
     process.exit(0)
   }
@@ -165,6 +167,17 @@ test('已是最新：跳过升级，仍然接线并建索引', () => {
     assert.doesNotMatch(r.calls, /^npm /m)
     assert.match(r.stdout, /已是最新，跳过升级/)
     assert.ok(existsSync(indexDb(target)))
+  })
+})
+
+test('版本检测失败时盲升：upgrade 跑通但版本没变，不许说成"已升级"', () => {
+  sandbox({ version: '1.5.0', latest: '1.5.0', checkFails: true }, ({ run }) => {
+    const r = run()
+    assert.equal(r.status, 0, r.stderr || r.stdout)
+    assert.match(r.stdout, /远端 未知（版本检测失败，下面直接尝试升级）/)
+    assert.match(r.calls, /^codegraph upgrade$/m)
+    assert.match(r.stdout, /已是最新（v1\.5\.0），版本未变/)
+    assert.doesNotMatch(r.stdout, /已升级到/)
   })
 })
 
