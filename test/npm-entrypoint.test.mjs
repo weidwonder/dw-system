@@ -52,7 +52,8 @@ test('packed npm command launches the installer help', () => {
     const dryRun = runNpm(
       [
         'exec', '--yes', '--package', tarball, '--', 'ai-dev-system', '.',
-        '--dry-run', '--no-plugins', '--source-dir=' + repoRoot,
+        // --no-codegraph：这里只验证命令入口能跑起来，不该去探测/升级本机全局 codegraph。
+        '--dry-run', '--no-plugins', '--no-codegraph', '--source-dir=' + repoRoot,
       ],
       { cwd: outputDir, encoding: 'utf8' },
     )

@@ -75,7 +75,7 @@ npx --yes github:weidwonder/ai-dev-system . --dry-run
 npx --yes github:weidwonder/ai-dev-system . --ref=<branch-or-tag>
 ```
 
-Common flags: `--shared` commits the Claude Code project settings for the whole team; `--keep=<plugin-short-name>` keeps a specific conflicting plugin; `--no-plugins` installs skills only; `--yes` skips the installer's own confirmation. See all flags with `npx --yes github:weidwonder/ai-dev-system --help`.
+Common flags: `--shared` commits the Claude Code project settings for the whole team; `--keep=<plugin-short-name>` keeps a specific conflicting plugin; `--no-plugins` installs skills only; `--yes` skips the installer's own confirmation; `--no-codegraph` skips the codegraph step; `--codegraph-location=global` wires codegraph into every project instead of just this one. See all flags with `npx --yes github:weidwonder/ai-dev-system --help`.
 
 > The leading `npx --yes` only skips npm's download prompt; the installer still asks once before modifying your project. For fully unattended installs, pass `--yes` again after the target directory: `npx --yes github:weidwonder/ai-dev-system . --yes`.
 
@@ -98,7 +98,8 @@ What the installer does:
 2. Copies **all** skills of that version (by default `ai-prd` + `ai-dev-workflow` with the `ctx` CLI) → `<project>/.claude/skills/` for Claude Code;
 3. Copies the same skills → `<project>/.agents/skills/` for Codex;
 4. Merges (never overwrites) Claude Code's `enabledPlugins`, disabling conflicting plugins **for this project only**;
-5. Prompts how to handle conflicting Codex skills: project-level `AGENTS.md` auto-trigger constraints (default), or explicit global uninstall through the Codex CLI; if either entry file already has a workflow mode, both `CLAUDE.md` and `AGENTS.md` are reconciled.
+5. Prompts how to handle conflicting Codex skills: project-level `AGENTS.md` auto-trigger constraints (default), or explicit global uninstall through the Codex CLI; if either entry file already has a workflow mode, both `CLAUDE.md` and `AGENTS.md` are reconciled;
+6. Keeps [codegraph](https://github.com/colbymchenry/codegraph) (local code knowledge graph CLI) up to date — `npm install -g @colbymchenry/codegraph` when missing, `codegraph upgrade` when outdated — then wires it into your agents (`--location=local` by default, this project only) and builds the project index with `codegraph init` unless `.codegraph/` already exists. Every failure here degrades to a warning; skip the whole step with `--no-codegraph`. Codex CLI has no project-local MCP config, so project-level wiring skips it and the installer prints the manual global command.
 
 | Plugin | Why it conflicts with this pipeline |
 |---|---|

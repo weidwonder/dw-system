@@ -10,6 +10,8 @@
 //   3) 为 Codex 写入项目级 AGENTS.md 覆盖指令，或按用户选择通过 Codex CLI 全局卸载冲突插件。
 //   4) 在目标项目 .gitignore 幂等追加所有已安装 skill 目录与版本 stamp，
 //      避免本体系随目标仓库提交。
+//   5) 检查 codegraph（外部代码知识图谱 CLI）是否为最新，缺失则装、更旧则升，
+//      接线到 agent 并对目标项目建立索引。
 //
 // 用法：
 //   node install.mjs [目标目录] [选项]   （或 ./install.mjs [目标目录]）
@@ -23,6 +25,9 @@
 //   --repo=<url>        安装源 Git 仓库（默认官方 GitHub 仓库）
 //   --ref=<name>        安装版本：分支或标签（默认 main）
 //   --source-dir=<dir>  使用本地仓库源码（仅用于开发和测试）
+//   --no-codegraph      跳过 codegraph 的检查、安装、接线与建索引
+//   --codegraph-location=<local|global>
+//                      codegraph 接线范围（默认 local，只影响本项目）
 //   --dry-run          只打印将做什么，不落盘
 //   -h, --help         显示帮助
 //
@@ -55,6 +60,22 @@ const COMPANION_SKILLS = [
     why: 'ai-dev-workflow 判定需求为 Agentic 应用时必须加载：架构选型 / 系统提示词 / 注意力负载 / 步骤级测试与评测',
   },
 ];
+
+// codegraph：外部代码知识图谱 CLI（github.com/colbymchenry/codegraph）。
+// 本体系不收录其内容，只负责三件事——保持最新、接线到 agent、给目标项目建索引。
+// 它给 AI 的是可查询的代码事实（explore / impact / callers），与团队版 Engineering Context
+// 层不冲突：card + cite 仍是权威口径，codegraph 只是找现状代码的通道。
+const CODEGRAPH = {
+  bin: 'codegraph',
+  npmPackage: '@colbymchenry/codegraph',
+  repo: 'https://github.com/colbymchenry/codegraph',
+  indexDir: '.codegraph',   // 索引落在目标项目这个目录里
+  dbFile: 'codegraph.db',   // 索引本体是本机 SQLite 库，据它判断索引是否真的建成
+  why: '给 AI 一层可查询的代码事实：explore / impact / callers，替代 grep 式盲找',
+};
+// 子进程超时：装包与接线是分钟级；建索引在大仓库上更久，给足一小时。
+const CODEGRAPH_CMD_TIMEOUT_MS = 15 * 60 * 1000;
+const CODEGRAPH_INDEX_TIMEOUT_MS = 60 * 60 * 1000;
 
 // 与本流程冲突的插件：会抢流程、强制前置、或注入干扰 hook。
 // key 是 enabledPlugins 里的完整标识 name@marketplace（按默认安装源）。
@@ -103,6 +124,8 @@ function parseArgs(argv) {
     sourceDir: null,
     noCompanions: false,
     companionRepos: {},
+    noCodegraph: false,
+    codegraphLocation: 'local',
     target: null,
   };
   for (const a of argv) {
@@ -119,6 +142,14 @@ function parseArgs(argv) {
     else if (a === '--dry-run') opt.dryRun = true;
     else if (a === '-h' || a === '--help') opt.help = true;
     else if (a === '--no-agentic' || a === '--no-companions') opt.noCompanions = true;
+    else if (a === '--no-codegraph') opt.noCodegraph = true;
+    else if (a.startsWith('--codegraph-location=')) {
+      const value = a.slice('--codegraph-location='.length);
+      if (value !== 'local' && value !== 'global') {
+        throw new Error('--codegraph-location 只能是 local 或 global');
+      }
+      opt.codegraphLocation = value;
+    }
     else if (a.startsWith('--agentic-repo=')) opt.companionRepos['agentic-principle'] = a.slice('--agentic-repo='.length);
     else if (a.startsWith('--keep=')) opt.keep.push(a.slice('--keep='.length));
     else if (a.startsWith('--repo=')) opt.repo = a.slice('--repo='.length);
@@ -154,6 +185,9 @@ function helpText() {
   --no-agentic     跳过伴生 skill 的检查与安装（同义：--no-companions）
   --agentic-repo=<url>
                    覆盖 agentic-principle 的来源仓库（默认 ${COMPANION_SKILLS[0].repo}）
+  --no-codegraph   跳过 codegraph 的检查、安装、接线与建索引
+  --codegraph-location=<local|global>
+                   codegraph 接线范围（默认 local，只影响本项目）
   --dry-run        预演，不落盘
   -h, --help       本帮助
 
@@ -165,6 +199,13 @@ function helpText() {
 ${COMPANION_SKILLS.map(c => `  - ${c.name}：${c.repo}\n      ${c.why}`).join('\n')}
   每次安装都会检查远端版本，本地更旧才更新；本地是 symlink 或 git 工作区时
   只报告版本差异、不覆盖；拉取失败降级为警告，不影响主安装。用 --no-agentic 跳过。
+
+codegraph（外部代码知识图谱 CLI，${CODEGRAPH.repo}）：
+  ${CODEGRAPH.why}
+  未安装则 npm install -g ${CODEGRAPH.npmPackage}；已安装则用它自己的
+  codegraph upgrade 检测并升级（已是最新就跳过），随后接线到 agent 并对目标项目
+  建立索引（${CODEGRAPH.indexDir}/ 已存在时跳过建索引）。任何一步失败只降级为警告，
+  不影响已完成的 skill 安装。用 --no-codegraph 整段跳过。
 
 默认项目级安装到两个目录：
   - .claude/skills/  Claude Code 使用
@@ -254,6 +295,9 @@ function gitignoreBlock(skills) {
     for (const name of skills) lines.push(`/${dir}/${name}/`);
     lines.push(`/${dir}/${VERSION_STAMP}`);
   }
+  // codegraph 的索引是本机 SQLite 库（体量大、与写它的操作系统绑定），必须留在本地。
+  // 无条件写入：--no-codegraph 与默认安装产出同一个标记块，避免两种跑法来回改写 .gitignore。
+  lines.push(`/${CODEGRAPH.indexDir}/`);
   return [GITIGNORE_START, ...lines, GITIGNORE_END].join('\n');
 }
 
@@ -614,6 +658,192 @@ function syncCompanions(opt, home) {
   }
 }
 
+// 跨平台调用外部 CLI（codegraph / npm）：Windows 上全局命令多是 .cmd shim，Node 必须经 shell 调用。
+// stdin 一律 'ignore'：codegraph 按 process.stdin.isTTY 决定要不要发问，关掉 stdin 就锁定它的
+// 非交互分支——安装器不会被子进程的提示挂住，也不会替用户回答。
+// quiet=false 时把子进程输出直接透传，让用户看到装包与索引进度。
+function runTool(command, args, { cwd, quiet = false, timeout } = {}) {
+  return spawnSync(command, args, {
+    cwd,
+    encoding: 'utf8',
+    shell: process.platform === 'win32',
+    windowsHide: true,
+    timeout,
+    stdio: quiet ? ['ignore', 'pipe', 'pipe'] : ['ignore', 'inherit', 'inherit'],
+  });
+}
+
+function toolFailed(result) {
+  return Boolean(result.error) || result.status !== 0;
+}
+
+// 未装 / 装了但版本判不出 / 正常，三种状态都要能区分：
+// 未装决定"用 npm 装"，装了决定"用它自己的 upgrade 升"。
+function detectCodegraph() {
+  const r = runTool(CODEGRAPH.bin, ['--version'], { quiet: true, timeout: CODEGRAPH_CMD_TIMEOUT_MS });
+  if (toolFailed(r)) return { present: false, version: null };
+  const m = `${r.stdout || ''}`.match(/(\d+\.\d+\.\d+)/);
+  return { present: true, version: m ? m[1] : null };
+}
+
+// 新版本检测交给 codegraph 自己的 `upgrade --check`（输出形如
+// "CodeGraph  current v1.5.0  latest v1.5.0"）：它知道自己是 bundle / npm / npx 哪种装法，
+// 我们不自己查 registry，也就不必跟着它的发布渠道变化走。
+// 太旧的版本没有 upgrade 子命令、或输出改版时返回 null，由调用方走"直接尝试升级"的兜底。
+function checkCodegraphUpdate() {
+  const r = runTool(CODEGRAPH.bin, ['upgrade', '--check'], { quiet: true, timeout: CODEGRAPH_CMD_TIMEOUT_MS });
+  if (toolFailed(r)) return null;
+  const out = `${r.stdout || ''}${r.stderr || ''}`;
+  const m = out.match(/current\s+v?(\d+\.\d+\.\d+)[\s\S]*?latest\s+v?(\d+\.\d+\.\d+)/);
+  return m ? { current: m[1], latest: m[2] } : null;
+}
+
+// npm 是唯一跨平台可依赖的装法（Node 本来就是本安装器的前提）；
+// 官方独立包要 curl|sh 或 PowerShell，分平台两套脚本，只作为失败后的手动提示。
+function installCodegraphViaNpm(pin) {
+  const spec = pin ? `${CODEGRAPH.npmPackage}@${pin}` : CODEGRAPH.npmPackage;
+  console.log(`  → npm install -g ${spec}`);
+  return !toolFailed(runTool('npm', ['install', '-g', spec], { timeout: CODEGRAPH_CMD_TIMEOUT_MS }));
+}
+
+function codegraphManualHint() {
+  console.log(`     手动安装：npm install -g ${CODEGRAPH.npmPackage}`);
+  console.log(`     或用官方独立包（不需要 Node）：${CODEGRAPH.repo}`);
+}
+
+// 返回可用的 CLI 状态；返回 null 表示本机没有可用的 codegraph，接线与建索引都不再进行。
+function ensureCodegraphCli(local, update) {
+  if (!local.present) {
+    console.log('  · 本机未安装 codegraph');
+    if (!installCodegraphViaNpm()) {
+      console.log('  ⚠ 安装失败，本次跳过接线与建索引。');
+      codegraphManualHint();
+      return null;
+    }
+    const after = detectCodegraph();
+    if (!after.present) {
+      console.log('  ⚠ 装完仍找不到 codegraph 命令：多半是 npm 全局 bin 不在 PATH 上。');
+      console.log('     把 `npm bin -g` 的目录加进 PATH 后重开终端，再重跑本安装器。');
+      return null;
+    }
+    console.log(`  ✓ 已安装 v${after.version || '未知'}`);
+    return after;
+  }
+
+  const localVersion = local.version || update?.current || null;
+  const latest = update?.latest || null;
+  console.log(`  · 本机 v${localVersion || '未知'}｜远端 ${latest ? `v${latest}` : '未知'}`);
+  if (latest && localVersion && cmpVersion(latest, localVersion) <= 0) {
+    console.log('  · 已是最新，跳过升级');
+    return local;
+  }
+
+  // 升级优先用 codegraph 自己的 upgrade：它认得 bundle / npm / npx 三种装法并原地更新，
+  // 我们盲目 npm 装会在独立包安装的机器上留下一个抢 PATH 的第二份副本。
+  console.log('  → codegraph upgrade');
+  let upgraded = !toolFailed(runTool(CODEGRAPH.bin, ['upgrade'], { timeout: CODEGRAPH_CMD_TIMEOUT_MS }));
+  if (!upgraded) {
+    console.log('  · codegraph upgrade 未成功（旧版本没有该子命令）→ 退回 npm 安装最新版');
+    upgraded = installCodegraphViaNpm('latest');
+  }
+  const after = detectCodegraph();
+  if (!after.present) {
+    console.log('  ⚠ 升级后找不到 codegraph 命令，本次跳过接线与建索引。');
+    codegraphManualHint();
+    return null;
+  }
+  console.log(upgraded
+    ? `  ✓ 已升级到 v${after.version || '未知'}`
+    : `  ⚠ 升级失败，继续用本机 v${after.version || '未知'}`);
+  return after;
+}
+
+// 接线 = 把 codegraph 的 MCP server 写进 agent 配置。项目级只影响本项目
+// （Claude Code 写项目根 .mcp.json 与 .claude/CLAUDE.md）；Codex CLI 没有项目级 MCP 配置，
+// 项目级模式下它必然被跳过——必须明说，否则用户会以为 Codex 那侧也接上了。
+function wireCodegraphAgents(location, target) {
+  const scope = location === 'local' ? '项目级' : '全局';
+  console.log(`  → codegraph install --target=auto --location=${location} --yes（${scope}）`);
+  const r = runTool(
+    CODEGRAPH.bin,
+    ['install', '--target=auto', `--location=${location}`, '--yes'],
+    { cwd: target, timeout: CODEGRAPH_CMD_TIMEOUT_MS },
+  );
+  if (toolFailed(r)) {
+    console.log('  ⚠ agent 接线失败；索引仍可用命令行查询。稍后可在项目目录手动执行：');
+    console.log(`     codegraph install --target=auto --location=${location} --yes`);
+    return;
+  }
+  console.log(`  ✓ 已接线（${scope}）`);
+  console.log('     · Claude Code：重启后加载 codegraph MCP server；项目级配置首次使用需批准。');
+  if (location === 'local') {
+    console.log('     · Codex CLI 没有项目级 MCP 配置，本次未接线；需要时执行（影响你所有项目）：');
+    console.log('       codegraph install --target=codex --location=global --yes');
+  }
+}
+
+function buildCodegraphIndex(target, indexed) {
+  if (indexed) {
+    console.log(`  · ${CODEGRAPH.indexDir}/ 已存在 → 跳过建索引（auto-sync 保持新鲜；重建用 codegraph index --force）`);
+    return;
+  }
+  console.log('  → codegraph init（建立本仓库索引，大仓库需要几分钟）');
+  const r = runTool(CODEGRAPH.bin, ['init'], { cwd: target, timeout: CODEGRAPH_INDEX_TIMEOUT_MS });
+  const db = path.join(target, CODEGRAPH.indexDir, CODEGRAPH.dbFile);
+  // 新版 init 一步完成"初始化 + 全量索引"，旧版只初始化。以磁盘上的索引文件为准，缺了就补跑。
+  if (!toolFailed(r) && !fs.existsSync(db)) {
+    console.log('  → codegraph index（init 未产出索引文件，补跑一次全量索引）');
+    runTool(CODEGRAPH.bin, ['index'], { cwd: target, timeout: CODEGRAPH_INDEX_TIMEOUT_MS });
+  }
+  if (fs.existsSync(db)) {
+    console.log(`  ✓ 索引已建立：${CODEGRAPH.indexDir}/${CODEGRAPH.dbFile}`);
+  } else {
+    console.log('  ⚠ 索引未建成，稍后可在项目目录手动执行：codegraph init');
+  }
+}
+
+function printCodegraphPlan(opt, local, update, indexed) {
+  if (!local.present) {
+    console.log(`  · 本机未安装 → [--dry-run] 将执行 npm install -g ${CODEGRAPH.npmPackage}`);
+  } else {
+    const latest = update?.latest || null;
+    const localVersion = local.version || update?.current || null;
+    const verdict = latest && localVersion && cmpVersion(latest, localVersion) <= 0
+      ? '已是最新，将跳过升级'
+      : '将执行 codegraph upgrade';
+    console.log(`  · 本机 v${localVersion || '未知'}｜远端 ${latest ? `v${latest}` : '未知'} → [--dry-run] ${verdict}`);
+  }
+  console.log(`  · [--dry-run] 将执行 codegraph install --target=auto --location=${opt.codegraphLocation} --yes`);
+  console.log(indexed
+    ? `  · ${CODEGRAPH.indexDir}/ 已存在 → [--dry-run] 将跳过建索引`
+    : '  · [--dry-run] 将执行 codegraph init 建立本仓库索引');
+}
+
+// 主安装完成后执行。codegraph 是外部工具，任何一步失败都只降级为警告：
+// skill、冲突设置与 .gitignore 此时已经落盘，不能被它拖成整体失败。
+function syncCodegraph(opt, target) {
+  if (opt.noCodegraph) {
+    console.log('\n· 跳过 codegraph 检查与建索引（--no-codegraph）');
+    return;
+  }
+  console.log(`\ncodegraph（${CODEGRAPH.why}）`);
+  try {
+    const local = detectCodegraph();
+    const update = local.present ? checkCodegraphUpdate() : null;
+    const indexed = fs.existsSync(path.join(target, CODEGRAPH.indexDir));
+    if (opt.dryRun) {
+      printCodegraphPlan(opt, local, update, indexed);
+      return;
+    }
+    if (!ensureCodegraphCli(local, update)) return;
+    wireCodegraphAgents(opt.codegraphLocation, target);
+    buildCodegraphIndex(target, indexed);
+  } catch (e) {
+    console.log(`  ⚠ codegraph 步骤中断（${e.message}），已跳过；skill 安装不受影响。`);
+    codegraphManualHint();
+  }
+}
+
 async function main() {
   const opt = parseArgs(process.argv.slice(2));
   if (opt.help) { console.log(helpText()); return; }
@@ -728,6 +958,16 @@ async function main() {
     console.log(`       装到 ${companionDestDirs(homedir()).join('、')}（跨项目共享，不进本项目、不写本项目 .gitignore）`);
     console.log('       本地已是最新则跳过；目标是 symlink 或 git 工作区时只报告版本、不覆盖；无网时降级为警告');
   }
+  if (opt.noCodegraph) {
+    console.log('  6) 跳过 codegraph 检查与建索引（--no-codegraph）');
+  } else {
+    console.log('  6) 保持 codegraph 为最新，接线到 agent，并对本项目建立索引');
+    console.log(`       未安装 → npm install -g ${CODEGRAPH.npmPackage}；已安装 → codegraph upgrade（已最新则跳过）`);
+    console.log(`       codegraph install --target=auto --location=${opt.codegraphLocation} --yes`
+      + (opt.codegraphLocation === 'local' ? '（仅本项目；Codex CLI 无项目级配置会被跳过）' : '（影响你所有项目）'));
+    console.log(`       ${CODEGRAPH.indexDir}/ 不存在时 codegraph init 建索引（大仓库需要几分钟）；已存在则跳过`);
+    console.log('       任何一步失败只降级为警告，不影响上面的 skill 安装');
+  }
   // 版本升级的迁移高亮提示（dry-run 同样展示）
   const [HL, HL_END] = process.stdout.isTTY ? ['\x1b[1;33m', '\x1b[0m'] : ['', ''];
   if (migrations.length) {
@@ -755,6 +995,7 @@ async function main() {
   }
   if (opt.dryRun) {
     syncCompanions(opt, homedir());
+    syncCodegraph(opt, target);
     console.log('\n[--dry-run] 未做任何改动。');
     return;
   }
@@ -868,6 +1109,9 @@ async function main() {
 
   // 3) 伴生 skill：装到用户级目录，失败只警告，不影响上面已完成的项目安装
   syncCompanions(opt, homedir());
+
+  // 4) codegraph：保持最新 + 接线 + 建索引；同样失败只警告
+  syncCodegraph(opt, target);
 
   console.log('\n完成。下一步：');
   console.log('  · 重启 Claude Code / Codex（或在本项目重新打开），项目级配置/指令才会进入新会话。');
