@@ -77,7 +77,7 @@ const CTX = {
   // `ctx --help` 首行的固定串。`ctx` 是很常见的命令名，必须据此确认 PATH 上那个确实是本体系的，
   // 既避免 npm link 悄悄顶掉用户自己的同名命令，也避免把别人的 ctx 当成"验证通过"谎报成功。
   signature: 'Engineering Context CLI',
-  why: '团队版查 Engineering Context 的入口：find-scenes / discover / get-card，替代 grep 旧代码',
+  why: '项目具备权威位（已填写的能力登记表）时查 Engineering Context 的入口：find-scenes / discover / get-card，替代 grep 旧代码',
 };
 const CTX_CMD_TIMEOUT_MS = 5 * 60 * 1000;
 
