@@ -24,18 +24,47 @@ const REGISTRY_EMPTY_HINT = {
   'no-row': '（无已登记服务/能力；registry 尚无真实数据行，权威位未启用）',
 };
 
+/** 用法错误：由 main 捕获 → 打到 stderr 并退出 2。 */
+class UsageError extends Error {}
+
+/**
+ * 取带值选项的值。缺值或误吞下一个选项 MUST 报错，MUST NOT 静默兜底：
+ * `ctx list-services --dir`（--dir 在末尾）旧实现拿到 undefined 后回落到
+ * `<cwd>/engineering-context` 并 exit 0——用户以为查的是自己指定的目录，实际查的是别处。
+ */
+function takeValue(argv, i, name) {
+  const v = argv[i];
+  if (v === undefined) throw new UsageError(`${name} 需要一个值`);
+  if (v.startsWith('--')) throw new UsageError(`${name} 需要一个值，却读到选项 ${v}`);
+  return v;
+}
+
+/**
+ * 取带数值选项的值。非数字 MUST 报错，MUST NOT 变成 NaN：
+ * `--top abc` 旧实现走到 `slice(0, NaN)` → 输出"（无语义命中）"，一个**错误结论**——
+ * 用户会以为 context 层里真没有这条，而不是自己参数写错了。
+ */
+function takeNumber(argv, i, name, { min = 0, integer = false } = {}) {
+  const raw = takeValue(argv, i, name);
+  const n = Number(raw);
+  if (!Number.isFinite(n)) throw new UsageError(`${name} 需要一个数字，实得「${raw}」`);
+  if (integer && !Number.isInteger(n)) throw new UsageError(`${name} 需要整数，实得「${raw}」`);
+  if (n < min) throw new UsageError(`${name} 需要 ≥${min} 的数字，实得「${raw}」`);
+  return n;
+}
+
 /** 从 argv 解析选项与位置参数。 */
 function parseArgs(argv) {
   const positional = [];
   const opts = { dir: null, json: false, asOf: null, staleDays: 90, top: 5, minimal: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === '--dir') opts.dir = argv[++i];
+    if (a === '--dir') opts.dir = takeValue(argv, ++i, '--dir');
     else if (a === '--json') opts.json = true;
     else if (a === '--minimal') opts.minimal = true;
-    else if (a === '--as-of') opts.asOf = argv[++i];
-    else if (a === '--stale-days') opts.staleDays = Number(argv[++i]);
-    else if (a === '--top') opts.top = Number(argv[++i]);
+    else if (a === '--as-of') opts.asOf = takeValue(argv, ++i, '--as-of');
+    else if (a === '--stale-days') opts.staleDays = takeNumber(argv, ++i, '--stale-days', { min: 0 });
+    else if (a === '--top') opts.top = takeNumber(argv, ++i, '--top', { min: 1, integer: true });
     else positional.push(a);
   }
   return { positional, ...opts };
@@ -80,11 +109,20 @@ const HELP = `ctx — Engineering Context CLI
 registry 最小合法 schema：Capability / 权威实现 / 陷阱项（废弃或中间产物）三列；其余列可缺，缺列跳过不报错。
 没写 freshness 的条目输出标注「未声明新鲜度」——不假定新鲜，用前回源码确认。
 search-semantic：--as-of 启用 freshness 降权（过期块标 stale 并 ×0.5）。
-probe 退出码：RED / GATE-BROKEN → 1（供 CI 门禁），GREEN / AMBER → 0。
+probe 退出码：GREEN / AMBER → 0；RED / GATE-BROKEN / NO-PROBE → 1（供 CI 门禁）。
+NO-PROBE = 一道计分探针都没跑（题集空 / 全占位 / 全暂停）——"没有题目所以全绿"是假门禁，判不通过。
 每条来自 card 的事实带 cite（path#anchor @确认时间）。`;
 
 function main() {
-  const { positional, dir, json, asOf, staleDays, top, minimal } = parseArgs(process.argv.slice(2));
+  let parsed;
+  try {
+    parsed = parseArgs(process.argv.slice(2));
+  } catch (e) {
+    if (!(e instanceof UsageError)) throw e;
+    console.error(`用法错误：${e.message}\n\n${HELP}`);
+    return 2;
+  }
+  const { positional, dir, json, asOf, staleDays, top, minimal } = parsed;
   const cmd = positional[0];
 
   if (!cmd || cmd === 'help' || cmd === '--help' || cmd === '-h') {
@@ -184,9 +222,11 @@ function main() {
       const ev = evaluateGate(cards, registry, probes, baseline, { floor: 0.9, ctxDir });
       const prev = readHistory(ctxDir);
       const delta = prev && ev.passRate != null ? Number((ev.passRate - prev.passRate).toFixed(4)) : null;
-      const report = { ...ev, prevPassRate: prev ? prev.passRate : null, passRateDelta: delta };
+      // `skipped` MUST 进 --json：人读输出早就提示"跳过 N 条占位行"，CI 读的那一路却看不到，
+      // 于是"一道题都没跑"在流水线里长得和"全部通过"一模一样。
+      const report = { ...ev, skipped, prevPassRate: prev ? prev.passRate : null, passRateDelta: delta };
 
-      const icon = { GREEN: '✅', AMBER: '🟡', RED: '🛑', 'GATE-BROKEN': '🛑' }[ev.verdict] || '?';
+      const icon = { GREEN: '✅', AMBER: '🟡', RED: '🛑', 'GATE-BROKEN': '🛑', 'NO-PROBE': '🛑' }[ev.verdict] || '?';
       const lines = [];
       lines.push(`门禁自检：${ev.selfCheck.ok ? '✅ 有效' : '🛑 失效'} — ${ev.selfCheck.reason}`);
       if (skipped.length) {
@@ -194,6 +234,12 @@ function main() {
       }
       if (ev.verdict === 'GATE-BROKEN') {
         lines.push('🛑 GATE-BROKEN：门禁自检未通过，拒绝出具结论（流水线应红）。');
+      } else if (ev.verdict === 'NO-PROBE') {
+        lines.push(
+          '🛑 NO-PROBE：一道计分探针都没跑（题集为空 / 全是 【…】 占位行 / 全被 needs-reconfirm 暂停）。'
+          + '\n"没有题目所以全绿"正是假门禁，因此判不通过（退出 1）。'
+          + '\n下一步：把 probe-set.md 的占位行换成真实题目——三道就够起步。',
+        );
       } else {
         for (const r of ev.results) {
           const inBase = baseline.has(String(r.n));
@@ -211,7 +257,7 @@ function main() {
 
       // 写本周期通过率供下次算衰减（时间戳由此处注入，核心逻辑不依赖时钟）
       if (ev.passRate != null) writeHistory(ctxDir, ev.passRate, new Date().toISOString());
-      return ev.verdict === 'RED' || ev.verdict === 'GATE-BROKEN' ? 1 : 0;
+      return ev.verdict === 'GREEN' || ev.verdict === 'AMBER' ? 0 : 1;
     }
     default:
       console.error(`未知命令：${cmd}\n\n${HELP}`);

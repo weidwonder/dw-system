@@ -79,6 +79,9 @@ const CAPABILITY_HEADER_PATTERNS = REGISTRY_FIELDS[0][1];
 
 const isCapabilityHeader = (cell) => CAPABILITY_HEADER_PATTERNS.some((p) => p.test(cell || ''));
 
+/** 分隔行 `|---|---|`。 */
+const isSeparatorRow = (cells) => cells.every((c) => /^:?-{2,}:?$/.test(c.replace(/\s/g, '')) || c === '');
+
 /** 表头单元格 → 字段名映射；认不出的列直接忽略。 */
 function mapRegistryHeader(cells) {
   const map = new Map();
@@ -97,8 +100,47 @@ function mapRegistryHeader(cells) {
 }
 
 /**
+ * 切出文件里**每一张**表头首列命中能力列的表。
+ *
+ * MUST 收集全部而非第一张：`assets/context-layer/capability-registry.md` 自己就有两张
+ * 能力表（三列最小形态 + 十列完整形态），用户填哪张全凭直觉。只解析第一张的后果不是
+ * "少认几行"，而是**填了第二张表的人拿到 0 行且零提示**——权威位探测为假，agent 静默退回裸 grep。
+ * 列映射本来就按表头名取，天然支持不同 schema 的多张表合并。
+ *
+ * 表头 MUST 由紧随其后的分隔行（`|---|---|`）确认。这一条同时替掉了旧实现里
+ * "首列命中就当表头"的隐患：一张表进入数据区后，它的数据行（如占位行 `| 【能力】 |`，
+ * 首列同样命中 /能力/）不再有机会被误判成新表的表头。
+ *
+ * @returns {Array<{cols: Map<string,number>, rows: string[][]}>}
+ */
+function capabilityTables(raw) {
+  const tables = [];
+  let cur = null;      // 已确认表头、正在收数据行的表
+  let pending = null;  // 候选表头，待分隔行确认
+  for (const line of raw.split(/\r?\n/)) {
+    const cells = parseTableRow(line);
+    if (!cells) { cur = null; pending = null; continue; } // 非表格行 → 当前表结束，继续找下一张
+    if (pending) {
+      if (isSeparatorRow(cells)) {
+        cur = { cols: mapRegistryHeader(pending), rows: [] };
+        tables.push(cur);
+      }
+      pending = null;
+      continue;
+    }
+    if (!cur) {
+      if (isCapabilityHeader(cells[0])) pending = cells;
+      continue;
+    }
+    if (isSeparatorRow(cells)) continue;
+    cur.rows.push(cells);
+  }
+  return tables;
+}
+
+/**
  * 解析 capability-registry.md 的 markdown 表格。
- * 取第一张表（表头首列含 "Capability"），按表头名取列，缺列留空。
+ * 合并文件里**所有**表头首列含 `Capability`（或「能力」）的表，按表头名取列，缺列留空。
  * **模板占位行（含【】）不算已登记能力**——否则一份没填过的 registry 会被误当作已启用权威位。
  * @returns {Array<{capability, businessMeaning, canonicalRepo, canonicalApi, deprecated, compatWindow, owner, testEntry, freshness, reason}>}
  */
@@ -106,29 +148,15 @@ export function loadRegistry(ctxDir) {
   const file = path.join(ctxDir, 'capability-registry.md');
   if (!fs.existsSync(file)) return [];
   const raw = fs.readFileSync(file, 'utf8');
-  const lines = raw.split(/\r?\n/);
   const rows = [];
-  let cols = null;
-  for (const line of lines) {
-    const cells = parseTableRow(line);
-    if (!cells) {
-      if (cols) break; // 表格结束
-      continue;
+  for (const { cols, rows: cells } of capabilityTables(raw)) {
+    for (const cell of cells) {
+      const row = { ...EMPTY_ROW };
+      for (const [field, i] of cols) row[field] = cell[i] || '';
+      if (!row.capability) continue;
+      if (isRegistryPlaceholder(row.capability)) continue;
+      rows.push(row);
     }
-    // 表头行
-    if (!cols) {
-      if (isCapabilityHeader(cells[0])) cols = mapRegistryHeader(cells);
-      continue;
-    }
-    // 分隔行 |---|---|
-    if (cells.every((c) => /^:?-{2,}:?$/.test(c.replace(/\s/g, '')) || c === '')) {
-      continue;
-    }
-    const row = { ...EMPTY_ROW };
-    for (const [field, i] of cols) row[field] = cells[i] || '';
-    if (!row.capability) continue;
-    if (isRegistryPlaceholder(row.capability)) continue;
-    rows.push(row);
   }
   return rows;
 }
@@ -151,14 +179,14 @@ export function diagnoseRegistry(ctxDir) {
   }
   const rows = loadRegistry(ctxDir);
   if (rows.length) return 'ok';
-  const tableRows = raw.split(/\r?\n/).map(parseTableRow).filter(Boolean);
-  // MUST 用"第一个命中的行下标"定位表头，MUST NOT 用 isCapabilityHeader 过滤掉所有命中的行：
-  // 模板占位行的首列是 `【能力】`，同样命中 /能力/，按模式过滤会把它当表头排掉，
-  // 于是"只有模板行"被误报成"没有数据行"——恰好是本次要修的那类错误诊断。
-  const headerAt = tableRows.findIndex((cells) => isCapabilityHeader(cells[0]));
-  if (headerAt < 0) return tableRows.length ? 'no-header' : 'no-row';
-  const isSeparator = (cells) => cells.every((c) => /^:?-{2,}:?$/.test(c.replace(/\s/g, '')) || c === '');
-  const dataRows = tableRows.slice(headerAt + 1).filter((cells) => !isSeparator(cells));
+  // MUST 与 loadRegistry 走同一套切表逻辑（`capabilityTables`），否则诊断与解析会漂移：
+  // 诊断说"只有模板行"而解析其实压根没认出表头（或反过来），两种情况的修复动作完全不同。
+  // 数据区里的占位行首列是 `【能力】`，同样命中 /能力/——它是数据行不是表头，
+  // 由 capabilityTables 的"表头须由分隔行确认"保证不被误判。
+  const tables = capabilityTables(raw);
+  const anyTableRow = raw.split(/\r?\n/).some((l) => parseTableRow(l));
+  if (!tables.length) return anyTableRow ? 'no-header' : 'no-row';
+  const dataRows = tables.flatMap((t) => t.rows);
   if (!dataRows.length) return 'no-row';
   return dataRows.some((cells) => cells.some((c) => isRegistryPlaceholder(c))) ? 'placeholder-only' : 'no-row';
 }

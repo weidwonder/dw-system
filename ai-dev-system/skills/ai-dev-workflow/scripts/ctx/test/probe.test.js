@@ -151,7 +151,9 @@ test('evaluateGate needs-reconfirm 探针不计入打分', () => {
 });
 
 test('evaluateGate 基线内探针置 needs-reconfirm 时不算 staleBaseline（暂停≠修复）', () => {
-  const ev = evaluateGate(cards, registry, [failProbe(2, { status: 'needs-reconfirm' })], new Set(['2']));
+  // 陪跑一道真计分题（passProbe(1)）：否则 active 为空会（正确地）判 NO-PROBE，
+  // 盖住这条测试真正要考的 staleBaseline 语义。
+  const ev = evaluateGate(cards, registry, [passProbe(1), failProbe(2, { status: 'needs-reconfirm' })], new Set(['2']));
   assert.deepEqual(ev.staleBaseline, [], '待重认的基线条目不得被判为"已修复须删除"');
   assert.equal(ev.verdict, 'GREEN');
   assert.equal(ev.needsReconfirm.length, 1);
@@ -282,18 +284,20 @@ test('evaluateGate 的 ctxDir 与 root 分离：registry 不在 cwd 下时，交
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'probe-ctxdir-root-'));
   const elsewhere = fs.mkdtempSync(path.join(os.tmpdir(), 'probe-ctxdir-ctx-'));
   try {
-    // 项目根**故意不放** engineering-context/，只有一个架构节（其列出的模块路径不存在）。
-    // 若 ctxDir 未生效而退回 root 兜底，会走"直读"分支并因模块缺失判 FAIL。
-    fs.writeFileSync(path.join(root, 'README.md'), '# P\n\n## 架构与边界\n\n- `src/nope.js` 不存在\n', 'utf8');
+    // 项目根**故意不放** engineering-context/。模块路径校验是无条件的（能力位只叠加、不豁免），
+    // 所以架构节列的路径要真实存在；这条测试考的是 ctxDir 有没有被传下去——
+    // 没传的话 detectCapabilityBits 读不到 registry，actual 里就不会出现"权威位"。
+    fs.writeFileSync(path.join(root, 'README.md'), '# P\n\n## 架构与边界\n\n- `src/app.js` 是入口\n', 'utf8');
+    fs.mkdirSync(path.join(root, 'src'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'src', 'app.js'), '', 'utf8');
     fs.writeFileSync(path.join(elsewhere, 'capability-registry.md'),
       '| Capability | 权威实现 | 陷阱项（废弃或中间产物） |\n|---|---|---|\n| 下单 | POST /v2/orders | POST /v1/order |\n', 'utf8');
 
     const probe = hp('implementation-usable', 'README.md#架构与边界', 'usable');
     const ev = evaluateGate([], [], [probe], new Set(), { root, ctxDir: elsewhere });
     const r = ev.results[0];
-    assert.equal(r.pass, true, `应走权威位分支而非直读，实得：${r.actual}`);
-    assert.match(r.actual, /权威位/, 'actual 须表明命中的是权威位分支');
-    assert.doesNotMatch(r.actual, /直读/, 'ctxDir 生效时不应退回直读分支');
+    assert.equal(r.pass, true, `实得：${r.actual}`);
+    assert.match(r.actual, /权威位/, 'ctxDir 未生效则探测不到权威位，actual 里也就没有这一项');
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
     fs.rmSync(elsewhere, { recursive: true, force: true });
@@ -305,7 +309,7 @@ test('实现真相源可用（无能力位）：架构节列出的模块路径�
   withProject({ 'README.md': arch, 'src/word/record.js': '', 'src/tutor/chat.js': '' }, (root) => {
     const r = answerProbe([], [], hp('implementation-usable', 'README.md#架构与边界', 'usable'), { root });
     assert.equal(r.pass, true, r.actual);
-    assert.match(r.actual, /直读/);
+    assert.match(r.actual, /模块路径/);
   });
   withProject({ 'README.md': arch, 'src/word/record.js': '' }, (root) => {
     const r = answerProbe([], [], hp('implementation-usable', 'README.md#架构与边界', 'usable'), { root });
@@ -321,27 +325,33 @@ test('实现真相源可用（无能力位）：架构节没列任何模块路�
   });
 });
 
-test('实现真相源可用（图谱位）：codegraph.db 非空 → PASS；0 字节 → FAIL', () => {
+test('实现真相源可用（图谱位）：索引非空且模块路径齐 → PASS；索引 0 字节 → FAIL', () => {
   withProject({
-    'README.md': '# P\n\n## 架构与边界\n\n- `src/missing.js`\n',
+    'README.md': '# P\n\n## 架构与边界\n\n- `src/app.js`\n',
+    'src/app.js': '',
     '.codegraph/codegraph.db': 'SQLite format 3\u0000binary',
   }, (root) => {
     const r = answerProbe([], [], hp('implementation-usable', 'README.md#架构与边界', 'usable'), { root });
-    assert.equal(r.pass, true, '探测到图谱位就走索引分支，不再要求架构节列路径');
+    assert.equal(r.pass, true, r.actual);
     assert.match(r.actual, /图谱位/);
   });
-  withProject({ 'README.md': '# P\n', '.codegraph/codegraph.db': '' }, (root) => {
-    const r = answerProbe([], [], hp('implementation-usable', 'README.md', 'usable'), { root });
-    assert.equal(r.pass, false, '空索引不可查询');
+  withProject({
+    'README.md': '# P\n\n## 架构与边界\n\n- `src/app.js`\n',
+    'src/app.js': '',
+    '.codegraph/codegraph.db': '',
+  }, (root) => {
+    const r = answerProbe([], [], hp('implementation-usable', 'README.md#架构与边界', 'usable'), { root });
+    assert.equal(r.pass, false, '空索引不可查询——模块路径齐也不能豁免它');
   });
 });
 
-test('实现真相源可用（权威位）：list-services 非空 → PASS；只剩模板行 → 退回直读分支', () => {
+test('实现真相源可用（权威位）：list-services 非空 → actual 记权威位；只剩模板行 → 不算权威位', () => {
   withProject({
-    'README.md': '# P\n',
+    'README.md': '# P\n\n## 架构与边界\n\n- `src/app.js`\n',
+    'src/app.js': '',
     'engineering-context/capability-registry.md': MINIMAL_REGISTRY,
   }, (root) => {
-    const r = answerProbe([], [], hp('implementation-usable', 'README.md', 'usable'), { root });
+    const r = answerProbe([], [], hp('implementation-usable', 'README.md#架构与边界', 'usable'), { root });
     assert.equal(r.pass, true, r.actual);
     assert.match(r.actual, /权威位/);
   });
@@ -351,8 +361,45 @@ test('实现真相源可用（权威位）：list-services 非空 → PASS；只
       '# Capability Registry\n\n| Capability | 权威实现 | 陷阱项 |\n|---|---|---|\n| 【能力】 | 【权威实现】 | 【陷阱项】 |\n',
   }, (root) => {
     const r = answerProbe([], [], hp('implementation-usable', 'README.md#架构与边界', 'usable'), { root });
-    assert.equal(r.pass, false, '只有模板占位行 = 未启用权威位 → 走直读分支，模块路径缺失即 FAIL');
-    assert.match(r.actual, /直读/);
+    assert.equal(r.pass, false, '只有模板占位行 = 未启用权威位；模块路径缺失即 FAIL');
+    assert.doesNotMatch(r.actual, /权威位/);
+  });
+});
+
+// ---- P1 回归：能力位是**叠加**条件，不是"探到一位就无条件通过" ----
+
+test('实现真相源可用：探到能力位也 MUST 继续校验模块路径（三行 registry 不得让实现层门禁永久变绿）', () => {
+  // 旧实现只在"既无权威位又无图谱位"时才校验模块路径 → 三行 registry 就能让这道题永久 PASS，
+  // 而 selfCheck 又从不为该题型植入必错样本，自检也抓不到。
+  const arch = '# P\n\n## 架构与边界\n\n- `src/totally-missing.js` 负责核心逻辑\n';
+  withProject({
+    'README.md': arch,
+    'engineering-context/capability-registry.md': MINIMAL_REGISTRY,
+  }, (root) => {
+    const r = answerProbe([], [], hp('implementation-usable', 'README.md#架构与边界', 'usable'), { root });
+    assert.equal(r.pass, false, '有权威位也不能豁免模块路径校验');
+    assert.match(r.actual, /权威位/, '权威位仍要如实报告，它只是不再顶替模块路径这一项');
+    assert.match(r.actual, /totally-missing/, '失败原因须点名缺失的模块路径');
+  });
+  withProject({ 'README.md': arch, '.codegraph/codegraph.db': 'SQLite format 3 x' }, (root) => {
+    const r = answerProbe([], [], hp('implementation-usable', 'README.md#架构与边界', 'usable'), { root });
+    assert.equal(r.pass, false, '有图谱位同样不能豁免模块路径校验');
+    assert.match(r.actual, /图谱位/);
+  });
+});
+
+test('门禁自检为 implementation-usable 植入必错样本（有能力位时也抓得到）', () => {
+  // 这道样本在旧实现下必然"泄漏"：探到任一能力位就无条件 PASS，植入什么都判不错。
+  withProject({
+    'README.md': '# P\n',
+    'engineering-context/capability-registry.md': MINIMAL_REGISTRY,
+  }, (root) => {
+    const dir = path.join(root, 'engineering-context');
+    const sc = selfCheck([], loadRegistry(dir), { root, ctxDir: dir });
+    const impl = sc.planted.filter((p) => p.type === 'implementation-usable');
+    assert.equal(impl.length, 1, '交接题型在场时 MUST 为 implementation-usable 植入样本');
+    assert.equal(impl[0].pass, false, '指向不存在架构节的样本 MUST 被判 FAIL');
+    assert.equal(sc.ok, true);
   });
 });
 
@@ -425,8 +472,10 @@ test('交接题型共用棘轮与 authority_refs 自防腐机制', () => {
     const bad = hp('requirement-reachable', 'docs/NOPE.md', 'reachable', { n: '7' });
     assert.equal(evaluateGate([], [], [bad], new Set(), { root }).verdict, 'RED', '新增失败 = RED');
     assert.equal(evaluateGate([], [], [bad], new Set(['7']), { root }).verdict, 'AMBER', '基线内 = AMBER');
+    // 陪跑一道真计分题，否则 active 为空会（正确地）判 NO-PROBE，盖住这里要考的暂停语义。
+    const okProbe = hp('requirement-reachable', 'README.md', '≤2 跳', { n: '8' });
     const paused = { ...bad, status: 'needs-reconfirm' };
-    const ev = evaluateGate([], [], [paused], new Set(), { root });
+    const ev = evaluateGate([], [], [okProbe, paused], new Set(), { root });
     assert.equal(ev.needsReconfirm.length, 1, '交接题型同样支持 needs-reconfirm 暂不计分');
     assert.equal(ev.verdict, 'GREEN');
   });

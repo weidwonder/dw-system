@@ -37,6 +37,17 @@ function parseRow(line) {
 const isSeparator = (cells) => cells.every((c) => /^:?-{2,}:?$/.test(c.replace(/\s/g, '')) || c === '');
 
 /**
+ * 基线段里"一个探针编号"的写法：行首（可带 `-`/`*`/`+` 列表符）+ 可选 `#` + 数字，
+ * 且数字后面不能紧跟 `0-9 . - / :`——后者把日期（`2026-08-16`）、小数、时刻挡在外面。
+ *
+ * MUST NOT 退化成"收集本段所有整数"。基线段里写带日期的复核记录
+ * （`> 2026-08-16 复核：暂时容忍 #1，见 issue 4321。`）是必然会发生的事，
+ * 而整数通吃会把 2026/08/16/4321 全登记成基线编号 → 它们都不在失败集合里 →
+ * staleBaseline 非空 → **假 RED**，还会提示"基线 #2026 已不再失败，必须删除"。
+ */
+const BASELINE_NUM = /^\s*(?:[-*+]\s*)?#?(\d+)(?![\d.\-/:])/;
+
+/**
  * 解析 probe-set.md：探针表（表头首列 '#'，次列含 类型/type）+ 基线（棘轮）段的编号。
  * 模板占位行（`【…】`）不算探针，单列在 skipped 里供 CLI 提示——不提示的话
  * "6 道题只跑了 0 道"会被读成解析坏了。
@@ -62,8 +73,18 @@ export function loadProbes(ctxDir) {
       continue;
     }
     if (baselineMode) {
-      // 收集该段所有整数编号；"（空）"/None 视为无
-      for (const m of line.matchAll(/\d+/g)) baseline.add(m[0]);
+      // 只认**独立成行**的编号（见 BASELINE_NUM）与表格首列；散在句子里的数字一律不算。
+      // "（空）"/None 这类写法自然不含合法编号 → 空基线。
+      const cells = parseRow(line);
+      if (cells) {
+        if (!isSeparator(cells)) {
+          const m = /^#?(\d+)$/.exec(cells[0] || '');
+          if (m) baseline.add(m[1]);
+        }
+        continue;
+      }
+      const m = BASELINE_NUM.exec(line);
+      if (m) baseline.add(m[1]);
       continue;
     }
     const cells = parseRow(line);
@@ -363,6 +384,16 @@ export function detectCapabilityBits(root, ctxDir) {
   return { graph, graphBytes, curated: services > 0, services };
 }
 
+/**
+ * 单文件名可以在**没有目录分隔**时仍算路径的扩展名白名单。
+ *
+ * MUST 用白名单，MUST NOT 用"点号后 1-8 位字母数字就算扩展名"的启发式：架构小节里用反引号
+ * 写 API 名是极常见的写法（`` 跨平台全程用 `path.join` 与 `os.tmpdir` ``），启发式会把
+ * `path.join` / `os.tmpdir` 当成带扩展名的模块路径并判"模块路径缺失"。而这个题型是**无能力位
+ * 项目唯一的实现层门禁**，误判会把它逼成永久红点（再叠加基线段的整数通吃就会被塞进棘轮基线）。
+ */
+const PATH_EXT = /\.(js|mjs|cjs|jsx|ts|tsx|mts|cts|py|pyi|go|rs|rb|php|java|kt|kts|scala|swift|m|mm|c|h|cc|cpp|hpp|cs|sh|bash|zsh|sql|proto|graphql|md|markdown|rst|txt|json|jsonc|yaml|yml|toml|ini|cfg|conf|env|xml|html|htm|css|scss|sass|less|vue|svelte|tf|tfvars|gradle|lock|cmake|mk|dockerfile)$/i;
+
 /** 从架构节里抽"看起来是模块路径"的 token（反引号代码片段 + 相对链接）。 */
 function modulePathCandidates(section) {
   const out = [];
@@ -371,7 +402,9 @@ function modulePathCandidates(section) {
     if (!s || /\s/.test(s)) return;
     if (isExternalTarget(s) || s.includes(':')) return;          // 外链与 `node:path` 一类不是路径
     if (/[*?<>|"'`（）()【】]/.test(s) || s.startsWith('#')) return;
-    if (!s.includes('/') && !/\.[A-Za-z0-9]{1,8}$/.test(s)) return; // 既无目录分隔也无扩展名 → 不当路径
+    // 候选路径 MUST 含目录分隔，或以白名单扩展名结尾——把"点号后是已知扩展名"
+    // 与"点号后是标识符（API 名）"区分开。
+    if (!s.includes('/') && !PATH_EXT.test(s)) return;
     const rel = normRel(s);
     if (rel && !out.includes(rel)) out.push(rel);
   };
@@ -380,25 +413,32 @@ function modulePathCandidates(section) {
   return out;
 }
 
-/** 无能力位分支：架构节列出的模块路径必须都存在。 */
+/** 基础条件：架构节列出的模块路径必须都存在。 */
 function checkModulePaths(root, input) {
   const { file, anchor } = splitAnchor(input);
   const rel = normRel(file);
-  if (!rel) return { ok: false, note: '直读：探针未指定架构节（输入应写 <架构文件>#<小节>）' };
+  if (!rel) return { ok: false, note: '模块路径：探针未指定架构节（输入应写 <架构文件>#<小节>）' };
   const raw = readRel(root, rel);
-  if (raw === null) return { ok: false, note: `直读：架构真相源缺失 ${rel}` };
-  if (anchor && !hasAnchor(raw, anchor)) return { ok: false, note: `直读：架构节缺失 ${rel}#${anchor}` };
+  if (raw === null) return { ok: false, note: `模块路径：架构真相源缺失 ${rel}` };
+  if (anchor && !hasAnchor(raw, anchor)) return { ok: false, note: `模块路径：架构节缺失 ${rel}#${anchor}` };
   const section = anchor ? sectionOf(raw, anchor) : raw;
   const paths = modulePathCandidates(section);
   const where = anchor ? `${rel}#${anchor}` : rel;
-  if (!paths.length) return { ok: false, note: `直读：架构节未列出任何模块路径（${where}）——零上下文接手者无从落地` };
+  if (!paths.length) return { ok: false, note: `模块路径：架构节未列出任何模块路径（${where}）——零上下文接手者无从落地` };
   const missing = paths.filter((p) => !existsRel(root, p));
   return missing.length
-    ? { ok: false, note: `直读：模块路径缺失 ${missing.join(', ')}` }
-    : { ok: true, note: `直读：${where} 列出的 ${paths.length} 个模块路径全部存在` };
+    ? { ok: false, note: `模块路径：缺失 ${missing.join(', ')}` }
+    : { ok: true, note: `模块路径：${where} 列出的 ${paths.length} 个全部存在` };
 }
 
-/** 实现真相源可用：按探测到的能力位分支，各位都成立才算通过。 */
+/**
+ * 实现真相源可用：架构节列出的模块路径**始终**校验，探测到的每个能力位再**叠加**一项条件。
+ *
+ * MUST 叠加，MUST NOT 互斥。旧实现只在"既无权威位又无图谱位"时才校验模块路径，于是
+ * 三行 registry 就能让实现层门禁永久变绿——与"探测到的每一位都要成立"的承诺相反，
+ * 而 selfCheck 又从不为该题型植入必错样本，自检也抓不到。能力位回答的是"找得到/信哪个"，
+ * 它不替代"架构节把模块位置讲清楚了"这件事，两者是并列条件。
+ */
 function checkImplementation(root, ctxDir, probe) {
   const bits = detectCapabilityBits(root, ctxDir);
   const notes = [];
@@ -408,11 +448,9 @@ function checkImplementation(root, ctxDir, probe) {
     if (bits.graphBytes > 0) notes.push(`图谱位：.codegraph/codegraph.db ${bits.graphBytes} 字节，索引可查询`);
     else { ok = false; notes.push('图谱位：.codegraph/codegraph.db 为空，索引不可查询'); }
   }
-  if (!bits.curated && !bits.graph) {
-    const r = checkModulePaths(root, probe.input);
-    ok = r.ok;
-    notes.push(r.note);
-  }
+  const r = checkModulePaths(root, probe.input);
+  if (!r.ok) ok = false;
+  notes.push(r.note);
   return { actual: notes.join('；'), pass: ok };
 }
 
@@ -445,17 +483,33 @@ function hasAuthorityRefs(text) {
   });
 }
 
-/** 索引"现行区"里链到的 spec（归档区不参与判定，见 文档治理.md §文档生命周期与索引门控）。 */
+/**
+ * 索引"现行区"里链到的 spec（归档区不参与判定，见 文档治理.md §文档生命周期与索引门控）。
+ *
+ * 归档区的范围 MUST 按标题**层级**判定：记住命中「归档」时的层级，只有遇到**同级或更高级**
+ * 标题才解除（与 sectionOf 的 `m[1].length <= level` 同一套逻辑）。旧实现每遇任意层级标题就
+ * 重置，于是 `## 归档` 下按季度分 `### 2026 Q1` 时，`###` 一出现就解除归档，
+ * 归档区里链到的文档又回来参与判定——而 README 承诺归档区不参与。
+ */
 function currentSpecLinks(raw, indexRel) {
   const out = [];
-  let archived = false;
+  let archivedLevel = 0;
   for (const line of String(raw).split(/\r?\n/)) {
-    const m = /^#{1,6}\s+(.+?)\s*$/.exec(line);
-    if (m) { archived = /归档|archive/i.test(m[1]); continue; }
-    if (archived) continue;
+    const m = /^(#{1,6})\s+(.+?)\s*$/.exec(line);
+    if (m) {
+      const level = m[1].length;
+      if (archivedLevel && level <= archivedLevel) archivedLevel = 0;
+      if (!archivedLevel && /归档|archive/i.test(m[2])) archivedLevel = level;
+      continue;
+    }
+    if (archivedLevel) continue;
     for (const t of linkTargets(line)) {
       const r = resolveLink(indexRel, t);
       if (!r || !/\.md$/i.test(r.rel)) continue;
+      // 只认 `spec/` 目录下的 .md：本体系的文档目录是固定约定（spec → docs/spec/、
+      // plan → docs/plan/、report → docs/report/），索引现行区还会链到 plan/report/外部文档，
+      // 全量校验 authority_refs 会误伤它们。这条约束是**判据的一部分**，README §rationale-traceable
+      // 已写明；失败串也点明它，别让人对着 NO-SPEC-LINK 猜。
       if (!/(^|\/)spec\//.test(r.rel)) continue;
       if (!out.includes(r.rel)) out.push(r.rel);
     }
@@ -470,7 +524,14 @@ function checkRationale(root, input) {
   if (raw === null) return { actual: `MISSING:${indexRel}`, pass: false };
   const links = currentSpecLinks(raw, indexRel);
   // 零条目不得算通过——"没有题目所以全绿"正是假门禁。
-  if (!links.length) return { actual: `NO-SPEC-LINK:${indexRel} 现行区没有链到任何 spec`, pass: false };
+  if (!links.length) {
+    return {
+      actual: `NO-SPEC-LINK:${indexRel} 现行区没有链到任何 spec/ 目录下的 .md`
+        + '（本判据只认路径含 spec/ 段的 markdown；本项目的 spec 若放在别处，'
+        + '请把它们移进 spec/ 目录，或把探针输入指向真正列 spec 的那份索引）',
+      pass: false,
+    };
+  }
   const bad = [];
   for (const rel of links) {
     const text = readRel(root, rel);
@@ -532,6 +593,16 @@ export function selfCheck(cards, registry, ctx = {}) {
       expected: '≤2 跳',
     };
     planted.push({ ...p, ...answerProbe(cards, registry, p, ctx) });
+    // 样本4：implementation-usable，指向必然不存在的架构节 → 门禁应判 FAIL。
+    // 这道样本此前无法成立：旧实现探测到任一能力位就无条件通过，植入什么都抓不到。
+    // 模块路径校验改成叠加后它才有意义，也正是那条修复的自检保险。
+    const q = {
+      n: 'self-impl',
+      type: 'implementation-usable',
+      input: '__ai-dev-system-selfcheck__/__no-such-architecture__.md#__no-such-section__',
+      expected: 'usable',
+    };
+    planted.push({ ...q, ...answerProbe(cards, registry, q, ctx) });
   }
   if (planted.length === 0) {
     return { ok: false, reason: '无法构造自检样本（registry 缺权威条目）', planted };
@@ -551,6 +622,7 @@ export function selfCheck(cards, registry, ctx = {}) {
  *   · scored 探针按 weight 计**加权通过率**；低于 floor（默认关闭，CLI 传 0.9）= RED。
  *   · 棘轮**双向**：基线外新失败 = RED；基线内已不再失败 = staleBaseline，必须删除，也 RED（只许变短）。
  *   · needs-reconfirm / quarantined 的探针 ground truth 可能过期，暂不计分，只报告（探针自防腐）。
+ *   · 计分探针数为 0（题集为空 / 全是占位行 / 全被暂停）= NO-PROBE，passRate 为 null，退出码同 RED。
  * @returns {{selfCheck, results, failing, newFailures, blockingFailures, staleBaseline, needsReconfirm, passRate, floor, belowFloor, verdict, canTightenBaseline}}
  */
 export function evaluateGate(cards, registry, probes, baseline, options = {}) {
@@ -579,11 +651,17 @@ export function evaluateGate(cards, registry, probes, baseline, options = {}) {
   // 加权通过率：仅统计 scored 题（blocking 走零容忍，不进通过率分母）。
   const scored = active.filter((r) => r.severity !== 'blocking');
   const totalW = scored.reduce((s, r) => s + r.weight, 0);
+  // 一道计分题都没有时 passRate MUST 为 null，MUST NOT 兜底成 1：
+  // `ctx init` 的脚手架全是 `【…】` 占位行，整表被（正确地）跳过，旧实现于是判 GREEN 100%、
+  // 退出 0——README 教的 CI 判据 `.verdict=="GREEN" or "AMBER"` 在一道题都没跑时通过，
+  // 正是 README 自己点名的"没有题目所以全绿"假门禁。
   const passW = scored.filter((r) => r.pass).reduce((s, r) => s + r.weight, 0);
-  const passRate = totalW ? passW / totalW : 1;
-  const belowFloor = floor > 0 && passRate < floor;
-  const verdict =
-    blockingFailures.length || newFailures.length || staleBaseline.length || belowFloor
+  const passRate = totalW ? passW / totalW : null;
+  const belowFloor = floor > 0 && passRate !== null && passRate < floor;
+  const noActiveProbe = active.length === 0;
+  const verdict = noActiveProbe
+    ? 'NO-PROBE'
+    : blockingFailures.length || newFailures.length || staleBaseline.length || belowFloor
       ? 'RED'
       : failing.length
       ? 'AMBER'

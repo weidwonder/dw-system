@@ -202,10 +202,13 @@ test('probe --dir：A 类与 B 类题型 MUST 读同一份 registry（回归：c
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-probe-root-'));
   const ctxElsewhere = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-probe-ctx-'));
   try {
-    // 项目根故意不放 engineering-context/；架构节列的模块路径也不存在，
-    // 一旦退回直读分支就会判 FAIL。
+    // 项目根故意不放 engineering-context/。模块路径校验是无条件的（能力位只叠加、不豁免），
+    // 所以架构节列的路径要真实存在——这条测试考的是 ctxDir 有没有被 cli 传下去：
+    // 没传的话 detectCapabilityBits 读不到那份 registry，actual 里就不会出现"权威位"。
     fs.writeFileSync(path.join(root, 'README.md'),
-      '# P\n\n## 架构与边界\n\n- `src/nope.js` 不存在\n', 'utf8');
+      '# P\n\n## 架构与边界\n\n- `src/app.js` 是入口\n', 'utf8');
+    fs.mkdirSync(path.join(root, 'src'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'src', 'app.js'), '', 'utf8');
     fs.writeFileSync(path.join(ctxElsewhere, 'capability-registry.md'),
       '| Capability | 权威实现 | 陷阱项（废弃或中间产物） |\n|---|---|---|\n'
       + '| 下单 | POST /v2/orders | POST /v1/order |\n', 'utf8');
