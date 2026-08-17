@@ -99,6 +99,7 @@
   - 若标记块已存在 → 用新内容**替换块内**，保留块外一切。
   - 若不存在 → 追加一个新块。
 - **两个入口必须收敛**：只有 `CLAUDE.md` 或只有 `AGENTS.md` 有标记块时，自动补齐另一文件；两边字段不一致时，以 `CLAUDE.md` 为准并同步到 `AGENTS.md`。一边是新块、另一边是只含旧 `mode` 的块时同样以 `CLAUDE.md` 为准，同步后若结果仍是旧块，立即走一次上方的推断改写，避免把新配置降级回旧格式。
+- **块内 MUST NOT 出现第二对标记**：整份 `CLAUDE.md` / `AGENTS.md` 里 `<!-- ai-dev-workflow:start -->` 与 `<!-- ai-dev-workflow:end -->` 各 MUST 只出现一次。块内又出现一对（典型成因：把 `collab-*.md` 连标记一起抄了进来）即视为**块已损坏**，MUST 按"`base.md` 块内内容 + `collab-<collaboration>.md` 块内内容"重建整块（字段值从损坏块里能读到的部分沿用，读不到的按第 4 步重新确认），MUST NOT 只删掉多出来的标记行了事——嵌套一旦发生，块尾那段协作正文可能已在上一次写入时被截断丢失。
 - **值非法不猜**：`collaboration` 不是 `solo`/`team`、`merge-gate` 不是 `direct`/`pr` 时，报错中止并列出合法值域，MUST NOT 替用户挑一个。
 - 标记用 HTML 注释，对 markdown 渲染无影响，且机器可精确定位。
 
@@ -117,7 +118,7 @@
 
 用户显式要求切换时（如"这个项目现在有其他人一起接手了""以后只有我一个人维护"）：
 
-- 找到标记块，把 `collaboration` 改成新值，并把块内的协作段替换为另一份 `collab-<collaboration>.md`；`base.md` 那段与其余字段不动。
+- 找到标记块，把 `collaboration` 改成新值，并把块内的协作段替换为另一份 `collab-<collaboration>.md` 的**块内内容**（`<!-- ai-dev-workflow:start -->` 与 `<!-- ai-dev-workflow:end -->` 之间的正文，**MUST NOT 把这两行标记一起写进去**——两个 `collab-*.md` 各自带一对完整标记，照抄整份文件会在标记块内部再嵌一对，此后任何"替换首个 start 与首个 end 之间"的写入都会在嵌套的 `end` 处截断，静默丢掉协作段）；`base.md` 那段与其余字段不动。
 - **MUST NOT 顺手改 `merge-gate`**——合并方式是独立字段，用户没说就不动；确有必要时单独问一句。
 - **切换协作面不影响能力位**：项目有哪些代码事实资产照常探测。MUST NOT 借切换的机会推销建资产——要不要建由结果性信号驱动的补建建议决定（`core/资产补建信号.md`，那是建议不是门）。
 - 用户**主动**要求建立权威代码事实时，给最小起步方式：`ctx init --minimal`（只生成 `engineering-context/capability-registry.md`，三列三行即可起步），填过一行真实数据后，权威位下次唤起自动被探测到。
