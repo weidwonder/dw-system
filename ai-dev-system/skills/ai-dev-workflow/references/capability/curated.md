@@ -50,6 +50,13 @@ ctx list-services                            # 已登记仓库/能力
 ctx search-semantic "<自然语言>"             # discover 未命中时的兜底
 ```
 
+**`find-scenes` 无命中时（MUST NOT 卡在门限上）**：权威位的最小合法形态只有一份三列 registry（§0），`ctx init --minimal` 起步的项目 `engineering-context/scenes/` 本来就是空的，此时 `find-scenes` **必然**返回空——这是正常状态，不是资产损坏。处置：
+
+1. **MUST NOT 阻断、MUST NOT 反复重试、MUST NOT 因此判定权威位不可用。**
+2. 改走 `ctx discover` + `ctx get-card` 收窄，事实照旧带 cite。
+3. 本次需求**确实跨服务**（涉及 ≥2 个 registry 登记的权威仓库）时，SHOULD 在收尾汇报里提一句"这条链路没有场景蓝图，跨服务影响面这次靠逐个 card 拼的"，并按 `context-engineering.md` §2.3 说明补蓝图的最小形态。提过一次即止。
+4. 跨服务、且 `discover` 与 `search-semantic` 都收不窄时，才按 `core/上下文卫生.md` 规则 4 把重探索外包给子代理——**仍 MUST NOT 退回裸 grep 找权威实体**。
+
 > 注意：`ctx find-scenes` 返回的是**场景蓝图指针**（scene 名 + 命中分 + 路径），本身不直接给"涉及哪些服务"。你从蓝图正文里读到 / 推断出的涉及服务，都是**推断**，MUST 逐个用 `ctx get-card` 核实到权威 card 才能当事实用。
 > `discover` 会随命中结果给出 **out-of-scope 警告**（哪些是废弃/中间产物、别当权威用），这些警告 MUST 抄进 Step 1 的〈既有系统清单〉，并在 Step 2 的 A 核查里逐条确认。
 

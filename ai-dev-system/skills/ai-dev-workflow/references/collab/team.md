@@ -26,14 +26,15 @@
 
 ## 4. PR 平台动作
 
-合并**方式**由标记块的 `merge-gate` 字段决定（见 `core/worktree开发纪律.md`），不由本文决定。本节只规定 `merge-gate="pr"` 时**因为有人审**而额外要做的事：
+合并**方式**由标记块的 `merge-gate` 字段决定（见 `core/worktree开发纪律.md`），不由本文决定。
 
-- **开 PR 前 MUST 先过代码评审门**（见 `core/代码评审纪律.md`）。它是**地板不是天花板**：把 AI 能自查出来的问题挡在 PR 之前，让人审的注意力留给业务正确性与架构取舍，**MUST NOT 用它替代人审**。评审报告结论 SHOULD 附进 PR 描述。
-- PR 描述 MUST 引用对应 spec / plan 任务号，并附影响范围说明（为什么没扩大）。
-- 团队 SHOULD 把死代码检查（`knip` / `vulture` / `staticcheck -checks U1000` 等）挂进 PR gate，作为替换清单核销的自动补充；工具链不具备时清单核销照做。
-- 保护分支仓库 MUST 在审批与 CI 全部通过后才启用平台自动合并；**MUST NOT 绕过保护分支直接写主分支**。
+**先划清边界**：`merge-gate="pr"` 本身要做的事——开 PR 前先过代码评审门（地板不是天花板，MUST NOT 替代人审）、PR 描述引用 spec / plan 任务号并附影响范围、保护分支须审批与 CI 全通过才自动合并、死代码检查挂 PR gate、PR 粒度约 3–8 文件——**全部在 `core/` 常驻，与协作面无关，本文 MUST NOT 复述**。理由：`merge-gate` 与 `collaboration` 是两个独立字段，一个人的开源项目照样走 PR；把那几条写在只有 `collaboration="team"` 才加载的本文里，solo + pr 的项目就读不到了。判据见 `core/代码评审纪律.md` §处置 与 `core/worktree开发纪律.md` §完成与自动合并门。
 
-> PR 的**粒度**要求（一个 coding plan 任务对应一个小而可 review 的 PR，约 3–8 文件）与人数无关——agent 单次可产出 2000 行，粒度限制是人类唯一的审查窗口。该要求在 `core/` 常驻，两个协作面都适用。
+本节只规定**因为有别的人**而额外要做的事：
+
+- **指派评审人**：PR MUST 指到具体的人（受影响仓的 owner 优先），MUST NOT 只开 PR 不指人等着谁来看。
+- **合并窗口 SHOULD 提前与 owner 约定**，尤其是会影响对方仓库对外契约的改动；对方未确认时 MUST NOT 单方面按自己的时间表推进。
+- **人审提出的结论 MUST 回写**到 spec 或 Overview 的"已定决策"表——口头达成的共识不落文档，等于下一个零上下文 agent 拿不到。
 
 ## 5. 多仓合并顺序协商
 
