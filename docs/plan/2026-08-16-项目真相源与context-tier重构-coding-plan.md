@@ -284,7 +284,34 @@ T15 把权威定义集中到一个新的条件加载 core 文件，其余四处�
 - [ ] **Step 2b（T1 发现的 plan 缺口，本 Files 节原先漏列）**: `docs/spec/2026-08-10-文档生命周期门控-lean-change-spec.md:20,83` 含 `mode-team.md` 路径引用。先判定它在 `docs/index.md` 现行区还是归档区：**现行 → 一并改写；已归档 → 按 §7.1 视为历史记录 MUST NOT 改写**。判定结果写进回报
 - [ ] **Step 3: `docs/index.md` 加本 spec 与本 plan；确认 `docs/plan/` 两份历史计划已在 `index-archive.md` 标注归档**
 - [ ] **Step 4: `docs/plan/` 与 `migrations/*.md` 的历史记录 MUST NOT 改写**（§7.1）
-- [ ] **Step 5: 验收 + commit**
+- [ ] **Step 5: 全仓 grep `context-engineering` 核一遍路径**（T5 建议）——该文件已 `git mv` 到 `references/capability/`，各处可能残留裸引用或旧路径
+- [ ] **Step 6: 验收 + commit**
+
+#### T13 待同步项清单（执行期各任务实测汇总，逐条核销）
+
+**`CLAUDE.md`**
+
+| # | 位置 | 改什么 | 来源 |
+|---|---|---|---|
+| 1 | §架构 1「skill 是 mode-aware 的」 | 整节重写：mode 二分 → 探测能力位 + 协作字段三步路由 | 本重构 |
+| 2 | §架构 3「团队版的 Engineering Context 层」 | 标题与正文去协作面绑定，改为「权威位」 | 本重构 |
+| 3 | §架构 3 对 `cards.js` / `commands.js` 的描述 | `loadRegistry` 已改**按表头名映射**（不是按列序）、`discover` 多一路 registry 结果、`initScaffold` 多 `--minimal` | T9 |
+| 4 | §常用命令 | `node --test test/` 在 Node ≥22 报 MODULE_NOT_FOUND，改为 `node --test test/*.test.mjs` | T8 |
+| 5 | §安装器的关键设计 | 补「标记块迁移改写 + 四种混合状态 + stamp 比对」一段 | T8 |
+| 6 | §目录速查 | `references/personal/` `references/company/` → `collab/` `capability/`；config-snippets 的 personal/team → base + collab-{solo,team}；ai-prd 的 `references/… mode-*` 一行 | T7 / T11 |
+| 7 | §改动时注意 · ctx 契约条 | `references/company/mode-team.md` §2 → `references/capability/curated.md` §2；`assets/config-snippets/team.md` 第 1 条 → `base.md` 最后一条（条件式） | T3 / T7 |
+| 8 | §改动时注意 · agentic-principle 条 | 「同改两个 config-snippet」→「同改 `base.md`」（agentic 条目现只在 base 一处） | T7 |
+| 9 | §改动时注意 · codegraph 条 | 「团队版 Engineering Context」措辞 → 权威位；并按 spec §3.5 更新（codegraph 现出现在 `capability/graph.md`） | T9 |
+
+**`docs/spec/` 现行区**
+
+| 文件 | 命中行 | 备注 |
+|---|---|---|
+| `2026-07-06-ai-dev-system-design.md` | `:52,54,126,168` | active，MUST 改 |
+| `2026-07-06-ai-prd-design.md` | `:36,37,66` | active，MUST 改 |
+| `2026-07-14-源头对齐基线与回灌机制.md` | `:29,40` | active，MUST 改 |
+| `2026-08-16-ctx全局命令安装-lean-change-spec.md` | `:29,38` | active；**另需补 `ctx init --minimal` 的生成物清单** |
+| `2026-08-10-文档生命周期门控-lean-change-spec.md` | `:20,83` | **先判现行/归档**（Step 2b）；`:83` 含 `ai-prd/references/mode-team.md` 路径 |
 
 ---
 
