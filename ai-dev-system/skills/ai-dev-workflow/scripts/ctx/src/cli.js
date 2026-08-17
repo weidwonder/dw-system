@@ -167,7 +167,7 @@ function main() {
     case 'probe': {
       const cards = loadCards(ctxDir);
       const registry = loadRegistry(ctxDir);
-      const { probes, baseline } = loadProbes(ctxDir);
+      const { probes, baseline, skipped } = loadProbes(ctxDir);
       const ev = evaluateGate(cards, registry, probes, baseline, { floor: 0.9 });
       const prev = readHistory(ctxDir);
       const delta = prev && ev.passRate != null ? Number((ev.passRate - prev.passRate).toFixed(4)) : null;
@@ -176,6 +176,9 @@ function main() {
       const icon = { GREEN: '✅', AMBER: '🟡', RED: '🛑', 'GATE-BROKEN': '🛑' }[ev.verdict] || '?';
       const lines = [];
       lines.push(`门禁自检：${ev.selfCheck.ok ? '✅ 有效' : '🛑 失效'} — ${ev.selfCheck.reason}`);
+      if (skipped.length) {
+        lines.push(`ℹ️  跳过 ${skipped.length} 条模板占位行（#${skipped.join(' #')}）：把 【…】 换成真实题目才会计入门禁。`);
+      }
       if (ev.verdict === 'GATE-BROKEN') {
         lines.push('🛑 GATE-BROKEN：门禁自检未通过，拒绝出具结论（流水线应红）。');
       } else {

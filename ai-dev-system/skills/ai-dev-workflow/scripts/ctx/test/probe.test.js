@@ -65,6 +65,40 @@ test('evaluateGate 棘轮：新增失败=RED，落在基线内=AMBER', () => {
   assert.equal(amber.verdict, 'AMBER', '基线内的失败应 AMBER（容忍债）');
 });
 
+test('loadProbes 跳过模板占位行，避免 ctx init 后的骨架污染棘轮基线', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'probe-placeholder-'));
+  try {
+    fs.writeFileSync(path.join(tmp, 'probe-set.md'),
+      '## 探针\n' +
+      '| # | 类型 | 输入 | 期望 |\n' +
+      '|---|---|---|---|\n' +
+      '| 1 | capability-mapping | 【能力名，如 背单词记录】 | 【repo :: POST /v2/xxx】 |\n' +
+      '| 2 | deprecated-trap | 【废弃接口】 | deprecated |\n' +
+      '| 3 | requirement-reachable | 【需求真相源】 | ≤2 跳 |\n' +
+      '| 4 | deprecated-trap | POST /v1/real | deprecated |\n' +
+      '\n## 基线（棘轮）\n（空）\n');
+    const { probes, skipped } = loadProbes(tmp);
+    // 只有第 4 行是真题；1-3 的输入或期望仍是 `【…】` 占位。
+    assert.equal(probes.length, 1);
+    assert.equal(probes[0].n, '4');
+    assert.deepEqual(skipped, ['1', '2', '3'], '跳过的编号要能报给用户，否则"4 道题只跑 1 道"像解析坏了');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('ctx init 的脚手架骨架不产生任何可跑探针（开箱不会有假红可塞进基线）', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ctx-probe-fresh-'));
+  try {
+    initScaffold(tmp);
+    const { probes, skipped } = loadProbes(path.join(tmp, 'engineering-context'));
+    assert.equal(probes.length, 0, '脚手架里全是占位题，一道都不该被当真题跑');
+    assert.ok(skipped.length >= 2, '占位题应被记入 skipped 供 CLI 提示');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('loadProbes 解析可选的 severity/weight/status 列', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'probe-'));
   try {
@@ -265,7 +299,7 @@ test('实现真相源可用（无能力位）：架构节没列任何模块路�
 test('实现真相源可用（图谱位）：codegraph.db 非空 → PASS；0 字节 → FAIL', () => {
   withProject({
     'README.md': '# P\n\n## 架构与边界\n\n- `src/missing.js`\n',
-    '.codegraph/codegraph.db': 'SQLite format 3 binary',
+    '.codegraph/codegraph.db': 'SQLite format 3\u0000binary',
   }, (root) => {
     const r = answerProbe([], [], hp('implementation-usable', 'README.md#架构与边界', 'usable'), { root });
     assert.equal(r.pass, true, '探测到图谱位就走索引分支，不再要求架构节列路径');
@@ -398,8 +432,13 @@ test('ctx init 生成的 probe-set 骨架含全部六个机器可判题型（防
   try {
     initScaffold(tmp);
     const base = path.join(tmp, 'engineering-context');
-    const { probes, baseline } = loadProbes(base);
-    const types = probes.map((p) => p.type);
+    const raw = fs.readFileSync(path.join(base, 'probe-set.md'), 'utf8');
+    // 注意：不能用 loadProbes 取类型——骨架的输入/期望都是 `【…】` 占位，
+    // loadProbes 会（正确地）整表跳过以免污染棘轮基线。防漂移要查的是**模板文本**本身。
+    const types = raw.split('\n')
+      .map((l) => l.trim())
+      .filter((l) => /^\|\s*\d+\s*\|/.test(l))
+      .map((l) => l.split('|')[2].trim().toLowerCase());
     assert.deepEqual(types, [
       'capability-mapping',
       'deprecated-trap',
@@ -409,8 +448,9 @@ test('ctx init 生成的 probe-set 骨架含全部六个机器可判题型（防
       'rationale-traceable',
     ]);
     for (const t of types.slice(2)) assert.ok(handoffKind(t), `${t} 应被 handoffKind 认出`);
+    const { probes, baseline } = loadProbes(base);
     assert.equal(baseline.size, 0, '骨架的棘轮基线应为空');
-    const raw = fs.readFileSync(path.join(base, 'probe-set.md'), 'utf8');
+    assert.equal(probes.length, 0, '骨架的占位题一道都不该被当真题跑（见占位行跳过那条测试）');
     assert.match(raw, /最小 schema/, '须说明三列最小 schema 下期望串只写权威实现');
     assert.match(raw, /NO-ENTRY-DOC/, '须列出交接题型的失败原因串');
   } finally {

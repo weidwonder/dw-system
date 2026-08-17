@@ -22,6 +22,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { listServices } from './commands.js';
+import { isRegistryPlaceholder } from './cards.js';
 
 const norm = (s) => (s || '').toLowerCase().replace(/\s+/g, ' ').trim();
 const normTight = (s) => norm(s).replace(/\s+/g, '');
@@ -37,15 +38,18 @@ const isSeparator = (cells) => cells.every((c) => /^:?-{2,}:?$/.test(c.replace(/
 
 /**
  * 解析 probe-set.md：探针表（表头首列 '#'，次列含 类型/type）+ 基线（棘轮）段的编号。
- * @returns {{probes:Array<{n,type,input,expected}>, baseline:Set<string>}}
+ * 模板占位行（`【…】`）不算探针，单列在 skipped 里供 CLI 提示——不提示的话
+ * "6 道题只跑了 0 道"会被读成解析坏了。
+ * @returns {{probes:Array<{n,type,input,expected}>, baseline:Set<string>, skipped:string[]}}
  */
 export function loadProbes(ctxDir) {
   const file = path.join(ctxDir, 'probe-set.md');
-  if (!fs.existsSync(file)) return { probes: [], baseline: new Set() };
+  if (!fs.existsSync(file)) return { probes: [], baseline: new Set(), skipped: [] };
   const raw = fs.readFileSync(file, 'utf8');
   const lines = raw.split(/\r?\n/);
 
   const probes = [];
+  const skipped = [];
   let inTable = false;
   let headerCols = null;
   let baselineMode = false;
@@ -79,18 +83,28 @@ export function loadProbes(ctxDir) {
       return i >= 0 ? (cells[i] || '') : '';
     };
     const weight = Number(pick('weight', '权重'));
+    const rawInput = pick('输入', 'input', '示例') || cells[2] || '';
+    const rawExpected = pick('期望', 'expected') || cells[3] || '';
+    // 模板占位行（`ctx init` 脚手架里的 `【…】`）不是真探针，MUST 跳过。
+    // 不跳的后果不是"多几条红"，而是**基线被污染**：开箱即红会训练用户把 1..N 整批塞进
+    // 棘轮基线，此后基线只许变短的约束就永远卡在那批假题上，真腐化再也顶不出来——
+    // 一个看起来在工作的门禁比没有门禁更危险。与 cards.js 对 registry 占位行的处理同一判据。
+    if (isRegistryPlaceholder(rawInput) || isRegistryPlaceholder(rawExpected)) {
+      skipped.push(cells[0]);
+      continue;
+    }
     probes.push({
       n: cells[0],
       type: (pick('类型', 'type') || cells[1] || '').toLowerCase(),
-      input: pick('输入', 'input', '示例') || cells[2] || '',
-      expected: pick('期望', 'expected') || cells[3] || '',
+      input: rawInput,
+      expected: rawExpected,
       severity: /block|阻断/i.test(pick('severity', '严重')) ? 'blocking' : 'scored',
       weight: Number.isFinite(weight) && weight > 0 ? weight : 1,
       status: pick('status', '状态').toLowerCase(),
       authorityRefs: pick('authority', 'refs', '权威'),
     });
   }
-  return { probes, baseline };
+  return { probes, baseline, skipped };
 }
 
 /**
