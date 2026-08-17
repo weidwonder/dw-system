@@ -5,7 +5,8 @@ import os from 'node:os';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { loadCards, loadRegistry } from '../src/cards.js';
-import { loadProbes, classifyEntity, answerProbe, selfCheck, evaluateGate } from '../src/probe.js';
+import { loadProbes, classifyEntity, answerProbe, selfCheck, evaluateGate, handoffKind } from '../src/probe.js';
+import { initScaffold } from '../src/commands.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ctxDir = path.join(here, '..', 'fixtures', 'engineering-context');
@@ -388,4 +389,31 @@ test('loadProbes 解析交接题型的探针行（含 authority_refs 列）', ()
     assert.equal(probes[0].severity, 'blocking');
     assert.equal(probes[1].authorityRefs, 'docs/index.md 现行区');
   });
+});
+
+test('ctx init 生成的 probe-set 骨架含全部六个机器可判题型（防 stub 漂移）', () => {
+  // 根 CLAUDE.md 的硬约定：assets/context-layer/probe-set.md 与 commands.js 的 PROBE_STUB 必须同步。
+  // 骨架里若漏了交接题型，用户按脚手架起步就永远拿不到零上下文交接门禁。
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ctx-probe-stub-'));
+  try {
+    initScaffold(tmp);
+    const base = path.join(tmp, 'engineering-context');
+    const { probes, baseline } = loadProbes(base);
+    const types = probes.map((p) => p.type);
+    assert.deepEqual(types, [
+      'capability-mapping',
+      'deprecated-trap',
+      'requirement-reachable',
+      'architecture-reachable',
+      'implementation-usable',
+      'rationale-traceable',
+    ]);
+    for (const t of types.slice(2)) assert.ok(handoffKind(t), `${t} 应被 handoffKind 认出`);
+    assert.equal(baseline.size, 0, '骨架的棘轮基线应为空');
+    const raw = fs.readFileSync(path.join(base, 'probe-set.md'), 'utf8');
+    assert.match(raw, /最小 schema/, '须说明三列最小 schema 下期望串只写权威实现');
+    assert.match(raw, /NO-ENTRY-DOC/, '须列出交接题型的失败原因串');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
 });

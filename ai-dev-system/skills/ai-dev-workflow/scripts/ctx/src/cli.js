@@ -60,8 +60,13 @@ const HELP = `ctx — Engineering Context CLI
   ctx search-semantic "<q>" [--top N]        discover 未命中时的语义兜底（本地向量相似）
                           [--as-of YYYY-MM-DD] [--stale-days N]
   ctx probe [--json]                         跑 Frozen Probe Set 防腐门禁（含自检+棘轮）
+                                             题型：capability-mapping / deprecated-trap（读 context 层）、
+                                             requirement-reachable / architecture-reachable /
+                                             implementation-usable / rationale-traceable（读项目自身文件）
 
 选项：--dir 指定 engineering-context 目录（默认 <cwd>/engineering-context）；--json 输出 JSON。
+--dir 只改 engineering-context 的位置，不改项目根：probe 的交接题型按**运行目录（cwd）**当项目根。
+（例外：ctx init 的 --dir 指的是目标项目目录，在它下面生成 engineering-context/。）
 registry 最小合法 schema：Capability / 权威实现 / 陷阱项（废弃或中间产物）三列；其余列可缺，缺列跳过不报错。
 没写 freshness 的条目输出标注「未声明新鲜度」——不假定新鲜，用前回源码确认。
 search-semantic：--as-of 启用 freshness 降权（过期块标 stale 并 ×0.5）。
