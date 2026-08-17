@@ -45,10 +45,15 @@ authority_refs:
 | T10 | `scripts/ctx/src/probe.js`、`scripts/ctx/test/probe.test.js`、`assets/context-layer/probe-set.md` | C | T9 的 `--minimal` 落地 |
 | T11 | `ai-prd/references/*`（除 SKILL.md） | D | T1、T2 |
 | T12 | `ai-dev-workflow/assets/templates/*`、`ai-prd/assets/templates/*` | D | T2、T3 |
-| T13 | `CLAUDE.md`、`README*.md`、`docs/spec/2026-07-{06,14,16}-*`、`docs/spec/2026-08-14-*`、`docs/spec/2026-08-16-ctx*`、`docs/index*.md` | E | 全部 |
+| T13 | `CLAUDE.md`、`README*.md`、`docs/spec/2026-07-{06,14,16}-*`、`docs/spec/2026-08-{10,14}-*`、`docs/spec/2026-08-16-ctx*`、`docs/index*.md` | E | 全部 |
 | T14 | `ai-dev-system/VERSION` | E | 全部 |
 
 > `ai-dev-system/migrations/2.0.0.md` 已在 spec 阶段落盘，T14 只做一致性复核，不重写。
+> `ai-dev-system/migrations/*.md`（含 `1.10.0.md:5` 提到 `mode-team.md` 与旧术语）与 `docs/plan/` 历史计划**属历史记录，全任务 MUST NOT 改写**（spec §7.1）。
+
+**并行纪律（矩阵的盲区，同样是硬要求）**：多个代理共用这一个 worktree，`commit` MUST 用 `git add <本任务的具体文件路径>`，**MUST NOT `git add -A` / `git add .`**——否则会把其他代理未完成的改动一并提交。
+
+**T1 执行结论（已完成，`434ca05`）**：§3.5 去向表 16 行中 7 行落地在新分册，9 行移交 core 侧任务（T2 收 3 行、T3 收 4 行、T5 收 1 行、T6/T7 收 1 行）。`collab/{solo,team}.md` §6 的边界表已建反向指针**指向 `core/00-流程总纲.md`**，T2 若把六条护栏落进其它 core 文件 MUST 回报以便同改。
 
 ---
 
@@ -263,7 +268,8 @@ authority_refs:
 **Files:** `CLAUDE.md`、`README_zh.md`、`README.md`、`docs/spec/2026-07-06-ai-dev-system-design.md`、`docs/spec/2026-07-06-ai-prd-design.md`、`docs/spec/2026-07-14-源头对齐基线与回灌机制.md`(`:29,40`)、`docs/spec/2026-08-14-codegraph…`、`docs/spec/2026-08-16-ctx全局命令安装…`、`docs/index.md`、`docs/index-archive.md`
 
 - [ ] **Step 1: `CLAUDE.md` §架构 第 1、3 节重写**（mode-aware → 探测 + 协作字段）、§安装器的关键设计 补迁移改写、§改动时注意 的 codegraph 边界条按 spec §3.5 更新
-- [ ] **Step 2: 三份 active spec 的旧路径与旧术语更新**——它们在 `docs/index.md` 现行区，**属本次触碰权威面**，MUST 按文档生命周期结算
+- [ ] **Step 2: active spec 的旧路径与旧术语更新**——它们在 `docs/index.md` 现行区，**属本次触碰权威面**，MUST 按文档生命周期结算。已核实的命中位置：`CLAUDE.md:86,104,105,140`、`2026-07-06-ai-dev-system-design.md:52,54,126,168`、`2026-07-06-ai-prd-design.md:36,37,66`、`2026-07-14-源头对齐基线与回灌机制.md:29,40`、`2026-08-16-ctx全局命令安装…:29,38`
+- [ ] **Step 2b（T1 发现的 plan 缺口，本 Files 节原先漏列）**: `docs/spec/2026-08-10-文档生命周期门控-lean-change-spec.md:20,83` 含 `mode-team.md` 路径引用。先判定它在 `docs/index.md` 现行区还是归档区：**现行 → 一并改写；已归档 → 按 §7.1 视为历史记录 MUST NOT 改写**。判定结果写进回报
 - [ ] **Step 3: `docs/index.md` 加本 spec 与本 plan；确认 `docs/plan/` 两份历史计划已在 `index-archive.md` 标注归档**
 - [ ] **Step 4: `docs/plan/` 与 `migrations/*.md` 的历史记录 MUST NOT 改写**（§7.1）
 - [ ] **Step 5: 验收 + commit**

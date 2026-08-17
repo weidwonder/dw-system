@@ -62,12 +62,13 @@ test('installer writes the Codex guard and backfills the workflow mode', () => {
     const agents = read(target, 'AGENTS.md')
     assert.match(agents, /ai-dev-system:codex-conflicts:start/)
     assert.match(agents, /ai-dev-workflow:start/)
-    assert.match(agents, /mode="personal"/)
+    // 旧 mode="personal" 被迁移改写成协作字段（详见 workflow-block.test.mjs）
+    assert.match(agents, /collaboration="solo"/)
+    assert.match(agents, /merge-gate="direct"/)
     assert.match(agents, /docs\/spec\//)
     assert.match(agents, /docs\/plan\//)
     assert.match(agents, /docs\/report\//)
     assert.match(agents, /worktree/)
-    assert.match(agents, /自动合并主分支/)
 
     const rerun = spawnSync(process.execPath, localInstallArgs(target, '--yes'), {
       cwd: repoRoot,
@@ -257,7 +258,7 @@ test('malformed Claude settings abort before installed skills are replaced', () 
   }
 })
 
-test('a valid AGENTS mode wins when the CLAUDE mode block is malformed', () => {
+test('a valid AGENTS block wins when the CLAUDE block is malformed', () => {
   const target = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-mode-fallback-'))
   try {
     writeFileSync(
@@ -271,8 +272,9 @@ test('a valid AGENTS mode wins when the CLAUDE mode block is malformed', () => {
 
     const result = spawnSync(process.execPath, localInstallArgs(target, '--yes'), { cwd: repoRoot, encoding: 'utf8' })
     assert.equal(result.status, 0, result.stderr || result.stdout)
-    assert.match(read(target, 'CLAUDE.md'), /mode="personal"/)
-    assert.match(read(target, 'AGENTS.md'), /mode="personal"/)
+    // CLAUDE 块读不出任何已知字段 → 由 AGENTS 的旧块接管，并迁移成协作字段
+    assert.match(read(target, 'CLAUDE.md'), /collaboration="solo"/)
+    assert.match(read(target, 'AGENTS.md'), /collaboration="solo"/)
   } finally {
     rmSync(target, { recursive: true, force: true })
   }
@@ -423,14 +425,12 @@ test('skills enforce the shared spec plan and report directories', () => {
   assert.match(governance, /docs\/report\//)
   assert.match(governance, /不得.*docs\/superpowers\//)
 
+  // 旧 company/mode-team.md 的目录约定已随 mode 外壳删除，落点改为常驻内核（T2）。
   const flow = read(workflowRoot, 'references', 'core', '00-流程总纲.md')
   assert.doesNotMatch(flow, /放项目根/)
+  assert.doesNotMatch(flow, /各自仓库根目录生成/)
+  assert.match(flow, /docs\/spec\//)
   assert.match(flow, /docs\/plan\//)
-
-  const team = read(workflowRoot, 'references', 'company', 'mode-team.md')
-  assert.doesNotMatch(team, /各自仓库根目录生成/)
-  assert.match(team, /docs\/spec\//)
-  assert.match(team, /docs\/plan\//)
 
   const codingPlan = read(workflowRoot, 'assets', 'templates', 'coding-plan.md')
   assert.doesNotMatch(codingPlan, /superpowers/)
@@ -470,7 +470,9 @@ test('ai-dev-workflow keeps user communication at the business level', () => {
 
 test('ai-dev-workflow uses worktrees for the whole development lifecycle and merges automatically', () => {
   const discipline = read(workflowRoot, 'references', 'core', 'worktree开发纪律.md')
-  assert.match(discipline, /个人版和团队版.*强制执行/)
+  // 强制性不再挂在 mode 上：无论协作面与项目资产如何，worktree 都不豁免（T3）
+  assert.match(discipline, /强制执行/)
+  assert.doesNotMatch(discipline, /个人版|团队版/)
   assert.match(discipline, /任何文档或代码.*落盘前.*worktree/)
   assert.match(discipline, /Lean Change Spec.*不得跳过/)
   assert.match(discipline, /每个仓库.*独立.*worktree/)
@@ -489,15 +491,18 @@ test('ai-dev-workflow uses worktrees for the whole development lifecycle and mer
   assert.match(flow, /工作区隔离门/)
   assert.match(flow, /完成与自动合并门/)
 
-  const personal = read(workflowRoot, 'references', 'personal', 'mode-personal.md')
-  const team = read(workflowRoot, 'references', 'company', 'mode-team.md')
-  assert.match(personal, /worktree.*不裁剪/)
-  assert.match(team, /保护分支.*自动合并/)
+  // 两个 mode 外壳已删：worktree 属"不裁剪"护栏，落点是常驻内核（T2）；
+  // 保护分支 / 平台自动合并落点是 worktree 纪律的 merge-gate="pr" 分支（T3）。
+  assert.match(flow, /worktree.*不裁剪|不裁剪.*worktree/)
+  assert.match(discipline, /保护分支.*自动合并|自动合并.*保护分支/)
 
-  const personalSnippet = read(workflowRoot, 'assets', 'config-snippets', 'personal.md')
-  const teamSnippet = read(workflowRoot, 'assets', 'config-snippets', 'team.md')
-  assert.match(personalSnippet, /worktree/)
-  assert.match(teamSnippet, /worktree/)
+  // config-snippet 拆成公共 base + 协作面两份（T7）；worktree-dir 是 base 的字段。
+  const baseSnippet = read(workflowRoot, 'assets', 'config-snippets', 'base.md')
+  assert.match(baseSnippet, /worktree/)
+  for (const collab of ['solo', 'team']) {
+    const snippet = read(workflowRoot, 'assets', 'config-snippets', `collab-${collab}.md`)
+    assert.doesNotMatch(snippet, /个人版|团队版/)
+  }
 
   const codingPlan = read(workflowRoot, 'assets', 'templates', 'coding-plan.md')
   assert.match(codingPlan, /Worktree/)
