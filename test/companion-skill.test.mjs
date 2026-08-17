@@ -43,9 +43,10 @@ function bumpRemote(remote, version) {
 
 // --no-codegraph：本组只验伴生 skill，不能顺手升级这台机器的全局 codegraph、
 // 也不该给临时目标目录建索引。codegraph 那条链另见 codegraph.test.mjs（用假 CLI 跑）。
+// --no-ctx-link：同理——不许把临时目录 npm link 成这台机器的全局 ctx 命令。
 function runInstaller(target, home, extraArgs = []) {
   return spawnSync(process.execPath, [
-    installer, target, `--source-dir=${repoRoot}`, '--yes', '--no-plugins', '--no-codegraph', ...extraArgs,
+    installer, target, `--source-dir=${repoRoot}`, '--yes', '--no-plugins', '--no-codegraph', '--no-ctx-link', ...extraArgs,
   ], { encoding: 'utf8', env: { ...process.env, HOME: home, USERPROFILE: home } })
 }
 

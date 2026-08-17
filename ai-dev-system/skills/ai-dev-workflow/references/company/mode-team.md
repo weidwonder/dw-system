@@ -36,7 +36,7 @@
 
 团队仓库"历史包袱重、文档差"，AI 直接 grep 会读到旧代码/中间产物。所以：
 
-- **调用方式**：`ctx` 未全局安装时，用 `node <本skill路径>/scripts/ctx/src/cli.js <命令>` 运行；或一次性 `cd <本skill路径>/scripts/ctx && npm link` 后直接 `ctx <命令>`。命令清单与输出格式见 `scripts/ctx/README.md`。下文简写为 `ctx`。
+- **调用方式**：安装器会把 `ctx` 链接成全局命令，正常情况下直接 `ctx <命令>` 即可。**"`ctx` 命令找不到"绝不等于 Engineering Context 不可用**——CLI 本体随本 skill 一起落盘，改用 `node <本skill路径>/scripts/ctx/src/cli.js <命令>` 即可，功能完全相同（想恢复全局命令则一次性 `cd <本skill路径>/scripts/ctx && npm link`）。**任何情况下都不得因为找不到 `ctx` 命令就退回 grep 源码。** 命令清单与输出格式见 `scripts/ctx/README.md`。下文简写为 `ctx`。
 - **凡涉及"这个能力对应哪个仓库/接口""跨服务影响面""哪个是权威实现"的问题，先用 `ctx`**，不要 grep。
 - **术语说法不一致时查 `engineering-context/glossary.md`**（领域词汇表）：glossary 管说法一致，card 管事实权威，registry 管能力落点；发现"同一实体多种叫法"造成误会时提示 owner 补词条（见 `context-engineering.md` §2.4）。
 

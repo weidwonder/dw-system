@@ -99,7 +99,8 @@ What the installer does:
 3. Copies the same skills → `<project>/.agents/skills/` for Codex;
 4. Merges (never overwrites) Claude Code's `enabledPlugins`, disabling conflicting plugins **for this project only**;
 5. Prompts how to handle conflicting Codex skills: project-level `AGENTS.md` auto-trigger constraints (default), or explicit global uninstall through the Codex CLI; if either entry file already has a workflow mode, both `CLAUDE.md` and `AGENTS.md` are reconciled;
-6. Keeps [codegraph](https://github.com/colbymchenry/codegraph) (local code knowledge graph CLI) up to date — `npm install -g @colbymchenry/codegraph` when missing, `codegraph upgrade` when outdated — then wires it into your agents (`--location=local` by default, this project only) and builds the project index with `codegraph init` unless `.codegraph/` already exists. Every failure here degrades to a warning; skip the whole step with `--no-codegraph`. Codex CLI has no project-local MCP config, so project-level wiring skips it and the installer prints the manual global command.
+6. Links the bundled `ctx` CLI as a **global `ctx` command** (`npm link` inside `<project>/.claude/skills/ai-dev-workflow/scripts/ctx`) and verifies it by actually running `ctx --help`. If linking fails (no write permission, npm global bin not on PATH, an existing `ctx` command), it degrades to a warning and prints the `node <skill>/scripts/ctx/src/cli.js <command>` fallback — the CLI itself ships with the skill, so **a missing command never means ctx is unavailable**. Skip with `--no-ctx-link`;
+7. Keeps [codegraph](https://github.com/colbymchenry/codegraph) (local code knowledge graph CLI) up to date — `npm install -g @colbymchenry/codegraph` when missing, `codegraph upgrade` when outdated — then wires it into your agents (`--location=local` by default, this project only) and builds the project index with `codegraph init` unless `.codegraph/` already exists. Every failure here degrades to a warning; skip the whole step with `--no-codegraph`. Codex CLI has no project-local MCP config, so project-level wiring skips it and the installer prints the manual global command.
 
 | Plugin | Why it conflicts with this pipeline |
 |---|---|
@@ -141,7 +142,8 @@ Then invoke the skill in any project (mentioning "AI-assisted development / dev 
 1. Invoke the skill in your project → choose "team mode".
 2. On first use, initialize the Engineering Context:
    ```bash
-   node <skill>/scripts/ctx/src/cli.js init
+   ctx init                                       # the installer links ctx globally for you
+   node <skill>/scripts/ctx/src/cli.js init       # equivalent fallback if the global command is unavailable
    ```
    This scaffolds `engineering-context/` (capability-registry + cards + scenes + probe-set + glossary templates) for the team to fill in incrementally.
 3. From then on, the AI creates a dedicated worktree per repo, then uses `ctx discover "<intent>"` to locate authoritative code entities instead of grepping stale code — every fact carries a traceable cite.

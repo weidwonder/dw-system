@@ -99,7 +99,8 @@ node /path/to/ai-dev-system/install.mjs . --source-dir=/path/to/ai-dev-system
 3. 复制同一批 skill → `<项目>/.agents/skills/`，完成 Codex 项目级安装；
 4. 合并（不覆盖）Claude Code 的 `enabledPlugins`，在本项目把冲突插件设为 `false`；
 5. 安装时让用户选择 Codex 冲突技能处理方式：默认写入项目 `AGENTS.md` 约束自动触发，也可明确选择通过 Codex CLI 全局卸载；若任一入口已有 workflow mode，同时补齐 `CLAUDE.md` 与 `AGENTS.md`；
-6. 保持 [codegraph](https://github.com/colbymchenry/codegraph)（本地代码知识图谱 CLI）为最新——没装就 `npm install -g @colbymchenry/codegraph`，有新版就 `codegraph upgrade`——随后接线到 agent（默认 `--location=local`，只影响本项目），并在 `.codegraph/` 不存在时用 `codegraph init` 给本仓库建索引。这一段任何失败只降级为警告；`--no-codegraph` 可整段跳过。Codex CLI 没有项目级 MCP 配置，项目级接线会跳过它，安装器会打印手动全局接线命令。
+6. 把 skill 自带的 `ctx` CLI 链接成**全局 `ctx` 命令**（在 `<项目>/.claude/skills/ai-dev-workflow/scripts/ctx` 下 `npm link`），并实跑 `ctx --help` 验证真的可用。链接失败（无写权限、npm 全局 bin 不在 PATH、已有同名 `ctx`）只降级为警告，并打印 `node <skill>/scripts/ctx/src/cli.js <命令>` 兜底调用方式——CLI 本体已随 skill 落盘，**命令找不到不等于 ctx 不可用**。`--no-ctx-link` 可跳过；
+7. 保持 [codegraph](https://github.com/colbymchenry/codegraph)（本地代码知识图谱 CLI）为最新——没装就 `npm install -g @colbymchenry/codegraph`，有新版就 `codegraph upgrade`——随后接线到 agent（默认 `--location=local`，只影响本项目），并在 `.codegraph/` 不存在时用 `codegraph init` 给本仓库建索引。这一段任何失败只降级为警告；`--no-codegraph` 可整段跳过。Codex CLI 没有项目级 MCP 配置，项目级接线会跳过它，安装器会打印手动全局接线命令。
 
 | 插件 | 为什么与本流程冲突 |
 |---|---|
@@ -141,7 +142,8 @@ cp -r ai-dev-system/skills/ai-prd ai-dev-system/skills/ai-dev-workflow ~/.codex/
 1. 在项目里唤起 skill → 选"团队版"。
 2. 首次建议初始化 Engineering Context：
    ```bash
-   node <skill>/scripts/ctx/src/cli.js init
+   ctx init                                       # 安装器已把 ctx 链接为全局命令
+   node <skill>/scripts/ctx/src/cli.js init       # 全局命令不可用时的等价兜底
    ```
    生成 `engineering-context/` 骨架（capability-registry + cards + scenes + probe-set + glossary 模板），团队按指南逐步填充。
 3. 之后开发时，AI 会为每个仓库建立独立 worktree，再用 `ctx discover "<意图>"` 找权威代码实体，而不是 grep 旧代码；每条事实带 cite 溯源。

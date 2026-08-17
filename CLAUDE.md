@@ -88,7 +88,7 @@ node --test test/
 ## 目录速查
 
 ```
-install.mjs / install.cmd          安装器：拉取 GitHub 发布源 + 安装 skills + 项目级冲突约束 + codegraph 保新/接线/建索引
+install.mjs / install.cmd          安装器：拉取 GitHub 发布源 + 安装 skills + 项目级冲突约束 + ctx 全局链接 + codegraph 保新/接线/建索引
 docs/{spec,plan,report}/           本体系自身的规范 / 计划 / 报告
 ai-dev-system/skills/ai-prd/        产 PRD skill：批量提问 elicitation + 三类模板
   SKILL.md                         入口：读 mode → PRD 类型分流 → 4 批提问驱动
@@ -118,6 +118,8 @@ ai-dev-system/skills/ai-dev-workflow/
 
 `CLAUDE.md` / `AGENTS.md` 允许是软链接（两个工具共用一份指导文件的常见做法）：安装器逐层解析到实体文件再按标记块写入，链接本身保留；两个入口解析到同一实体时只写一次；断链在复制任何 skill 之前就报错退出，目标项目零改动；全局卸载分支也不删作为入口的链接。skill 侧的同一套规则在 `ai-dev-workflow/references/init-初始化.md` §入口是软链接时，改一处要两处同改。
 
+skill 复制完成后，安装器把 skill 自带的 **`ctx` CLI 链接成全局命令**：在 `<目标>/.claude/skills/ai-dev-workflow/scripts/ctx` 下 `npm link`（只用 `.claude/` 这一份，`.agents/` 是逐字节相同的副本，两份都 link 只会互相覆盖同一个全局命令），随后**实跑 `ctx --help` 并匹配签名串**才报成功——`npm link` 退出码为 0 只说明 shim 写出去了，不代表它落在 PATH 上、也不代表跑起来是我们这一个。做这件事的原因是：skill 文档通篇写 `ctx <命令>`，而此前安装器对 ctx 毫无处理，`which ctx` 为空会让使用者（尤其是 AI agent）把"命令找不到"误读成"Engineering Context 不可用"，退化成裸 grep——正是团队版明令禁止的行为。三类失败（link 失败 / 链完仍不在 PATH / PATH 上已有**别人的**同名 `ctx`）一律只降级为警告，并打印 `node <skill>/scripts/ctx/src/cli.js <命令>` 兜底方式；同名命令**绝不覆盖**。`--no-ctx-link` 跳过整段。全局命令指向最后一次安装的那个项目里的副本，靠"ctx 按 cwd 找 `engineering-context/`"做到一份命令服务所有项目。
+
 安装的最后一段是 **codegraph**（`github.com/colbymchenry/codegraph`，本地代码知识图谱 CLI）：本机没有就 `npm install -g @colbymchenry/codegraph`（npm 是唯一跨平台可依赖的装法，Node 本就是安装器前提），已有则用它自己的 `codegraph upgrade` 升级——它认得 bundle/npm/npx 三种装法并原地更新，盲目 npm 装会在独立包安装的机器上留下抢 PATH 的第二份副本；`upgrade --check` 报告"已是最新"就跳过，太旧而没有 `upgrade` 子命令时退回 `npm install -g <pkg>@latest`；检测本身失败（真机上升级刚完成时偶发）就盲升，**升级结果以升级前后的版本号为准报告**——`upgrade` 退出码为 0 只说明命令跑通了，不代表真换了版本。随后 `codegraph install --target=auto --location=local --yes` 接线（默认项目级；**Codex CLI 没有项目级 MCP 配置，必然被跳过**，所以安装器显式打印手动全局接线命令，`--codegraph-location=global` 可改范围），最后 `.codegraph/` 不存在时 `codegraph init` 建索引，并以 `.codegraph/codegraph.db` 是否存在判定索引真的建成（旧版 `init` 只初始化不索引，缺了就补跑 `codegraph index`）。所有子进程 stdin 一律 `ignore`：codegraph 按 `process.stdin.isTTY` 决定要不要发问，关掉就锁定非交互分支，安装器不会被子命令提问挂住。整段任何失败只降级为警告，不影响已完成的 skill 安装；`--no-codegraph` 整段跳过。
 
 Codex 安装默认不修改用户级全局插件配置，而是在目标项目 `AGENTS.md` 写入并校验 `ai-dev-system:codex-conflicts` 标记块，约束 `superpowers:` 不要自动加载或主动触发，除非用户在当前对话明确要求。交互安装可明确选择全局卸载，自动化安装使用 `--codex-conflicts=uninstall`；该选择影响当前用户的所有项目。若 `CLAUDE.md` 或 `AGENTS.md` 已有 workflow mode，安装器会幂等补齐另一入口。`--keep=superpowers` 会保留 Claude Code 插件，并移除安装器此前写入的 Claude 禁用项与 Codex 约束块。
@@ -135,6 +137,7 @@ Codex 安装默认不修改用户级全局插件配置，而是在目标项目 `
 - **UI 原型是跨 skill 的契约**：`ai-prd` 涉及用户可见界面时产出 `docs/spec/<name>-prototype-YYYYMMDD.html`（单文件、零外链、可离线打开），`ai-dev-workflow` 的 Step 1/2/4/8 把它与 PRD 一并作为输入。改这条链路要三处同改：`ai-prd/references/UI原型纪律.md`（权威定义）、三类 PRD 模板的「UI 原型」五项表、`ai-dev-workflow/references/core/00-流程总纲.md` 的输入声明与参考 prompt。
 - `ai-prd` 的北极星参考物是 `orgin/prd.demo/` 下的变更 PRD 范例（brownfield 变更 PRD 骨架，本地参考、不入库）；改 `change-prd.md` 模板前对照设计文档 `docs/spec/2026-07-06-ai-prd-design.md §7` 的覆盖度映射，别丢节。
 - 改 `ctx` 逻辑 → 同步更新 `scripts/ctx/test/` 下的测试，跑 `node --test` 保持全绿。card/registry 的格式约定见 `scripts/ctx/README.md` §card 格式约定，解析器依赖它。
+- **`ctx` 的"能不能直接敲"是跨文件的契约**：安装器负责 `npm link`（`install.mjs` 的 `CTX` 常量与 `syncCtx` 一族函数），文档负责在链接失败时把人和 AI 引到兜底调用方式而不是 grep。改这条链路要同改 `install.mjs`、CLAUDE.md §安装器的关键设计、`references/company/mode-team.md` §2 调用方式、`assets/config-snippets/team.md` 第 1 条、`scripts/ctx/README.md` §安装/运行、两个 README 的安装器职责清单与 `ctx init` 示例，并跑 `node --test test/ctx-link.test.mjs`。判定 ctx 是否为"我们这一个"依赖 `ctx --help` 首行的签名串 `Engineering Context CLI`——改 `cli.js` 的 HELP 首行会静默打断这个判定，两处同改。测试同样用**假 npm + 假 ctx 放进收窄的 PATH**，新增会调用安装器的测试记得带 `--no-ctx-link`。
 - 改 `assets/context-layer/` 模板 → 同步 `scripts/ctx/src/commands.js` 内对应的 init stub（脚手架用的精简副本），反之亦然；两处漂移会让 `ctx init` 生成物与文档教的模板不一致。
 - 本仓库自身与安装目标的文档目录固定为：spec → `docs/spec/`，plan → `docs/plan/`，report → `docs/report/`。
 - **版本管理**：分发版本在 `ai-dev-system/VERSION`（旧无 stamp 安装追认为 1.0.0）。凡改变已安装项目的行为契约或目录约定就 bump；需要用户动作的升级必须同时新增 `ai-dev-system/migrations/<新版本>.md`（安装器会在升级时高亮全文打印，指南保持一屏内）。安装器把版本 stamp 写入目标两个 skills 目录的 `ai-dev-system.version`。**每次版本变更合入 main 后必须打 annotated tag `v<版本>`**（如 `v1.1.0`），tag 与 VERSION 始终一致，供 `--ref=v<版本>` 锁版本安装与回溯。机制详见 `docs/spec/2026-07-16-skill版本管理与迁移机制.md`；改动后跑 `node --test test/installer-migration.test.mjs`。

@@ -15,9 +15,10 @@ const read = (...parts) => readFileSync(path.join(...parts), 'utf8')
 // --no-agentic：本组测试不涉及伴生 skill，且必须避免安装器联网并写入
 // 跑测试这台机器的用户级 skills 目录。伴生 skill 另见 companion-skill.test.mjs。
 // --no-codegraph：同理——不许升级这台机器的全局 codegraph，也不许对临时目录建索引。
+// --no-ctx-link：同理——不许把测试用的临时目录 npm link 成这台机器的全局 ctx 命令。
 // codegraph 那条链另见 codegraph.test.mjs（用假 CLI 跑）。
 const localInstallArgs = (target, ...args) =>
-  [installer, target, '--source-dir=' + repoRoot, '--no-agentic', '--no-codegraph', ...args]
+  [installer, target, '--source-dir=' + repoRoot, '--no-agentic', '--no-codegraph', '--no-ctx-link', ...args]
 
 function runGit(cwd, ...args) {
   const result = spawnSync('git', args, { cwd, encoding: 'utf8' })
@@ -370,7 +371,7 @@ test('installer obtains skills from the selected Git repository and ref', () => 
 
     const result = spawnSync(
       process.execPath,
-      [installer, target, '--yes', '--no-plugins', '--no-agentic', '--no-codegraph', '--repo=' + source, '--ref=main'],
+      [installer, target, '--yes', '--no-plugins', '--no-agentic', '--no-codegraph', '--no-ctx-link', '--repo=' + source, '--ref=main'],
       { cwd: repoRoot, encoding: 'utf8' },
     )
 
@@ -394,7 +395,7 @@ test('source download failure leaves the target project unchanged', () => {
 
     const result = spawnSync(
       process.execPath,
-      [installer, target, '--yes', '--no-agentic', '--no-codegraph', '--repo=' + path.join(target, 'missing-repository'), '--ref=main'],
+      [installer, target, '--yes', '--no-agentic', '--no-codegraph', '--no-ctx-link', '--repo=' + path.join(target, 'missing-repository'), '--ref=main'],
       { cwd: repoRoot, encoding: 'utf8' },
     )
 

@@ -113,9 +113,11 @@ function sandbox(state, fn) {
   try {
     fn({
       target,
+      // --no-ctx-link：本组只验 codegraph 那条链，不能让 ctx 那段调到假 npm 污染 calls.log，
+      // 更不能改动跑测试这台机器的全局 ctx 命令。
       run(extraArgs = []) {
         const r = spawnSync(process.execPath, [
-          installer, target, `--source-dir=${repoRoot}`, '--yes', '--no-plugins', '--no-agentic', ...extraArgs,
+          installer, target, `--source-dir=${repoRoot}`, '--yes', '--no-plugins', '--no-agentic', '--no-ctx-link', ...extraArgs,
         ], {
           encoding: 'utf8',
           env: {

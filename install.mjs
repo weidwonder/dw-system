@@ -10,7 +10,8 @@
 //   3) 为 Codex 写入项目级 AGENTS.md 覆盖指令，或按用户选择通过 Codex CLI 全局卸载冲突插件。
 //   4) 在目标项目 .gitignore 幂等追加所有已安装 skill 目录与版本 stamp，
 //      避免本体系随目标仓库提交。
-//   5) 检查 codegraph（外部代码知识图谱 CLI）是否为最新，缺失则装、更旧则升，
+//   5) 把 skill 自带的 ctx CLI 全局链接成 `ctx` 命令（失败降级为 node 兜底调用提示）。
+//   6) 检查 codegraph（外部代码知识图谱 CLI）是否为最新，缺失则装、更旧则升，
 //      接线到 agent 并对目标项目建立索引。
 //
 // 用法：
@@ -25,6 +26,7 @@
 //   --repo=<url>        安装源 Git 仓库（默认官方 GitHub 仓库）
 //   --ref=<name>        安装版本：分支或标签（默认 main）
 //   --source-dir=<dir>  使用本地仓库源码（仅用于开发和测试）
+//   --no-ctx-link       跳过把 skill 自带的 ctx CLI 链接成全局命令
 //   --no-codegraph      跳过 codegraph 的检查、安装、接线与建索引
 //   --codegraph-location=<local|global>
 //                      codegraph 接线范围（默认 local，只影响本项目）
@@ -60,6 +62,23 @@ const COMPANION_SKILLS = [
     why: 'ai-dev-workflow 判定需求为 Agentic 应用时必须加载：架构选型 / 系统提示词 / 注意力负载 / 步骤级测试与评测',
   },
 ];
+
+// ctx：本体系自带的 Engineering Context 查询 CLI，随 ai-dev-workflow skill 一起复制进目标项目。
+// 它是零依赖 Node 脚本，复制完就能用——但只有 `node <路径>/src/cli.js` 一种调用方式。
+// 而 skill 的文档（mode-team.md / SKILL.md / config-snippet）通篇写 `ctx <命令>`：命令不在 PATH 上时，
+// 使用者（尤其是 AI agent）极易把"which ctx 为空"误判成"Engineering Context 不可用"，
+// 退化成裸 grep 旧代码——这正是团队版明令禁止的行为。所以安装器把它 npm link 成全局命令。
+// 链接失败绝不能让安装失败：ctx 本体已经随 skill 落盘，降级为打印 node 兜底调用方式即可。
+const CTX = {
+  bin: 'ctx',
+  skill: 'ai-dev-workflow',          // ctx 属于这个 skill；只装 ai-prd 的场景下没有它
+  subdir: path.join('scripts', 'ctx'),
+  // `ctx --help` 首行的固定串。`ctx` 是很常见的命令名，必须据此确认 PATH 上那个确实是本体系的，
+  // 既避免 npm link 悄悄顶掉用户自己的同名命令，也避免把别人的 ctx 当成"验证通过"谎报成功。
+  signature: 'Engineering Context CLI',
+  why: '团队版查 Engineering Context 的入口：find-scenes / discover / get-card，替代 grep 旧代码',
+};
+const CTX_CMD_TIMEOUT_MS = 5 * 60 * 1000;
 
 // codegraph：外部代码知识图谱 CLI（github.com/colbymchenry/codegraph）。
 // 本体系不收录其内容，只负责三件事——保持最新、接线到 agent、给目标项目建索引。
@@ -124,6 +143,7 @@ function parseArgs(argv) {
     sourceDir: null,
     noCompanions: false,
     companionRepos: {},
+    noCtxLink: false,
     noCodegraph: false,
     codegraphLocation: 'local',
     target: null,
@@ -142,6 +162,7 @@ function parseArgs(argv) {
     else if (a === '--dry-run') opt.dryRun = true;
     else if (a === '-h' || a === '--help') opt.help = true;
     else if (a === '--no-agentic' || a === '--no-companions') opt.noCompanions = true;
+    else if (a === '--no-ctx-link') opt.noCtxLink = true;
     else if (a === '--no-codegraph') opt.noCodegraph = true;
     else if (a.startsWith('--codegraph-location=')) {
       const value = a.slice('--codegraph-location='.length);
@@ -185,6 +206,7 @@ function helpText() {
   --no-agentic     跳过伴生 skill 的检查与安装（同义：--no-companions）
   --agentic-repo=<url>
                    覆盖 agentic-principle 的来源仓库（默认 ${COMPANION_SKILLS[0].repo}）
+  --no-ctx-link    跳过把 skill 自带的 ctx CLI 链接成全局命令
   --no-codegraph   跳过 codegraph 的检查、安装、接线与建索引
   --codegraph-location=<local|global>
                    codegraph 接线范围（默认 local，只影响本项目）
@@ -199,6 +221,14 @@ function helpText() {
 ${COMPANION_SKILLS.map(c => `  - ${c.name}：${c.repo}\n      ${c.why}`).join('\n')}
   每次安装都会检查远端版本，本地更旧才更新；本地是 symlink 或 git 工作区时
   只报告版本差异、不覆盖；拉取失败降级为警告，不影响主安装。用 --no-agentic 跳过。
+
+ctx CLI（本体系自带，随 ai-dev-workflow skill 一起安装）：
+  ${CTX.why}
+  安装后在 ${path.join('.claude', 'skills', CTX.skill, CTX.subdir)} 下执行 npm link，
+  把它变成全局 ctx 命令，并用 ctx --help 验证真的可用。链接失败（权限、npm 全局 bin
+  不在 PATH、已有同名 ctx 命令）只降级为警告，并打印 node <路径>/src/cli.js 兜底
+  调用方式——ctx 本体已随 skill 落盘，任何时候都能用兜底方式调用。
+  用 --no-ctx-link 跳过。
 
 codegraph（外部代码知识图谱 CLI，${CODEGRAPH.repo}）：
   ${CODEGRAPH.why}
@@ -677,6 +707,103 @@ function toolFailed(result) {
   return Boolean(result.error) || result.status !== 0;
 }
 
+// ctx 的包目录（含 package.json 的 bin 声明）与脚本入口，都在刚复制好的 Claude Code 侧 skill 里。
+// 只用 .claude/ 这一份：.agents/ 里是逐字节相同的副本，两份都 link 只会互相覆盖同一个全局命令。
+function ctxPackageDir(target) {
+  return path.join(target, '.claude', 'skills', CTX.skill, CTX.subdir);
+}
+
+// 兜底调用方式：全局命令没弄成时照样能用。必须打全路径，使用者（含 AI agent）才不会
+// 把"ctx 命令不存在"误当成"Engineering Context 不可用"。
+function ctxFallbackHint(target) {
+  console.log('     ctx 本体已随 skill 落盘，仍可用兜底方式调用（功能完全相同）：');
+  console.log(`     node ${path.join(ctxPackageDir(target), 'src', 'cli.js')} <命令>`);
+}
+
+// 探测 PATH 上的 ctx：present=命令跑得通，mine=确实是本体系这一个。
+// 跨平台：经 runTool 调用（Windows 走 shell，认得 npm link 生成的 ctx.cmd shim），
+// 不假设 unix 的可执行位或 which/command -v 的存在。
+function detectCtx() {
+  const r = runTool(CTX.bin, ['--help'], { quiet: true, timeout: CTX_CMD_TIMEOUT_MS });
+  if (toolFailed(r)) return { present: false, mine: false };
+  const out = `${r.stdout || ''}${r.stderr || ''}`;
+  return { present: true, mine: out.includes(CTX.signature) };
+}
+
+// npm link：在包目录里执行，npm 依据 package.json 的 bin 生成全局 shim
+// （unix 是符号链接并自动补上可执行位，Windows 是 ctx.cmd）。
+function linkCtxCli(dir) {
+  console.log(`  → npm link（在 ${dir}）`);
+  return !toolFailed(runTool('npm', ['link'], { cwd: dir, timeout: CTX_CMD_TIMEOUT_MS }));
+}
+
+function printCtxPlan(target, before) {
+  if (before.present && !before.mine) {
+    console.log('  · PATH 上已有另一个同名 ctx 命令 → [--dry-run] 将跳过链接，只打印兜底调用方式');
+    return;
+  }
+  console.log(before.present
+    ? '  · 本机已有本体系的 ctx → [--dry-run] 仍会重新链接，指向本次安装的这份'
+    : '  · 本机没有 ctx 命令');
+  console.log(`  · [--dry-run] 将在 ${ctxPackageDir(target)} 执行 npm link，并用 ctx --help 验证`);
+}
+
+// 主安装完成后执行（依赖 skill 已复制到位）。任何失败都只降级为警告：
+// ctx 本体已经随 skill 落盘，用兜底方式一样能跑，不该把整个安装拖成失败。
+function syncCtx(opt, target) {
+  if (opt.noCtxLink) {
+    console.log('\n· 跳过 ctx 全局链接（--no-ctx-link）');
+    ctxFallbackHint(target);
+    return;
+  }
+  console.log(`\nctx CLI（${CTX.why}）`);
+  try {
+    const dir = ctxPackageDir(target);
+    const before = detectCtx();
+    if (opt.dryRun) {
+      printCtxPlan(target, before);
+      return;
+    }
+    if (!fs.existsSync(path.join(dir, 'package.json'))) {
+      console.log(`  · 本次未安装 ${CTX.skill} skill（其中才有 ctx），跳过全局链接`);
+      return;
+    }
+    // `ctx` 是很常见的命令名。PATH 上已有一个不是我们的同名命令时，宁可不 link
+    // 也不能悄悄顶掉用户自己的工具——直接给兜底调用方式。
+    if (before.present && !before.mine) {
+      console.log('  ⚠ PATH 上已有另一个同名 ctx 命令（不是本体系的），不做全局链接以免顶掉它。');
+      ctxFallbackHint(target);
+      return;
+    }
+    if (!linkCtxCli(dir)) {
+      console.log('  ⚠ npm link 失败（常见原因：npm 全局目录没有写权限）。');
+      console.log(`     可手动重试：cd ${dir} && npm link`);
+      ctxFallbackHint(target);
+      return;
+    }
+    // 装完必须真跑一次才算数：npm link 退出码为 0 只说明 shim 写出去了，
+    // 不代表它落在 PATH 上、也不代表跑起来是我们这一个。不实测就报成功等于谎报。
+    const after = detectCtx();
+    if (!after.present) {
+      console.log('  ⚠ npm link 跑通了，但 PATH 上仍找不到 ctx：多半是 npm 全局 bin 不在 PATH 上。');
+      console.log('     把 `npm prefix -g` 目录下的 bin 加进 PATH 后重开终端，再重跑本安装器。');
+      ctxFallbackHint(target);
+      return;
+    }
+    if (!after.mine) {
+      console.log('  ⚠ PATH 上的 ctx 不是本体系这一个（有同名命令排在前面），本次链接未生效。');
+      ctxFallbackHint(target);
+      return;
+    }
+    console.log(`  ✓ ctx 已全局可用（已实跑 ctx --help 验证）｜来源：${dir}`);
+    console.log('     · ctx 按当前工作目录找 engineering-context/，在哪个项目里跑就查哪个项目。');
+    console.log('     · 该目录被删除（如删掉本项目）后全局命令会失效，重跑安装器即可恢复。');
+  } catch (e) {
+    console.log(`  ⚠ ctx 全局链接中断（${e.message}），已跳过；skill 安装不受影响。`);
+    ctxFallbackHint(target);
+  }
+}
+
 // 未装 / 装了但版本判不出 / 正常，三种状态都要能区分：
 // 未装决定"用 npm 装"，装了决定"用它自己的 upgrade 升"。
 function detectCodegraph() {
@@ -960,10 +1087,17 @@ async function main() {
     console.log(`       装到 ${companionDestDirs(homedir()).join('、')}（跨项目共享，不进本项目、不写本项目 .gitignore）`);
     console.log('       本地已是最新则跳过；目标是 symlink 或 git 工作区时只报告版本、不覆盖；无网时降级为警告');
   }
-  if (opt.noCodegraph) {
-    console.log('  6) 跳过 codegraph 检查与建索引（--no-codegraph）');
+  if (opt.noCtxLink) {
+    console.log('  6) 跳过 ctx 全局链接（--no-ctx-link）；ctx 仍可用 node <skill>/scripts/ctx/src/cli.js 调用');
   } else {
-    console.log('  6) 保持 codegraph 为最新，接线到 agent，并对本项目建立索引');
+    console.log('  6) 把 skill 自带的 ctx CLI 链接成全局命令，并实跑 ctx --help 验证');
+    console.log(`       npm link（在 ${path.join('.claude', 'skills', CTX.skill, CTX.subdir)}）`);
+    console.log('       失败只降级为警告，并打印 node <skill>/scripts/ctx/src/cli.js 兜底调用方式');
+  }
+  if (opt.noCodegraph) {
+    console.log('  7) 跳过 codegraph 检查与建索引（--no-codegraph）');
+  } else {
+    console.log('  7) 保持 codegraph 为最新，接线到 agent，并对本项目建立索引');
     console.log(`       未安装 → npm install -g ${CODEGRAPH.npmPackage}；已安装 → codegraph upgrade（已最新则跳过）`);
     console.log(`       codegraph install --target=auto --location=${opt.codegraphLocation} --yes`
       + (opt.codegraphLocation === 'local' ? '（仅本项目；Codex CLI 无项目级配置会被跳过）' : '（影响你所有项目）'));
@@ -997,6 +1131,7 @@ async function main() {
   }
   if (opt.dryRun) {
     syncCompanions(opt, homedir());
+    syncCtx(opt, target);
     syncCodegraph(opt, target);
     console.log('\n[--dry-run] 未做任何改动。');
     return;
@@ -1112,7 +1247,10 @@ async function main() {
   // 3) 伴生 skill：装到用户级目录，失败只警告，不影响上面已完成的项目安装
   syncCompanions(opt, homedir());
 
-  // 4) codegraph：保持最新 + 接线 + 建索引；同样失败只警告
+  // 4) ctx：把随 skill 落盘的 CLI 链接成全局命令；失败只警告并给出兜底调用方式
+  syncCtx(opt, target);
+
+  // 5) codegraph：保持最新 + 接线 + 建索引；同样失败只警告
   syncCodegraph(opt, target);
 
   console.log('\n完成。下一步：');

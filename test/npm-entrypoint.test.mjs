@@ -53,7 +53,8 @@ test('packed npm command launches the installer help', () => {
       [
         'exec', '--yes', '--package', tarball, '--', 'ai-dev-system', '.',
         // --no-codegraph：这里只验证命令入口能跑起来，不该去探测/升级本机全局 codegraph。
-        '--dry-run', '--no-plugins', '--no-codegraph', '--source-dir=' + repoRoot,
+        // --no-ctx-link：同理，不该在这里改动本机的全局 ctx 命令。
+        '--dry-run', '--no-plugins', '--no-codegraph', '--no-ctx-link', '--source-dir=' + repoRoot,
       ],
       { cwd: outputDir, encoding: 'utf8' },
     )
