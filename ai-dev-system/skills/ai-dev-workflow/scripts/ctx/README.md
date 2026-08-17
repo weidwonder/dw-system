@@ -10,17 +10,26 @@
 
 ```bash
 # 直接运行（无需安装依赖，任何时候都可用；ctx 命令找不到时用它兜底）
-node <skill>/scripts/ctx/src/cli.js <命令>
+node <skill 根目录>/scripts/ctx/src/cli.js <命令>
 
 # 全局链接为 ctx 命令（安装器已自动做过；失败或想重做时手动执行）
-cd <skill>/scripts/ctx && npm link      # 之后可直接 `ctx <命令>`
+cd <skill 根目录>/scripts/ctx && npm link      # 之后可直接 `ctx <命令>`
+
+# 撤销全局链接
+npm rm -g ctx
 ```
+
+`<skill 根目录>` = `ai-dev-workflow` 的 `SKILL.md` 所在目录。安装后目标项目下有两份逐字节相同的副本：Claude Code 读 `.claude/skills/ai-dev-workflow/`，Codex 读 `.agents/skills/ai-dev-workflow/`——任选一份，**别写死其中一份**。
+
+> **全局 `ctx` 指向最后一次安装的那个项目里的副本**（`npm link` 只有一个全局 bin）。这不影响使用：`ctx` 按**运行目录**去找 `engineering-context/`，所以一份命令服务所有项目。但它确实意味着多项目并存时，你敲的可能是别的项目里那份 ctx 的**代码**——版本差异导致行为可疑时，用上面的直接运行方式跑本项目这一份来对照。
+
+**版本口径**：`package.json` 的 `version` 不是 ctx 自己的版本号。ctx **随 skill 一起分发、不单独发布 npm 包**，它的版本就是分发包版本（`ai-dev-system/VERSION`）；`package.json` 只为 `npm link` 提供 `name` 与 `bin` 两个字段而存在。要判断手上这份 ctx 有多新，看 skill 目录旁的 `ai-dev-system.version` stamp，不要看 `package.json`。
 
 ## 命令
 
 | 命令 | 作用 | 状态 |
 |---|---|---|
-| `ctx init [--dir <目标>]` | 生成 `engineering-context/` 骨架（registry + cards/ + scenes/ + probe-set + glossary） | ✅ |
+| `ctx init [--dir <目标>]` | 生成 `engineering-context/` 骨架（registry + cards/ + scenes/README + probe-set + glossary + README + `.gitignore`） | ✅ |
 | `ctx init --minimal [--dir <目标>]` | **只**生成 `capability-registry.md`（三列即可起步，推荐先用它） | ✅ 见下 |
 | `ctx discover "<意图>"` | 意图 → 应加载的 card 清单（按命中分排序）+ out-of-scope 提示 | ✅ |
 | `ctx get-card <repo> [域]` | 取某仓 card；域为 `## 段落标题` | ✅ |

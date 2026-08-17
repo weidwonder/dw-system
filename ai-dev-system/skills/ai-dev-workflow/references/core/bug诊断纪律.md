@@ -73,7 +73,7 @@ MUST 在构造红回路之前完成：搜索本仓库 `docs/report/bug修复历�
   - 测试样本：<固化后的样本目录，如 tests/fixtures/支付回调迟到/；无真实输入可固化时写"无">
   ```
 
-  「测试样本」行自 v1.5.0 起要求；**存量旧条目不必回改**，只对新增条目生效。
+  「测试样本」行对**新增条目**要求；**存量旧条目不必回改**。
 
   修复版本取值优先级：项目正式版本文件（`VERSION` / `package.json` / `Cargo.toml` / `CHANGELOG` 顶部条目等）＞最近 Git tag（`git describe --tags`）＞短 commit hash（`git rev-parse --short HEAD`）；项目没有任何正式版本机制时，MUST 至少记 commit hash，不得留空。
 

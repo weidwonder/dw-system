@@ -1,7 +1,9 @@
 {
   "name": "ctx",
-  "version": "0.1.0",
-  "description": "Engineering Context CLI — 查代码事实，替代 MCP。零运行时依赖，跨平台。",
+  "version": "0.0.0",
+  "private": true,
+  "_version": "ctx 随 skill 一起分发，不单独发 npm 包，因此这里恒为 0.0.0——真实版本是分发包版本（ai-dev-system/VERSION，安装后落在 skill 目录旁的 ai-dev-system.version stamp）。本文件只为 npm link 提供 name 与 bin，MUST NOT 改这两个字段（install.mjs 依赖它们）。",
+  "description": "Engineering Context CLI — 查代码事实，替代 MCP。零运行时依赖，跨平台。随 ai-dev-workflow skill 分发。",
   "type": "module",
   "bin": {
     "ctx": "src/cli.js"

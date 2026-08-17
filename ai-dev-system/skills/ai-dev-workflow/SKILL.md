@@ -61,7 +61,9 @@ scripts/ctx/           ctx CLI（Node.js，跨平台）：查代码事实
      - engineering-context/capability-registry.md 存在，且除模板注释与表头外
        至少有一行真实数据行（该行不含【】占位）→ 启用【权威位】
        等价判据：`ctx list-services` 非空（命令找不到时改用
-       node <skill>/scripts/ctx/src/cli.js list-services）。
+       node <本skill根目录>/scripts/ctx/src/cli.js list-services；
+       <本skill根目录> = 本 SKILL.md 所在目录，Claude Code 下为
+       .claude/skills/ai-dev-workflow/、Codex 下为 .agents/skills/ai-dev-workflow/）。
      - .codegraph/codegraph.db 存在 → 启用【图谱位】。
      - 两位正交，可同时成立；都不成立 → 直读（无附加能力位），代码事实靠
        子代理外包重探索（core/上下文卫生.md 规则 4）。

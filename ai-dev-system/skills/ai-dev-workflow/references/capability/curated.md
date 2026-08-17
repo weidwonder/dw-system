@@ -29,10 +29,12 @@
 **"`ctx` 命令找不到"绝不等于权威位不可用**——CLI 本体随本 skill 一起落盘。命令不可用时 MUST 改用：
 
 ```bash
-node <本skill路径>/scripts/ctx/src/cli.js <命令>
+node <本skill根目录>/scripts/ctx/src/cli.js <命令>
 ```
 
-功能完全相同（想恢复全局命令则一次性 `cd <本skill路径>/scripts/ctx && npm link`）。**任何情况下都 MUST NOT 因为找不到 `ctx` 命令就退回 grep 源码。** 命令清单与输出格式见 `scripts/ctx/README.md`。下文简写为 `ctx`。
+**`<本skill根目录>` 怎么得到**：就是当前这份 `ai-dev-workflow` 的 `SKILL.md` 所在的目录。安装后它在目标项目下有两份逐字节相同的副本，任选一份都行——Claude Code 读 `.claude/skills/ai-dev-workflow/`，Codex 读 `.agents/skills/ai-dev-workflow/`。**MUST NOT 写死其中一份**：同一份指导文件会被注入两个入口，写死 `.claude/` 那份在 Codex 侧就是错路径。拿不准就先试你自己加载 skill 的那一侧。
+
+功能完全相同（想恢复全局命令则一次性 `cd <本skill根目录>/scripts/ctx && npm link`）。**任何情况下都 MUST NOT 因为找不到 `ctx` 命令就退回 grep 源码。** 命令清单与输出格式见 `scripts/ctx/README.md`。下文简写为 `ctx`。
 
 凡涉及"这个能力对应哪个仓库/接口""跨服务影响面""哪个是权威实现"的问题，MUST 先用 `ctx`，MUST NOT 直接 grep 旧代码。
 
@@ -87,9 +89,12 @@ ctx search-semantic "<自然语言>"             # discover 未命中时的兜�
 - **会话开始时先看增量**：`ctx` 读的是本地活文件，没有跨会话的变更推送。开一个新任务前，SHOULD 先看清"上次到现在 card/registry 变了什么"，避免拿脑子里的旧上下文干活（等价于在线 MCP 的 list_changes 变更感知）：
 
 ```bash
-git -C engineering-context log --oneline -20
-git -C engineering-context diff <上次>..HEAD -- cards/ capability-registry.md
+# engineering-context/ 通常就在项目仓库里（不是独立仓库），所以在项目根跑，路径当参数传
+git log --oneline -20 -- engineering-context/
+git diff 'HEAD@{2.weeks.ago}'..HEAD --stat -- engineering-context/cards/ engineering-context/capability-registry.md
 ```
+
+用时间锚（`HEAD@{2.weeks.ago}`）而不是"上次的 commit"——**本体系不记录"上次是哪个 SHA"，没有那个落点**，写成 `<上次>..HEAD` 就是一条填不出来的命令。时间跨度按你上次碰这个项目的间隔调；reflog 不够长（新 clone）时退化成 `git log --since='2 weeks' -- engineering-context/`。`engineering-context/` 确实是独立仓库时才用 `git -C engineering-context …`。
 
 ## 8. 真相方向铁律
 

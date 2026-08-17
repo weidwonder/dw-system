@@ -13,5 +13,5 @@
 > - 真实数据固化进项目既有测试目录，没有则 `tests/fixtures/<场景名>/`（凭证进同级 `secrets/` 并 gitignore，脱敏副本入库）；长链路 MUST 有断言中间结果的端到端用例；未覆盖的重要场景挂账到 `docs/report/测试场景覆盖度.md`。
 > - **Agentic 应用 MUST 加载 `agentic-principle` skill**（模型自主规划 / 直接调工具 / 未过闸门就改状态 / 记忆跨会话影响决策）：架构选型、提示词、注意力与并发预算、步骤级测试用它；运行期 AI 契约仍用 ai-dev-workflow 的 AI overlay。两者内容互相独立，MUST NOT 合并。
 > - 用户沟通只用业务语言：大架构 MUST 交用户确认，模块内设计只问业务问题，详细程序设计不要求用户确认。
-> - 本项目若存在已填写的 `engineering-context/capability-registry.md`，查"能力对应哪个仓库/接口""跨服务影响面""哪个是权威实现"时 MUST 先用 `ctx`，MUST NOT grep 旧代码；每条据此得到的事实 MUST 附 cite（path + anchor + 确认时间）。`ctx` 命令找不到时改用 `node .claude/skills/ai-dev-workflow/scripts/ctx/src/cli.js <命令>`（功能相同），**MUST NOT 退回 grep**。
+> - 本项目若存在已填写的 `engineering-context/capability-registry.md`，查"能力对应哪个仓库/接口""跨服务影响面""哪个是权威实现"时 MUST 先用 `ctx`，MUST NOT grep 旧代码；每条据此得到的事实 MUST 附 cite（path + anchor + 确认时间）。`ctx` 命令找不到时改用 `node <skill 根目录>/scripts/ctx/src/cli.js <命令>`（功能相同）——Claude Code 下是 `.claude/skills/ai-dev-workflow/`，Codex 下是 `.agents/skills/ai-dev-workflow/`，两份内容一致，用你这一侧那份；**MUST NOT 退回 grep**。
 <!-- ai-dev-workflow:end -->

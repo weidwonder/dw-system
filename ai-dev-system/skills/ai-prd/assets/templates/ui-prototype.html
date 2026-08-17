@@ -324,9 +324,14 @@
     const screenEls = document.querySelectorAll(".screen");
     const stateButtons = document.querySelectorAll("[data-state]");
 
+    // 只增删 state-* 状态类，不整体重写 className：多屏原型里给 .screen 挂布局或
+    // 变体类（.screen.compact 之类）很常见，重写 className 会一次切换就把它们全丢掉。
     function setState(nextState) {
       screenEls.forEach((el) => {
-        el.className = ("screen " + nextState).trim();
+        Array.from(el.classList)
+          .filter((cls) => cls.indexOf("state-") === 0)
+          .forEach((cls) => el.classList.remove(cls));
+        if (nextState) el.classList.add(nextState);
       });
       stateButtons.forEach((button) => {
         button.setAttribute("aria-pressed", String(button.dataset.state === nextState));

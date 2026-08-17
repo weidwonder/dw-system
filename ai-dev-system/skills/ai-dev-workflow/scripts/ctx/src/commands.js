@@ -230,6 +230,7 @@ export function initScaffold(targetDir, opts = {}) {
   writeIfAbsent(path.join(base, 'probe-set.md'), PROBE_STUB);
   writeIfAbsent(path.join(base, 'glossary.md'), GLOSSARY_STUB);
   writeIfAbsent(path.join(base, 'README.md'), CTX_README_STUB);
+  writeIfAbsent(path.join(base, '.gitignore'), GITIGNORE_STUB);
   return {
     base,
     files: [
@@ -239,6 +240,7 @@ export function initScaffold(targetDir, opts = {}) {
       'probe-set.md',
       'glossary.md',
       'README.md',
+      '.gitignore',
     ],
   };
 }
@@ -275,10 +277,27 @@ const REGISTRY_STUB = `# Capability Registry — 产品能力到权威代码实�
 
 > 精简骨架；完整字段说明与填写指南见 ai-dev-workflow skill 的 assets/context-layer/capability-registry.md。
 > 人工确认。事实以源码为准，PRD 仅作 scope。每条带 freshness 与理由链。
+> 下面两张表**填哪张都算，解析器会合并**（表头首列命中 Capability/能力的表全部解析）：
+> 三列是 MUST，十列表里的其余列是 MAY——缺列跳过不报错，没有 freshness 列的条目输出标注「未声明新鲜度」。
+
+## 最小合法 schema（起步用这个）
+
+| Capability | 权威实现 | 陷阱项（废弃或中间产物） |
+|---|---|---|
+| 【能力，如 背单词记录】 | 【现在该改/该调的那一个，如 POST /v2/word/record 或 src/word/record.ts】 | 【相似但不该用的旧实现，如 POST /v1/word/record；确实没有就写 无】 |
+
+## 能力表（完整形态）
 
 | Capability | 业务含义 | 权威仓库 | 权威接口(含版本) | 废弃/中间产物替代 | 兼容窗口 | owner | 测试入口 | freshness | 理由链 |
 |---|---|---|---|---|---|---|---|---|---|
 | 【能力】 | 【含义】 | 【repo】 | 【POST /v2/xxx】 | 【旧接口不可用】 | 【切点】 | 【owner】 | 【测试入口】 | 【YYYY-MM-DD / PR】 | 【诞生压力】 |
+`;
+
+// engineering-context/.gitignore：`ctx probe` 会把通过率历史写进 .index/probe-history.json——
+// 那是机器状态，随每次跑门禁变动，入库只会制造 diff 噪音与合并冲突。
+// 写在 engineering-context/ 内部而不是项目根的 .gitignore：脚手架不该去改用户项目根的文件。
+const GITIGNORE_STUB = `# ctx 的机器状态（ctx probe 的通过率历史等），随每次运行变动，不入库。
+.index/
 `;
 
 const PROBE_STUB = `# Frozen Probe Set — 上下文层防腐检测题集
