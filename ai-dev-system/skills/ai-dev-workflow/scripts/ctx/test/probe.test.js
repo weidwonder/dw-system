@@ -121,3 +121,271 @@ test('evaluateGate 基线内探针置 needs-reconfirm 时不算 staleBaseline（
   assert.equal(ev.verdict, 'GREEN');
   assert.equal(ev.needsReconfirm.length, 1);
 });
+
+// ───────────────────────── 最小 schema 下的 capability-mapping ─────────────────────────
+// 最小合法 registry 只有三列（Capability / 权威实现 / 陷阱项），没有"权威仓库"列。
+// 期望串若按 `repo :: api` 写，旧实现会恒失败（actual = " :: api"）→ 污染棘轮基线。
+
+const MINIMAL_REGISTRY = '# Capability Registry\n\n' +
+  '| Capability | 权威实现 | 陷阱项（废弃或中间产物） |\n' +
+  '|---|---|---|\n' +
+  '| 背单词记录 | POST /v2/word/record | POST /v1/word/record |\n';
+
+function withCtxDir(files, fn) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ctxdir-'));
+  try {
+    for (const [rel, content] of Object.entries(files)) {
+      const full = path.join(dir, ...rel.split('/'));
+      fs.mkdirSync(path.dirname(full), { recursive: true });
+      fs.writeFileSync(full, content, 'utf8');
+    }
+    return fn(dir);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+test('capability-mapping：最小 schema（无权威仓库列）下 `repo :: api` 期望不得恒失败', () => {
+  withCtxDir({ 'capability-registry.md': MINIMAL_REGISTRY }, (dir) => {
+    const reg = loadRegistry(dir);
+    assert.equal(reg.length, 1);
+    assert.equal(reg[0].canonicalRepo, '', '最小 schema 没有仓库列');
+    const withRepo = answerProbe([], reg, { type: 'capability-mapping', input: '背单词记录', expected: 'any-repo :: POST /v2/word/record' });
+    assert.equal(withRepo.pass, true, 'registry 未声明仓库维度时，仓库部分无从比对，MUST NOT 判错');
+    const apiOnly = answerProbe([], reg, { type: 'capability-mapping', input: '背单词记录', expected: 'POST /v2/word/record' });
+    assert.equal(apiOnly.pass, true, '期望串可以只写权威实现');
+    const wrong = answerProbe([], reg, { type: 'capability-mapping', input: '背单词记录', expected: 'POST /v1/word/record' });
+    assert.equal(wrong.pass, false, '把废弃 V1 当权威仍 MUST 判 FAIL（不得因容忍空 repo 而放水）');
+  });
+});
+
+test('capability-mapping：完整 schema 下仓库仍参与比对（容忍不得外溢）', () => {
+  const wrongRepo = answerProbe(cards, registry, { type: 'capability-mapping', input: '背单词记录', expected: 'wrong-repo :: POST /v2/word/record' });
+  assert.equal(wrongRepo.pass, false, 'registry 声明了仓库，写错仓库 MUST 判 FAIL');
+});
+
+test('selfCheck：最小 schema registry 上门禁自检仍有效（植入样本被判 FAIL）', () => {
+  withCtxDir({ 'capability-registry.md': MINIMAL_REGISTRY }, (dir) => {
+    const sc = selfCheck([], loadRegistry(dir));
+    assert.equal(sc.ok, true);
+    assert.ok(sc.planted.length > 0);
+    assert.ok(sc.planted.every((p) => p.pass === false), '植入的必错样本在最小 schema 下也必须全部 FAIL');
+  });
+});
+
+// ───────────────────── 零上下文交接：四项可达性检查（eng-spec §3.6） ─────────────────────
+
+function withProject(files, fn) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'handoff-'));
+  try {
+    for (const [rel, content] of Object.entries(files)) {
+      const full = path.join(root, ...rel.split('/'));
+      fs.mkdirSync(path.dirname(full), { recursive: true });
+      fs.writeFileSync(full, content, 'utf8');
+    }
+    return fn(root);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
+const hp = (type, input, expected = 'reachable', extra = {}) =>
+  ({ n: 'h1', type, input, expected, severity: 'scored', weight: 1, status: '', ...extra });
+
+test('需求真相源可达：README 一跳到达 → PASS；目标不存在 → FAIL', () => {
+  withProject({
+    'README.md': '# P\n\n- [需求](./docs/REQUIREMENTS.md)\n',
+    'docs/REQUIREMENTS.md': '# 需求\n',
+  }, (root) => {
+    const ok = answerProbe([], [], hp('requirement-reachable', 'docs/REQUIREMENTS.md'), { root });
+    assert.equal(ok.pass, true, '一跳可达应通过');
+    assert.match(ok.actual, /hops=1/);
+    const bad = answerProbe([], [], hp('requirement-reachable', 'docs/NOPE.md'), { root });
+    assert.equal(bad.pass, false, '不存在的真相源必须判 FAIL');
+    assert.match(bad.actual, /MISSING/);
+  });
+});
+
+test('需求真相源可达：2 跳通过、3 跳判 FAIL（≤2 跳标准）', () => {
+  withProject({
+    'README.md': '# P\n\n- [索引](./docs/index.md)\n',
+    'docs/index.md': '# 索引\n\n- [一层](./a.md)\n',
+    'docs/a.md': '# A\n\n- [二层](./b.md)\n',
+    'docs/b.md': '# B\n\n- [三层](./c.md)\n',
+    'docs/c.md': '# C\n',
+  }, (root) => {
+    assert.equal(answerProbe([], [], hp('requirement-reachable', 'docs/b.md'), { root }).pass, true, 'README→a→b 共 2 跳');
+    const far = answerProbe([], [], hp('requirement-reachable', 'docs/c.md'), { root });
+    assert.equal(far.pass, false, '3 跳超出 ≤2 跳标准');
+    assert.match(far.actual, /UNREACHABLE/);
+  });
+});
+
+test('架构真相源可达：README 内小节锚点 0 跳通过；锚点不存在判 FAIL', () => {
+  withProject({ 'README.md': '# P\n\n## 架构与边界\n\n模块划分见下。\n' }, (root) => {
+    const ok = answerProbe([], [], hp('architecture-reachable', 'README.md#架构与边界'), { root });
+    assert.equal(ok.pass, true);
+    assert.match(ok.actual, /hops=0/);
+    const bad = answerProbe([], [], hp('architecture-reachable', 'README.md#不存在的小节'), { root });
+    assert.equal(bad.pass, false);
+    assert.match(bad.actual, /ANCHOR-MISSING/);
+  });
+});
+
+test('架构真相源可达：项目没有 README / docs/index.md → FAIL（无入口即无从交接）', () => {
+  withProject({ 'docs/ARCHITECTURE.md': '# 架构\n' }, (root) => {
+    const r = answerProbe([], [], hp('architecture-reachable', 'docs/ARCHITECTURE.md'), { root });
+    assert.equal(r.pass, false);
+    assert.match(r.actual, /NO-ENTRY-DOC/);
+  });
+});
+
+test('实现真相源可用（无能力位）：架构节列出的模块路径均存在 → PASS，缺一个 → FAIL', () => {
+  const arch = '# P\n\n## 架构与边界\n\n- `src/word/record.js` 负责记录\n- `src/tutor/chat.js` 负责会话\n';
+  withProject({ 'README.md': arch, 'src/word/record.js': '', 'src/tutor/chat.js': '' }, (root) => {
+    const r = answerProbe([], [], hp('implementation-usable', 'README.md#架构与边界', 'usable'), { root });
+    assert.equal(r.pass, true, r.actual);
+    assert.match(r.actual, /直读/);
+  });
+  withProject({ 'README.md': arch, 'src/word/record.js': '' }, (root) => {
+    const r = answerProbe([], [], hp('implementation-usable', 'README.md#架构与边界', 'usable'), { root });
+    assert.equal(r.pass, false, '架构节列出的模块路径缺失 → 实现真相源不可用');
+    assert.match(r.actual, /src\/tutor\/chat\.js/);
+  });
+});
+
+test('实现真相源可用（无能力位）：架构节没列任何模块路径 → FAIL（不得静默全绿）', () => {
+  withProject({ 'README.md': '# P\n\n## 架构与边界\n\n这个项目分成几块，各司其职。\n' }, (root) => {
+    const r = answerProbe([], [], hp('implementation-usable', 'README.md#架构与边界', 'usable'), { root });
+    assert.equal(r.pass, false);
+  });
+});
+
+test('实现真相源可用（图谱位）：codegraph.db 非空 → PASS；0 字节 → FAIL', () => {
+  withProject({
+    'README.md': '# P\n\n## 架构与边界\n\n- `src/missing.js`\n',
+    '.codegraph/codegraph.db': 'SQLite format 3 binary',
+  }, (root) => {
+    const r = answerProbe([], [], hp('implementation-usable', 'README.md#架构与边界', 'usable'), { root });
+    assert.equal(r.pass, true, '探测到图谱位就走索引分支，不再要求架构节列路径');
+    assert.match(r.actual, /图谱位/);
+  });
+  withProject({ 'README.md': '# P\n', '.codegraph/codegraph.db': '' }, (root) => {
+    const r = answerProbe([], [], hp('implementation-usable', 'README.md', 'usable'), { root });
+    assert.equal(r.pass, false, '空索引不可查询');
+  });
+});
+
+test('实现真相源可用（权威位）：list-services 非空 → PASS；只剩模板行 → 退回直读分支', () => {
+  withProject({
+    'README.md': '# P\n',
+    'engineering-context/capability-registry.md': MINIMAL_REGISTRY,
+  }, (root) => {
+    const r = answerProbe([], [], hp('implementation-usable', 'README.md', 'usable'), { root });
+    assert.equal(r.pass, true, r.actual);
+    assert.match(r.actual, /权威位/);
+  });
+  withProject({
+    'README.md': '# P\n\n## 架构与边界\n\n- `src/missing.js`\n',
+    'engineering-context/capability-registry.md':
+      '# Capability Registry\n\n| Capability | 权威实现 | 陷阱项 |\n|---|---|---|\n| 【能力】 | 【权威实现】 | 【陷阱项】 |\n',
+  }, (root) => {
+    const r = answerProbe([], [], hp('implementation-usable', 'README.md#架构与边界', 'usable'), { root });
+    assert.equal(r.pass, false, '只有模板占位行 = 未启用权威位 → 走直读分支，模块路径缺失即 FAIL');
+    assert.match(r.actual, /直读/);
+  });
+});
+
+const SPEC_WITH_REFS = "---\nlifecycle: active\nauthority_refs:\n  - 'POST /v2/word/record 请求体契约'\n---\n\n# S\n";
+const SPEC_EMPTY_REFS = '---\nlifecycle: active\nauthority_refs:\n---\n\n# S\n';
+const SPEC_PLACEHOLDER_REFS = "---\nlifecycle: active\nauthority_refs:\n  - '【如：POST /api/v2/orders 请求体契约】'\n---\n\n# S\n";
+
+test('设计理由可追：现行区各 spec 的 authority_refs 非空 → PASS', () => {
+  withProject({
+    'docs/index.md': '# 索引\n\n## 现行设计与规范\n\n- [A](./spec/a.md)\n- [B](./spec/b.md)\n',
+    'docs/spec/a.md': SPEC_WITH_REFS,
+    'docs/spec/b.md': "---\nlifecycle: active\nauthority_refs: ['无']\n---\n\n# B\n",
+  }, (root) => {
+    const r = answerProbe([], [], hp('rationale-traceable', 'docs/index.md', 'traceable'), { root });
+    assert.equal(r.pass, true, r.actual);
+  });
+});
+
+test('设计理由可追：任一现行 spec 的 authority_refs 为空或仍是模板占位 → FAIL', () => {
+  withProject({
+    'docs/index.md': '# 索引\n\n## 现行设计与规范\n\n- [A](./spec/a.md)\n- [B](./spec/b.md)\n',
+    'docs/spec/a.md': SPEC_WITH_REFS,
+    'docs/spec/b.md': SPEC_EMPTY_REFS,
+  }, (root) => {
+    const r = answerProbe([], [], hp('rationale-traceable', 'docs/index.md', 'traceable'), { root });
+    assert.equal(r.pass, false);
+    assert.match(r.actual, /b\.md/);
+  });
+  withProject({
+    'docs/index.md': '# 索引\n\n## 现行设计与规范\n\n- [A](./spec/a.md)\n',
+    'docs/spec/a.md': SPEC_PLACEHOLDER_REFS,
+  }, (root) => {
+    const r = answerProbe([], [], hp('rationale-traceable', 'docs/index.md', 'traceable'), { root });
+    assert.equal(r.pass, false, '模板占位【】不算已填');
+  });
+});
+
+test('设计理由可追：归档区的 spec 不参与判定；现行区一篇都没有 → FAIL', () => {
+  withProject({
+    'docs/index.md': '# 索引\n\n## 现行设计与规范\n\n- [A](./spec/a.md)\n\n## 归档\n\n- [老的](./spec/old.md)\n',
+    'docs/spec/a.md': SPEC_WITH_REFS,
+    'docs/spec/old.md': SPEC_EMPTY_REFS,
+  }, (root) => {
+    assert.equal(answerProbe([], [], hp('rationale-traceable', 'docs/index.md', 'traceable'), { root }).pass, true);
+  });
+  withProject({ 'docs/index.md': '# 索引\n\n## 现行设计与规范\n\n（暂无）\n' }, (root) => {
+    const r = answerProbe([], [], hp('rationale-traceable', 'docs/index.md', 'traceable'), { root });
+    assert.equal(r.pass, false, '零条目不得算通过——那正是"永远全绿"的假门禁');
+  });
+});
+
+test('门禁自检：有交接题型时，即便 context 层为空也能自检（植入样本被判 FAIL）', () => {
+  withProject({ 'README.md': '# P\n\n- [需求](./docs/REQUIREMENTS.md)\n', 'docs/REQUIREMENTS.md': '# 需求\n' }, (root) => {
+    const probes = [hp('requirement-reachable', 'docs/REQUIREMENTS.md')];
+    const ev = evaluateGate([], [], probes, new Set(), { root });
+    assert.equal(ev.selfCheck.ok, true, '交接题型的植入样本不依赖 cards/registry');
+    assert.ok(ev.selfCheck.planted.some((p) => p.type === 'requirement-reachable'));
+    assert.ok(ev.selfCheck.planted.every((p) => p.pass === false), '植入的必错样本仍 MUST 被判错');
+    assert.equal(ev.verdict, 'GREEN');
+  });
+});
+
+test('门禁自检不得被削弱：无交接题型且 context 层为空仍 GATE-BROKEN', () => {
+  const ev = evaluateGate([], [], [passProbe(1)], new Set(), { root: os.tmpdir() });
+  assert.equal(ev.verdict, 'GATE-BROKEN');
+});
+
+test('交接题型共用棘轮与 authority_refs 自防腐机制', () => {
+  withProject({ 'README.md': '# P\n' }, (root) => {
+    const bad = hp('requirement-reachable', 'docs/NOPE.md', 'reachable', { n: '7' });
+    assert.equal(evaluateGate([], [], [bad], new Set(), { root }).verdict, 'RED', '新增失败 = RED');
+    assert.equal(evaluateGate([], [], [bad], new Set(['7']), { root }).verdict, 'AMBER', '基线内 = AMBER');
+    const paused = { ...bad, status: 'needs-reconfirm' };
+    const ev = evaluateGate([], [], [paused], new Set(), { root });
+    assert.equal(ev.needsReconfirm.length, 1, '交接题型同样支持 needs-reconfirm 暂不计分');
+    assert.equal(ev.verdict, 'GREEN');
+  });
+});
+
+test('loadProbes 解析交接题型的探针行（含 authority_refs 列）', () => {
+  withProject({
+    'probe-set.md':
+      '## 探针\n' +
+      '| # | 类型 | 输入 | 期望 | severity | weight | status | authority_refs |\n' +
+      '|---|---|---|---|---|---|---|---|\n' +
+      '| 1 | requirement-reachable | docs/REQUIREMENTS.md | ≤2 跳 | blocking | 1 | | README.md#需求 |\n' +
+      '| 2 | rationale-traceable | docs/index.md | 全部非空 | scored | 2 | | docs/index.md 现行区 |\n' +
+      '\n## 基线（棘轮）\n（空）\n',
+  }, (root) => {
+    const { probes } = loadProbes(root);
+    assert.equal(probes.length, 2);
+    assert.equal(probes[0].type, 'requirement-reachable');
+    assert.equal(probes[0].severity, 'blocking');
+    assert.equal(probes[1].authorityRefs, 'docs/index.md 现行区');
+  });
+});

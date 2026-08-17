@@ -15,6 +15,51 @@
 | 5 | Impact Radius | 给 diff，判断影响范围 | 【单模块/跨服务/跨仓】 |
 | 6 | PRD-Spec Conflict | PRD 说"可复用" + 代码事实 | 【发现"假复用"冲突】 |
 
+> 上表第 1、2 类已由 `ctx probe` 机器判定（类型列填 `capability-mapping` / `deprecated-trap`），3~6 类目前靠人工判。
+> `capability-mapping` 的期望串写 `权威仓库 :: 权威实现`，registry 是**三列最小 schema**（没有"权威仓库"列）时只写 `权威实现` 即可；
+> 此时仓库维度不存在、无从比对，门禁只判权威实现——**不会因为缺列而恒失败**，那种恒红只会污染棘轮基线。
+> 下一节的四项零上下文交接检查同样是机器判定的。
+
+## 零上下文交接检查（四项，机器可判定，`ctx probe` 已实现）
+
+> 交接目标：**项目对任何接手者——人或 agent——都做到零上下文交接**，需求 / 架构 / 实现三层真相源都能从项目自身定位。
+> 目标不可验证就等于没有，所以四项一律做成可脚本化的**可达性检查**，与上面的 context 层题型共用同一套
+> `severity` / `weight` / `status` / `authority_refs` 与棘轮机制。
+
+| 检查项 | 类型名（填进"类型"列） | 输入 | 期望 | 通过标准 |
+|---|---|---|---|---|
+| 需求真相源可达 | `requirement-reachable` | 需求真相源路径（`docs/REQUIREMENTS.md` 或 `README.md#需求`）| `≤2 跳` | 从入口文档沿链接 ≤2 跳到达 |
+| 架构真相源可达 | `architecture-reachable` | 架构真相源路径（`docs/ARCHITECTURE.md` 或 `README.md#架构与边界`）| `≤2 跳` | 同上 |
+| 实现真相源可用 | `implementation-usable` | 架构节（`README.md#架构与边界`），仅无能力位分支用得上 | `usable` | 见下三分支，全部成立 |
+| 设计理由可追 | `rationale-traceable` | 索引路径（默认 `docs/index.md`）| `全部非空` | 索引**现行区**各 spec 的 `authority_refs` 均非空 |
+
+**入口文档**：仓库根的 `README*.md` 与 `docs/index.md`（§3.4 "二选一即可"）。两者都没有 → `NO-ENTRY-DOC`，判 FAIL——没有入口就谈不上交接。
+**跳数**：入口文档本身算 0 跳，入口里的链接算 1 跳。期望串里写数字即改上限（不写按 ≤2 跳）。目标带 `#锚点` 时，该锚点必须对应文中一个标题，否则 `ANCHOR-MISSING`。
+
+**"实现真相源可用"按探测到的能力位分支**（能力位是探测结果，不是配置）：
+
+| 探测到 | 判定 | 失败样子 |
+|---|---|---|
+| 无能力位（直读）| 架构节里列出的模块路径**均存在** | `直读：模块路径缺失 src/x.js` |
+| 图谱位（`.codegraph/codegraph.db` 存在）| 索引可查询（文件非空）| `图谱位：… 为空，索引不可查询` |
+| 权威位（`ctx list-services` 非空）| 已登记服务/能力非空 | 只剩模板占位行 = 未启用权威位，退回直读分支判定 |
+
+两位可同时成立，则两项都要通过。
+
+**直读分支对架构节的写法要求**：模块路径要写成**反引号代码片段**（`` `src/word/record.js` ``）或**相对链接**才会被计入；
+一个字都抽不到会判 `架构节未列出任何模块路径` 而不是放行——**零条目算通过就是假门禁**。同理，索引现行区一篇 spec 都没链到时判 `NO-SPEC-LINK`。
+
+**`authority_refs` 非空的判据**：frontmatter 里该字段有至少一条实义条目；空值、模板占位（含 `【】`）、`TBD` / `待填` 均视为未填。归档区（标题含"归档"/"archive"）链到的文档不参与判定——它们按 `文档治理.md` 不再代表现行口径。
+
+示例（可直接抄进自己项目的探针表）：
+
+| # | 类型 | 输入 | 期望 | severity | weight | status | authority_refs |
+|---|---|---|---|---|---|---|---|
+| 41 | requirement-reachable | docs/index.md | ≤2 跳 | blocking | 1 | | README.md 的入口链接结构 |
+| 42 | architecture-reachable | README.md#架构与边界 | ≤2 跳 | blocking | 1 | | README.md#架构与边界 |
+| 43 | implementation-usable | README.md#架构与边界 | usable | scored | 2 | | 架构节列出的模块路径 |
+| 44 | rationale-traceable | docs/index.md | 全部非空 | scored | 2 | | docs/index.md 现行区条目 |
+
 ## 探针字段 schema（每题除"输入/期望"外，登记以下元字段）
 
 `ctx probe` 已按下列元字段分级打分（不填按默认 `scored`/1/空）；在探针表加同名列即可生效：
@@ -46,6 +91,11 @@ runProbeGate():
   return gate(realProbeSet)      # 自检通过才跑真实探针
 ```
 
+交接题型也进自检：题集里有交接题型时，额外植入一道**指向必然不存在的真相源**的可达性样本。
+它只依赖项目文件、不依赖 card/registry，所以**没有 context 层的直读项目也有真门禁**——
+但反过来，题集里没有交接题型且 context 层为空时判据不变，仍是 `GATE-BROKEN`，不得放水。
+
 ## 运行节奏
 - 只在 **CI 发布 / 里程碑节点**运行，**不进 coding agent 的每轮 loop**。
-- `ctx probe` 已可运行：机器可判题型（capability-mapping / deprecated-trap）+ 门禁自检 + 棘轮 + 衰减报告，`--json` 退出码供 CI 门禁（见 `scripts/ctx/README.md`）。"按权威面自动触发重扫"的 CI hook 仍待接。
+- `ctx probe` 已可运行：机器可判题型（context 层的 capability-mapping / deprecated-trap，零上下文交接的 requirement-reachable / architecture-reachable / implementation-usable / rationale-traceable）+ 门禁自检 + 棘轮 + 衰减报告，`--json` 退出码供 CI 门禁（见 `scripts/ctx/README.md`）。"按权威面自动触发重扫"的 CI hook 仍待接。
+- 交接题型读的是**项目自身文件**，按 `ctx probe` 的运行目录（cwd）当项目根；`--dir` 只改 `engineering-context` 的位置，不改项目根。
