@@ -441,10 +441,14 @@ grep -rln '个人版\|团队版\|mode="personal"\|mode="team"' \
 **§8.1 第 1 条拍板"不兼容"后，术语清理是穷尽式的**——不设双说法过渡期，就没有"暂时保留一处"的例外。验收命令 MUST 写进 coding plan，分两条：
 
 ```bash
-# ① 旧术语与 personal 值：MUST 零命中（排除历史记录、迁移指南与测试夹具）
-grep -rn '个人版\|团队版\|mode="personal"' --include='*.md' --include='*.mjs' --include='*.js' . \
-  | grep -v '^./orgin' | grep -v '^./docs/plan/' | grep -v '^./ai-dev-system/migrations/' \
-  | grep -v '^./test/'
+# ① 旧术语与 personal 值：MUST 零命中
+#    排除四类：本体系外的参考物、历史记录（plan/migrations）、测试夹具、本 spec 自身。
+#    用 --exclude-dir 而不是管道 grep -v '^./…'——后者依赖 GNU grep 会给路径加 './' 前缀，
+#    ugrep/BSD grep 不加，锚点静默失配，例外全部失效、验收假红。（实测踩过）
+grep -rn '个人版\|团队版\|mode="personal"' --include='*.md' --include='*.mjs' --include='*.js' \
+  --exclude-dir=orgin --exclude-dir=orgin.bak --exclude-dir=plan \
+  --exclude-dir=migrations --exclude-dir=test \
+  --exclude='2026-08-16-项目真相源与context-tier重构-eng-spec.md' .
 
 # ② 墓碑字段：只允许出现在下列四处，其余 MUST 零命中
 grep -rn 'mode="team"' --include='*.md' --include='*.mjs' --include='*.js' . | grep -v '^./orgin'
@@ -455,6 +459,8 @@ grep -rn 'mode="team"' --include='*.md' --include='*.mjs' --include='*.js' . | g
 > `mode="team"` 命中不为零是**预期的**——它是数据格式装置，不在任何面向用户的文案里（§8.3）。到 `3.0.0` 移除后第 ② 条也归零。
 >
 > **`test/` 的例外（2026-08-16 补，实现阶段发现）**：迁移映射保留至 `3.0.0`，测试就必须保留 `mode="personal"` 与 `mode="team"` 的**夹具**，否则这条兼容路径到期前一直是裸奔的。测试里出现旧值与旧词（作为 `doesNotMatch` 的断言目标）**合法且必要**，故第 ① 条排除 `./test/`。这不削弱术语清理——运行时文案的零命中由第 ① 条其余范围保证。
+>
+> **本 spec 自身的例外（同上补）**：本文件通篇引用旧术语，因为它要论证**为什么删除**它们（§2 的失效点分析、§8.1 的拍板记录逐条引用了用户原话）。把旧概念的死亡证明也算作旧概念的残留是循环判据。它与 `migrations/2.0.0.md` 同类——**解释旧东西去哪了的文档，本身不是旧东西**。故第 ① 条排除本文件名。
 >
 > **collab 片段的一条实现约束**（T7 实测发现，写在此处防后人踩）：安装器用 `merge-gate="[^"]*"` 之类的全局正则回填字段值，因此 `collab-{solo,team}.md` **正文里 MUST NOT 出现 `merge-gate="pr"` 这种带引号形式**，否则会被回填改成与上下文不符的值。正文引用字段值时用「值为 `pr` 时」这类写法。字段行只存在于 `base.md`。
 

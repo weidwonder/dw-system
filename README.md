@@ -6,20 +6,22 @@
 
 **The methodology layer your AI coding stack is missing.** Prompting harder doesn't make AI coding reliable — engineering does. ai-dev-system decomposes a raw requirement, layer by layer, into tasks so well-specified that **a zero-context AI agent can execute them dependably** — through Triage, top-level design, engineering specs, coding plans, coding, and tests.
 
-This is not a whiteboard framework. It is distilled from an AI-assisted development system **proven in real production across 50–60 brownfield repositories under bi-weekly, high-velocity iteration**, condensed into two **mode-aware skills** that serve both worlds:
+This is not a whiteboard framework. It is distilled from an AI-assisted development system **proven in real production across 50–60 brownfield repositories under bi-weekly, high-velocity iteration**, condensed into two skills. They layer onto one shared core along **two dimensions that do not imply each other**:
 
-- **Personal mode**: lightweight solo projects. Defaults to a one-page Lean Spec, skippable steps, decisions persisted to memory.
-- **Team mode**: multi-person, multi-repo organizations (5–20 people, 10–30 repos). Adds collaboration conventions plus a lightweight **Engineering Context** layer that feeds AI *trusted, fresh, authoritative* code facts — so it stops being misled by stale code.
+- **Collaboration surface** (asked once, stored in config) — is anyone else developing this project with you. Decides whether to align with repo owners, hold review meetings, go through PRs, and who adjudicates backward-compatibility trade-offs.
+- **Capability bits** (detected at every run, never asked, never stored) — what code-fact assets **the project itself currently has**. A code-graph index → the **graph bit** (answers *can I find it*: symbols, call chains, blast radius). A filled-in capability registry → the **curated bit** (answers *which one do I trust*: when the same capability has several implementations, which is authoritative). The two are orthogonal; all four combinations are valid.
+
+**These two get mismatched constantly, which is why they must be separate**: a ten-thousand-file legacy system maintained by one person needs the curated bit but no review meetings; a three-person greenfield project needs alignment but not a full asset layer. Tie them to a single "project type" switch and you get half of them wrong.
 
 **Why teams pick it:**
 
-- 🎯 **One-command install** into any project — Claude Code and Codex at the same time, personal or team mode auto-routed after a single question.
+- 🎯 **One-command install** into any project — Claude Code and Codex at the same time. Exactly one question (is anyone else developing with you); assets are detected, so you never pick a "tier".
 - 🧠 **Engineering Context as the moat** — capability registry, per-repo codebase cards, end-to-end scene blueprints, a frozen probe set as an anti-rot gate. Every fact cited (`path#anchor @confirmed-date`); **no cite = treated as hallucination**.
 - 🪶 **Zero runtime dependencies** — pure Node.js standard library + markdown. No build step, no lockfile drift, nothing to babysit.
 - 🔒 **Discipline built in, not bolted on** — mandatory git-worktree isolation for every change, auto-merge only after all gates pass, business-language-only user communication, RFC2119 spec writing with zero placeholders.
 - ⚖️ **Right-sized process** — a 4-question Triage routes small changes to a one-page Lean Spec and real risk (AI behavior, security, cross-service, irreversibility, external commitments) to the full pipeline. No cargo-cult ceremony.
 
-> Core belief: whether AI coding lands in production is decided not by the process itself (anyone can copy a process), but by **whether you can hand the AI a trustworthy layer of code facts**. Team mode exists precisely for that.
+> Core belief: whether AI coding lands in production is decided not by the process itself (anyone can copy a process), but by **whether you can hand the AI a trustworthy layer of code facts**. The two capability bits exist precisely for that — and they have nothing to do with how many colleagues you have.
 
 ---
 
@@ -123,9 +125,9 @@ cp -r ai-dev-system/skills/ai-prd ai-dev-system/skills/ai-dev-workflow ~/.claude
 cp -r ai-dev-system/skills/ai-prd ai-dev-system/skills/ai-dev-workflow ~/.codex/skills/
 ```
 
-Then invoke the skill in any project (mentioning "AI-assisted development / dev workflow / generate a spec / coding plan" triggers it). The first call runs a one-time **initialization**: it asks whether this project uses personal or team mode, writes the answer into the project root `CLAUDE.md` and `AGENTS.md`, and never asks again.
+Then invoke the skill in any project (mentioning "AI-assisted development / dev workflow / generate a spec / coding plan" triggers it). The first call runs a one-time **initialization**: it asks exactly one question — **is anyone else developing this project with you** — writes the answer into the project root `CLAUDE.md` and `AGENTS.md`, and never asks again. What code-fact assets the project has is **never asked**; it is detected at every run.
 
-> **Codex users**: project-level skills are installed under `<project>/.agents/skills/`; the **user-level** entry point is `~/.codex/skills/` (Codex has no `~/.agents/` user-level directory — don't install there). Codex reads `AGENTS.md`; initialization writes it too, recording the mode, the Engineering Context location, and `ctx` usage. The `ctx` CLI is invoked via plain shell, so it works across tools.
+> **Codex users**: project-level skills are installed under `<project>/.agents/skills/`; the **user-level** entry point is `~/.codex/skills/` (Codex has no `~/.agents/` user-level directory — don't install there). Codex reads `AGENTS.md`; initialization writes it too, recording the collaboration surface, the merge gate, and `ctx` usage. The `ctx` CLI is invoked via plain shell, so it works across tools.
 >
 > **Document directories**: specs go to `docs/spec/`, plans to `docs/plan/`, reports to `docs/report/` — no tool-named directories, no deliverables scattered at the project root.
 
@@ -133,20 +135,32 @@ Then invoke the skill in any project (mentioning "AI-assisted development / dev 
 
 ## Quick Start
 
-### Personal project
-1. Invoke the skill in your project → choose "personal mode".
+### Working solo
+1. Invoke the skill in your project → answer "just me".
 2. Describe your requirement. The AI creates an isolated worktree first; small changes go through a one-page Lean Spec, large ones escalate to the full pipeline.
 3. After all verification passes, the branch auto-merges into main and the worktree is cleaned up — no second confirmation needed.
 
-### Team project
-1. Invoke the skill in your project → choose "team mode".
-2. On first use, initialize the Engineering Context:
-   ```bash
-   ctx init                                       # the installer links ctx globally for you
-   node <skill>/scripts/ctx/src/cli.js init       # equivalent fallback if the global command is unavailable
-   ```
-   This scaffolds `engineering-context/` (capability-registry + cards + scenes + probe-set + glossary templates) for the team to fill in incrementally.
-3. From then on, the AI creates a dedicated worktree per repo, then uses `ctx discover "<intent>"` to locate authoritative code entities instead of grepping stale code — every fact carries a traceable cite.
+> Solo does **not** mean you need no code-fact assets. Once a project grows, "the same capability has two implementations and I edited the wrong one" happens regardless of headcount — that is what the curated bit below is for.
+
+### Working with others
+1. Invoke the skill in your project → answer "others too", and confirm the merge gate (merge locally / push a PR and let the platform merge).
+2. From then on, the AI creates a dedicated worktree per repo, produces an Overview before review meetings for anything spanning ≥3 repos, and aligns with the repo owner before touching someone else's repo.
+
+### Building code-fact assets (**any project size — independent of headcount**)
+
+When the project starts having "the same capability implemented in several places, and it's unclear which is authoritative", build the **curated bit**:
+
+```bash
+ctx init --minimal                                    # capability registry only — three rows is enough to start
+ctx init                                              # full scaffold when you need it (cards + scenes + probe-set + glossary)
+node <skill>/scripts/ctx/src/cli.js init --minimal    # equivalent fallback if the global command is unavailable
+```
+
+From then on the AI uses `ctx discover "<intent>"` to locate authoritative code entities instead of grepping stale code — every fact carries a traceable cite.
+
+When the project grows to "I have to sweep the repo before I can find anything", build the **graph bit** (a local code-graph index; the installer already handles this step).
+
+> You don't have to watch for either of these yourself: the AI accumulates signals whenever **actual rework happens** (edited a non-authoritative copy, misled by a stale implementation, forced to explore many unregistered modules), and after two of them raises one concrete suggestion in the wrap-up report. It records outcomes only — never "that search felt tedious" — and once you decline, it never raises the same one again.
 4. When all repos are ready, changes merge in dependency order through PR, CI, and protected-branch gates.
 
 ---

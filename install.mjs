@@ -83,8 +83,9 @@ const CTX_CMD_TIMEOUT_MS = 5 * 60 * 1000;
 
 // codegraph：外部代码知识图谱 CLI（github.com/colbymchenry/codegraph）。
 // 本体系不收录其内容，只负责三件事——保持最新、接线到 agent、给目标项目建索引。
-// 它给 AI 的是可查询的代码事实（explore / impact / callers），与团队版 Engineering Context
-// 层不冲突：card + cite 仍是权威口径，codegraph 只是找现状代码的通道。
+// 它给 AI 的是可查询的代码事实（explore / impact / callers），装成索引即启用**图谱位**。
+// 与**权威位**的 Engineering Context 层不冲突，两位正交：图谱位答"找得到吗"（符号、调用链、
+// 影响面），权威位答"信哪个"（card + cite 仍是权威口径），codegraph 只是找现状代码的通道。
 const CODEGRAPH = {
   bin: 'codegraph',
   npmPackage: '@colbymchenry/codegraph',
@@ -431,7 +432,7 @@ function parseWorkflowBlock(block, label) {
 // 旧值映射（spec §8.3）。三条边界，缺一条即偏离用户拍板：
 //   1. 只映射协作维度——旧 mode="team" MUST NOT 推出任何能力位（§8.1 第 2、3 条拍板"不兼容"）；
 //   2. 推断结果必须告知且可当场改（由调用方打印前后对照）；
-//   3. 告知文案不得使用"个人版 / 团队版"说法（§8.1 第 1 条）。
+//   3. 告知文案不得使用 2.0.0 已废弃的旧项目类型说法（§8.1 第 1 条，无过渡期）。
 function resolveWorkflowSettings(parsed) {
   if (!parsed) return null;
   const declared = parsed.collaboration ?? null;

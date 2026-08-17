@@ -6,20 +6,22 @@
 
 **你的 AI coding 工具栈里缺的那层方法论。** 让 AI coding 可靠的不是更用力的 prompt，而是工程化。ai-dev-system 把一个原始需求逐层降解成"**零上下文的 AI agent 也能可靠执行**"的任务——从 Triage 分流、顶层设计、技术 spec、coding plan，到编码与测试。
 
-这不是白板上画出来的框架：它裁剪自一套在真实生产环境（**50~60 个 brownfield 仓库、双周高速迭代**）验证过的 AI 辅助开发体系，收敛为两个 **mode-aware 的 skill**，同时服务两种场景：
+这不是白板上画出来的框架：它裁剪自一套在真实生产环境（**50~60 个 brownfield 仓库、双周高速迭代**）验证过的 AI 辅助开发体系，收敛为两个 skill。它们按**两个互不蕴含的维度**给同一套内核加壳：
 
-- **个人版**：一个人的轻量项目。默认走一页 Lean Spec、流程可跳步、决策沉淀进 memory。
-- **团队版**：多人多项目（5~20 人、10~30 仓）。加上团队协作约定 + 一层轻量 **Engineering Context**（给 AI 供给"可信、新鲜、权威"的代码事实，避免它读错旧代码）。
+- **协作面**（问一次，写进配置）——这个项目除你之外还有没有人一起开发。决定要不要对齐 owner、开评审会、走 PR，以及兼容取舍由谁拍板。
+- **能力位**（每次运行探测，不问也不写配置）——这个项目**自己现在有什么代码事实资产**。装了代码图谱索引 → **图谱位**（回答"找得到吗"：符号、调用链、影响面）；建了能力登记表 → **权威位**（回答"信哪个"：同一能力多处实现时哪处权威）。两位正交，四种组合都合法。
+
+**这两件事经常错配，所以必须拆开**：一个人维护的十万行遗留系统需要权威位，却不需要评审会；三个人的新项目需要对齐，却未必需要维护整套资产。把它们绑在一个"项目类型"开关上，总有一半判错。
 
 **为什么选它：**
 
-- 🎯 **一条命令装进任意项目**——Claude Code 与 Codex 同时安装，一次询问后自动路由个人版/团队版。
+- 🎯 **一条命令装进任意项目**——Claude Code 与 Codex 同时安装，只问一个问题（有没有人和你一起开发），资产靠探测，不需要你选"档次"。
 - 🧠 **Engineering Context 是真正的护城河**——能力登记表、每仓 Codebase Card、端到端场景蓝图、Frozen Probe Set 防腐门禁。每条事实带 cite（`path#anchor @确认时间`）；**无 cite 视为幻觉**。
 - 🪶 **零运行时依赖**——纯 Node.js 标准库 + markdown。没有 build、没有 lockfile 漂移、没有需要伺候的东西。
 - 🔒 **纪律是内建的，不是贴上去的**——每次改动强制 worktree 隔离、全部门禁通过才自动合并、用户沟通只用业务语言、RFC2119 spec 写作零占位符。
 - ⚖️ **流程重量刚刚好**——4 问 Triage 把小改动分流到一页 Lean Spec，把真风险（AI 行为、安全、跨服务、不可逆、对外承诺）升级进完整流程。不搞仪式感。
 
-> 核心信念：AI coding 能不能落地，秘密不在流程本身（谁都能抄），而在**能不能给 AI 一层可信赖的代码事实**。团队版正是为此而生。
+> 核心信念：AI coding 能不能落地，秘密不在流程本身（谁都能抄），而在**能不能给 AI 一层可信赖的代码事实**。两个能力位正是为此而生——而它们跟你有几个同事无关。
 
 ---
 
@@ -123,9 +125,9 @@ cp -r ai-dev-system/skills/ai-prd ai-dev-system/skills/ai-dev-workflow ~/.claude
 cp -r ai-dev-system/skills/ai-prd ai-dev-system/skills/ai-dev-workflow ~/.codex/skills/
 ```
 
-之后在任意项目里唤起 skill（提到"AI 辅助开发 / 开发流程 / 生成 spec / coding plan / 需求澄清"即可触发），首次会做一次**初始化**：询问该项目用个人版还是团队版，把结论写进项目根的 `CLAUDE.md` 和 `AGENTS.md`，之后不再询问。
+之后在任意项目里唤起 skill（提到"AI 辅助开发 / 开发流程 / 生成 spec / coding plan / 需求澄清"即可触发），首次会做一次**初始化**：只问一个问题——**这个项目除你之外还有其他人一起开发吗**——把结论写进项目根的 `CLAUDE.md` 和 `AGENTS.md`，之后不再询问。项目有哪些代码事实资产**不问**，每次运行探测得出。
 
-> **Codex 用户**：项目级 skill 安装在 `<项目>/.agents/skills/`，**用户级**则是 `~/.codex/skills/`（Codex 没有 `~/.agents/` 这个用户级入口，别装错）。Codex 读 `AGENTS.md`；初始化会同时写入 `AGENTS.md`，其中指明 mode、Engineering Context 位置与 `ctx` 用法；`ctx` CLI 可直接通过 shell 调用，跨工具通用。
+> **Codex 用户**：项目级 skill 安装在 `<项目>/.agents/skills/`，**用户级**则是 `~/.codex/skills/`（Codex 没有 `~/.agents/` 这个用户级入口，别装错）。Codex 读 `AGENTS.md`；初始化会同时写入 `AGENTS.md`，其中指明协作面、合并方式与 `ctx` 用法；`ctx` CLI 可直接通过 shell 调用，跨工具通用。
 
 > **文档目录**：spec 固定写 `docs/spec/`，plan 固定写 `docs/plan/`，report 固定写 `docs/report/`。不得生成工具命名目录或把交付物散放到项目根。
 
@@ -133,20 +135,32 @@ cp -r ai-dev-system/skills/ai-prd ai-dev-system/skills/ai-dev-workflow ~/.codex/
 
 ## 快速开始
 
-### 个人项目
-1. 在项目里唤起 skill → 选"个人版"。
+### 一个人开发
+1. 在项目里唤起 skill → 回答"只有我一个人"。
 2. 直接描述你的需求。AI 会先建立独立 worktree；小改动走一页 Lean Spec，大需求升级到完整流程。
 3. 全部验证通过后自动合并主分支并清理 worktree，无需再次确认合并。
 
-### 团队项目
-1. 在项目里唤起 skill → 选"团队版"。
-2. 首次建议初始化 Engineering Context：
-   ```bash
-   ctx init                                       # 安装器已把 ctx 链接为全局命令
-   node <skill>/scripts/ctx/src/cli.js init       # 全局命令不可用时的等价兜底
-   ```
-   生成 `engineering-context/` 骨架（capability-registry + cards + scenes + probe-set + glossary 模板），团队按指南逐步填充。
-3. 之后开发时，AI 会为每个仓库建立独立 worktree，再用 `ctx discover "<意图>"` 找权威代码实体，而不是 grep 旧代码；每条事实带 cite 溯源。
+> 一个人**不等于**不需要代码事实资产。项目长大后照样会出现"同一能力两处实现，改错了那处"——这时按下面一节建权威位即可，与人数无关。
+
+### 有人一起开发
+1. 在项目里唤起 skill → 回答"有其他人"，并确认合并方式（本地直接合并 / 推 PR 走平台）。
+2. 之后开发时，AI 会为每个仓库建立独立 worktree，跨 ≥3 仓的需求先出 Overview 再开评审会，改别人的仓库前先对齐 owner。
+
+### 建代码事实资产（**任何规模的项目都可能需要，与人数无关**）
+
+当项目出现"同一能力有多处实现、分不清该信哪个"时，建**权威位**：
+
+```bash
+ctx init --minimal                             # 只生成一份能力登记表，三行即可起步
+ctx init                                       # 需要整套骨架时再用（cards + scenes + probe-set + glossary）
+node <skill>/scripts/ctx/src/cli.js init --minimal   # 全局命令不可用时的等价兜底
+```
+
+之后 AI 会用 `ctx discover "<意图>"` 找权威代码实体，而不是 grep 旧代码；每条事实带 cite 溯源。
+
+当项目大到"每次动手都要先把仓库翻一遍才知道东西在哪"时，建**图谱位**（代码图谱索引，安装器已自带这一段）。
+
+> 你不需要自己盯着这两件事：AI 会在**真的出过返工**时（改了非权威副本、被旧实现误导、被迫探索大量未登记模块）累计信号，攒够两次在收尾汇报里提一次具体建议。它只记结果、不记"查得费劲"，拒绝一次就不再提同一件事。
 4. 多仓全部就绪后，按依赖顺序走 PR、CI 和保护分支门禁并自动合并。
 
 ---
