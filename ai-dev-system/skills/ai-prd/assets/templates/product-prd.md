@@ -2,6 +2,9 @@
 date: 'YYYY-MM-DD'
 status: '【当前状态描述，自由文本】'
 lifecycle: active          # 整品 PRD 是唯一真相源，长期保持 active；它是变更 PRD 归并的去处，自己不归档
+last_confirmed: ''       # 最近一次被权威面触发复核、判定仍准确的日期；新建时填当天，每次归并变更 PRD 后更新
+authority_refs:            # 本 PRD 冻结了哪些对用户可见的行为契约；非空，随归并逐条补充
+  - '【如：同一学生每天最多发起 3 次错题重练】'
 documentRole: 'primary-prd'
 sourceOfTruth: true
 ---

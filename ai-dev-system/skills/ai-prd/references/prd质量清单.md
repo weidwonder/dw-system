@@ -8,7 +8,7 @@
 - [ ] 有**背景**：为什么现在做。
 - [ ] 有**目标**：尽量可衡量。
 - [ ] 有**非目标**：非空、且具体（见纪律 §1）。
-- [ ] 有**现状/当前逻辑**：`ctx` 可用时每条带 cite；不可用时已显式标注"现状未经代码核实"。
+- [ ] 有**现状/当前逻辑**，且**取证路径与判据一致**（判据与标注原文见 `00-prd生成流程.md` §批 B → 现状怎么取证，本清单不重复定义）：走 **ctx 路径**（registry 有真实数据行且 discover 有命中）时每条现状带 cite；走**读代码核实路径**（判据不成立，或 ctx 零命中已就地降级）时每条注明来源且现状节照抄了规定的标注原文——**两者任一成立即通过**，MUST NOT 因为无 cite 就卡住成稿，更 MUST NOT 为过这一项编造 cite。
 - [ ] 既有业务变更：有**改动范围** + **不改的现有业务**。
 - [ ] 有**详细业务行为与信息要求**：关键项表格化。
 - [ ] 有**特殊场景与冲突**：同时操作/信息迟到/前置条件/失败/过期等已覆盖。
@@ -39,7 +39,7 @@
 ## 落位（doc 治理）
 
 - [ ] 落盘位置正确（变更 PRD → `docs/spec/<name>-PRD-YYYYMMDD.md`；整品 → `docs/REQUIREMENTS.md`，放 `docs/` 根；UI 原型 → `docs/spec/<name>-prototype-YYYYMMDD.html`，与 PRD 同目录且 PRD 里的链接可点开）。
-- [ ] frontmatter 带 `lifecycle: active` 与 `authority_refs`（本 PRD 冻结了哪些对用户可见的行为契约）。
+- [ ] frontmatter 三个字段齐：`lifecycle: active`、`last_confirmed`（本次成稿日期）、`authority_refs`（本 PRD 冻结了哪些对用户可见的行为契约，非空）。三类模板都带这三项。
 - [ ] 项目有 `docs/index.md` 时：已同步新增条目（**PRD 与 UI 原型都进索引**），且索引里只有现行口径的文档；项目没有 index.md 时本项跳过（不为落盘临时造索引）。
 - [ ] 已提示可接 `ai-dev-workflow` 做 Overview / 技术 Spec，并说明 PRD 与 UI 原型一并作为其 Step 1 输入。
 - [ ] 变更 PRD：已注明收尾动作——实现验收后归并回整品 PRD，并标 `lifecycle: merged` + 加归档头注 + 移入 `index-archive.md`（见 `00-prd生成流程.md` §PRD 生命周期）。
