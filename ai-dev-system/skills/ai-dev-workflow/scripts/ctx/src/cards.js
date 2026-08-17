@@ -71,6 +71,14 @@ const REGISTRY_FIELDS = [
 
 const EMPTY_ROW = Object.fromEntries(REGISTRY_FIELDS.map(([k]) => [k, '']));
 
+// 表头首列的判据 MUST 复用 capability 字段自己的模式表，MUST NOT 另写一套只认英文的正则：
+// 三列最小形态的另两列列名本来就是中文，首列写「能力」是最自然的写法。只认 /capability/i
+// 的后果不是"少认一种别名"，而是整张表不被识别 → 权威位探测为假 → curated 分册不加载 →
+// agent 静默退回直读，而输出还会把原因说成"只有模板行"。
+const CAPABILITY_HEADER_PATTERNS = REGISTRY_FIELDS[0][1];
+
+const isCapabilityHeader = (cell) => CAPABILITY_HEADER_PATTERNS.some((p) => p.test(cell || ''));
+
 /** 表头单元格 → 字段名映射；认不出的列直接忽略。 */
 function mapRegistryHeader(cells) {
   const map = new Map();
@@ -109,7 +117,7 @@ export function loadRegistry(ctxDir) {
     }
     // 表头行
     if (!cols) {
-      if (/capability/i.test(cells[0])) cols = mapRegistryHeader(cells);
+      if (isCapabilityHeader(cells[0])) cols = mapRegistryHeader(cells);
       continue;
     }
     // 分隔行 |---|---|
@@ -123,6 +131,36 @@ export function loadRegistry(ctxDir) {
     rows.push(row);
   }
   return rows;
+}
+
+/**
+ * 诊断 registry 为什么解析不出数据行——**只用于人类可读的提示**，不参与任何路由判定。
+ * 存在的理由：`loadRegistry` 返回空数组时，"文件没建"/"表头没被认出"/"只有模板行" 三种原因
+ * 的处置动作完全不同（建文件 / 改表头 / 填内容）。把三者都报成"只有模板行"会把人引向
+ * 错误的修复方向——曾经真的发生过：表头写「能力」时表整张没被识别，提示却说行是模板行。
+ * @returns {'no-file'|'unreadable'|'no-header'|'placeholder-only'|'no-row'|'ok'}
+ */
+export function diagnoseRegistry(ctxDir) {
+  const file = path.join(ctxDir, 'capability-registry.md');
+  if (!fs.existsSync(file)) return 'no-file';
+  let raw;
+  try {
+    raw = fs.readFileSync(file, 'utf8');
+  } catch {
+    return 'unreadable';
+  }
+  const rows = loadRegistry(ctxDir);
+  if (rows.length) return 'ok';
+  const tableRows = raw.split(/\r?\n/).map(parseTableRow).filter(Boolean);
+  // MUST 用"第一个命中的行下标"定位表头，MUST NOT 用 isCapabilityHeader 过滤掉所有命中的行：
+  // 模板占位行的首列是 `【能力】`，同样命中 /能力/，按模式过滤会把它当表头排掉，
+  // 于是"只有模板行"被误报成"没有数据行"——恰好是本次要修的那类错误诊断。
+  const headerAt = tableRows.findIndex((cells) => isCapabilityHeader(cells[0]));
+  if (headerAt < 0) return tableRows.length ? 'no-header' : 'no-row';
+  const isSeparator = (cells) => cells.every((c) => /^:?-{2,}:?$/.test(c.replace(/\s/g, '')) || c === '');
+  const dataRows = tableRows.slice(headerAt + 1).filter((cells) => !isSeparator(cells));
+  if (!dataRows.length) return 'no-row';
+  return dataRows.some((cells) => cells.some((c) => isRegistryPlaceholder(c))) ? 'placeholder-only' : 'no-row';
 }
 
 /** 模板占位（【…】）判定：registry 的空模板行不得被当成真实数据行。 */

@@ -107,6 +107,29 @@ export function loadProbes(ctxDir) {
   return { probes, baseline, skipped };
 }
 
+// 废弃行里指向替代物的措辞。这些词之后出现的实体是"该改用的那个"，不是"被废弃的那个"。
+const REDIRECT_MARKER = /(改用|请用|改为|换成|替换为|替代为|迁移到|迁移至|请走|务必走|use|instead|→|->|=>)/i;
+
+/**
+ * 判断一行里出现的 entity 是"被废弃的那个"还是"该改用的那个"。
+ *
+ * card 最标准的废弃写法就是把两者写在同一行（`assets/context-layer/card.md` 的模板正是这么诱导的）：
+ *   - `POST /v1/word/record`（已废弃，请改用 `POST /v2/word/record`）
+ * 只判"这一行含废弃关键词且含 entity"会把 **v2 也判成 deprecated**——权威位的核心承诺
+ * "信哪个"当场反过来：问 canonical 接口，`ctx` 告诉你它已废弃。所以这不是边缘情况。
+ *
+ * 判据：entity 的首个出现位置在替代指向词**之后** → 它是替代物，MUST NOT 判 deprecated。
+ * 行内没有替代指向词时照旧判 deprecated——「已废弃：POST /v1/...」这种关键词在前的写法
+ * 同样常见，不能因为修前一个 bug 把它漏掉。
+ */
+function isDeprecationSubject(line, entity) {
+  const hay = normTight(line);
+  const needle = normTight(entity);
+  if (!needle || !hay.includes(needle)) return false;
+  const m = REDIRECT_MARKER.exec(hay);
+  return m ? hay.indexOf(needle) < m.index : true;
+}
+
 /**
  * 判定一个实体在 context 层里的权威状态：deprecated / canonical / unknown。
  * 先判废弃（废弃段/含废弃标记的行/registry 废弃列），再判 canonical（registry 权威接口/card 接口行）。
@@ -115,10 +138,15 @@ export function classifyEntity(cards, registry, entity) {
   const e = entity;
   for (const card of cards) {
     for (const [title, body] of Object.entries(card.sections)) {
-      if (/废弃|中间产物|deprecat/i.test(title) && includesTight(body, e)) return 'deprecated';
+      if (!/废弃|中间产物|deprecat/i.test(title)) continue;
+      // MUST 按行判，MUST NOT 整段判：废弃段里几乎必然写着"改用哪个"，
+      // 整段判会把段里提到的替代物一起打成废弃。
+      for (const line of body.split(/\r?\n/)) {
+        if (isDeprecationSubject(line, e)) return 'deprecated';
+      }
     }
     for (const line of card.raw.split(/\r?\n/)) {
-      if (/(废弃|中间产物|不可用|deprecated)/i.test(line) && includesTight(line, e)) return 'deprecated';
+      if (/(废弃|中间产物|不可用|deprecated)/i.test(line) && isDeprecationSubject(line, e)) return 'deprecated';
     }
   }
   for (const r of registry) if (r.deprecated && includesTight(r.deprecated, e)) return 'deprecated';

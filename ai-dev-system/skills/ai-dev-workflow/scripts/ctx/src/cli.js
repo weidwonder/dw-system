@@ -10,9 +10,19 @@ import {
   listServices,
   initScaffold,
 } from './commands.js';
-import { loadCards, loadRegistry, UNDECLARED_FRESHNESS } from './cards.js';
+import { loadCards, loadRegistry, diagnoseRegistry, UNDECLARED_FRESHNESS } from './cards.js';
 import { searchSemantic } from './semantic.js';
 import { loadProbes, evaluateGate, readHistory, writeHistory } from './probe.js';
+
+// registry 解析不出数据行时的提示：三种原因对应三个完全不同的修复动作，MUST 分开报。
+const REGISTRY_EMPTY_HINT = {
+  'no-file': '（没有 capability-registry.md；权威位未启用。想起步：ctx init --minimal）',
+  unreadable: '（capability-registry.md 读不出来；权威位按未启用处理，请检查文件权限与编码）',
+  'no-header':
+    '（registry 里有表格，但没有一张表的首列被识别为能力列 → 整张表被忽略；首列表头请写 Capability 或「能力」）',
+  'placeholder-only': '（registry 只有模板占位行（含【】）；填一行真实数据即启用权威位）',
+  'no-row': '（无已登记服务/能力；registry 尚无真实数据行，权威位未启用）',
+};
 
 /** 从 argv 解析选项与位置参数。 */
 function parseArgs(argv) {
@@ -146,7 +156,7 @@ function main() {
             const caps = s.capabilities.length ? `  能力：${s.capabilities.join('、')}` : '';
             return `• ${name}${caps}${s.hasCard ? '' : '  [无 card，仅 registry 登记]'}`;
           }).join('\n')
-        : '（无已登记服务/能力；registry 只有模板行时视为未启用权威位）';
+        : REGISTRY_EMPTY_HINT[diagnoseRegistry(ctxDir)] || REGISTRY_EMPTY_HINT['no-row'];
       out(json, human, r);
       return 0;
     }
@@ -209,4 +219,9 @@ function main() {
   }
 }
 
-process.exit(main());
+// MUST 用 process.exitCode 而不是 process.exit()：console.log 写**管道**是异步的，
+// process.exit() 会立刻终止进程并丢掉未 flush 的部分。实测 400KB 的 `get-card --json`
+// 重定向到文件是完整的 400101 字节，经管道只剩 65536 字节且退出码仍为 0——
+// README 教的 `ctx probe --json | jq` 这类 CI 用法会拿到"截断后的合法前缀"，静默出错。
+// 设 exitCode 后让 Node 自然退出，stdout 会被 flush 完；退出码语义不变。
+process.exitCode = main();

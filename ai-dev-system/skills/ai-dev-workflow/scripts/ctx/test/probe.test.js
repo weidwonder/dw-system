@@ -482,3 +482,32 @@ test('ctx init 生成的 probe-set 骨架含全部六个机器可判题型（防
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+// ---- P0 回归：废弃行里的替代物 MUST NOT 被判成废弃 ----
+
+test('classifyEntity 不把废弃行里指向的替代接口判成 deprecated', () => {
+  // card 最标准的废弃写法就是把新旧写在同一行（assets/context-layer/card.md 的模板正是这么诱导的）。
+  // 只判"这一行含废弃关键词且含 entity"会把新接口也判成 deprecated——权威位的核心承诺
+  // "信哪个"当场反过来：问 canonical 接口，ctx 告诉你它已废弃。
+  const cards = [
+    {
+      service: 'svc',
+      raw: [
+        '# svc',
+        '## 对外接口',
+        '- `POST /v2/word/record` — 记录背单词结果',
+        '## 废弃与中间产物',
+        '- `POST /v1/word/record`（已废弃，请改用 `POST /v2/word/record`）',
+        '- 已废弃：`POST /v0/word/record`',
+      ].join('\n'),
+      sections: {
+        对外接口: '- `POST /v2/word/record` — 记录背单词结果',
+        废弃与中间产物: '- `POST /v1/word/record`（已废弃，请改用 `POST /v2/word/record`）\n- 已废弃：`POST /v0/word/record`',
+      },
+    },
+  ];
+  assert.equal(classifyEntity(cards, [], 'POST /v2/word/record'), 'canonical', '替代指向词之后的实体是替代物，MUST NOT 判 deprecated');
+  assert.equal(classifyEntity(cards, [], 'POST /v1/word/record'), 'deprecated', '被废弃的那个照旧判 deprecated');
+  // 关键词在前的写法（「已废弃：X」）同样常见，MUST NOT 因为修前一个 bug 把它漏掉。
+  assert.equal(classifyEntity(cards, [], 'POST /v0/word/record'), 'deprecated', '行内无替代指向词时照旧判 deprecated');
+});

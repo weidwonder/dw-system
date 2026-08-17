@@ -226,3 +226,26 @@ test('probe --dir：A 类与 B 类题型 MUST 读同一份 registry（回归：c
     fs.rmSync(ctxElsewhere, { recursive: true, force: true });
   }
 });
+
+// ---- P0 回归：大输出经管道不得被截断 ----
+
+test('--json 大输出经管道仍是完整合法 JSON（MUST NOT 用 process.exit 收尾）', () => {
+  // console.log 写管道是异步的，process.exit() 会立刻终止进程并丢掉未 flush 的部分：
+  // 重定向到文件是完整的，经管道只剩 64KB 且退出码仍为 0——README 教的
+  // `ctx probe --json | jq` 这类 CI 用法会静默拿到"截断后的合法前缀"。
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ctx-pipe-'));
+  try {
+    const base = path.join(tmp, 'engineering-context');
+    fs.mkdirSync(path.join(base, 'cards'), { recursive: true });
+    const big = 'x'.repeat(400_000); // 必须远大于 64KB 管道缓冲
+    fs.writeFileSync(path.join(base, 'cards', 'big.md'), `# big\n\n## 职责\n${big}\n`, 'utf8');
+
+    // execFileSync 的 stdio 是管道，正是会触发截断的那条路径
+    const outText = runCli(['get-card', 'big', '职责', '--json'], tmp);
+    assert.ok(outText.length > 200_000, `管道输出被截断了，实得 ${outText.length} 字节`);
+    const parsed = JSON.parse(outText); // 截断时这里会抛 Unterminated string
+    assert.ok(parsed.content.includes(big), '段落正文 MUST 完整送出');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
