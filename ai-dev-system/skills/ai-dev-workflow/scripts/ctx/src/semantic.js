@@ -3,8 +3,10 @@
 // 定位：discover 用精确子串命中；本命令是 discover **未命中时的兜底**，用局部
 // 向量相似度（字符 bigram 余弦）+ 可选同义词扩展，抓近义/形近说法。
 //
-// 防腐红线（与 references/company/context-engineering.md 一致，务必保留）：
+// 防腐红线（与 references/capability/context-engineering.md 一致，务必保留）：
 //   1. 每个结果带 freshness；给了 --as-of 时对过期块降权并标 stale。
+//      未声明 freshness 的块同样降权并标 stale——"看起来权威但已过期的来源比没有来源更危险"，
+//      查不出确认时间就不能假定新鲜。
 //   2. 结果附权威指针（canonical / deprecated），而非单纯相似度——避免重蹈会过期的 RAG。
 //   3. 语义检索不是第一入口：权威 registry + discover 才是；本命令输出会明示这点。
 //
@@ -13,7 +15,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { loadCards, makeCite } from './cards.js';
+import { loadCards, makeCite, confirmedAtOf, UNDECLARED_FRESHNESS } from './cards.js';
 
 /** 归一化：小写 + 去除空白与标点，得到用于 n-gram 的紧凑串。 */
 function normTight(s) {
@@ -79,11 +81,10 @@ function isDeprecatedSection(title, body) {
   return /废弃|中间产物|deprecat/i.test(title) || /不可用|已废弃|deprecated/i.test(body);
 }
 
-/** 从 card 抽 freshness 日期（YYYY-MM-DD），无则 'unknown'。 */
+/** 从 card 抽 freshness 日期（YYYY-MM-DD），无则标 UNDECLARED_FRESHNESS。 */
 function freshnessOf(card) {
   const sec = card.sections['Freshness / Provenance'] || card.raw;
-  const m = /(\d{4}-\d{2}-\d{2})/.exec(sec);
-  return m ? m[1] : 'unknown';
+  return confirmedAtOf(sec);
 }
 
 /** 计算两个 YYYY-MM-DD 之间的天数（asOf - date）；不可解析返回 null。 */
@@ -125,8 +126,9 @@ export function searchSemantic(ctxDir, query, opts = {}) {
       let stale = null;
       if (asOf) {
         const age = ageDays(fresh, asOf);
-        stale = age !== null && age > staleDays;
-        if (stale) score *= 0.5; // 过期块降权（红线 1）
+        // 未声明 freshness → 无法判定，按"不新鲜"处理（MUST NOT 假定新鲜）
+        stale = fresh === UNDECLARED_FRESHNESS ? true : age !== null && age > staleDays;
+        if (stale) score *= 0.5; // 过期/未声明块降权（红线 1）
       }
       scored.push({
         service: card.service,

@@ -20,7 +20,8 @@ cd <skill>/scripts/ctx && npm link      # 之后可直接 `ctx <命令>`
 
 | 命令 | 作用 | 状态 |
 |---|---|---|
-| `ctx init [--dir <目标>]` | 生成 `engineering-context/` 骨架（registry + cards/ + probe-set + glossary） | ✅ |
+| `ctx init [--dir <目标>]` | 生成 `engineering-context/` 骨架（registry + cards/ + scenes/ + probe-set + glossary） | ✅ |
+| `ctx init --minimal [--dir <目标>]` | **只**生成 `capability-registry.md`（三列即可起步，推荐先用它） | ✅ 见下 |
 | `ctx discover "<意图>"` | 意图 → 应加载的 card 清单（按命中分排序）+ out-of-scope 提示 | ✅ |
 | `ctx get-card <repo> [域]` | 取某仓 card；域为 `## 段落标题` | ✅ |
 | `ctx find-scenes <关键词...>` | 匹配 `scenes/*.md` 业务场景 | ✅ |
@@ -74,7 +75,28 @@ node src/cli.js probe --dir <ctx目录> --json | jq -e '.verdict=="GREEN" or .ve
 - card 放 `engineering-context/cards/<repo>.md`，文件名即 service 名。
 - 段落用 `## 标题`（`get-card <repo> <域>` 按此定位）。
 - `capability-registry.md` 用 markdown 表格，表头首列含 `Capability`；正文单元格避免裸 `|`。
-- `Freshness / Provenance` 段落里的 `YYYY-MM-DD` 用作 cite 的确认时间。
+- registry **按表头名取列，不按列序**：`权威实现`/`权威接口` → 权威实现列，`陷阱项`/`废弃`/`中间产物` → 陷阱项列，其余同理（`业务含义` / `权威仓库` / `兼容` / `owner` / `测试` / `freshness` / `理由`）。认不出或缺席的列留空，**不报错**。
+- registry 行**含 `【】` 视为模板占位，不算已登记能力**——一份没填过的 registry 因此等于"未启用权威位"（`ctx list-services` 为空）。
+- `Freshness / Provenance` 段落里的 `YYYY-MM-DD` 用作 cite 的确认时间；**抽不到日期就标 `未声明新鲜度`**，绝不按新鲜处理（`search-semantic --as-of` 下同样降权标 stale）。
+
+## `ctx init --minimal` — 三行 registry 起步
+
+```bash
+node src/cli.js init --minimal --dir <项目根>     # 只落 engineering-context/capability-registry.md
+```
+
+**为什么**：一次性铺开 registry + cards/ + scenes/ + probe-set + glossary 五个待填文件，会把刚要建权威位的人劝退，反而退回裸 grep。权威位的起步成本应该是"三行 registry"。
+
+**最小合法 schema**（完整字段说明见 `../../assets/context-layer/capability-registry.md`）：
+
+| Capability | 权威实现 | 陷阱项（废弃或中间产物） |
+|---|---|---|
+| 登录 | `src/auth/login.ts::login()` | `src/auth/legacy_login.ts`（旧实现，勿改） |
+
+- 三列 MUST，其余列 MAY 缺席；缺列 `discover` 跳过而非报错。
+- `discover` 对 registry 命中**单独出结果**（`capabilities` 字段），一张 card 都没有也能用；命中行的陷阱项列进 `outOfScope`。
+- 无 `freshness` 列时，`cite` 写 `@未声明新鲜度`，人读输出附一行「⚠ 未声明新鲜度：…用前 MUST 回源码确认」。
+- 需要 cards / scenes / probe-set 时再跑一次不带 `--minimal` 的 `ctx init` 补齐（已存在的文件不会被覆盖）。
 
 ---
 
@@ -116,4 +138,4 @@ node src/cli.js probe --dir <ctx目录> --json    # CI 读；退出码 RED/GATE-
 
 **运行节奏**：只在 CI 发布 / 里程碑节点，**不进 coding agent 每轮 loop**。
 
-> 完整理念见 `../../references/company/context-engineering.md`。
+> 完整理念见 `../../references/capability/context-engineering.md`。

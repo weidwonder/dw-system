@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
+import os from 'node:os';
+import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { searchSemantic, expandQuery } from '../src/semantic.js';
 
@@ -30,6 +32,21 @@ test('searchSemantic 传 --as-of 时对过期块降权并标 stale', () => {
   assert.equal(fresh.results[0].stale, false, '4 天内不算过期');
   assert.equal(stale.results[0].stale, true, '半年后应过期');
   assert.ok(stale.results[0].score < fresh.results[0].score, '过期块 score 应被降权');
+});
+
+test('searchSemantic 对未声明 freshness 的 card 不假定新鲜', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ctx-sem-'));
+  try {
+    const cardsDir = path.join(tmp, 'cards');
+    fs.mkdirSync(cardsDir, { recursive: true });
+    fs.writeFileSync(path.join(cardsDir, 'nodate.md'), '# nodate\n\n## 对外接口\nPOST /v2/word/record 记录背单词进度\n', 'utf8');
+    const r = searchSemantic(tmp, '背单词 记录', { asOf: '2026-07-10', staleDays: 90 });
+    assert.ok(r.results.length >= 1);
+    assert.equal(r.results[0].freshness, '未声明新鲜度');
+    assert.equal(r.results[0].stale, true, '未声明新鲜度 MUST NOT 被当作新鲜');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
 });
 
 test('searchSemantic 无关 query 返回空结果', () => {

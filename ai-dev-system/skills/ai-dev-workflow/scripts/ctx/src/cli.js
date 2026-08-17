@@ -10,18 +10,19 @@ import {
   listServices,
   initScaffold,
 } from './commands.js';
-import { loadCards, loadRegistry } from './cards.js';
+import { loadCards, loadRegistry, UNDECLARED_FRESHNESS } from './cards.js';
 import { searchSemantic } from './semantic.js';
 import { loadProbes, evaluateGate, readHistory, writeHistory } from './probe.js';
 
 /** 从 argv 解析选项与位置参数。 */
 function parseArgs(argv) {
   const positional = [];
-  const opts = { dir: null, json: false, asOf: null, staleDays: 90, top: 5 };
+  const opts = { dir: null, json: false, asOf: null, staleDays: 90, top: 5, minimal: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--dir') opts.dir = argv[++i];
     else if (a === '--json') opts.json = true;
+    else if (a === '--minimal') opts.minimal = true;
     else if (a === '--as-of') opts.asOf = argv[++i];
     else if (a === '--stale-days') opts.staleDays = Number(argv[++i]);
     else if (a === '--top') opts.top = Number(argv[++i]);
@@ -35,6 +36,13 @@ function resolveCtxDir(dir) {
   return path.join(process.cwd(), 'engineering-context');
 }
 
+/** 未声明 freshness 的条目在人读输出里必须显式标注——不假定新鲜。 */
+function freshnessNote(item) {
+  return item.freshnessDeclared === false
+    ? '\n    ⚠ 未声明新鲜度：该条未登记确认时间，用前 MUST 回源码确认，勿当作新鲜事实。'
+    : '';
+}
+
 function out(json, human, data) {
   if (json) console.log(JSON.stringify(data, null, 2));
   else console.log(human);
@@ -43,7 +51,8 @@ function out(json, human, data) {
 const HELP = `ctx — Engineering Context CLI
 
 用法：
-  ctx init [--dir <目标目录>]                在目标下生成 engineering-context/ 骨架
+  ctx init [--minimal] [--dir <目标目录>]    在目标下生成 engineering-context/ 骨架
+                                             --minimal 只生成 capability-registry.md（三列即可起步，推荐先用它）
   ctx discover "<意图>" [--dir <ctx目录>]    意图 → 应加载的 card 清单 + out-of-scope
   ctx get-card <repo> [域] [--dir <ctx目录>]  取某仓 card（可指定段落）
   ctx find-scenes <关键词...> [--dir <ctx目录>]  端到端业务场景
@@ -53,12 +62,14 @@ const HELP = `ctx — Engineering Context CLI
   ctx probe [--json]                         跑 Frozen Probe Set 防腐门禁（含自检+棘轮）
 
 选项：--dir 指定 engineering-context 目录（默认 <cwd>/engineering-context）；--json 输出 JSON。
+registry 最小合法 schema：Capability / 权威实现 / 陷阱项（废弃或中间产物）三列；其余列可缺，缺列跳过不报错。
+没写 freshness 的条目输出标注「未声明新鲜度」——不假定新鲜，用前回源码确认。
 search-semantic：--as-of 启用 freshness 降权（过期块标 stale 并 ×0.5）。
 probe 退出码：RED / GATE-BROKEN → 1（供 CI 门禁），GREEN / AMBER → 0。
 每条来自 card 的事实带 cite（path#anchor @确认时间）。`;
 
 function main() {
-  const { positional, dir, json, asOf, staleDays, top } = parseArgs(process.argv.slice(2));
+  const { positional, dir, json, asOf, staleDays, top, minimal } = parseArgs(process.argv.slice(2));
   const cmd = positional[0];
 
   if (!cmd || cmd === 'help' || cmd === '--help' || cmd === '-h') {
@@ -69,8 +80,16 @@ function main() {
   // init 用目标目录（不是 ctx 目录）
   if (cmd === 'init') {
     const target = dir ? path.resolve(dir) : process.cwd();
-    const base = initScaffold(target);
-    out(json, `✅ 已生成 Engineering Context 骨架：${base}\n下一步：按 context-engineering.md 填 capability-registry 与 cards/。`, { base });
+    const { base, files } = initScaffold(target, { minimal });
+    const human = minimal
+      ? [
+          `✅ 已生成最小权威位骨架：${path.join(base, 'capability-registry.md')}`,
+          '下一步：填三列（Capability / 权威实现 / 陷阱项），一行一条权威事实——三行即可起步。',
+          '缺列不影响 ctx discover；没写 freshness 的条目会被标注「未声明新鲜度」。',
+          '只剩模板行时视为未启用权威位。cards/ 与 probe-set 等按需再用 `ctx init` 补齐。',
+        ].join('\n')
+      : `✅ 已生成 Engineering Context 骨架：${base}\n下一步：按 context-engineering.md 填 capability-registry 与 cards/。\n（只想先起步？用 \`ctx init --minimal\`，只生成 capability-registry.md。）`;
+    out(json, human, { base, files, minimal });
     return 0;
   }
 
@@ -79,10 +98,18 @@ function main() {
   switch (cmd) {
     case 'discover': {
       const r = discover(ctxDir, positional.slice(1).join(' '));
-      const human = r.cards.length
-        ? r.cards.map((c) => `• ${c.service}  (score ${c.score}) — ${c.why}\n    ${c.cite}`).join('\n')
-        : `（无命中）\n${r.outOfScope.join('\n')}`;
-      out(json, human, r);
+      const blocks = [];
+      if (r.capabilities.length) {
+        blocks.push(r.capabilities.map((c) => {
+          const canonical = c.canonical || '（未填权威实现）';
+          return `• 能力「${c.capability}」→ 权威实现：${canonical}  (score ${c.score})\n    ${c.cite}${freshnessNote(c)}`;
+        }).join('\n'));
+      }
+      if (r.cards.length) {
+        blocks.push(r.cards.map((c) => `• ${c.service}  (score ${c.score}) — ${c.why}\n    ${c.cite}${freshnessNote(c)}`).join('\n'));
+      }
+      if (r.outOfScope.length) blocks.push(`out-of-scope：\n- ${r.outOfScope.join('\n- ')}`);
+      out(json, blocks.length ? blocks.join('\n\n') : '（无命中）', r);
       return 0;
     }
     case 'get-card': {
@@ -108,7 +135,13 @@ function main() {
     }
     case 'list-services': {
       const r = listServices(ctxDir);
-      const human = r.length ? r.map((s) => `• ${s.service}${s.capabilities.length ? '  能力：' + s.capabilities.join('、') : ''}`).join('\n') : '（无已登记服务）';
+      const human = r.length
+        ? r.map((s) => {
+            const name = s.service || '（未登记权威仓库的能力）';
+            const caps = s.capabilities.length ? `  能力：${s.capabilities.join('、')}` : '';
+            return `• ${name}${caps}${s.hasCard ? '' : '  [无 card，仅 registry 登记]'}`;
+          }).join('\n')
+        : '（无已登记服务/能力；registry 只有模板行时视为未启用权威位）';
       out(json, human, r);
       return 0;
     }
@@ -118,7 +151,8 @@ function main() {
       const r = searchSemantic(ctxDir, q, { top, asOf, staleDays });
       const human = r.results.length
         ? r.results.map((x) => {
-            const flags = [x.authority === 'deprecated' ? '⚠已废弃' : 'canonical', x.stale ? '⏳过期' : ''].filter(Boolean).join(' ');
+            const staleFlag = x.stale ? (x.freshness === UNDECLARED_FRESHNESS ? `⏳${UNDECLARED_FRESHNESS}` : '⏳过期') : '';
+            const flags = [x.authority === 'deprecated' ? '⚠已废弃' : 'canonical', staleFlag].filter(Boolean).join(' ');
             return `• ${x.service} › ${x.section}  (${x.score}) [${flags}]\n    ${x.cite}`;
           }).join('\n')
         : '（无语义命中）';

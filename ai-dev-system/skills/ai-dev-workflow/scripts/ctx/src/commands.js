@@ -1,7 +1,13 @@
 // commands.js — ctx 的命令层。基于 cards.js 的读取层做路由与匹配。
 import fs from 'node:fs';
 import path from 'node:path';
-import { loadCards, loadRegistry, makeCite } from './cards.js';
+import {
+  loadCards,
+  loadRegistry,
+  makeCite,
+  confirmedAtOf,
+  UNDECLARED_FRESHNESS,
+} from './cards.js';
 
 /** 粗分词：按空白与常见标点切，去掉过短 token。 */
 function tokenize(text) {
@@ -35,10 +41,13 @@ function deprecationMarkers(card) {
 }
 
 /**
- * discover：意图 → 应加载的 card 清单（带 cite）+ out-of-scope 警告。
+ * discover：意图 → 应加载的 card 清单 + 命中的能力条目（均带 cite）+ out-of-scope 警告。
  * 匹配 card 全文与 registry 行，按命中分排序。
+ * **registry 单独出结果**：最小合法 schema 只有三列、常常一张 card 都没有（"三行 registry 即可起步"），
+ * 若只在 card 命中时才返回，registry-only 的项目会永远收到"未命中任何 card"。
  * out-of-scope 警告（"哪些是陷阱、别当权威用"）来自：命中 card 的废弃/中间产物标记段，
- * 与 registry 中命中能力的"废弃/中间产物替代"列——这是本层的立身之本，不能只在零命中时给。
+ * 与 registry 中命中能力的"陷阱项（废弃或中间产物）"列——这是本层的立身之本，不能只在零命中时给。
+ * @returns {{cards:Array, capabilities:Array, outOfScope:string[]}}
  */
 export function discover(ctxDir, intent) {
   const tokens = tokenize(intent);
@@ -46,6 +55,7 @@ export function discover(ctxDir, intent) {
   const registry = loadRegistry(ctxDir);
   const scored = [];
   const outOfScope = [];
+  const capabilities = matchCapabilities(registry, tokens, outOfScope);
   for (const card of cards) {
     let score = scoreHits(card.raw, tokens);
     // registry 中指向该仓库的能力，若命中 intent，给 card 加权
@@ -56,30 +66,56 @@ export function discover(ctxDir, intent) {
       const why = capHits.length
         ? `命中能力：${capHits.map((c) => c.capability).join('、')}`
         : '文本命中';
-      const confirmedAt = freshnessDate(card) || 'unknown';
+      const confirmedAt = freshnessDate(card);
       scored.push({
         service: card.service,
         score,
         why,
+        freshness: confirmedAt,
+        freshnessDeclared: confirmedAt !== UNDECLARED_FRESHNESS,
         cite: makeCite(card.path, bestSection(card, tokens) || '职责', confirmedAt),
       });
       // 命中 card 的废弃标记 → 逐条变成"别碰"警告
       for (const marker of deprecationMarkers(card)) {
         outOfScope.push(`${card.service}: ${marker}（废弃/中间产物，别当权威用）`);
       }
-      // 命中能力若在 registry 标了废弃替代 → 同样提示
-      for (const cap of capHits) {
-        if (cap.deprecated && !isPlaceholder(cap.deprecated)) {
-          outOfScope.push(`能力「${cap.capability}」的废弃替代：${cap.deprecated}`);
-        }
-      }
     }
   }
   scored.sort((a, b) => b.score - a.score);
-  if (scored.length === 0) {
-    outOfScope.push('未命中任何 card。请确认关键词，或该能力尚未登记（考虑补 card / registry）。');
+  if (scored.length === 0 && capabilities.length === 0) {
+    outOfScope.push('未命中任何 card / 能力。请确认关键词，或该能力尚未登记（考虑补 capability-registry 一行 / 补 card）。');
   }
-  return { cards: scored, outOfScope };
+  return { cards: scored, capabilities, outOfScope };
+}
+
+/**
+ * 匹配 registry 行：意图 → 能力条目（权威实现 + cite）。缺列一律跳过，不报错。
+ * 命中行的"陷阱项"列直接进 outOfScope——这是最小 schema 里唯一的防误用装置。
+ */
+function matchCapabilities(registry, tokens, outOfScope) {
+  const hits = [];
+  for (const row of registry) {
+    const haystack = [row.capability, row.businessMeaning, row.canonicalApi, row.canonicalRepo]
+      .filter(Boolean)
+      .join(' ');
+    const score = scoreHits(haystack, tokens);
+    if (score <= 0) continue;
+    const confirmedAt = confirmedAtOf(row.freshness);
+    hits.push({
+      capability: row.capability,
+      canonical: [row.canonicalRepo, row.canonicalApi].filter(Boolean).join(' :: '),
+      service: row.canonicalRepo || null,
+      score,
+      freshness: confirmedAt,
+      freshnessDeclared: confirmedAt !== UNDECLARED_FRESHNESS,
+      cite: makeCite('capability-registry.md', row.capability, confirmedAt),
+    });
+    if (row.deprecated && !isPlaceholder(row.deprecated) && !/^(无|none|n\/a|-)$/i.test(row.deprecated)) {
+      outOfScope.push(`能力「${row.capability}」的陷阱项（废弃或中间产物，别当权威用）：${row.deprecated}`);
+    }
+  }
+  hits.sort((a, b) => b.score - a.score);
+  return hits;
 }
 
 /** cite 锚点指向命中最多的段落；无段落命中时由调用方退回"职责"。 */
@@ -96,11 +132,10 @@ function bestSection(card, tokens) {
   return bestKey;
 }
 
-/** 从 card 的 Freshness 段落抽一个日期，用于 cite。 */
+/** 从 card 的 Freshness 段落抽一个日期，用于 cite；没写日期就如实标"未声明新鲜度"。 */
 function freshnessDate(card) {
   const sec = card.sections['Freshness / Provenance'] || card.raw;
-  const m = /(\d{4}-\d{2}-\d{2})/.exec(sec);
-  return m ? m[1] : null;
+  return confirmedAtOf(sec);
 }
 
 /**
@@ -110,7 +145,7 @@ function freshnessDate(card) {
 export function getCard(ctxDir, service, domain) {
   const card = loadCards(ctxDir).find((c) => c.service === service);
   if (!card) return null;
-  const confirmedAt = freshnessDate(card) || 'unknown';
+  const confirmedAt = freshnessDate(card);
   if (domain) {
     const content = card.sections[domain];
     if (content === undefined) {
@@ -144,18 +179,49 @@ export function findScenes(ctxDir, keywords) {
     .sort((a, b) => b.score - a.score);
 }
 
-/** listServices：列出已登记的服务（来自 cards）与能力（来自 registry）。 */
+/**
+ * listServices：列出已登记的服务（来自 cards）与能力（来自 registry）。
+ * **没有 card 的 registry 能力也要列出**：最小 schema 常常一张 card 都没有，
+ * 若只按 card 列，registry-only 项目的 list-services 会空，看上去像"权威位不可用"。
+ * @returns {Array<{service:string|null, hasCard:boolean, capabilities:string[]}>}
+ */
 export function listServices(ctxDir) {
   const registry = loadRegistry(ctxDir);
-  return loadCards(ctxDir).map((c) => ({
+  const cards = loadCards(ctxDir);
+  const out = cards.map((c) => ({
     service: c.service,
+    hasCard: true,
     capabilities: registry.filter((r) => r.canonicalRepo === c.service).map((r) => r.capability),
   }));
+  const covered = new Set(cards.map((c) => c.service));
+  const rest = new Map(); // service(或 null) -> 能力名数组
+  for (const r of registry) {
+    const svc = r.canonicalRepo || '';
+    if (covered.has(svc)) continue;
+    if (!rest.has(svc)) rest.set(svc, []);
+    rest.get(svc).push(r.capability);
+  }
+  for (const [svc, capabilities] of rest) {
+    out.push({ service: svc || null, hasCard: false, capabilities });
+  }
+  return out;
 }
 
-/** initScaffold：在 targetDir 下生成 engineering-context/ 骨架。 */
-export function initScaffold(targetDir) {
+/**
+ * initScaffold：在 targetDir 下生成 engineering-context/ 骨架。
+ * `{ minimal: true }` 只生成 `capability-registry.md`——权威位的起步成本是"三行 registry"，
+ * 一次性铺开五个待填文件会把人劝退，反而退回裸 grep。
+ * @param {string} targetDir
+ * @param {{minimal?:boolean}} [opts]
+ * @returns {{base:string, files:string[]}} base=engineering-context 绝对路径，files=本次确保存在的相对文件名
+ */
+export function initScaffold(targetDir, opts = {}) {
   const base = path.join(targetDir, 'engineering-context');
+  if (opts.minimal) {
+    fs.mkdirSync(base, { recursive: true });
+    writeIfAbsent(path.join(base, 'capability-registry.md'), MINIMAL_REGISTRY_STUB);
+    return { base, files: ['capability-registry.md'] };
+  }
   fs.mkdirSync(path.join(base, 'cards'), { recursive: true });
   writeIfAbsent(path.join(base, 'cards', '.gitkeep'), '');
   fs.mkdirSync(path.join(base, 'scenes'), { recursive: true });
@@ -164,7 +230,17 @@ export function initScaffold(targetDir) {
   writeIfAbsent(path.join(base, 'probe-set.md'), PROBE_STUB);
   writeIfAbsent(path.join(base, 'glossary.md'), GLOSSARY_STUB);
   writeIfAbsent(path.join(base, 'README.md'), CTX_README_STUB);
-  return base;
+  return {
+    base,
+    files: [
+      'capability-registry.md',
+      'cards/',
+      'scenes/README.md',
+      'probe-set.md',
+      'glossary.md',
+      'README.md',
+    ],
+  };
 }
 
 function writeIfAbsent(file, content) {
@@ -178,8 +254,23 @@ const SCENES_README_STUB = `# 场景索引
 > 每收一张蓝图，在下面登记一行：场景名 + 一句话业务口径 + 文件路径。
 `;
 
-// 注意：以下三个 stub 是 assets/context-layer/ 同名模板的精简副本（init 脚手架用）。
+// 注意：以下四个 stub 是 assets/context-layer/ 同名模板的精简副本（init 脚手架用）。
 // 改 assets 模板须同步这里，反之亦然——两处漂移会让脚手架与文档教的模板不一致。
+
+// `ctx init --minimal` 用：权威位的最小起步形态，只有三列。
+const MINIMAL_REGISTRY_STUB = `# Capability Registry — 能力到权威实现的映射（最小形态）
+
+> 权威位的起步形态：**三列即可用，三行即可起步**。事实以**合入后的源码**为准，别从 PRD 生成。
+> 其余列（业务含义 / 权威仓库 / 兼容窗口 / owner / 测试入口 / freshness / 理由链）按需再加：
+> \`ctx discover\` 对缺列**跳过而非报错**；没有 freshness 列时输出标注「未声明新鲜度」，不假定新鲜。
+> 完整字段说明见 ai-dev-workflow skill 的 assets/context-layer/capability-registry.md。
+> 只剩下面这行模板占位时视为**未启用**权威位（\`ctx list-services\` 为空）。
+
+| Capability | 权威实现 | 陷阱项（废弃或中间产物） |
+|---|---|---|
+| 【能力，如 背单词记录】 | 【现在该改/该调的那一个，如 POST /v2/word/record 或 src/word/record.ts】 | 【相似但不该用的旧实现，如 POST /v1/word/record；确实没有就写 无】 |
+`;
+
 const REGISTRY_STUB = `# Capability Registry — 产品能力到权威代码实体的映射
 
 > 精简骨架；完整字段说明与填写指南见 ai-dev-workflow skill 的 assets/context-layer/capability-registry.md。
@@ -223,6 +314,7 @@ const GLOSSARY_STUB = `# Glossary — 领域词汇表
 
 const CTX_README_STUB = `# engineering-context
 
-团队版的代码事实语义层。用 \`ctx\` 查询：discover / get-card / find-scenes / list-services。
-填写指南见 ai-dev-workflow 的 references/company/context-engineering.md。
+权威位的代码事实语义层（"信哪个"）。用 \`ctx\` 查询：discover / get-card / find-scenes / list-services。
+每条事实带 cite；没写 freshness 的会标「未声明新鲜度」，不当作新鲜用。
+填写指南见 ai-dev-workflow 的 references/capability/context-engineering.md。
 `;

@@ -52,8 +52,46 @@ export function loadCards(ctxDir) {
 }
 
 /**
+ * registry 各字段可接受的表头写法。**按表头名取列，不按列序**——最小合法 schema 只有
+ * `Capability` / `权威实现` / `陷阱项（废弃或中间产物）` 三列，其余列 MAY 缺席（留空），
+ * 完整模板则有十列；两种形态必须都能解析。匹配按本数组顺序，先到先得。
+ */
+const REGISTRY_FIELDS = [
+  ['capability', [/capability/i, /能力/]],
+  ['businessMeaning', [/业务含义/, /含义/]],
+  ['canonicalRepo', [/权威仓库/, /仓库/, /repo/i]],
+  ['canonicalApi', [/权威实现/, /权威接口/, /实现/, /接口/]],
+  ['deprecated', [/陷阱/, /废弃/, /中间产物/]],
+  ['compatWindow', [/兼容/]],
+  ['owner', [/owner/i, /负责人/]],
+  ['testEntry', [/测试/]],
+  ['freshness', [/freshness/i, /新鲜/, /最近确认/]],
+  ['reason', [/理由/]],
+];
+
+const EMPTY_ROW = Object.fromEntries(REGISTRY_FIELDS.map(([k]) => [k, '']));
+
+/** 表头单元格 → 字段名映射；认不出的列直接忽略。 */
+function mapRegistryHeader(cells) {
+  const map = new Map();
+  const used = new Set();
+  cells.forEach((cell, i) => {
+    for (const [field, patterns] of REGISTRY_FIELDS) {
+      if (used.has(field)) continue;
+      if (patterns.some((p) => p.test(cell))) {
+        map.set(field, i);
+        used.add(field);
+        return;
+      }
+    }
+  });
+  return map;
+}
+
+/**
  * 解析 capability-registry.md 的 markdown 表格。
- * 取第一张表（表头含 "Capability"）。
+ * 取第一张表（表头首列含 "Capability"），按表头名取列，缺列留空。
+ * **模板占位行（含【】）不算已登记能力**——否则一份没填过的 registry 会被误当作已启用权威位。
  * @returns {Array<{capability, businessMeaning, canonicalRepo, canonicalApi, deprecated, compatWindow, owner, testEntry, freshness, reason}>}
  */
 export function loadRegistry(ctxDir) {
@@ -62,38 +100,34 @@ export function loadRegistry(ctxDir) {
   const raw = fs.readFileSync(file, 'utf8');
   const lines = raw.split(/\r?\n/);
   const rows = [];
-  let inTable = false;
+  let cols = null;
   for (const line of lines) {
     const cells = parseTableRow(line);
     if (!cells) {
-      if (inTable) break; // 表格结束
+      if (cols) break; // 表格结束
       continue;
     }
     // 表头行
-    if (!inTable) {
-      if (/capability/i.test(cells[0])) {
-        inTable = true;
-      }
+    if (!cols) {
+      if (/capability/i.test(cells[0])) cols = mapRegistryHeader(cells);
       continue;
     }
     // 分隔行 |---|---|
     if (cells.every((c) => /^:?-{2,}:?$/.test(c.replace(/\s/g, '')) || c === '')) {
       continue;
     }
-    rows.push({
-      capability: cells[0] || '',
-      businessMeaning: cells[1] || '',
-      canonicalRepo: cells[2] || '',
-      canonicalApi: cells[3] || '',
-      deprecated: cells[4] || '',
-      compatWindow: cells[5] || '',
-      owner: cells[6] || '',
-      testEntry: cells[7] || '',
-      freshness: cells[8] || '',
-      reason: cells[9] || '',
-    });
+    const row = { ...EMPTY_ROW };
+    for (const [field, i] of cols) row[field] = cells[i] || '';
+    if (!row.capability) continue;
+    if (isRegistryPlaceholder(row.capability)) continue;
+    rows.push(row);
   }
   return rows;
+}
+
+/** 模板占位（【…】）判定：registry 的空模板行不得被当成真实数据行。 */
+export function isRegistryPlaceholder(text) {
+  return /[【】]/.test(text || '');
 }
 
 /** 解析一行 markdown 表格；非表格行返回 null。 */
@@ -106,6 +140,22 @@ function parseTableRow(line) {
     .replace(/\|$/, '')
     .split('|')
     .map((c) => c.trim());
+}
+
+/**
+ * 未声明新鲜度时统一的标注文案。**不得退化成 "unknown" 或留空**：
+ * "一个看起来权威但已过期的来源，比没有来源更危险"——没声明就必须在输出里说没声明，
+ * 不假定新鲜（见 references/capability/context-engineering.md）。
+ */
+export const UNDECLARED_FRESHNESS = '未声明新鲜度';
+
+/**
+ * 从任意文本里抽一个 YYYY-MM-DD 作为确认时间；抽不到返回 UNDECLARED_FRESHNESS。
+ * @returns {string}
+ */
+export function confirmedAtOf(text) {
+  const m = /(\d{4}-\d{2}-\d{2})/.exec(text || '');
+  return m ? m[1] : UNDECLARED_FRESHNESS;
 }
 
 /**
