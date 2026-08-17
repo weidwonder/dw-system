@@ -88,7 +88,11 @@ scripts/ctx/           ctx CLI（Node.js，跨平台）：查代码事实
      按 assets/config-snippets/base.md + collab-<collaboration>.md 幂等注入
      CLAUDE.md 和 AGENTS.md（都要写，兼容 Claude Code + Codex）。能力位不问。
 
-2d. 字段缺省与非法值：merge-gate 缺失 → 按 collaboration 推（team→pr，solo→direct）；
+2d. 字段缺省与非法值：merge-gate 缺失 → **先看仓库现状**（远端主分支受保护或有 PR 规则
+     → pr），探测不到现状才按 collaboration 推（team→pr，solo→direct）；两条判据的
+     优先级 MUST 是"现状 > 推断"——现状是可探测的事实，由协作面推只是猜测，且猜错的
+     方向危险（在受保护分支上尝试本地直合会失败或违规）。与 core/worktree开发纪律.md
+     §完成与自动合并门 同一口径，MUST NOT 各写一套。
      worktree-dir 缺失 → ./.worktrees/；collaboration 取值不是 solo/team →
      报错中止并列出合法值域，MUST NOT 猜测。
 

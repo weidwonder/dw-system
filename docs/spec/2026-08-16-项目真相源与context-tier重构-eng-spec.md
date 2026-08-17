@@ -388,7 +388,9 @@ stateDiagram-v2
 
 `ai-prd/SKILL.md` 同构。**注意其特殊性**（第一稿遗漏，评审指出）：`ai-prd/SKILL.md:33-34` 规定"无标记 → 本会话临时问一次，但**不写文件**"，因此"读到旧值提示升级一次"在 ai-prd 侧**无法保证只提示一次**。本稿的解决：ai-prd **不提示迁移**（迁移是 ai-dev-workflow 与安装器的职责），且因能力位改为探测、协作字段可缺省为 `solo`，**ai-prd 在无标记块时不再需要询问**——直接探测 + 缺省即可，该临时询问分支删除。
 
-两个 `SKILL.md` 的 **frontmatter `description`** 均含 mode 表述，MUST 同步改写。`description` 直接决定 skill 触发，属行为契约变更，MUST 过 `docs/spec/2026-07-16-skill写作自检清单.md`。
+`ai-dev-workflow/SKILL.md` 的 **frontmatter `description`** 含 mode 表述，MUST 同步改写。`description` 直接决定 skill 触发，属行为契约变更，MUST 过 `docs/spec/2026-07-16-skill写作自检清单.md`。
+
+> **事实更正（2026-08-16，实现阶段实测）**：本段原写"**两个** `description` 均含 mode 表述"，**不成立**——`ai-prd/SKILL.md` 的 description 从未含 mode 字样。ai-prd 侧只需追加一句反映新行为的事实句，触发词只增不减，MUST NOT 为对齐而改写其既有触发面。照原文复核会误判。
 
 ### 6.3 目录约定
 
