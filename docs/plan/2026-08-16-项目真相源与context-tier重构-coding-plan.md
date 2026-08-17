@@ -47,11 +47,23 @@ authority_refs:
 | T12 | `ai-dev-workflow/assets/templates/*`、`ai-prd/assets/templates/*` | D | T2、T3 |
 | T13 | `CLAUDE.md`、`README*.md`、`docs/spec/2026-07-{06,14,16}-*`、`docs/spec/2026-08-{10,14}-*`、`docs/spec/2026-08-16-ctx*`、`docs/index*.md` | E | 全部 |
 | T14 | `ai-dev-system/VERSION` | E | 全部 |
+| **T15**（新增） | `core/资产补建信号.md`（新建）+ 回改 `core/{worktree开发纪律,00-流程总纲,bug诊断纪律,文档治理}.md` | D | T2–T5 完成后文件释放 |
+
+### T15 的来由（plan 的真实缺口，T4 发现）
+
+spec §4 是一套完整机制——**项目长大到出实际问题时主动建议补建资产**，正是用户对本次重构的明确要求（「规模涨到一定程度后 Agent 会主动提示」），且 §8.1 第 5 条拍板**直接启用**。但本 plan 把它拆散进了 T2/T3/T4/T5/T12，结果只有 T4 的残留轴记账真正落地，其余无人认领：**判定时机、bug 历史信号源、账本字段与状态机（阈值 2、拒绝抑制、指向分离）全部悬空，尤其状态机没有任何文件承载权威定义**。
+
+T15 把权威定义集中到一个新的条件加载 core 文件，其余四处只留指针——分散定义必然漂移。这是拆任务时的判断失误，不是执行偏差。
 
 > `ai-dev-system/migrations/2.0.0.md` 已在 spec 阶段落盘，T14 只做一致性复核，不重写。
 > `ai-dev-system/migrations/*.md`（含 `1.10.0.md:5` 提到 `mode-team.md` 与旧术语）与 `docs/plan/` 历史计划**属历史记录，全任务 MUST NOT 改写**（spec §7.1）。
 
-**并行纪律（矩阵的盲区，同样是硬要求）**：多个代理共用这一个 worktree，`commit` MUST 用 `git add <本任务的具体文件路径>`，**MUST NOT `git add -A` / `git add .`**——否则会把其他代理未完成的改动一并提交。
+**并行纪律（矩阵的盲区，同样是硬要求，已两次实际踩中）**：多个代理共用这一个 worktree 与**同一个 git index**。
+
+- `git add <具体路径>` **不够**。它只保证你不误加别人的**工作区**改动，但 `git commit` 提交的是**整个 index**——别人已经 `git add` 进暂存区的文件会被你的 commit 一起卷走。
+- **MUST 用 only 模式**：`git commit -o <本任务的文件路径列表> -m "..."`（等价写法 `git commit <路径...> -m "..."`）。它只提交指定路径，绕开共享 index。
+- **MUST NOT** `git add -A` / `git add .`。
+- 已发生的两起（内容无丢失，仅 commit 边界混）：`71a5ebd` 卷入 T8 的三个文件；`9ae2316` 卷入 T5 的七个文件。**MUST NOT 事后 `git reset` 重写历史**——其他代理正在同一 worktree 工作，重写会让它们的 HEAD 失配。
 
 **T1 执行结论（已完成，`434ca05`）**：§3.5 去向表 16 行中 7 行落地在新分册，9 行移交 core 侧任务（T2 收 3 行、T3 收 4 行、T5 收 1 行、T6/T7 收 1 行）。`collab/{solo,team}.md` §6 的边界表已建反向指针**指向 `core/00-流程总纲.md`**，T2 若把六条护栏落进其它 core 文件 MUST 回报以便同改。
 

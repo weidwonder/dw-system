@@ -439,9 +439,10 @@ grep -rln '个人版\|团队版\|mode="personal"\|mode="team"' \
 **§8.1 第 1 条拍板"不兼容"后，术语清理是穷尽式的**——不设双说法过渡期，就没有"暂时保留一处"的例外。验收命令 MUST 写进 coding plan，分两条：
 
 ```bash
-# ① 旧术语与 personal 值：MUST 零命中（排除历史记录与本次新增的迁移指南）
+# ① 旧术语与 personal 值：MUST 零命中（排除历史记录、迁移指南与测试夹具）
 grep -rn '个人版\|团队版\|mode="personal"' --include='*.md' --include='*.mjs' --include='*.js' . \
-  | grep -v '^./orgin' | grep -v '^./docs/plan/' | grep -v '^./ai-dev-system/migrations/'
+  | grep -v '^./orgin' | grep -v '^./docs/plan/' | grep -v '^./ai-dev-system/migrations/' \
+  | grep -v '^./test/'
 
 # ② 墓碑字段：只允许出现在下列四处，其余 MUST 零命中
 grep -rn 'mode="team"' --include='*.md' --include='*.mjs' --include='*.js' . | grep -v '^./orgin'
@@ -450,6 +451,10 @@ grep -rn 'mode="team"' --include='*.md' --include='*.mjs' --include='*.js' . | g
 ```
 
 > `mode="team"` 命中不为零是**预期的**——它是数据格式装置，不在任何面向用户的文案里（§8.3）。到 `3.0.0` 移除后第 ② 条也归零。
+>
+> **`test/` 的例外（2026-08-16 补，实现阶段发现）**：迁移映射保留至 `3.0.0`，测试就必须保留 `mode="personal"` 与 `mode="team"` 的**夹具**，否则这条兼容路径到期前一直是裸奔的。测试里出现旧值与旧词（作为 `doesNotMatch` 的断言目标）**合法且必要**，故第 ① 条排除 `./test/`。这不削弱术语清理——运行时文案的零命中由第 ① 条其余范围保证。
+>
+> **collab 片段的一条实现约束**（T7 实测发现，写在此处防后人踩）：安装器用 `merge-gate="[^"]*"` 之类的全局正则回填字段值，因此 `collab-{solo,team}.md` **正文里 MUST NOT 出现 `merge-gate="pr"` 这种带引号形式**，否则会被回填改成与上下文不符的值。正文引用字段值时用「值为 `pr` 时」这类写法。字段行只存在于 `base.md`。
 
 ### 7.2 路径 / API 契约清单（第一稿完全遗漏）
 
@@ -636,6 +641,10 @@ skill 目录被安装器写入 `.gitignore`（**不入库**），而 `CLAUDE.md`
 3. **告知文案受第 1 条术语约束**，MUST NOT 说"你原来是团队版"。
 
 **skill stamp 与标记块不匹配的检测**：安装器 MUST 比对目标项目的 `ai-dev-system.version` 与标记块形态；stamp <2.0.0 而标记块为新格式时，MUST 显式报告"skill 版本落后于配置，请重跑安装器"，MUST NOT 静默继续。
+
+> **实现澄清（2026-08-16，第三稿补）**：「MUST NOT 静默继续」= **高亮显式警告后继续，退出码 0**，MUST NOT 中止安装。
+> 理由：该情形的修复动作正是"重跑安装器"，而触发它的就是当前这次运行本身——中止会让项目**永远修不好**。警告文案 MUST 同时提醒其他协作者各自重跑（这才是真正需要人动作的部分）。
+> 「静默」指的是不打印，不是不中止。原措辞有歧义，以本条为准。
 
 **迁移指南**：MUST 新增 `ai-dev-system/migrations/2.0.0.md`，一屏内说清：概念从"个人版/团队版"改为"协作面 + 项目资产"、旧值如何自动映射、无需手工改文件、`mode` 字段为何还在、新增的资产补建提示是什么。
 
