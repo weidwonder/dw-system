@@ -321,13 +321,22 @@ T15 把权威定义集中到一个新的条件加载 core 文件，其余四处�
 
 **Files:** `ai-dev-system/VERSION`
 
-- [ ] **Step 1: 术语验收 grep ①** — Run: `grep -rn '个人版\|团队版\|mode="personal"' --include='*.md' --include='*.mjs' --include='*.js' . | grep -v '^./orgin' | grep -v '^./docs/plan/' | grep -v '^./ai-dev-system/migrations/'` Expected: **零命中**
-- [ ] **Step 2: 术语验收 grep ②** — `mode="team"` 只在 `base.md` / `install.mjs` / `test/*` / `docs/spec/` 四类命中
-- [ ] **Step 3: 全测试** — Run: `node --test test/` 与 `cd …/scripts/ctx && node --test` Expected: 全绿
-- [ ] **Step 4: 端到端实装验证** — `./install.mjs <临时目录> --source-dir=. --no-ctx-link --no-codegraph`，再对一个含旧标记块的临时项目跑一次，确认迁移改写与前后对照打印
-- [ ] **Step 5: `VERSION` → `2.0.0`**；复核 `migrations/2.0.0.md` 与最终实现一致
+> **验收命令以 spec §7.1 为准**（本节曾写过一版被取代的旧命令，已按评审残留轴意见更正）。
+> 两处易错，都实际踩过：①**不要**用管道 `grep -v '^./…'` 排除目录——它依赖 GNU grep 给路径加 `./` 前缀，ugrep/BSD grep 不加，锚点静默失配、例外全部失效、验收假红；用 `--exclude-dir`。②`node --test test/` 在 Node ≥22 报 `MODULE_NOT_FOUND`，必须写 `node --test test/*.test.mjs`。
+
+- [x] **Step 1: 术语验收 grep ①** — 用 spec §7.1 第 ① 条原文（含四类 `--exclude-dir` 与本 spec 自身的 `--exclude`）。实测 **零命中** ✅
+- [x] **Step 2: 术语验收 grep ②** — `mode="team"` 命中全部落在允许语义内：`base.md`（字段行）/ `install.mjs` / `test/*` / `docs/spec/` / `docs/plan/` / `migrations/2.0.0.md` / `CLAUDE.md`（后三类均为"说明它为何还在"）✅
+- [x] **Step 3: 全测试** — Run: `node --test test/*.test.mjs`（72 pass）与 `cd …/scripts/ctx && node --test`（64 pass）Expected: 全绿 ✅
+- [x] **Step 4: 端到端实装验证**（三个临时项目，已清理）✅
+      旧 `team` → `collaboration="team"`/`merge-gate="pr"`；旧 `personal` → `solo`/`direct`；墓碑正确写入；
+      用户原有内容保留；`AGENTS.md` 幂等补齐；二次安装字节不变且无重复迁移提示；
+      **未自动创建 `engineering-context/` 或 `.codegraph/`**（§8.1 第 2、3 条拍板的核心验证）；
+      `ctx init --minimal` 只生成 registry，模板行=未启用、真实行=启用且 `discover` 带 cite 与陷阱项警告；
+      自 `1.10.0` 升级时迁移指南全文高亮打印，全新安装不打印。
+- [x] **Step 5: `VERSION` → `2.0.0`**；复核 `migrations/2.0.0.md`，按实测修正两处（"建过但没填"这一档、探测判据措辞）✅
 - [ ] **Step 6: 过 `docs/spec/2026-07-16-skill写作自检清单.md`**
-- [ ] **Step 7: commit**；合入 main 后打 annotated tag `v2.0.0`
+- [ ] **Step 7: 代码评审门三轴 P0/P1 清零**
+- [ ] **Step 8: commit**；合入 main 后打 annotated tag `v2.0.0`
 
 ---
 
@@ -353,18 +362,22 @@ T15 把权威定义集中到一个新的条件加载 core 文件，其余四处�
 
 | 被取代物 | 删除任务 | 实测引用数 | 核销 |
 |---|---|---|---|
-| `references/personal/mode-personal.md` | T1 | 待测 | ⏳ |
-| `references/company/mode-team.md` | T1 | 待测 | ⏳ |
-| `references/company/` 目录 | T1 | 待测 | ⏳ |
-| `assets/config-snippets/{personal,team}.md` | T7 | 待测 | ⏳ |
-| `ai-prd/references/mode-{personal,team}.md` | T11 | 待测 | ⏳ |
-| `ai-prd` 无标记块时临时询问 mode 的分支 | T6 | 待测 | ⏳ |
-| `00-流程总纲.md` 裁剪对照表 | T2 | 待测 | ⏳ |
-| `文档治理.md` 按 mode 的索引分层判据 | T3 | 待测 | ⏳ |
-| "个人版/团队版"运行时文案 | T1–T13 | 待测 | ⏳ **立即删除，无过渡期** |
-| `mode` 的行为分流作用 | T6/T8 | 待测 | ⏳ 墓碑保留至 `3.0.0` |
-| `install.mjs` mode 正则 | — | — | ⏳ 保留至 `3.0.0`（迁移未完成） |
-| 旧 `mode` → `merge-gate` 推断映射 | — | — | ⏳ 保留至 `3.0.0`（§8.1 第 4 条拍板） |
+| `references/personal/mode-personal.md` | T1 | 0 活跃（余下全在 `docs/plan/`、本 spec 的失效点论证、已归档的 `2026-08-10-文档生命周期门控-lean-change-spec.md`，均属 §7.1 历史记录 MUST NOT 改写） | ✅ 文件已删 |
+| `references/company/mode-team.md` | T1 | 0 活跃；两处现行 spec 已改成"改动时为 X，2.0.0 起是 `capability/curated.md`"的标注式引用 | ✅ |
+| `references/company/` 目录 | T1 | 0（`context-engineering.md` 以 `git mv` R094 迁至 `capability/`，未留双份） | ✅ |
+| `assets/config-snippets/{personal,team}.md` | T7 | 0（`install.mjs` 已改读 `base.md` + `collab-<collaboration>.md`，旧的 `${workflowMode}.md` 拼接分支整段删除） | ✅ |
+| `ai-prd/references/mode-{personal,team}.md` | T11 | 0（取代者 `ai-prd/references/collab/{solo,team}.md`） | ✅ |
+| `ai-prd` 无标记块时临时询问 mode 的分支 | T6 | 0（`ai-prd/SKILL.md` 现为"一律按 `collaboration="solo"` 走，不问用户、不写文件、不提示迁移"） | ✅ |
+| `00-流程总纲.md` 裁剪对照表 | T2 | 0（整表已删；六条"不裁剪"护栏以否定式保留在 `:133-142`） | ✅ |
+| `文档治理.md` 按 mode 的索引分层判据 | T3 | 0（改为"现行区文档 >20 篇"，并显式写明"判据是文档数量，不是人数、不是协作面"） | ✅ |
+| "个人版/团队版"运行时文案 | T1–T13 | **0**（spec §7.1 第 ① 条验收命令实跑零命中） | ✅ **立即删除，无过渡期** |
+| `mode` 的行为分流作用 | T6/T8 | 语义已废止，字段留存 | ✅ 墓碑保留至 `3.0.0`，带理由与到期日（`init-初始化.md`） |
+| `install.mjs` mode 正则 | — | 保留中 | ⏳ 保留至 `3.0.0`（迁移未完成），`install.mjs:401-407` 带理由与到期日 |
+| 旧 `mode` → `merge-gate` 推断映射 | — | 保留中 | ⏳ 保留至 `3.0.0`（§8.1 第 4 条拍板"兼容一段时间"），`install.mjs:432-440` 带理由与到期日 |
+
+> **核销依据**：代码评审门残留轴（C 轴）逐条实测，2026-08-17。三条保留项到期日一致（`3.0.0`），且互为依赖——没有旧块正则就读不到旧 `mode`，推断映射与墓碑字段自然同期失效。
+> **新产生的死代码**：无。逐个实测新增导出（`isRegistryPlaceholder` / `handoffKind` / `entryDocs` / `reachTruthSource` / `detectCapabilityBits` / `loadProbes` 的 `skipped`）全部有调用点；新增 markdown 均有加载入口。
+> **改动是否落在非权威副本上**：无。58 个 skill 文件改动全部落在权威源 `ai-dev-system/skills/`，`.claude/` 与 `.agents/` 命中数为 0。**本项不构成资产补建信号。**
 
 ## 完成与自动合并
 

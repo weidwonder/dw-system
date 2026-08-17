@@ -193,3 +193,36 @@ test('initScaffold 生成 engineering-context 骨架', () => {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+test('probe --dir：A 类与 B 类题型 MUST 读同一份 registry（回归：cli 曾漏传 ctxDir）', () => {
+  // cli.js 若不把已解析的 ctxDir 传给 evaluateGate，B 类交接题型会退回
+  // <cwd>/engineering-context 兜底，而 A 类题型读 --dir 指定的目录——同一次运行里
+  // 两类题看两份不同的 registry：--dir 下 list-services 认得出权威位，
+  // implementation-usable 却判"直读"并因模块缺失报 RED。这条测试跑真实 CLI 覆盖那一层。
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-probe-root-'));
+  const ctxElsewhere = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-probe-ctx-'));
+  try {
+    // 项目根故意不放 engineering-context/；架构节列的模块路径也不存在，
+    // 一旦退回直读分支就会判 FAIL。
+    fs.writeFileSync(path.join(root, 'README.md'),
+      '# P\n\n## 架构与边界\n\n- `src/nope.js` 不存在\n', 'utf8');
+    fs.writeFileSync(path.join(ctxElsewhere, 'capability-registry.md'),
+      '| Capability | 权威实现 | 陷阱项（废弃或中间产物） |\n|---|---|---|\n'
+      + '| 下单 | POST /v2/orders | POST /v1/order |\n', 'utf8');
+    fs.writeFileSync(path.join(ctxElsewhere, 'probe-set.md'),
+      '## 探针\n| # | 类型 | 输入 | 期望 |\n|---|---|---|---|\n'
+      + '| 1 | implementation-usable | README.md#架构与边界 | usable |\n'
+      + '\n## 基线（棘轮）\n（空）\n', 'utf8');
+
+    // 用 --json 断言：人读输出在**通过**时不打印 actual，只有失败才打印"实得："，
+    // 拿 stdout 匹配关键词会在真通过时也查不到，得出相反结论。
+    const report = JSON.parse(runCli(['probe', '--dir', ctxElsewhere, '--json'], root));
+    const r = report.results[0];
+    assert.equal(r.pass, true, `应走权威位分支，实得：${r.actual}`);
+    assert.match(r.actual, /权威位/, 'actual 须表明命中的是权威位分支——registry 在 --dir 指定的目录里');
+    assert.doesNotMatch(r.actual, /直读/, 'ctxDir 生效时不应退回直读分支');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(ctxElsewhere, { recursive: true, force: true });
+  }
+});

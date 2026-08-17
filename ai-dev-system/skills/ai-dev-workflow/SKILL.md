@@ -68,6 +68,11 @@ scripts/ctx/           ctx CLI（Node.js，跨平台）：查代码事实
    MUST NOT 从标记块字段、历史配置或用户口述推断能力位——只认本次探测结果。
    MUST NOT 因为"没探测到资产"就建议用户建资产：补建建议只由结果性信号驱动，
    判据与时机见 core/资产补建信号.md（那是建议，不是门）。
+   【探测本身失败时】（权限不足、IO 错误、文件损坏）：MUST 把该位视为未启用、
+   按直读继续，并用一句话告知用户探测失败的原因。MUST NOT 阻断流程，
+   MUST NOT 反复重试，MUST NOT 因此改问用户"这个项目有没有 xx 资产"——
+   探测不出来就按没有算，本来就是安全侧；把它升级成故障会让整条路由为一次
+   偶发 IO 错误停摆。
 
 2. 【读标记块】读当前项目根的 CLAUDE.md（优先）或 AGENTS.md：
    <!-- ai-dev-workflow:start -->
@@ -88,11 +93,8 @@ scripts/ctx/           ctx CLI（Node.js，跨平台）：查代码事实
      按 assets/config-snippets/base.md + collab-<collaboration>.md 幂等注入
      CLAUDE.md 和 AGENTS.md（都要写，兼容 Claude Code + Codex）。能力位不问。
 
-2d. 字段缺省与非法值：merge-gate 缺失 → **先看仓库现状**（远端主分支受保护或有 PR 规则
-     → pr），探测不到现状才按 collaboration 推（team→pr，solo→direct）；两条判据的
-     优先级 MUST 是"现状 > 推断"——现状是可探测的事实，由协作面推只是猜测，且猜错的
-     方向危险（在受保护分支上尝试本地直合会失败或违规）。与 core/worktree开发纪律.md
-     §完成与自动合并门 同一口径，MUST NOT 各写一套。
+2d. 字段缺省与非法值：merge-gate 缺失 → 判据（现状 > 协作面推断）**只在
+     core/worktree开发纪律.md §完成与自动合并门 定义一次**，按它执行，本处不复述。
      worktree-dir 缺失 → ./.worktrees/；collaboration 取值不是 solo/team →
      报错中止并列出合法值域，MUST NOT 猜测。
 

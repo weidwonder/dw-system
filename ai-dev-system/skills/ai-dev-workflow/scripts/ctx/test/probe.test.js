@@ -275,6 +275,31 @@ test('架构真相源可达：项目没有 README / docs/index.md → FAIL（无
   });
 });
 
+test('evaluateGate 的 ctxDir 与 root 分离：registry 不在 cwd 下时，交接题型仍认得出权威位', () => {
+  // 回归测试：cli.js 曾漏传 ctxDir，导致 B 类交接题型退回 <root>/engineering-context 兜底，
+  // 而 A 类题型读 --dir 指定的目录——同一次 probe 里两类题看两份不同的 registry，
+  // 于是 --dir 下 list-services 认得出权威位、implementation-usable 却判"直读"报 RED。
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'probe-ctxdir-root-'));
+  const elsewhere = fs.mkdtempSync(path.join(os.tmpdir(), 'probe-ctxdir-ctx-'));
+  try {
+    // 项目根**故意不放** engineering-context/，只有一个架构节（其列出的模块路径不存在）。
+    // 若 ctxDir 未生效而退回 root 兜底，会走"直读"分支并因模块缺失判 FAIL。
+    fs.writeFileSync(path.join(root, 'README.md'), '# P\n\n## 架构与边界\n\n- `src/nope.js` 不存在\n', 'utf8');
+    fs.writeFileSync(path.join(elsewhere, 'capability-registry.md'),
+      '| Capability | 权威实现 | 陷阱项（废弃或中间产物） |\n|---|---|---|\n| 下单 | POST /v2/orders | POST /v1/order |\n', 'utf8');
+
+    const probe = hp('implementation-usable', 'README.md#架构与边界', 'usable');
+    const ev = evaluateGate([], [], [probe], new Set(), { root, ctxDir: elsewhere });
+    const r = ev.results[0];
+    assert.equal(r.pass, true, `应走权威位分支而非直读，实得：${r.actual}`);
+    assert.match(r.actual, /权威位/, 'actual 须表明命中的是权威位分支');
+    assert.doesNotMatch(r.actual, /直读/, 'ctxDir 生效时不应退回直读分支');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(elsewhere, { recursive: true, force: true });
+  }
+});
+
 test('实现真相源可用（无能力位）：架构节列出的模块路径均存在 → PASS，缺一个 → FAIL', () => {
   const arch = '# P\n\n## 架构与边界\n\n- `src/word/record.js` 负责记录\n- `src/tutor/chat.js` 负责会话\n';
   withProject({ 'README.md': arch, 'src/word/record.js': '', 'src/tutor/chat.js': '' }, (root) => {

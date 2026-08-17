@@ -168,7 +168,10 @@ function main() {
       const cards = loadCards(ctxDir);
       const registry = loadRegistry(ctxDir);
       const { probes, baseline, skipped } = loadProbes(ctxDir);
-      const ev = evaluateGate(cards, registry, probes, baseline, { floor: 0.9 });
+      // MUST 把已解析的 ctxDir 传下去：不传的话 B 类交接题型会退回 <cwd>/engineering-context 兜底，
+      // 而 A 类题型读的是 --dir 指定的目录——同一次 probe 里两类题看两份不同的 registry，
+      // 于是 --dir 下 list-services 认得出权威位、implementation-usable 却判"直读"并报 RED。
+      const ev = evaluateGate(cards, registry, probes, baseline, { floor: 0.9, ctxDir });
       const prev = readHistory(ctxDir);
       const delta = prev && ev.passRate != null ? Number((ev.passRate - prev.passRate).toFixed(4)) : null;
       const report = { ...ev, prevPassRate: prev ? prev.passRate : null, passRateDelta: delta };

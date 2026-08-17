@@ -39,15 +39,17 @@ This is not a whiteboard framework. It is distilled from an AI-assisted developm
 └── ai-dev-system/
     └── skills/                 # two skills (shared by Claude Code + Codex)
         ├── ai-prd/             # PRD authoring: batched questioning + staged elicitation
-        │   ├── SKILL.md        # entry: read mode → PRD type routing → 4 question batches
-        │   ├── references/     # generation flow / business-language & writing discipline / quality gate / mode-*
+        │   ├── SKILL.md        # entry: read collaboration surface → PRD type routing → 4 question batches
+        │   ├── references/     # generation flow / business-language & writing discipline / quality gate
+        │   │   └── collab/     # solo.md / team.md (one of the two, by collaboration surface)
         │   └── assets/         # templates: change-prd (primary) / lite-issue-prd / product-prd
         └── ai-dev-workflow/    # the main pipeline, starting from an existing PRD
-            ├── SKILL.md        # entry: read mode → route; first call → initialization
+            ├── SKILL.md        # entry: detect capability bits → read collaboration surface → load; first call → initialization
             ├── references/
             │   ├── core/       # shared kernel: process / worktree / communication / writing / AI overlay / doc governance
-            │   ├── personal/   # thin personal shell
-            │   └── company/    # team shell + Engineering Context design
+            │   ├── collab/     # solo.md / team.md (exactly one is always loaded)
+            │   └── capability/ # graph.md / curated.md (loaded per detected bits; may be none)
+            │                   # + context-engineering.md (full design of the curated asset layer)
             ├── assets/         # templates: spec / plan / test / config snippets / cards
             └── scripts/ctx/    # ctx CLI (Node.js, cross-platform): query code facts, no MCP required
 ```
@@ -100,7 +102,7 @@ What the installer does:
 2. Copies **all** skills of that version (by default `ai-prd` + `ai-dev-workflow` with the `ctx` CLI) → `<project>/.claude/skills/` for Claude Code;
 3. Copies the same skills → `<project>/.agents/skills/` for Codex;
 4. Merges (never overwrites) Claude Code's `enabledPlugins`, disabling conflicting plugins **for this project only**;
-5. Prompts how to handle conflicting Codex skills: project-level `AGENTS.md` auto-trigger constraints (default), or explicit global uninstall through the Codex CLI; if either entry file already has a workflow mode, both `CLAUDE.md` and `AGENTS.md` are reconciled;
+5. Prompts how to handle conflicting Codex skills: project-level `AGENTS.md` auto-trigger constraints (default), or explicit global uninstall through the Codex CLI; if either entry file already has a workflow marker block, both `CLAUDE.md` and `AGENTS.md` are reconciled;
 6. Links the bundled `ctx` CLI as a **global `ctx` command** (`npm link` inside `<project>/.claude/skills/ai-dev-workflow/scripts/ctx`) and verifies it by actually running `ctx --help`. If linking fails (no write permission, npm global bin not on PATH, an existing `ctx` command), it degrades to a warning and prints the `node <skill>/scripts/ctx/src/cli.js <command>` fallback — the CLI itself ships with the skill, so **a missing command never means ctx is unavailable**. Skip with `--no-ctx-link`;
 7. Keeps [codegraph](https://github.com/colbymchenry/codegraph) (local code knowledge graph CLI) up to date — `npm install -g @colbymchenry/codegraph` when missing, `codegraph upgrade` when outdated — then wires it into your agents (`--location=local` by default, this project only) and builds the project index with `codegraph init` unless `.codegraph/` already exists. Every failure here degrades to a warning; skip the whole step with `--no-codegraph`. Codex CLI has no project-local MCP config, so project-level wiring skips it and the installer prints the manual global command.
 
@@ -145,6 +147,7 @@ Then invoke the skill in any project (mentioning "AI-assisted development / dev 
 ### Working with others
 1. Invoke the skill in your project → answer "others too", and confirm the merge gate (merge locally / push a PR and let the platform merge).
 2. From then on, the AI creates a dedicated worktree per repo, produces an Overview before review meetings for anything spanning ≥3 repos, and aligns with the repo owner before touching someone else's repo.
+3. When all repos are ready, changes merge in dependency order through PR, CI, and protected-branch gates.
 
 ### Building code-fact assets (**any project size — independent of headcount**)
 
@@ -161,7 +164,6 @@ From then on the AI uses `ctx discover "<intent>"` to locate authoritative code 
 When the project grows to "I have to sweep the repo before I can find anything", build the **graph bit** (a local code-graph index; the installer already handles this step).
 
 > You don't have to watch for either of these yourself: the AI accumulates signals whenever **actual rework happens** (edited a non-authoritative copy, misled by a stale implementation, forced to explore many unregistered modules), and after two of them raises one concrete suggestion in the wrap-up report. It records outcomes only — never "that search felt tedious" — and once you decline, it never raises the same one again.
-4. When all repos are ready, changes merge in dependency order through PR, CI, and protected-branch gates.
 
 ---
 

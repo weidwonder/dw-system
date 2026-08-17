@@ -39,15 +39,17 @@
 └── ai-dev-system/
     └── skills/                 # 两个 skill（Claude Code + Codex 通用）
         ├── ai-prd/             # 产 PRD：批量提问 + 阶段化 elicitation
-        │   ├── SKILL.md        # 入口：读 mode → PRD 类型分流 → 4 批提问
-        │   ├── references/     # 生成流程 / 业务语言纪律 / 写作纪律 / 质量清单 / mode-*
+        │   ├── SKILL.md        # 入口：读协作面 → PRD 类型分流 → 4 批提问
+        │   ├── references/     # 生成流程 / 业务语言纪律 / 写作纪律 / 质量清单
+        │   │   └── collab/     # solo.md / team.md（按协作面二选一）
         │   └── assets/         # 模板：change-prd（主）/ lite-issue-prd / product-prd
         └── ai-dev-workflow/    # 从已有 PRD 起步的主流程
-            ├── SKILL.md        # 入口：读 mode → 路由；首次调用 → 初始化
+            ├── SKILL.md        # 入口：探测能力位 → 读协作面 → 加载；首次调用 → 初始化
             ├── references/
             │   ├── core/       # 共享内核：流程 / worktree / 用户沟通 / 写作 / AI overlay / 文档治理
-            │   ├── personal/   # 个人薄外壳
-            │   └── company/    # 团队外壳 + Engineering Context 设计
+            │   ├── collab/     # solo.md / team.md（按协作面二选一，必加载一份）
+            │   └── capability/ # graph.md / curated.md（按探测到的能力位加载，可零篇）
+            │                   # + context-engineering.md（权威位资产层完整设计）
             ├── assets/         # 模板：spec / plan / test / config 注入片段 / card
             └── scripts/ctx/    # ctx CLI（Node.js，跨平台）：查代码事实，替代 MCP
 ```
@@ -100,7 +102,7 @@ node /path/to/ai-dev-system/install.mjs . --source-dir=/path/to/ai-dev-system
 2. 复制该版本的**所有** skill（默认含 `ai-prd` + `ai-dev-workflow` 和 `ctx` CLI）→ `<项目>/.claude/skills/`，完成 Claude Code 项目级安装；
 3. 复制同一批 skill → `<项目>/.agents/skills/`，完成 Codex 项目级安装；
 4. 合并（不覆盖）Claude Code 的 `enabledPlugins`，在本项目把冲突插件设为 `false`；
-5. 安装时让用户选择 Codex 冲突技能处理方式：默认写入项目 `AGENTS.md` 约束自动触发，也可明确选择通过 Codex CLI 全局卸载；若任一入口已有 workflow mode，同时补齐 `CLAUDE.md` 与 `AGENTS.md`；
+5. 安装时让用户选择 Codex 冲突技能处理方式：默认写入项目 `AGENTS.md` 约束自动触发，也可明确选择通过 Codex CLI 全局卸载；若任一入口已有 workflow 标记块，同时补齐 `CLAUDE.md` 与 `AGENTS.md`；
 6. 把 skill 自带的 `ctx` CLI 链接成**全局 `ctx` 命令**（在 `<项目>/.claude/skills/ai-dev-workflow/scripts/ctx` 下 `npm link`），并实跑 `ctx --help` 验证真的可用。链接失败（无写权限、npm 全局 bin 不在 PATH、已有同名 `ctx`）只降级为警告，并打印 `node <skill>/scripts/ctx/src/cli.js <命令>` 兜底调用方式——CLI 本体已随 skill 落盘，**命令找不到不等于 ctx 不可用**。`--no-ctx-link` 可跳过；
 7. 保持 [codegraph](https://github.com/colbymchenry/codegraph)（本地代码知识图谱 CLI）为最新——没装就 `npm install -g @colbymchenry/codegraph`，有新版就 `codegraph upgrade`——随后接线到 agent（默认 `--location=local`，只影响本项目），并在 `.codegraph/` 不存在时用 `codegraph init` 给本仓库建索引。这一段任何失败只降级为警告；`--no-codegraph` 可整段跳过。Codex CLI 没有项目级 MCP 配置，项目级接线会跳过它，安装器会打印手动全局接线命令。
 
@@ -114,7 +116,7 @@ node /path/to/ai-dev-system/install.mjs . --source-dir=/path/to/ai-dev-system
 
 > **为什么能只在本项目禁用**：Claude Code settings 优先级为 Managed > Local(`.claude/settings.local.json`) > Project(`.claude/settings.json`) > User(`~/.claude/settings.json`)，`enabledPlugins` 在所有 scope 均可设。项目级 `false` 覆盖用户级 `true`，于是这些插件**只在本项目关闭**。
 >
-> Codex 安装默认采用项目级 `AGENTS.md` 自动触发约束，不改用户级 `~/.codex/config.toml`，避免安装一个项目 skill 时影响其他项目。交互安装可明确选择全局卸载；自动化安装用 `--codex-conflicts=uninstall`，需要本机有 Codex CLI，且会影响所有项目。安装器会写后校验 `ai-dev-system:codex-conflicts`，并补齐缺失的 workflow mode 标记。
+> Codex 安装默认采用项目级 `AGENTS.md` 自动触发约束，不改用户级 `~/.codex/config.toml`，避免安装一个项目 skill 时影响其他项目。交互安装可明确选择全局卸载；自动化安装用 `--codex-conflicts=uninstall`，需要本机有 Codex CLI，且会影响所有项目。安装器会写后校验 `ai-dev-system:codex-conflicts`，并补齐缺失的 workflow 标记块。
 >
 > ⚠ 两个前提：① 项目级 `.claude/settings.json` 首次打开会弹 **workspace trust** 对话框，信任后才生效；② settings / `AGENTS.md` 改动在**下次启动 Claude Code / Codex** 时生效，非当前会话。撤销只需删掉本项目 settings 里对应的 `false` 条目，或删掉 `AGENTS.md` 中的 `ai-dev-system:codex-conflicts` 标记块。
 
@@ -145,6 +147,7 @@ cp -r ai-dev-system/skills/ai-prd ai-dev-system/skills/ai-dev-workflow ~/.codex/
 ### 有人一起开发
 1. 在项目里唤起 skill → 回答"有其他人"，并确认合并方式（本地直接合并 / 推 PR 走平台）。
 2. 之后开发时，AI 会为每个仓库建立独立 worktree，跨 ≥3 仓的需求先出 Overview 再开评审会，改别人的仓库前先对齐 owner。
+3. 多仓全部就绪后，按依赖顺序走 PR、CI 和保护分支门禁并自动合并。
 
 ### 建代码事实资产（**任何规模的项目都可能需要，与人数无关**）
 
@@ -161,7 +164,6 @@ node <skill>/scripts/ctx/src/cli.js init --minimal   # 全局命令不可用时�
 当项目大到"每次动手都要先把仓库翻一遍才知道东西在哪"时，建**图谱位**（代码图谱索引，安装器已自带这一段）。
 
 > 你不需要自己盯着这两件事：AI 会在**真的出过返工**时（改了非权威副本、被旧实现误导、被迫探索大量未登记模块）累计信号，攒够两次在收尾汇报里提一次具体建议。它只记结果、不记"查得费劲"，拒绝一次就不再提同一件事。
-4. 多仓全部就绪后，按依赖顺序走 PR、CI 和保护分支门禁并自动合并。
 
 ---
 

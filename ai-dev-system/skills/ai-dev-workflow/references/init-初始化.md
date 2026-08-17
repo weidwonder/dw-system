@@ -24,7 +24,7 @@
    | 探测什么 | 怎么看 | 用途 |
    |---|---|---|
    | **能力位** | `.codegraph/codegraph.db` 是否存在；`engineering-context/capability-registry.md` 是否有不含【】占位的真实数据行 | 只决定本次加载哪些 `capability/` 分册。MUST NOT 写进标记块，MUST NOT 据此追问用户"要不要建资产"（补建建议只由结果性信号驱动，见 `core/资产补建信号.md`） |
-   | **`merge-gate` 建议** | 有 git 远端（`git remote`）**且**存在 `.github/workflows/` 或等价 CI 配置 → 建议 `pr`；否则建议 `direct` | 只是**建议**，第 4 步交用户拍板 |
+   | **`merge-gate` 建议** | 有 git 远端（`git remote`）**且**存在 `.github/workflows/` 或等价 CI 配置 → 建议 `pr`；否则建议 `direct` | 只是**建议**，第 4 步交用户拍板。这是初始化时给用户的建议值，**与字段已缺失时的非交互兜底不是同一件事**（后者的唯一权威定义在 `core/worktree开发纪律.md` §完成与自动合并门） |
    | **三层真相源缺口** | 按 `core/文档治理.md` §三层真相源 看需求 / 架构 / 实现是否各有其一、能否从 README 或 `docs/index.md` ≤2 跳到达 | 第 6 步**报告**，不阻断 |
 
 4. **询问**（仅当两入口都无块）：一次抛全，不一问一答。
