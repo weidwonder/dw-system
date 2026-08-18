@@ -27,7 +27,7 @@
 产品能力 → 权威代码实体的映射（**人工确认**）。字段见 `assets/context-layer/capability-registry.md` 模板：Capability / 业务含义 / 权威仓库 / 权威接口(含版本) / 废弃或中间产物替代 / 兼容窗口 / owner / 测试入口 / freshness / 理由链。
 
 ### 2.2 Codebase Card（`engineering-context/cards/<repo>.md`）
-每仓一张：职责、对外接口、上下游、废弃标记、测试入口、机器派生事实区。模板见 `assets/context-layer/card.md`。
+每仓一张：职责、对外接口、上下游、废弃标记、测试入口。**只放人工判断**——机器能自己算出来的事实（调用图、最后修改、DB schema）MUST NOT 抄进 card，需要时现查。模板见 `assets/context-layer/card.md`。
 
 ### 2.3 业务场景蓝图（`engineering-context/scenes/<场景>.md`）★ scene 的生产端
 card 是"单仓视角"，scene 蓝图是"端到端视角"——`ctx find-scenes` 查的就是它。**它不是查询出来的，是生产出来的**：以一个业务场景为粒度，**从入口线索出发闭合追踪每一条跨服务调用链**，产出入口清单、跨服务调用链明细、一页式时序（project.Class 粒度）、核心类方法总览、动态/配置化接口核对，每条标 ✅已确认/⏳待确认/⛔未生效。模板见 `assets/context-layer/scene-blueprint.md`。
