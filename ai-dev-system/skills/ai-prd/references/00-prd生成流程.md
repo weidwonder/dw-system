@@ -46,7 +46,7 @@
 - 为什么现在做？触发它的问题/机会/事故是什么？
 - 产品目标有哪些（尽量可衡量）？
 - **明确不做什么 / 不改什么？** 每个目标尽量配一条边界。
-- （整品追加）目标用户是谁？核心用户旅程一句话？成功指标（量化）？
+- （整品追加）目标用户是谁？核心用户旅程一句话？成功指标（北极星，量化）？
 
 **批 A 退出条件**（逐项勾验，全过才进批 B）：
 
@@ -67,7 +67,7 @@
 
 #### 现状怎么取证（按项目自己有什么资产，不按协作面）
 
-**判据（本 skill 内「只在此处定义」，其余各处一律引用本节；与姊妹 skill `ai-dev-workflow` 的【权威位】同一口径）**：
+**取证路径判据**（ctx 路径 vs 读代码核实路径。本 skill 内「只在此处定义」，其余各处一律引用本节；与姊妹 skill `ai-dev-workflow` 的【权威位】同一口径。**图谱位的判据与降级不在本节定义**，见下方读代码核实路径里指向姊妹 skill `graph.md` 的那段）：
 
 项目根下 `engineering-context/capability-registry.md` **存在**，**且**该文件除模板注释与表头外**至少有一行真实数据行**（该行不含 `【】` 占位）→ 走下面的 **ctx 路径**。
 否则（文件不存在 / 只有 `【】` 占位行 / 读取失败）→ **直接**走下面的 **读代码核实路径**，MUST NOT 先去试 ctx。
@@ -99,11 +99,7 @@
 
 **读代码核实路径（判据不成立，或 ctx 路径零命中降级而来）**：
 
-让用户口述现状 + AI 就模糊处追问 + **直接读代码核实**，每条现状注明来源（代码位置或"用户口述"）；
-
-> **项目根存在 `.codegraph/codegraph.db` 时**（姊妹 skill 称【图谱位】），"读代码核实"MUST 先走**代码图谱**（MCP 工具或 `codegraph` 命令，子命令以工具自身说明为准）查符号、调用链与影响面，**MUST NOT 直接裸 grep 全仓**；图谱不可用就回退到子代理外包重探索，**MUST NOT 阻断流程**。它与上面的权威位**正交**——图谱位管"找得到吗"，权威位管"信哪个"，两位可同时成立、也可都没有。判据与降级见姊妹 skill 的 `<skills 根>/ai-dev-workflow/references/capability/graph.md`（`<skills 根>` 的定义见上面 ctx 兜底那段）；**该文件属姊妹 skill，本流程按上面三句执行即可，不必为此加载它**。本文 MUST NOT 展开成 codegraph 使用手册。
-
-并在 PRD 现状节 MUST 原文照抄下面**恰好一句**标注：
+让用户口述现状 + AI 就模糊处追问 + **直接读代码核实**，每条现状注明来源（代码位置或"用户口述"），并在 PRD 现状节 MUST 原文照抄下面**恰好一句**标注：
 
 | 情形 | 现状节 MUST 出现的标注原文 |
 |---|---|
@@ -111,6 +107,8 @@
 | 连代码都无法核实，只有用户口述 | `现状未经代码核实` |
 
 带上任一标注即视为满足 `prd质量清单.md` 的现状取证项（该项**不要求**此路径带 cite）。
+
+> **怎么"读代码"——项目根存在 `.codegraph/codegraph.db` 时**（姊妹 skill 称【图谱位】），SHOULD 先走**代码图谱**（MCP 工具或 `codegraph` 命令，子命令以工具自身说明为准）查符号、调用链与影响面，**MUST NOT 直接裸 grep 全仓**——"裸 grep"指没有收窄目标、没有外包给子代理、命中内容直接灌进主上下文的全仓扫描；**收窄过的定位式检索不受限**（写进 PRD 的事实仍按本节要求回到 card + cite 或来源注记）。图谱不可用就回退到子代理外包重探索，**MUST NOT 阻断流程**。它与上面的权威位**正交**——图谱位管"找得到吗"，权威位管"信哪个"，两位可同时成立、也可都没有。图谱位自身的判据与降级见姊妹 skill 的 `<skills 根>/ai-dev-workflow/references/capability/graph.md`（`<skills 根>` 的定义见上面 ctx 兜底那段）；**该文件属姊妹 skill，本流程按上面几句执行即可，不必为此加载它**。本文 MUST NOT 展开成 codegraph 使用手册。
 
 **两条路径共同的硬线**：
 
@@ -201,7 +199,9 @@
    - 用户只回了其中一部分 → **只就未确认的那几项再回述一次**，已确认的不重复问；MUST NOT 因为部分未确认就整份重来。
    - **用户没有回复** → MUST NOT 落盘正式路径，也 MUST NOT 反复追问。把当前稿留在对话里，一句话告知"等你确认后我再写文件"，然后停在这里等——这是**唯一**允许因等用户而挂起的点（它是门，不是对齐开销）。
 5. 落盘（命名：变更 PRD → `docs/spec/<name>-PRD-YYYYMMDD.md`；UI 原型 → `docs/spec/<name>-prototype-YYYYMMDD.html`；整品 → `docs/REQUIREMENTS.md`，唯一真相源放 `docs/` 根）。
-6. **项目有 `docs/index.md` 时**：MUST 同步更新（doc 治理要求）——**PRD 与 UI 原型都要进索引**，原型与 PRD 同条目并列标注。索引只放现行口径，PRD frontmatter 带 `lifecycle: active`；归档进 `docs/index-archive.md`（见下方 §PRD 生命周期）。项目**没有** `docs/index.md` 时，MUST NOT 为了本次落盘临时造一个索引，只做 frontmatter 与归档头注两个动作（呼应 `<skills 根>/ai-dev-workflow/references/core/文档治理.md`）。
+
+   **目标文件已存在时**（同一天二次运行、同名需求、整品 PRD 已在）：**MUST 先读取该文件**，再向用户确认三选一——覆盖 / 改名（同名加序号，如 `<name>-PRD-YYYYMMDD-2.md`）/ 在原文件上增量更新；**MUST NOT 直接覆盖**，也 MUST NOT 不读就往里追加。PRD 与 UI 原型两个文件各自适用本条。
+6. **项目有 `docs/index.md` 时**：MUST 同步更新（doc 治理要求）——**PRD 与 UI 原型都要进索引**，原型与 PRD 同条目并列标注。索引只放现行口径，PRD frontmatter 带 `lifecycle: active`；归档进 `docs/index-archive.md`（见下方 §PRD 生命周期）。项目**没有** `docs/index.md` 时，MUST NOT 为了本次落盘临时造一个索引，只做 frontmatter 一个动作（呼应 `<skills 根>/ai-dev-workflow/references/core/文档治理.md`）——新 PRD 首次落盘就是 `lifecycle: active`，此刻没有任何可归档对象；**归档头注属实现验收后的结算动作**，见 §PRD 生命周期。
 7. 收尾提示：这份 PRD **连同 UI 原型**一并作为 `ai-dev-workflow` Step 1 的输入，接着做 Overview / 技术 Spec；告诉用户下游会按原型落用户可见行为，原型与 PRD 正文冲突会被立为开放问题。
 
 ## PRD 生命周期（两次动笔）

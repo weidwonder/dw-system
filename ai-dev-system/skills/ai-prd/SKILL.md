@@ -1,6 +1,6 @@
 ---
 name: ai-prd
-description: "AI 协助产出 PRD。当用户要写/生成 PRD、把需求或想法整理成产品需求文档、做需求立项、把脑子里的功能变更落成可评审的 PRD，或提到'帮我写个 PRD / 生成需求文档 / 把这个需求写成 PRD / 需求文档怎么写 / 梳理需求 / 把需求写清楚'，或用英文说 write a PRD、draft a PRD、product requirements document、requirements doc 时使用。已有 PRD、要做技术设计/Overview/spec/写代码时不要用本 skill，用 ai-dev-workflow。采用批量提问（非一问一答）分批澄清目标/非目标/现状/边界/验收，按变更PRD·轻量Issue·整品PRD 三类模板成稿；涉及用户可见 UI 新增/调整时，必须参考现有 UI 样式并产出独立 HTML 高保真交互原型。产物可直接作为 ai-dev-workflow Step 1 的输入。"
+description: "AI 协助产出 PRD。当用户要写/生成 PRD、把需求或想法整理成产品需求文档、做需求立项、把脑子里的功能变更落成可评审的 PRD，或提到'帮我写个 PRD / 生成需求文档 / 把这个需求写成 PRD / 需求文档怎么写 / 梳理需求 / 把需求写清楚'，或用英文说 write a PRD、draft a PRD、product requirements document、requirements doc 时使用。已有 PRD 且要做技术设计 / Overview / spec / 写代码时不要用本 skill，用 ai-dev-workflow（改 PRD 本身仍用本 skill）。采用批量提问（非一问一答）分批澄清目标/非目标/现状/边界/验收，按变更PRD·轻量Issue·整品PRD 三类模板成稿；涉及用户可见 UI 新增/调整时，必须参考现有 UI 样式并产出独立 HTML 高保真交互原型。产物可直接作为 ai-dev-workflow Step 1 的输入。"
 ---
 
 # ai-prd
@@ -33,30 +33,28 @@ assets/
 ```
 1. 读当前项目根 CLAUDE.md（优先）或 AGENTS.md 的标记块，只取【协作面】：
    <!-- ai-dev-workflow:start --> … collaboration="solo|team" … <!-- ai-dev-workflow:end -->
-   - 块内有 collaboration → 按它取协作面。
-   - 块里只有旧版安装留下的 mode 字段 → 按【与姊妹 skill 完全相同的只读推断】取协作面：
-     旧值为 team → 按 collaboration="team"；其余旧值 → 按 "solo"。
-     MUST NOT 自行另立一套推断（例如"旧字段一律当 solo"）——同一个项目会被两个 skill
-     判成不同协作面：ai-prd 按 solo 出 PRD（自己拍板、无评审会），ai-dev-workflow 按 team
-     跑流程（要业务方拍口径），而这正是每个存量 1.x 团队项目升级后必经的状态。
-     判据与姊妹 skill 的 `SKILL.md` 步骤 2b 同源，冲突时以姊妹 skill 为准。
+   - 块内 collaboration="solo" 或 "team" → 按它取协作面。
+   - 块内 collaboration 是其它取值（非法值）→ 按 "solo" 继续出稿，并一句话告知用户该取值
+     非法、可去 ai-dev-workflow 侧修正；**MUST NOT 中止**本次 PRD 任务（本 skill 不写文件，
+     中止只会把用户卡在改配置上）。
+   - 块里只有旧版安装留下的 mode 字段 → 只读推断：旧 mode="team" → team；其余旧值 → solo。
+     **推断映射**与姊妹 skill 的 `SKILL.md` 步骤 2b 同源，冲突时以姊妹 skill 为准；
+     MUST NOT 自行另立一套推断（理由见 §关键纪律 → 只读项目配置）。
+     读到的是旧 mode 字段时，SHOULD 在收尾汇报里一句话说明本次按 solo/team 出稿、
+     可去 ai-dev-workflow 侧改协作面（姊妹 skill 才是写配置的那一侧）。
    - 没有标记块 → 按 collaboration="solo" 走。
-   - 以上两种情况都【不问用户、不写文件、不提示迁移】——写配置与旧值迁移是
-     ai-dev-workflow 的职责，本 skill 不抢（它不写文件，保证不了"只提示一次"）。
-     **只读推断不需要写任何文件**，所以"不写配置"MUST NOT 被读成"不能推断"。
+   - 以上分支一律【不问用户配置怎么写、不写文件、不主动推动配置迁移】；上面两处
+     **一句话告知**是仅有的例外，各只说一次（见 §关键纪律 → 只读项目配置）。
 
 2. 加载 references/00-prd生成流程.md + prd写作纪律.md + 业务语言纪律.md，
    再按协作面加载一份分册（必加载一份）：
    - solo → references/collab/solo.md
    - team → references/collab/team.md
-   现状事实**从哪取不看协作面，只看项目自己有没有已登记的权威能力清单**：
-   `engineering-context/capability-registry.md` 存在**且**除模板注释与表头外至少有一行不含 `【】`
-   占位的真实数据行 → 走 ctx 路径（ctx + cite）；否则直接走读代码核实路径（读代码核实 + 现状节标注）。
-   **MUST NOT 用"`ctx` 命令跑不跑得通"或"有没有 `engineering-context/` 目录"当判据**——安装器
-   把 ctx 链接成全局命令，任何装过本体系的项目都跑得通；`ctx init` 生成的 registry 只有占位行。
-   即使走了 ctx 路径，discover/find-scenes 对本次意图零命中时 MUST 就地降级到读代码核实路径。
-   （判据、降级与标注原文的**完整定义只在** `00-prd生成流程.md` §批 B → 现状怎么取证，此处是摘要；
-   纪律见 `prd写作纪律.md` §4。）
+   现状事实**从哪取不看协作面，只看项目自己有没有已登记的权威能力清单**：有 → 走 ctx 路径
+   （ctx + cite）；没有 → 直接走读代码核实路径（读代码核实 + 现状节标注）。
+   **MUST NOT 用"`ctx` 命令跑不跑得通"当判据**——安装器把 ctx 链接成全局命令，任何装过本体系的
+   项目都跑得通。**取证路径判据、零命中降级与标注原文的完整定义只在**
+   `00-prd生成流程.md` §批 B → 现状怎么取证，此处不复述；纪律见 `prd写作纪律.md` §4。
    （是否加载 UI 原型纪律见第 3 步的 UI 判定，不在此处决定。）
 
 3. 分流选模板（尽量从已有材料判定，不打扰用户）：
@@ -92,7 +90,7 @@ assets/
 
 ## 关键纪律（每次都遵守）
 
-- **只读项目配置，MUST NOT 写配置**：本 skill 读 `CLAUDE.md` / `AGENTS.md` 标记块只为取协作面，**MUST NOT 写入或修改标记块、MUST NOT 向用户提问"这个项目怎么配"、MUST NOT 提示配置迁移**。写配置与旧标记块迁移都是 `ai-dev-workflow` 的职责——它写文件，能保证"只提示一次"；本 skill 不写文件，抢过来做就会每次唤起都提示一遍。读到没有标记块或只有旧字段时，按路由第 1 步**只读推断**协作面（旧 `mode="team"` → team，其余 → solo），静默继续——推断不落盘，因此不违反本条。
+- **只读项目配置，MUST NOT 写配置**：本 skill 读 `CLAUDE.md` / `AGENTS.md` 标记块只为取协作面，**MUST NOT 写入或修改标记块、MUST NOT 向用户提问"这个项目怎么配"、MUST NOT 主动推动配置迁移**。写配置与旧标记块迁移都是 `ai-dev-workflow` 的职责——它写文件，能保证"只提示一次"；本 skill 不写文件，抢过来做就会每次唤起都提示一遍。读到没有标记块或只有旧字段时，按路由第 1 步**只读推断**协作面（旧 `mode="team"` → team，其余 → solo），静默继续——推断不落盘，因此"不写配置"MUST NOT 被读成"不能推断"。**MUST NOT 自行另立一套推断**（例如"旧字段一律当 solo"）：同一个项目会被两个 skill 判成不同协作面——ai-prd 按 solo 出 PRD（自己拍板、无评审会），而 ai-dev-workflow 按 team 跑流程（要业务方拍口径）。唯二允许的一句话告知（协作字段取值非法 / 本次按旧字段推断出稿）见路由第 1 步，各只说一次，MUST NOT 反复提、MUST NOT 因此中止任务。
 - **批量提问，不一问一答**：每批一次抛全，减少轮次；问题间有依赖时拆层推进（依赖分层，同层批量）。判据见 `references/00-prd生成流程.md` §提问三纪律。
 - **事实自己查，只把决策抛给用户**：能从材料/代码（按 `00-prd生成流程.md` §批 B 判据走 ctx 路径或读代码核实路径）查到的事实不许问，先查清写成草稿让用户确认；提问清单里只留需要用户拍板的决策。
 - **每问尽量附推荐答案**：有材料/代码依据必附（推荐 + 一句理由，业务语言），依据不足给典型候选，完全无依据的开放题显式说"无推荐"——禁止编造推荐；决策权仍在用户，未回复不算确认。

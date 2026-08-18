@@ -31,7 +31,7 @@ sourceOfTruth: true
 
 ### Measurable Outcomes
 
-【上线后如何度量成功：北极星指标 + 关键结果。】
+【上线后如何度量成功：成功指标（北极星）+ 关键结果。】
 
 ## Product Scope
 
