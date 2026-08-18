@@ -83,7 +83,7 @@ ctx search-semantic "<自然语言>"             # discover 未命中时的兜�
 
 ## 7. 新鲜度纪律（每个开发者）
 
-- 你的改动若**触碰权威面**（canonical 接口签名、废弃标记、路由/配置版本、DB schema、兼容窗口）——哪怕只有 3 行——MUST 触发对应 card 刷新（见 `context-engineering.md` §新鲜度）。
+- 你的改动若**触碰权威面**（canonical 接口签名、废弃标记、路由/配置版本、DB schema、兼容窗口）——哪怕只有 3 行——MUST 触发对应 card 刷新（见 `context-engineering.md` §5）。
 - 纯内部实现改动（不碰接口/权威）MAY 不刷卡。
 - 判断标准是**是否碰权威面**，不是改了多少行。
 - **会话开始时先看增量**：`ctx` 读的是本地活文件，没有跨会话的变更推送。开一个新任务前，SHOULD 先看清"上次到现在 card/registry 变了什么"，避免拿脑子里的旧上下文干活（等价于在线 MCP 的 list_changes 变更感知）：
