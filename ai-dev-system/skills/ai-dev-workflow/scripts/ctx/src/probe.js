@@ -154,7 +154,7 @@ export function loadProbes(ctxDir) {
 // `because`、`abuse`、`reuse` 内部。那不是"多认一种写法"，而是让真·废弃项被漏判，
 // 严重时还会把它归成 canonical（见下方 isDeprecationSubject 的注释）。
 const REDIRECT_MARKER =
-  /(改用|请用|改为|换成|替换为|替代为|迁移到|迁移至|请走|务必走|→|->|=>|(?:^|[^a-z])(?:use|instead)(?![a-z]))/i;
+  /(改用|请用|请调用|改为|换成|替换为|替代为|替代|取代|迁移到|迁移至|请走|务必走|统一走|参见|详见|见 |新接口|新版本|权威实现是|→|->|=>|(?:^|[^a-z])(?:use|instead|replaced\s+by|superseded\s+by|moved\s+to|switch\s+to)(?![a-z]))/i;
 
 // 筛选"哪些行算废弃行"。classifyEntity 复用它，MUST NOT 再抄一份字面量。
 const DEPRECATION_KEYWORD = /(废弃|中间产物|不可用|deprecated)/i;
@@ -180,7 +180,36 @@ const DEPRECATION_ANCHOR = /(废弃|中间产物|不可用|deprecated|停用|下
  * 改用**就近归属**：废弃关键词与指向词都在行内时，entity 离谁近就归谁。两种句序都成立，
  * 因为中文英文都把"被废弃的那个"写在废弃词旁、"该改用的那个"写在指向词旁。
  * 距离相等时判 deprecated——宁可多报一次废弃，也不把废弃的说成权威的。
+ *
+ * **行内没有指向词时 MUST NOT 整行通吃。** 指向词表再长也是闭表，
+ * 「权威实现是 X」「已被 X 取代」「| 废弃项 | 替代 |」这类写法必然漏在表外；
+ * 一旦漏出，行内的**替代物**也会被判 deprecated，自检植入的必错样本（把 canonical
+ * 谎称废弃）于是"通过"，门禁判自己 GATE-BROKEN——而报错说的是"门禁形同虚设"，
+ * 真因却是使用者 card 里的一句措辞，照提示永远查不出来。
+ * 所以无指向词时改判**离废弃锚点最近的那个候选实体**：候选取行内的反引号代码片段，
+ * 表格行再补上单元格。只有一个候选（或认不出候选）时才回到"整行判废弃"。
  */
+
+/** 行内"看起来是实体"的位置区间：反引号代码片段。 */
+function entitySpans(hay) {
+  return [...hay.matchAll(/`[^`\n]+`/g)].map((m) => [m.index, m.index + m[0].length]);
+}
+
+/** 表格行的非空单元格区间（不含首尾竖线外的空片段）。 */
+function tableCells(hay) {
+  if (!hay.trim().startsWith('|')) return [];
+  const cells = [];
+  let pos = 0;
+  for (const part of hay.split('|')) {
+    if (part.trim()) cells.push([pos, pos + part.length]);
+    pos += part.length + 1;
+  }
+  return cells;
+}
+
+/** span 到某个位置的距离（位置落在区间内记 0）。 */
+const spanDist = (idx, [a, b]) => (idx < a ? a - idx : idx >= b ? idx - b : 0);
+
 function isDeprecationSubject(line, entity) {
   const hay = norm(line);
   const needle = norm(entity);
@@ -189,12 +218,46 @@ function isDeprecationSubject(line, entity) {
   // norm 保留空格，entity 与 card 里的空格写法偶有出入；去空格后仍匹配得上就保守判废弃
   // （拿不到可比的位置，此时 MUST 倒向"多报废弃"这一侧）。
   if (at < 0) return normTight(line).includes(normTight(entity));
-  const marker = REDIRECT_MARKER.exec(hay);
-  if (!marker) return true;
+
+  // 表格行 MUST 按**列序**判，MUST NOT 按距离：`| 废弃项 | 替代 | 原因 |` 里的废弃锚点
+  // 落在最后的"原因"列，离替代物反而更近，按距离判会把两者判反。
+  const cells = tableCells(hay);
+  if (cells.length >= 2) {
+    const [a, b] = cells[0];
+    return at >= a && at < b;
+  }
+
   const kw = DEPRECATION_ANCHOR.exec(hay);
-  // 废弃段内的行可以不含废弃关键词（整段就是废弃段），此时沿用"指向词之前"。
-  if (!kw) return at < marker.index;
-  return Math.abs(at - kw.index) <= Math.abs(at - marker.index);
+  const marker = REDIRECT_MARKER.exec(hay);
+  const spans = entitySpans(hay);
+  const owning = spans.find(([a, b]) => at >= a && at < b);
+
+  // 行内只有一个反引号实体、且 entity 就是它：无需消歧——调用方已确认这是废弃行，
+  // 那唯一的实体就是被废弃的那个。位置与措辞（`已废弃：X` / `迁移到新网关前请先停用 X` /
+  // `X — …请先停用它`）在这里都不影响结论，套距离或前后规则反而会判反。
+  if (owning && spans.length === 1) return true;
+
+  if (marker && kw) return Math.abs(at - kw.index) <= Math.abs(at - marker.index);
+
+  if (marker) {
+    // 有指向词、无废弃锚点。区分点是**指向词后面还有没有实体**，不是距离：
+    //   · `X（replaced by Y）`——指向词之后有 Y，那 Y 就是替代物 → 沿用"指向词之前即被废弃"；
+    //   · `X 已被 Y 取代`——指向词在所有实体之后，此时紧挨它的最后一个实体才是替代物。
+    // 按距离判会把第一种判反（`（replaced by` 里指向词其实离 X 更近）。
+    if (spans.some(([a]) => a > marker.index)) return at < marker.index;
+    if (spans.length >= 2 && owning) {
+      const lastStart = Math.max(...spans.map(([a]) => a));
+      return owning[0] < lastStart;
+    }
+    return at < marker.index;
+  }
+
+  // 无指向词：MUST NOT 整行通吃（指向词表再长也是闭表，漏在表外的写法会让替代物一起被判废弃，
+  // 进而让自检的必错样本"通过"、门禁判自己 GATE-BROKEN）。只有离废弃锚点最近的候选算被废弃。
+  if (!kw) return true;
+  if (spans.length < 2 || !owning) return true;
+  const nearest = Math.min(...spans.map((sp) => spanDist(kw.index, sp)));
+  return spanDist(kw.index, owning) <= nearest;
 }
 
 /**

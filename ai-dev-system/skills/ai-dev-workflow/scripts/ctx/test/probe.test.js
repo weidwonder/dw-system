@@ -586,3 +586,64 @@ test('classifyEntity 不因指向词的句序或英文词内命中而漏判废�
     assert.notEqual(classifyEntity(cards, [], e), 'deprecated', `${e} 是替代物`);
   }
 });
+
+test('classifyEntity 不因指向词表漏词而把替代物一起判成废弃', () => {
+  // 指向词表再长也是闭表。旧实现在「行内没有指向词」时整行通吃，于是
+  // 「权威实现是 X」「已被 X 取代」「| 废弃项 | 替代 |」这类必然漏在表外的写法，
+  // 会让**替代物**也被判 deprecated；自检植入的必错样本（把 canonical 谎称废弃）
+  // 随之"通过"，门禁判自己 GATE-BROKEN——而报错说的是"门禁形同虚设"，
+  // 真因却是使用者 card 里的一句措辞，照提示永远查不出来。
+  const forms = [
+    ['- `POST /v1/x` — 上次重构的中间产物，权威实现是 `POST /v2/x`', true],
+    ['- `POST /v1/x` — 已被 `POST /v2/x` 取代', true],
+    ['- `POST /v1/x` — 中间产物，见 `POST /v2/x`', true],
+    ['- `POST /v1/x` — 不可用，新接口 `POST /v2/x`', true],
+    ['- `POST /v1/x`（replaced by `POST /v2/x`）', true],
+    ['- `POST /v1/x` — superseded by `POST /v2/x`', true],
+    ['- `POST /v1/x` — 请调用 `POST /v2/x`', true],
+    ['- `POST /v1/x` — 统一走 `POST /v2/x`', true],
+    // 表格形态 MUST 按列序判：废弃锚点落在最后的"原因"列，离替代物反而更近，按距离必判反。
+    ['| `POST /v1/x` | `POST /v2/x` | 中间产物 |', true],
+    ['| POST /v1/x | POST /v2/x | 已废弃 |', true],
+    // 无反引号的纯文本行退回位置规则。
+    ['- POST /v1/x 已废弃，请改用 POST /v2/x', true],
+    // 行内只有一个实体时无需消歧，措辞与位置都不该改变结论。
+    ['- 已废弃：`POST /v1/x`', false],
+    ['- `POST /v1/x` — 迁移到新网关之前请先停用它', false],
+    ['- 迁移到新网关之前请先停用 `POST /v1/x`', false],
+  ];
+  for (const [line, hasReplacement] of forms) {
+    const cards = [{
+      service: 'svc',
+      raw: ['# svc', '## 废弃 / 中间产物标记', line].join('\n'),
+      sections: { '废弃 / 中间产物标记': line },
+    }];
+    assert.equal(classifyEntity(cards, [], 'POST /v1/x'), 'deprecated', `被废弃的那个：${line}`);
+    if (hasReplacement) {
+      assert.notEqual(classifyEntity(cards, [], 'POST /v2/x'), 'deprecated', `替代物 MUST NOT 判废弃：${line}`);
+    }
+  }
+});
+
+test('门禁自检不会被 card 的一句措辞打成 GATE-BROKEN', () => {
+  // 端到端：registry 登记 v2 为权威，card 的废弃段用不含指向词的措辞同时提到 v1 与 v2。
+  // 旧实现下 selfCheck 的 self-dep 样本（把 canonical 谎称废弃）会通过 → GATE-BROKEN。
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ctx-selfdep-'));
+  try {
+    fs.mkdirSync(path.join(tmp, 'cards'));
+    fs.writeFileSync(path.join(tmp, 'capability-registry.md'),
+      '| Capability | 权威实现 |\n|---|---|\n| 背单词记录 | POST /v2/word/record |\n', 'utf8');
+    fs.writeFileSync(path.join(tmp, 'cards', 'word-svc.md'),
+      ['# word-svc', '## 对外接口', '- `POST /v2/word/record`', '## 废弃 / 中间产物标记',
+       '- `POST /v1/word/record` — 上次重构的中间产物，权威实现是 `POST /v2/word/record`'].join('\n'), 'utf8');
+    const cards = loadCards(tmp);
+    const registry = loadRegistry(tmp);
+    const ev = evaluateGate(cards, registry, [
+      { n: '1', type: 'capability-mapping', input: '背单词记录', expected: 'POST /v2/word/record', severity: 'scored', weight: 1, status: '' },
+    ], new Set(), { root: tmp, ctxDir: tmp });
+    assert.equal(ev.selfCheck.ok, true, `自检 MUST 有效，实得：${ev.selfCheck.reason}`);
+    assert.equal(ev.verdict, 'GREEN');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
