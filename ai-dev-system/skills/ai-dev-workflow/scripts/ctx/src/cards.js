@@ -80,7 +80,10 @@ const CAPABILITY_HEADER_PATTERNS = REGISTRY_FIELDS[0][1];
 const isCapabilityHeader = (cell) => CAPABILITY_HEADER_PATTERNS.some((p) => p.test(cell || ''));
 
 /** 分隔行 `|---|---|`。 */
-const isSeparatorRow = (cells) => cells.every((c) => /^:?-{2,}:?$/.test(c.replace(/\s/g, '')) || c === '');
+// GFM 只要求每格 **≥1** 个 `-`，`|-|-|` 与 `|:-:|` 都是合法分隔行。
+// MUST NOT 写成 `-{2,}`：表头要靠分隔行确认，认不出分隔行 → 整张 registry 被丢弃 →
+// 权威位探测为假 → agent 静默退回裸 grep，而诊断还会把原因说成"表头没写对"。
+const isSeparatorRow = (cells) => cells.every((c) => /^:?-+:?$/.test(c.replace(/\s/g, '')) || c === '');
 
 /** 表头单元格 → 字段名映射；认不出的列直接忽略。 */
 function mapRegistryHeader(cells) {
@@ -115,6 +118,7 @@ function mapRegistryHeader(cells) {
  */
 function capabilityTables(raw) {
   const tables = [];
+  let unconfirmedHeader = false; // 首列命中能力列、但下一行不是分隔行 → 诊断要指向分隔行
   let cur = null;      // 已确认表头、正在收数据行的表
   let pending = null;  // 候选表头，待分隔行确认
   for (const line of raw.split(/\r?\n/)) {
@@ -124,6 +128,8 @@ function capabilityTables(raw) {
       if (isSeparatorRow(cells)) {
         cur = { cols: mapRegistryHeader(pending), rows: [] };
         tables.push(cur);
+      } else {
+        unconfirmedHeader = true;
       }
       pending = null;
       continue;
@@ -135,7 +141,7 @@ function capabilityTables(raw) {
     if (isSeparatorRow(cells)) continue;
     cur.rows.push(cells);
   }
-  return tables;
+  return { tables, unconfirmedHeader };
 }
 
 /**
@@ -149,7 +155,7 @@ export function loadRegistry(ctxDir) {
   if (!fs.existsSync(file)) return [];
   const raw = fs.readFileSync(file, 'utf8');
   const rows = [];
-  for (const { cols, rows: cells } of capabilityTables(raw)) {
+  for (const { cols, rows: cells } of capabilityTables(raw).tables) {
     for (const cell of cells) {
       const row = { ...EMPTY_ROW };
       for (const [field, i] of cols) row[field] = cell[i] || '';
@@ -166,7 +172,7 @@ export function loadRegistry(ctxDir) {
  * 存在的理由：`loadRegistry` 返回空数组时，"文件没建"/"表头没被认出"/"只有模板行" 三种原因
  * 的处置动作完全不同（建文件 / 改表头 / 填内容）。把三者都报成"只有模板行"会把人引向
  * 错误的修复方向——曾经真的发生过：表头写「能力」时表整张没被识别，提示却说行是模板行。
- * @returns {'no-file'|'unreadable'|'no-header'|'placeholder-only'|'no-row'|'ok'}
+ * @returns {'no-file'|'unreadable'|'no-header'|'no-separator'|'placeholder-only'|'no-row'|'ok'}
  */
 export function diagnoseRegistry(ctxDir) {
   const file = path.join(ctxDir, 'capability-registry.md');
@@ -183,8 +189,10 @@ export function diagnoseRegistry(ctxDir) {
   // 诊断说"只有模板行"而解析其实压根没认出表头（或反过来），两种情况的修复动作完全不同。
   // 数据区里的占位行首列是 `【能力】`，同样命中 /能力/——它是数据行不是表头，
   // 由 capabilityTables 的"表头须由分隔行确认"保证不被误判。
-  const tables = capabilityTables(raw);
+  const { tables, unconfirmedHeader } = capabilityTables(raw);
   const anyTableRow = raw.split(/\r?\n/).some((l) => parseTableRow(l));
+  // 表头写对了、只是分隔行没被认出，与"表头没写对"的修复动作完全不同，MUST 分开报。
+  if (!tables.length && unconfirmedHeader) return 'no-separator';
   if (!tables.length) return anyTableRow ? 'no-header' : 'no-row';
   const dataRows = tables.flatMap((t) => t.rows);
   if (!dataRows.length) return 'no-row';

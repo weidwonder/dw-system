@@ -126,3 +126,49 @@ test('diagnoseRegistry 把三种"解析不出数据行"的原因分开报', () =
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+// ---- P0 回归：GFM 合法的单破折号分隔行 ----
+
+test('loadRegistry 认 GFM 的单破折号与对齐冒号分隔行', () => {
+  // GFM 只要求每格 ≥1 个 `-`。判据写成 `-{2,}` 时表头无法被确认 → 整张 registry 被丢弃 →
+  // 权威位探测为假 → agent 静默退回裸 grep，而诊断还会反过来说"表头请写 Capability"。
+  // 这是相对旧实现的回归：旧版没有分隔行确认机制，这张表读得出。
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ctx-sep-'));
+  try {
+    for (const [name, sep, want] of [
+      ['单破折号', '|-|-|-|', 'ok'],
+      ['对齐冒号', '|:-:|:-:|:-:|', 'ok'],
+      ['常规三破折号', '|---|---|---|', 'ok'],
+    ]) {
+      const dir = path.join(tmp, name);
+      fs.mkdirSync(dir);
+      fs.writeFileSync(
+        path.join(dir, 'capability-registry.md'),
+        `| Capability | 权威实现 | 陷阱项 |\n${sep}\n| 登录 | src/auth/login.ts | src/auth/legacy.ts |\n`,
+        'utf8',
+      );
+      assert.deepEqual(loadRegistry(dir).map((r) => r.capability), ['登录'], `${name} 分隔行`);
+      assert.equal(diagnoseRegistry(dir), want, `${name} 诊断`);
+    }
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('diagnoseRegistry 把"缺分隔行"与"表头不对"分开报', () => {
+  // 两者的修复动作完全不同（补分隔行 / 改表头名），报错串指错方向就等于没有诊断。
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ctx-diag-sep-'));
+  try {
+    const noSep = path.join(tmp, 'no-sep');
+    fs.mkdirSync(noSep);
+    fs.writeFileSync(path.join(noSep, 'capability-registry.md'), '| Capability | 权威实现 |\n| 支付 | src/pay.ts |\n', 'utf8');
+    assert.equal(diagnoseRegistry(noSep), 'no-separator');
+
+    const noHeader = path.join(tmp, 'no-header');
+    fs.mkdirSync(noHeader);
+    fs.writeFileSync(path.join(noHeader, 'capability-registry.md'), '| 功能 | 实现 |\n|---|---|\n| 支付 | src/pay.ts |\n', 'utf8');
+    assert.equal(diagnoseRegistry(noHeader), 'no-header');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});

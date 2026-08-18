@@ -88,7 +88,9 @@ node src/cli.js probe --dir <ctx目录> --json >/tmp/probe.json \
 
 - card 放 `engineering-context/cards/<repo>.md`，文件名即 service 名。
 - 段落用 `## 标题`（`get-card <repo> <域>` 按此定位）。
-- `capability-registry.md` 用 markdown 表格，只取**第一张**表（表头首列含 `Capability`）；正文单元格避免裸 `|`（不处理转义）。
+- `capability-registry.md` 用 markdown 表格；正文单元格避免裸 `|`（不处理转义）。
+- **表头必须紧跟一行分隔行**（`|---|---|`）才会被认作表头。每格 ≥1 个 `-` 即可，`|-|-|`、`|:-:|` 都算。
+  没有分隔行 → 整张表被忽略（`ctx list-services` 会明说是分隔行的问题，不会误报成表头写错）。
 - registry **按表头名取列，不按列序**（`src/cards.js` 的 `REGISTRY_FIELDS`，先到先得）：
 
   | 字段 | 认得的表头写法 |

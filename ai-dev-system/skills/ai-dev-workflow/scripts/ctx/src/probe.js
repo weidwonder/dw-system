@@ -34,7 +34,9 @@ function parseRow(line) {
   if (!t.startsWith('|')) return null;
   return t.replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => c.trim());
 }
-const isSeparator = (cells) => cells.every((c) => /^:?-{2,}:?$/.test(c.replace(/\s/g, '')) || c === '');
+// 与 cards.js 的 isSeparatorRow 同一判据：GFM 只要求每格 ≥1 个 `-`。
+// 认不出分隔行，这里的后果是把 `|-|-|` 当数据行 → 多出一道编号为 `-` 的假探针。
+const isSeparator = (cells) => cells.every((c) => /^:?-+:?$/.test(c.replace(/\s/g, '')) || c === '');
 
 /**
  * 基线段里"一个探针编号"的写法：行首（可带 `-`/`*`/`+` 列表符）+ 可选 `#` + 数字，
@@ -128,8 +130,20 @@ export function loadProbes(ctxDir) {
   return { probes, baseline, skipped };
 }
 
-// 废弃行里指向替代物的措辞。这些词之后出现的实体是"该改用的那个"，不是"被废弃的那个"。
-const REDIRECT_MARKER = /(改用|请用|改为|换成|替换为|替代为|迁移到|迁移至|请走|务必走|use|instead|→|->|=>)/i;
+// 废弃行里指向替代物的措辞。
+// ASCII 词 MUST 带词边界：判据跑在 norm() 之后的串上，裸 `use` 会命中 `UserRepository`、
+// `because`、`abuse`、`reuse` 内部。那不是"多认一种写法"，而是让真·废弃项被漏判，
+// 严重时还会把它归成 canonical（见下方 isDeprecationSubject 的注释）。
+const REDIRECT_MARKER =
+  /(改用|请用|改为|换成|替换为|替代为|迁移到|迁移至|请走|务必走|→|->|=>|(?:^|[^a-z])(?:use|instead)(?![a-z]))/i;
+
+// 筛选"哪些行算废弃行"。classifyEntity 复用它，MUST NOT 再抄一份字面量。
+const DEPRECATION_KEYWORD = /(废弃|中间产物|不可用|deprecated)/i;
+
+// 就近归属时给"被废弃的那个"用的锚点词，比上面宽。放宽是安全的：本表只在**已确认是废弃行**
+// 的行内用于定位（要么整段是废弃段，要么该行已被 DEPRECATION_KEYWORD 选中），
+// MUST NOT 拿它去筛选行——那会把"本功能已停用于灰度"之类的普通句子也当成废弃声明。
+const DEPRECATION_ANCHOR = /(废弃|中间产物|不可用|deprecated|停用|下线|弃用|移除)/i;
 
 /**
  * 判断一行里出现的 entity 是"被废弃的那个"还是"该改用的那个"。
@@ -139,16 +153,29 @@ const REDIRECT_MARKER = /(改用|请用|改为|换成|替换为|替代为|迁移
  * 只判"这一行含废弃关键词且含 entity"会把 **v2 也判成 deprecated**——权威位的核心承诺
  * "信哪个"当场反过来：问 canonical 接口，`ctx` 告诉你它已废弃。所以这不是边缘情况。
  *
- * 判据：entity 的首个出现位置在替代指向词**之后** → 它是替代物，MUST NOT 判 deprecated。
- * 行内没有替代指向词时照旧判 deprecated——「已废弃：POST /v1/...」这种关键词在前的写法
- * 同样常见，不能因为修前一个 bug 把它漏掉。
+ * 判据 MUST NOT 写成"在指向词之后即替代物"：那只覆盖「旧（已废弃，请改用 新）」一种句序。
+ * 「请改用 `POST /v2/x`；`POST /v1/x` 已废弃」是同样常见的写法，指向词在最前，按位置判会把
+ * **已废弃的 v1 漏判**；它又落在「对外接口」节里，于是被下游归成 **canonical**——问权威接口，
+ * `ctx` 把废弃的那个给你。方向与上面那个 bug 相同，危害更大（静默）。
+ *
+ * 改用**就近归属**：废弃关键词与指向词都在行内时，entity 离谁近就归谁。两种句序都成立，
+ * 因为中文英文都把"被废弃的那个"写在废弃词旁、"该改用的那个"写在指向词旁。
+ * 距离相等时判 deprecated——宁可多报一次废弃，也不把废弃的说成权威的。
  */
 function isDeprecationSubject(line, entity) {
-  const hay = normTight(line);
-  const needle = normTight(entity);
-  if (!needle || !hay.includes(needle)) return false;
-  const m = REDIRECT_MARKER.exec(hay);
-  return m ? hay.indexOf(needle) < m.index : true;
+  const hay = norm(line);
+  const needle = norm(entity);
+  if (!needle) return false;
+  const at = hay.indexOf(needle);
+  // norm 保留空格，entity 与 card 里的空格写法偶有出入；去空格后仍匹配得上就保守判废弃
+  // （拿不到可比的位置，此时 MUST 倒向"多报废弃"这一侧）。
+  if (at < 0) return normTight(line).includes(normTight(entity));
+  const marker = REDIRECT_MARKER.exec(hay);
+  if (!marker) return true;
+  const kw = DEPRECATION_ANCHOR.exec(hay);
+  // 废弃段内的行可以不含废弃关键词（整段就是废弃段），此时沿用"指向词之前"。
+  if (!kw) return at < marker.index;
+  return Math.abs(at - kw.index) <= Math.abs(at - marker.index);
 }
 
 /**
@@ -167,7 +194,7 @@ export function classifyEntity(cards, registry, entity) {
       }
     }
     for (const line of card.raw.split(/\r?\n/)) {
-      if (/(废弃|中间产物|不可用|deprecated)/i.test(line) && isDeprecationSubject(line, e)) return 'deprecated';
+      if (DEPRECATION_KEYWORD.test(line) && isDeprecationSubject(line, e)) return 'deprecated';
     }
   }
   for (const r of registry) if (r.deprecated && includesTight(r.deprecated, e)) return 'deprecated';

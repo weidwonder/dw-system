@@ -560,3 +560,29 @@ test('classifyEntity 不把废弃行里指向的替代接口判成 deprecated', 
   // 关键词在前的写法（「已废弃：X」）同样常见，MUST NOT 因为修前一个 bug 把它漏掉。
   assert.equal(classifyEntity(cards, [], 'POST /v0/word/record'), 'deprecated', '行内无替代指向词时照旧判 deprecated');
 });
+
+test('classifyEntity 不因指向词的句序或英文词内命中而漏判废弃', () => {
+  // 上一版判据是"entity 在指向词之后即替代物"，且指向词表里有裸 `use`。两者各自漏判：
+  //   · 裸 `use` 命中 `UserRepository` / `because` / `abuse` 内部 → 整行的废弃声明失效；
+  //   · 指向词在前的句序（「请改用 新；旧 已废弃」）→ 旧的那个被判成"替代物"。
+  // 漏判不是"少报一条"：漏掉的实体若在「对外接口」节里，会被下游归成 canonical——
+  // 问权威接口，ctx 把已废弃的那个给你，与本文件上一个 P0 同向且更隐蔽。
+  const lines = [
+    '- `UserRepository.findByName`（已废弃，请改用 `UserRepository.findById`）',
+    '- deprecated because of perf: `GET /v1/report`',
+    '- 请改用 `POST /v2/x`；`POST /v1/x` 已废弃',
+    '- 迁移到新网关之前请先停用 `LegacyGateway`',
+    '- `GET /old/a` is deprecated, use `GET /new/a` instead',
+  ];
+  const cards = [{
+    service: 'svc',
+    raw: ['# svc', '## 废弃与中间产物', ...lines].join('\n'),
+    sections: { 废弃与中间产物: lines.join('\n') },
+  }];
+  for (const e of ['UserRepository.findByName', 'GET /v1/report', 'POST /v1/x', 'LegacyGateway', 'GET /old/a']) {
+    assert.equal(classifyEntity(cards, [], e), 'deprecated', `${e} 是被废弃的那个`);
+  }
+  for (const e of ['UserRepository.findById', 'POST /v2/x', 'GET /new/a']) {
+    assert.notEqual(classifyEntity(cards, [], e), 'deprecated', `${e} 是替代物`);
+  }
+});

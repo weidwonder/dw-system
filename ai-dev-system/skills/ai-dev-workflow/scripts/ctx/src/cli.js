@@ -20,6 +20,8 @@ const REGISTRY_EMPTY_HINT = {
   unreadable: '（capability-registry.md 读不出来；权威位按未启用处理，请检查文件权限与编码）',
   'no-header':
     '（registry 里有表格，但没有一张表的首列被识别为能力列 → 整张表被忽略；首列表头请写 Capability 或「能力」）',
+  'no-separator':
+    '（registry 的表头认出来了，但它下一行不是分隔行 → 整张表被忽略；表头下面补一行 |---|---|（每格至少一个 -））',
   'placeholder-only': '（registry 只有模板占位行（含【】）；填一行真实数据即启用权威位）',
   'no-row': '（无已登记服务/能力；registry 尚无真实数据行，权威位未启用）',
 };
