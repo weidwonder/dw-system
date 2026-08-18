@@ -748,3 +748,57 @@ test('模块路径白名单不把同形的 API 名与裸词当路径', () => {
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+// ── 废弃判定矩阵（回归门）────────────────────────────────────────────────
+// 这套判定被改坏过四次，每次都只有把各种真实写法一起跑一遍才看得出来：
+// 单看某一种写法，改成什么样都"对"。所以判据一旦要动，先在这张表里加一行。
+// 契约的两个方向同等重要：**问权威接口不能答废弃**，**问废弃接口不能答权威**。
+const P0_V1 = 'POST /v1/word/record';
+const P0_V2 = 'POST /v2/word/record';
+const p0Card = (dep = '', api = '') => ([{
+  service: 'svc',
+  raw: `## 对外接口\n${api}\n## 废弃 / 中间产物标记\n${dep}\n`,
+  sections: { '对外接口': api, '废弃 / 中间产物标记': dep },
+}]);
+const ifaceRow = (note, subject = P0_V1) =>
+  `| 接口 | 类型 | 备注 |\n|---|---|---|\n| \`${subject}\` | HTTP | ${note} |`;
+
+// exp 以 '!' 开头表示"不得判成它"（该实体在本用例里没有可判 canonical 的依据，
+// 但**绝不能**被判成 deprecated——那正是"把权威说成废弃"的失效）。
+const DEPRECATION_MATRIX = [
+  ['废弃段·旧在前', p0Card(`- \`${P0_V1}\`（已废弃，请改用 \`${P0_V2}\`）`), [], { [P0_V1]: 'deprecated', [P0_V2]: '!deprecated' }],
+  ['废弃段·新在前', p0Card(`- 请改用 \`${P0_V2}\`；\`${P0_V1}\` 已废弃`), [], { [P0_V1]: 'deprecated', [P0_V2]: '!deprecated' }],
+  ['废弃段·replaced by', p0Card(`- \`${P0_V1}\`（replaced by \`${P0_V2}\`）`), [], { [P0_V1]: 'deprecated', [P0_V2]: '!deprecated' }],
+  ['废弃段·已被X取代', p0Card(`- \`${P0_V1}\` 已被 \`${P0_V2}\` 取代`), [], { [P0_V1]: 'deprecated', [P0_V2]: '!deprecated' }],
+  ['废弃段·权威实现是X', p0Card(`- \`${P0_V1}\` 不可用，权威实现是 \`${P0_V2}\``), [], { [P0_V1]: 'deprecated', [P0_V2]: '!deprecated' }],
+  ['废弃段·箭头', p0Card(`- \`${P0_V1}\` → \`${P0_V2}\``), [], { [P0_V1]: 'deprecated', [P0_V2]: '!deprecated' }],
+  ['废弃段·单实体', p0Card(`- \`${P0_V1}\` — 上次重构的中间产物`), [], { [P0_V1]: 'deprecated' }],
+  ['废弃段·单实体带停用', p0Card(`- \`${P0_V1}\` — 迁移到新网关前请先停用它`), [], { [P0_V1]: 'deprecated' }],
+  ['废弃段·废弃表按列序', p0Card(`| 废弃项 | 改用 | 为什么 |\n|---|---|---|\n| \`${P0_V1}\` | \`${P0_V2}\` | 已下线 |`), [], { [P0_V1]: 'deprecated', [P0_V2]: '!deprecated' }],
+
+  // 「对外接口」表：第一列是**权威**接口，与废弃表的列序约定相反。
+  // 照 card.md 模板写（"已废弃仍在线的在备注标明"）曾让权威与废弃双向反转。
+  ['接口表·备注里提到被替代者', p0Card('', `| 接口 | 类型 | 状态 | 备注 |\n|---|---|---|---|\n| \`${P0_V2}\` | HTTP | V2 / canonical | 替代 \`${P0_V1}\`（已废弃）|`), [], { [P0_V2]: 'canonical' }],
+  ['接口表·主语已废弃', p0Card('', ifaceRow('已废弃')), [], { [P0_V1]: 'deprecated' }],
+  ['接口表·主语已下线', p0Card('', ifaceRow(`已下线，改用 \`${P0_V2}\``)), [], { [P0_V1]: 'deprecated' }],
+  ['接口表·主语已弃用', p0Card('', ifaceRow('已弃用')), [], { [P0_V1]: 'deprecated' }],
+  ['接口表·主语已移除', p0Card('', ifaceRow('已移除')), [], { [P0_V1]: 'deprecated' }],
+
+  // 误报守卫：这两句是描述改动/灰度的普通措辞，MUST NOT 让权威接口变废弃。
+  ['守卫·已停用于灰度', p0Card('', ifaceRow('本功能已停用于灰度，V2 canonical', P0_V2)), [], { [P0_V2]: 'canonical' }],
+  ['守卫·移除了字段校验', p0Card('', ifaceRow('v2 移除了冗余字段校验', P0_V2)), [], { [P0_V2]: 'canonical' }],
+
+  // registry 的「废弃/中间产物替代」列：README 把"一格写全旧+新"称作推荐写法。
+  ['registry·陷阱列写全句', [], [{ capability: '背单词', canonicalRepo: 'svc', canonicalApi: P0_V2, deprecated: `\`${P0_V1}\` 已废弃，改用 \`${P0_V2}\`` }], { [P0_V1]: 'deprecated', [P0_V2]: 'canonical' }],
+  ['registry·陷阱列只写旧', [], [{ capability: '背单词', canonicalRepo: 'svc', canonicalApi: P0_V2, deprecated: P0_V1 }], { [P0_V1]: 'deprecated', [P0_V2]: 'canonical' }],
+];
+
+for (const [name, matrixCards, matrixRegistry, want] of DEPRECATION_MATRIX) {
+  test(`classifyEntity 判定矩阵：${name}`, () => {
+    for (const [entity, exp] of Object.entries(want)) {
+      const got = classifyEntity(matrixCards, matrixRegistry, entity);
+      if (exp.startsWith('!')) assert.notEqual(got, exp.slice(1), `${entity} 不得判成 ${exp.slice(1)}`);
+      else assert.equal(got, exp, `${entity} 期望 ${exp}`);
+    }
+  });
+}

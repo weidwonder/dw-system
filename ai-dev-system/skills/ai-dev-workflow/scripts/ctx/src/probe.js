@@ -181,7 +181,12 @@ const REDIRECT_MARKER =
   /(改用|请用|请调用|改为|换成|替换为|替代为|替代|取代|迁移到|迁移至|请走|务必走|统一走|参见|详见|见 |新接口|新版本|权威实现是|→|->|=>|(?:^|[^a-z])(?:use|instead|replaced\s+by|superseded\s+by|moved\s+to|switch\s+to)(?![a-z]))/i;
 
 // 筛选"哪些行算废弃行"。classifyEntity 与 semantic.js 都复用它，MUST NOT 再抄一份字面量。
-const DEPRECATION_KEYWORD = /(废弃|中间产物|不可用|deprecated)/i;
+// 「已下线 / 已弃用 / 已移除」只认带状态前缀的形态：裸的「移除」「下线」会命中
+// "移除了字段校验""下线了灰度开关"这类描述改动的普通句子，把权威接口误判成废弃。
+// **停用 MUST NOT 进本表**（哪怕带前缀）——"本功能已停用于灰度"是常见写法，
+// 它只在下面的 DEPRECATION_ANCHOR 里参与"已确认是废弃行"之后的就近归属。
+const DEPRECATION_KEYWORD =
+  /(废弃|中间产物|不可用|deprecated|(?:已|现已|即将)(?:下线|弃用|移除))/i;
 
 /**
  * 一行文本是否带废弃标记。**行级**判据，MUST NOT 拿去判一整段：
@@ -248,7 +253,25 @@ function tableCells(hay) {
 /** span 到某个位置的距离（位置落在区间内记 0）。 */
 const spanDist = (idx, [a, b]) => (idx < a ? a - idx : idx >= b ? idx - b : 0);
 
-function isDeprecationSubject(line, entity) {
+/**
+ * 一行里首个非空单元格（表格行的"主语"列）。非表格行返回 null。
+ * card 的「对外接口」表每行描述的是**第一列那个接口**，后面的"备注"列是对它的说明；
+ * 说明里提到别的接口（"替代 `POST /v1/x`（已废弃）"）不代表这一行在声明那个接口的状态。
+ */
+function subjectCell(hay) {
+  const cells = tableCells(hay);
+  return cells.length >= 2 ? cells[0] : null;
+}
+
+/**
+ * @param {boolean} inDeprecationContext 该行是否处在**已确认的废弃语境**里
+ *        （card 的废弃段内，或 registry 的「废弃/中间产物替代」列内）。
+ *        只有此时表格行才能按列序判——因为那种表的第一列**约定**就是被废弃项。
+ *        普通段落里的表格行（典型是「对外接口」表）第一列是**权威**接口，
+ *        按列序判会让权威与废弃**双向反转**：问 canonical 得到 deprecated、
+ *        问 deprecated 得到 canonical，且 probe 自检会因此判自己 GATE-BROKEN。
+ */
+function isDeprecationSubject(line, entity, inDeprecationContext = false) {
   const hay = norm(line);
   const needle = norm(entity);
   if (!needle) return false;
@@ -257,13 +280,16 @@ function isDeprecationSubject(line, entity) {
   // （拿不到可比的位置，此时 MUST 倒向"多报废弃"这一侧）。
   if (at < 0) return normTight(line).includes(normTight(entity));
 
-  // 表格行 MUST 按**列序**判，MUST NOT 按距离：`| 废弃项 | 替代 | 原因 |` 里的废弃锚点
-  // 落在最后的"原因"列，离替代物反而更近，按距离判会把两者判反。
-  const cells = tableCells(hay);
-  if (cells.length >= 2) {
-    const [a, b] = cells[0];
+  // 废弃语境下的表格行 MUST 按**列序**判，MUST NOT 按距离：`| 废弃项 | 替代 | 原因 |`
+  // 里的废弃锚点落在最后的"原因"列，离替代物反而更近，按距离判会把两者判反。
+  const subject = subjectCell(hay);
+  if (subject && inDeprecationContext) {
+    const [a, b] = subject;
     return at >= a && at < b;
   }
+  // 普通段落里的表格行：只有落在**主语列**的实体才可能是本行声明的废弃对象；
+  // 出现在备注列里的其它接口，由它自己那一行（或废弃段）去判。
+  if (subject && (at < subject[0] || at >= subject[1])) return false;
 
   const kw = DEPRECATION_ANCHOR.exec(hay);
   const marker = REDIRECT_MARKER.exec(hay);
@@ -310,19 +336,34 @@ export function classifyEntity(cards, registry, entity) {
       // MUST 按行判，MUST NOT 整段判：废弃段里几乎必然写着"改用哪个"，
       // 整段判会把段里提到的替代物一起打成废弃。
       for (const line of body.split(/\r?\n/)) {
-        if (isDeprecationSubject(line, e)) return 'deprecated';
+        if (isDeprecationSubject(line, e, true)) return 'deprecated';
       }
     }
     for (const line of card.raw.split(/\r?\n/)) {
-      if (hasDeprecationKeyword(line) && isDeprecationSubject(line, e)) return 'deprecated';
+      if (hasDeprecationKeyword(line) && isDeprecationSubject(line, e, false)) return 'deprecated';
     }
   }
-  for (const r of registry) if (r.deprecated && includesTight(r.deprecated, e)) return 'deprecated';
+  // registry 的「废弃/中间产物替代」列本身就是废弃语境，但列里同样可能一格写全"旧废弃、改用新"
+  // （README §card 格式约定 把这称作推荐写法），所以 MUST NOT 裸 includes——那会把替代物
+  // 一起判废弃，进而让自检的必错样本"通过"、门禁判自己 GATE-BROKEN。
+  // 同一行的权威接口列点名了该实体时优先判 canonical：本行自己就声明了它是权威的。
+  for (const r of registry) {
+    if (!r.deprecated || !isDeprecationSubject(r.deprecated, e, true)) continue;
+    if (r.canonicalApi && includesTight(r.canonicalApi, e)) return 'canonical';
+    return 'deprecated';
+  }
   for (const r of registry) if (r.canonicalApi && includesTight(r.canonicalApi, e)) return 'canonical';
   for (const card of cards) {
     const sec = card.sections['对外接口'] || '';
     for (const line of sec.split(/\r?\n/)) {
-      if (includesTight(line, e) && /canonical|v2|v3/i.test(line)) return 'canonical';
+      // MUST 判该实体是不是这一行的**主语**：`| \`/v2/x\` | … | 替代 \`/v1/x\`（已废弃）|`
+      // 整行含 "v2"，裸 includes 会把备注列里的 **/v1/x 也判成 canonical**——问废弃接口，
+      // ctx 回答"权威"，正是本层要消灭的失效。
+      if (!includesTight(line, e)) continue;
+      const subject = subjectCell(norm(line));
+      const at = norm(line).indexOf(norm(e));
+      if (subject && !(at >= subject[0] && at < subject[1])) continue;
+      if (/canonical|v2|v3/i.test(line)) return 'canonical';
     }
   }
   return 'unknown';
