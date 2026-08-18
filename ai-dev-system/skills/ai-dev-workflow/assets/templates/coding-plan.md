@@ -54,7 +54,7 @@ authority_refs:            # 本 plan 的 Interfaces 节冻结了哪些权威面
 - [ ] 全部测试通过
 - [ ] 构建无误
 - [ ] 核心链路端到端可用
-- [ ] （协作面 = team 时）需要人 review 后再继续
+- [ ] （合并方式为 `pr` 时）checkpoint 处按 PR 粒度切分，人审通过后再继续
 
 ## Risks and Mitigations
 | Risk | Impact | Mitigation |
@@ -77,5 +77,5 @@ authority_refs:            # 本 plan 的 Interfaces 节冻结了哪些权威面
 - [ ] 任务分支已吸收最新目标主分支并重新验证
 - [ ] worktree 状态干净，全部改动已提交
 - [ ] （`merge-gate="pr"` 时）PR 已创建或更新，仓库要求的评审、持续集成、owner 或发布门禁全部通过
-- [ ] 无需再次询问用户，自动合并目标主分支并运行合并后验证
+- [ ] 无需再次询问用户，自动把任务分支合并到目标主分支并运行合并后验证
 - [ ] 合并成功后移除 worktree；失败则保留 worktree 和任务分支
