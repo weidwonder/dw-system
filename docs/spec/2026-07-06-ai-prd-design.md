@@ -3,7 +3,19 @@ date: '2026-07-06'
 status: '设计定稿，待实现'
 documentRole: 'design-spec'
 sourceOfTruth: '../../REQUIREMENTS.md 不适用（本仓库为方法论分发包）'
+lifecycle: active
+last_confirmed: '2026-08-17'
+authority_refs:
+  - 'ai-prd 与 ai-dev-workflow 的职责边界：PRD 产出在前，其产物即 workflow Step 1 的输入'
+  - 'ai-prd 的目录结构与分册加载方式'
+  - '三类 PRD 模板的划分与选用判据：change-prd（主）/ lite-issue-prd / product-prd'
+  - '批量提问 elicitation 的批次划分（分流 / A 立项 / B 现状边界 / C 细节 / D 准出 / 组稿）'
+  - 'PRD 写作纪律五条（非目标要硬 / 边界显式 / 验收可判定 / 真相方向 / 无占位符）'
+  - 'ai-prd 只读项目配置、不写配置这一职责边界'
+  - '§7 demo 骨架 → change-prd 模板 的覆盖度映射（改模板前的对照表）'
 ---
+
+> **现行性说明（2026-08-17）**：设计仍现行。其中「mode 感知（personal/team）」这一维度已在 2.0.0 被拆成**协作面**（显式字段，本 skill 只读不写）与**能力位**（运行时探测），相关小节已按新模型更新。
 
 # ai-prd skill 设计文档
 
@@ -22,19 +34,21 @@ north-star 参考物是 `orgin/prd.demo/` 下的变更 PRD 范例（本地参考
 | 1 | PRD 类型 | 变更/功能 PRD 为主，可裁剪到轻量 Issue、可放大到整品 | demo 是北极星；覆盖谱系而不强制单选 |
 | 2 | 交互模型 | **批量提问**：一次抛一批，有疑问再批量追问，否则直进下一步 | 用户明确纠正：少轮次，非一问一答（见 memory: batch-questioning-preference） |
 | 3 | 衔接 | 独立 skill，产物衔接 `ai-dev-workflow` Step 1 | 用户要"新建 skill"；松耦合 |
-| 4 | mode 感知 | mode-aware（personal/team）；团队版写"现状"用 `ctx` 拉真实代码事实 | 与仓库整体哲学一致；demo 的"现状/不改的线上逻辑"正需要可信代码事实 |
+| 4 | 项目形态感知 | 读同一个标记块的**协作面**字段选分册；写"现状"时 `ctx` 可用就用它拉真实代码事实并附 cite | 与仓库整体哲学一致；demo 的"现状/不改的线上逻辑"正需要可信代码事实。（2.0.0 起：不再有 personal/team 二分；现状取证**不看协作面**，只看 `ctx` 是否可用）|
 
 ## 3. 目录结构（沿用 ai-dev-workflow 约定）
 
 ```
 ai-dev-system/skills/ai-prd/
-  SKILL.md                     入口：读 mode → PRD 类型分流 → 批量 elicitation 驱动
+  SKILL.md                     入口：读协作面 → PRD 类型分流 → 批量 elicitation 驱动
   references/
     00-prd生成流程.md           核心：4 批提问 + 组稿的阶段流程
     prd写作纪律.md              非目标要硬 / 边界要显式 / 验收可判定 / 真相方向 / 无占位符
+    业务语言纪律.md             对话、提问与成稿只用业务语言
+    UI原型纪律.md               UI 变更时参考现有样式并产出独立 HTML 高保真交互原型
     prd质量清单.md              成稿自检 gate（对照 demo 骨架查完备性）
-    mode-personal.md           个人薄外壳（可裁剪到最短）
-    mode-team.md               团队外壳（现状接 ctx、评审门、doc 治理落位）
+    collab/solo.md             无其他人类协作方：你自己拍板，开放问题成稿前自己逐条闭环
+    collab/team.md             有其他人类协作方：业务方拍业务口径与非目标，评审结论回写 PRD
   assets/
     templates/
       change-prd.md            ★变更/功能 PRD（demo 骨架抽象化，主模板）
@@ -51,10 +65,10 @@ ai-dev-system/skills/ai-prd/
 |---|---|---|
 | 0 分流（自动，尽量不打扰） | 选模板 | 判体量/类型：轻量 Issue / 变更功能 / 整品（参考 Triage）。能从已有材料判定则不问。 |
 | A 立项 | 一句话结论、背景、目标、**非目标** | 逼出"这次做什么/为什么现在做/明确不做什么"。非目标是硬产出。 |
-| B 现状&边界 | 现状/当前逻辑、改动范围、**不改的线上逻辑** | 团队版先 `ctx discover`/`get-card` 预填现状带 cite，再让用户确认/纠偏；个人版口述+AI 追问。 |
+| B 现状&边界 | 现状/当前逻辑、改动范围、**不改的线上逻辑** | `ctx` 可用（项目有已填写的能力登记表）则先 `ctx discover`/`get-card` 预填现状带 cite，再让用户确认/纠偏；不可用则口述 + 读代码核实并显式标注来源。取证方式**不看协作面**。 |
 | C 细节 | 详细行为/字段/规则、**边界 case & 冲突** | 逐条 elicit，鼓励表格化；主动穷举冲突场景。 |
-| D 准出 | 验收标准、埋点&看板、风险&兜底 | 验收三分（字段/行为/场景）可判定；团队版埋点带公式；每条风险配兜底。 |
-| 组稿 | 最终 PRD | 按模板拼装 → 跑质量清单 → 写 `docs/` → 团队版更新 `index.md` → 提示可接 ai-dev-workflow。 |
+| D 准出 | 验收标准、埋点&看板、风险&兜底 | 验收三分（字段/行为/场景）可判定；埋点带公式；每条风险配兜底。 |
+| 组稿 | 最终 PRD | 按模板拼装 → 跑质量清单 → 写 `docs/spec/` → 项目已有 `docs/index.md` 就更新它（没有则不为此临时造一个）→ 提示可接 ai-dev-workflow。 |
 
 轻量 Issue 走批 A + 精简验收即可；整品 PRD 在批 A 增加 User Journeys/Success Criteria 提问。
 
@@ -63,12 +77,12 @@ ai-dev-system/skills/ai-prd/
 1. **非目标必须硬**：无非目标不准成稿。每个目标尽量配一条"不做什么"。
 2. **边界必须显式**：brownfield 必须有"不改的线上逻辑"章节。
 3. **验收可判定**：禁止"提升体验"等不可勾验表述；用 RFC2119；验收项能被测试/评审直接勾验。
-4. **真相方向（团队版）**：现状以**代码为准**（ctx cite），意图/愿景归意图，**不得把意图写成现状**。直接呼应 `references/company/context-engineering.md §3`。
+4. **真相方向**：现状以**代码为准**（`ctx` 可用时带 cite），意图/愿景归意图，**不得把意图写成现状**。直接呼应 `ai-dev-workflow/references/capability/context-engineering.md §3`。
 5. **无占位符成稿**：交付前 `【】` 清零（复用 `spec写作纪律` 精神）。
 
-## 6. mode 路由（与 ai-dev-workflow 一致、不打架）
+## 6. 路由（与 ai-dev-workflow 一致、不打架）
 
-读同一个 `<!-- ai-dev-workflow:start --> … mode="personal|team" … -->` 标记块判 mode。**没有标记则本会话临时问一次**，不写文件（不抢 ai-dev-workflow 的 init 写入权），避免两个 skill 争夺初始化。
+读同一个 `<!-- ai-dev-workflow:start --> … collaboration="solo|team" … <!-- ai-dev-workflow:end -->` 标记块，**只取协作面**。没有标记块、或块里只有旧版安装留下的 `mode` 字段 → 一律按 `collaboration="solo"` 走，**不问用户、不写文件、不提示迁移**：写配置与旧值迁移是 `ai-dev-workflow` 的职责，本 skill 不写文件就保证不了"只提示一次"，抢过来只会变成每次唤起都打扰。能力位与协作面无关，本 skill 也不探测——它只需要知道"现状事实能不能用 `ctx` 取"。
 
 ## 7. demo 骨架 → change-prd 模板 覆盖度映射（交付验证）
 

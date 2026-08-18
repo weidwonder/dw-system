@@ -1,8 +1,9 @@
-# Engineering Context 完整设计（team mode）
+# Engineering Context 完整设计（权威位）
 
-> 团队版的核心资产层。目标：**让 AI 在具体任务中读到正确代码、避开错误的相似旧代码，并能证明这层上下文"一直新鲜"。**
+> 加载条件：**要新建或修改 `engineering-context/` 资产时**才读（建 registry / 写 card / 画场景蓝图 / 维护探针集 / 判新鲜度）。日常取事实只读同目录 `curated.md`，不必读本文。
+> 权威位的完整设计。本文是 `curated.md` 背后的资产层设计。目标：**让 AI 在具体任务中读到正确代码、避开错误的相似旧代码，并能证明这层上下文"一直新鲜"。**
 > 落地形态：项目内 `engineering-context/` 目录（markdown card）+ `ctx` CLI（查询）。用 `ctx init` 生成骨架。
-> 目录：§0 为什么自建 ｜ §1 四层栈 ｜ §2 核心资产（registry / card / scene / glossary）｜ §3 真相方向铁律 ｜ §4 资产分层 ｜ §5 新鲜度 ｜ §6 Validation ｜ §7 本轮交付程度 ｜ §8 要避免的误区
+> 目录：§0 为什么自建 ｜ §1 四层栈 ｜ §2 核心资产（registry / card / scene / glossary）｜ §3 真相方向铁律 ｜ §4 资产分层 ｜ §5 新鲜度 ｜ §6 Validation ｜ §7 当前可用程度 ｜ §8 要避免的误区
 
 ## 0. 为什么必须自建这一层
 
@@ -26,12 +27,12 @@
 产品能力 → 权威代码实体的映射（**人工确认**）。字段见 `assets/context-layer/capability-registry.md` 模板：Capability / 业务含义 / 权威仓库 / 权威接口(含版本) / 废弃或中间产物替代 / 兼容窗口 / owner / 测试入口 / freshness / 理由链。
 
 ### 2.2 Codebase Card（`engineering-context/cards/<repo>.md`）
-每仓一张：职责、对外接口、上下游、废弃标记、测试入口、机器派生事实区。模板见 `assets/context-layer/card.md`。
+每仓一张：职责、对外接口、上下游、废弃标记、测试入口。**只放人工判断**——机器能自己算出来的事实（调用图、最后修改、DB schema）MUST NOT 抄进 card，需要时现查。模板见 `assets/context-layer/card.md`。
 
 ### 2.3 业务场景蓝图（`engineering-context/scenes/<场景>.md`）★ scene 的生产端
 card 是"单仓视角"，scene 蓝图是"端到端视角"——`ctx find-scenes` 查的就是它。**它不是查询出来的，是生产出来的**：以一个业务场景为粒度，**从入口线索出发闭合追踪每一条跨服务调用链**，产出入口清单、跨服务调用链明细、一页式时序（project.Class 粒度）、核心类方法总览、动态/配置化接口核对，每条标 ✅已确认/⏳待确认/⛔未生效。模板见 `assets/context-layer/scene-blueprint.md`。
 
-> **真相方向同样是"代码→蓝图"**：读入口顺调用链追到底，PRD 仅作 scope。没有 scene 蓝图，业务全景门限（mode-team §2）就没有东西可查——所以高频跨服务场景应优先补蓝图。这套"以 project 为粒度闭合追踪调用链、按代码证据标三态"的方法，个人版调试老系统链路也用得上。
+> **真相方向同样是"代码→蓝图"**：读入口顺调用链追到底，PRD 仅作 scope。没有 scene 蓝图，业务全景门限（`curated.md` §3）就没有东西可查——所以高频跨服务场景应优先补蓝图。这套"以 project 为粒度闭合追踪调用链、按代码证据标三态"的方法，未启用任何能力位的项目调试老系统链路也用得上。
 
 ### 2.4 领域词汇表（`engineering-context/glossary.md`，辅助资产）
 
@@ -54,7 +55,7 @@ card 是"单仓视角"，scene 蓝图是"端到端视角"——`ctx find-scenes`
 | 类型 | 示例 | owner |
 |---|---|---|
 | **耐用的人工判断**（低频、高价值、代码推不出） | 哪个实现是线上事实、废弃意图、中间产物认定、兼容切点、业务含义、"这个相似项是陷阱" | 人，带门禁 |
-| **机器可派生的事实**（随时刷新，禁止手改） | 调用图、依赖边、who-calls-this、最后修改时间、测试入口、DB schema | 工具，自动 |
+| **机器可派生的事实**（随时刷新，禁止手改） | 调用图、依赖边、who-calls-this、最后修改时间、DB schema | 工具，自动 |
 
 > 手工维护"机器可派生"那一列 = 主动制造腐化。
 
@@ -88,9 +89,9 @@ runProbeGate():
 
 **探针自防腐**：探针的"已知正确答案"本身也是权威事实，会过期——**拿过期真相打分比没有评测更糟**（绿着脸掩盖上下文已腐化）。所以探针集必须与 §5 的权威面触发**共用同一套刷新机制**：每题用 `authority_refs` 挂到它依赖的权威面，被挂权威面一变更，对应探针自动置 `needs-reconfirm`、暂不计入通过率，等人重新确认后再恢复计分（详见 `assets/context-layer/probe-set.md`）。门禁报告须显式列出 `needs-reconfirm` 题数。
 
-## 7. 本轮交付程度（诚实标注）
+## 7. 当前可用程度（诚实标注）
 
-| 组件 | 本轮 | 说明 |
+| 组件 | 状态 | 说明 |
 |---|---|---|
 | capability-registry / card / scene-blueprint | ✅ 模板 + 指南 | 真实内容由团队按指南填；高频跨服务场景优先补 scene 蓝图 |
 | `ctx` discover/get-card/find-scenes/list-services/init | ✅ 可运行骨架 | 读本地 markdown card，关键词匹配 |

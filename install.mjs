@@ -65,9 +65,10 @@ const COMPANION_SKILLS = [
 
 // ctx：本体系自带的 Engineering Context 查询 CLI，随 ai-dev-workflow skill 一起复制进目标项目。
 // 它是零依赖 Node 脚本，复制完就能用——但只有 `node <路径>/src/cli.js` 一种调用方式。
-// 而 skill 的文档（mode-team.md / SKILL.md / config-snippet）通篇写 `ctx <命令>`：命令不在 PATH 上时，
-// 使用者（尤其是 AI agent）极易把"which ctx 为空"误判成"Engineering Context 不可用"，
-// 退化成裸 grep 旧代码——这正是团队版明令禁止的行为。所以安装器把它 npm link 成全局命令。
+// 而 skill 的文档（references/capability/curated.md、context-engineering.md / SKILL.md / config-snippet）
+// 通篇写 `ctx <命令>`：命令不在 PATH 上时，使用者（尤其是 AI agent）极易把"which ctx 为空"
+// 误判成"Engineering Context 不可用"，退化成裸 grep 旧代码——权威位明令禁止这么干。
+// 所以安装器把它 npm link 成全局命令。
 // 链接失败绝不能让安装失败：ctx 本体已经随 skill 落盘，降级为打印 node 兜底调用方式即可。
 const CTX = {
   bin: 'ctx',
@@ -76,14 +77,15 @@ const CTX = {
   // `ctx --help` 首行的固定串。`ctx` 是很常见的命令名，必须据此确认 PATH 上那个确实是本体系的，
   // 既避免 npm link 悄悄顶掉用户自己的同名命令，也避免把别人的 ctx 当成"验证通过"谎报成功。
   signature: 'Engineering Context CLI',
-  why: '团队版查 Engineering Context 的入口：find-scenes / discover / get-card，替代 grep 旧代码',
+  why: '项目具备权威位（已填写的能力登记表）时查 Engineering Context 的入口：find-scenes / discover / get-card，替代 grep 旧代码',
 };
 const CTX_CMD_TIMEOUT_MS = 5 * 60 * 1000;
 
 // codegraph：外部代码知识图谱 CLI（github.com/colbymchenry/codegraph）。
 // 本体系不收录其内容，只负责三件事——保持最新、接线到 agent、给目标项目建索引。
-// 它给 AI 的是可查询的代码事实（explore / impact / callers），与团队版 Engineering Context
-// 层不冲突：card + cite 仍是权威口径，codegraph 只是找现状代码的通道。
+// 它给 AI 的是可查询的代码事实（explore / impact / callers），装成索引即启用**图谱位**。
+// 与**权威位**的 Engineering Context 层不冲突，两位正交：图谱位答"找得到吗"（符号、调用链、
+// 影响面），权威位答"信哪个"（card + cite 仍是权威口径），codegraph 只是找现状代码的通道。
 const CODEGRAPH = {
   bin: 'codegraph',
   npmPackage: '@colbymchenry/codegraph',
@@ -379,9 +381,121 @@ function assertCodexGuard(raw, conflicts, file) {
   }
 }
 
+// ── ai-dev-workflow 标记块的字段模型 ───────────────────────────────────────────
+// 契约：docs/spec/2026-08-16-项目真相源与context-tier重构-eng-spec.md §5 / §6.1 / §8.3。
+// 代码事实的供给方式（图谱位 / 权威位）不设字段——由 skill 运行时探测项目资产得出，
+// 因此这里解析出来的东西只有协作维度与 worktree 目录。
+const WORKFLOW_FIELDS = [
+  { key: 'collaboration', values: ['solo', 'team'] },
+  { key: 'merge-gate', values: ['direct', 'pr'] },
+  { key: 'worktree-dir', values: null },
+];
+const WORKFLOW_DEFAULT_WORKTREE_DIR = './.worktrees/';
+// 新字段格式要求的最低 skill 版本；比它旧的 skill 读不懂协作字段。
+const WORKFLOW_FIELD_MIN_VERSION = '2.0.0';
+
+function readWorkflowField(block, key) {
+  return block?.match(new RegExp(`${key}="([^"]*)"`))?.[1] ?? null;
+}
+
+// 旧块识别 + 墓碑字段。保留至 3.0.0（spec §8.2 替换清单）：
+// 没有它就读不到旧 mode，§8.1 第 4 条拍板的 merge-gate 推断也就无从谈起。
+// 值非法（如 mode="invalid"）时返回 null——沿用旧行为：让另一个入口的有效块接管。
 function getWorkflowMode(block) {
   const match = block?.match(/mode="(personal|team)"/);
   return match?.[1] || null;
+}
+
+// 读出标记块里的已知字段。读不出任何已知字段返回 null；
+// 已知字段值非法则报错中止，MUST NOT 猜测（spec §9）。
+function parseWorkflowBlock(block, label) {
+  if (!block) return null;
+  const parsed = { mode: getWorkflowMode(block) };
+  let known = parsed.mode ? 1 : 0;
+  for (const field of WORKFLOW_FIELDS) {
+    const raw = readWorkflowField(block, field.key);
+    if (raw === null) continue;
+    if (field.values && !field.values.includes(raw)) {
+      throw new Error(
+        `安装校验失败：${label} 的 ai-dev-workflow 标记块 ${field.key}="${raw}" 不是合法值`
+        + `（合法值：${field.values.map(v => `"${v}"`).join(' | ')}）`);
+    }
+    if (!field.values && !raw.trim()) {
+      throw new Error(`安装校验失败：${label} 的 ai-dev-workflow 标记块 ${field.key} 不能为空`);
+    }
+    parsed[field.key] = raw;
+    known++;
+  }
+  return known ? parsed : null;
+}
+
+// 旧值映射（spec §8.3）。三条边界，缺一条即偏离用户拍板：
+//   1. 只映射协作维度——旧 mode="team" MUST NOT 推出任何能力位（§8.1 第 2、3 条拍板"不兼容"）；
+//   2. 推断结果必须告知且可当场改（由调用方打印前后对照）；
+//   3. 告知文案不得使用 2.0.0 已废弃的旧项目类型说法（§8.1 第 1 条，无过渡期）。
+function resolveWorkflowSettings(parsed) {
+  if (!parsed) return null;
+  const declared = parsed.collaboration ?? null;
+  const collaboration = declared ?? (parsed.mode === 'team' ? 'team' : 'solo');
+  const mergeGate = parsed['merge-gate'] ?? (collaboration === 'team' ? 'pr' : 'direct');
+  const worktreeDir = parsed['worktree-dir'] ?? WORKFLOW_DEFAULT_WORKTREE_DIR;
+  return {
+    collaboration,
+    mergeGate,
+    worktreeDir,
+    isNewFormat: declared !== null,
+    // 任一字段是补出来的就要走迁移改写（并打印前后对照）
+    migrated: declared === null || parsed['merge-gate'] == null || parsed['worktree-dir'] == null,
+  };
+}
+
+function workflowFieldLine(settings) {
+  // mode="team" 是墓碑：新 skill 完全忽略，留着只是让尚未升级的旧 skill 不硬失败。
+  return `mode="team" collaboration="${settings.collaboration}"`
+    + ` merge-gate="${settings.mergeGate}" worktree-dir="${settings.worktreeDir}"`;
+}
+
+function workflowFieldSummary(block) {
+  const found = ['mode', ...WORKFLOW_FIELDS.map(f => f.key)]
+    .map(key => { const v = readWorkflowField(block, key); return v === null ? null : `${key}="${v}"`; })
+    .filter(Boolean);
+  return found.join(' ') || '(无已知字段)';
+}
+
+function workflowHeaderBody(settings) {
+  return `> **本项目采用 ai-dev-workflow**\n> (${workflowFieldLine(settings)})`;
+}
+
+function blockInner(block) {
+  if (!block) return '';
+  return block.slice(WORKFLOW_MODE_START.length, block.length - WORKFLOW_MODE_END.length).trim();
+}
+
+function applyWorkflowFields(body, settings) {
+  let out = body
+    .replace(/mode="[^"]*"/g, 'mode="team"')
+    .replace(/collaboration="[^"]*"/g, `collaboration="${settings.collaboration}"`)
+    .replace(/merge-gate="[^"]*"/g, `merge-gate="${settings.mergeGate}"`)
+    .replace(/worktree-dir="[^"]*"/g, `worktree-dir="${settings.worktreeDir}"`);
+  if (!/collaboration="/.test(out)) out = `${workflowHeaderBody(settings)}\n${out}`;
+  return out.trim();
+}
+
+// 组装要写进 CLAUDE.md / AGENTS.md 的标记块：base.md（公共正文）+ collab-<协作面>.md。
+function buildWorkflowBlock(skillsRoot, settings, existingBlock) {
+  const dir = path.join(skillsRoot, 'ai-dev-workflow', 'assets', 'config-snippets');
+  const parts = ['base.md', `collab-${settings.collaboration}.md`]
+    .map(name => readTextIfExists(path.join(dir, name)))
+    .map(text => blockInner(getMarkedBlock(text, WORKFLOW_MODE_START, WORKFLOW_MODE_END)) || text.trim())
+    .filter(Boolean);
+  let body = parts.join('\n');
+  if (!body.trim()) {
+    // 安装源里没有新片段（裁剪过的源）：新块原样保留正文以保证幂等；
+    // 旧块只写规范化字段行——旧外壳正文含已废止的说法，MUST NOT 顺手留下。
+    body = settings.isNewFormat ? blockInner(existingBlock) : '';
+  }
+  const withFields = applyWorkflowFields(body.trim() || workflowHeaderBody(settings), settings);
+  return `${WORKFLOW_MODE_START}\n${withFields}\n${WORKFLOW_MODE_END}`;
 }
 
 function readVersionFile(file) {
@@ -1026,18 +1140,19 @@ async function main() {
   const initialAgentsRaw = readTextIfExists(agentsEntry);
   const claudeModeBlock = getMarkedBlock(initialClaudeRaw, WORKFLOW_MODE_START, WORKFLOW_MODE_END);
   const agentsModeBlock = getMarkedBlock(initialAgentsRaw, WORKFLOW_MODE_START, WORKFLOW_MODE_END);
-  const claudeMode = getWorkflowMode(claudeModeBlock);
-  const agentsMode = getWorkflowMode(agentsModeBlock);
-  const workflowMode = claudeMode || agentsMode;
-  if ((claudeModeBlock || agentsModeBlock) && !workflowMode) {
-    throw new Error('安装校验失败：CLAUDE.md / AGENTS.md 的 ai-dev-workflow mode 标记无效');
+  // 混合状态（spec §8.3）：两个入口各自解析，一律以 CLAUDE.md 为准；
+  // CLAUDE.md 是旧块而 AGENTS.md 是新块时同样以 CLAUDE.md 为准，随即被下面的迁移改写补回新字段。
+  const claudeParsed = parseWorkflowBlock(claudeModeBlock, entryLabel(claudeFile, claudeEntry, target));
+  const agentsParsed = parseWorkflowBlock(agentsModeBlock, entryLabel(codexAgentsFile, agentsEntry, target));
+  if ((claudeModeBlock || agentsModeBlock) && !claudeParsed && !agentsParsed) {
+    throw new Error('安装校验失败：CLAUDE.md / AGENTS.md 的 ai-dev-workflow 标记块读不出任何已知字段'
+      + `（已知字段：mode / ${WORKFLOW_FIELDS.map(f => f.key).join(' / ')}）`);
   }
-  const existingModeBlock = claudeMode ? claudeModeBlock : agentsModeBlock;
-  const canonicalSnippet = workflowMode
-    ? readTextIfExists(path.join(skillsRoot, 'ai-dev-workflow', 'assets', 'config-snippets', `${workflowMode}.md`))
-    : '';
-  const workflowModeBlock = getMarkedBlock(canonicalSnippet, WORKFLOW_MODE_START, WORKFLOW_MODE_END)
-    || existingModeBlock;
+  const existingModeBlock = claudeParsed ? claudeModeBlock : agentsModeBlock;
+  const workflowSettings = resolveWorkflowSettings(claudeParsed || agentsParsed);
+  const workflowModeBlock = workflowSettings
+    ? buildWorkflowBlock(skillsRoot, workflowSettings, existingModeBlock)
+    : null;
   const codexMode = await chooseCodexConflictMode(opt, codexToDisable.length > 0);
   // 先只读取并校验全局插件清单；真正卸载在用户确认后、目标项目落盘前执行。
   const codexUninstallIds = codexMode === 'uninstall' && !opt.dryRun
@@ -1118,6 +1233,27 @@ async function main() {
     console.log(`\n  版本升级 v${installedVersion} → v${sourceVersion}：本次升级无迁移指南，无需额外动作。`);
   } else if (isDowngrade) {
     console.log(`\n${HL}  ⚠ 降级安装：目标已装 v${installedVersion}，高于安装源 v${sourceVersion}。请自行确认兼容性。${HL_END}`);
+  }
+
+  // 标记块迁移：改写前打印前后对照（spec §8.3 边界 2）。dry-run 同样展示。
+  if (workflowSettings?.migrated) {
+    console.log(`\n${HL}  ⚠ ai-dev-workflow 配置标记块将改写为新字段（改写前后对照）：${HL_END}`);
+    console.log(`       旧：${workflowFieldSummary(existingModeBlock)}`);
+    console.log(`       新：${workflowFieldLine(workflowSettings)}`);
+    console.log(`       · 协作面沿用推断结果：${workflowSettings.collaboration === 'team'
+      ? '存在其他人类协作方（collaboration="team"）'
+      : '没有其他人类协作方（collaboration="solo"）'}。`);
+    console.log(`       · 合并方式沿用推断结果：${workflowSettings.mergeGate === 'pr'
+      ? '推送 + PR + 平台自动合并（merge-gate="pr"）'
+      : '本地非快进合并（merge-gate="direct"）'}；如需改为另一种，改这一行即可。`);
+    console.log('       · 代码事实的供给方式不由这份声明决定：由项目实际资产在每次唤起时探测得出。');
+  }
+  // 已装 skill 早于新字段格式而配置已是新格式：显式报告，不静默继续（spec §8.3）。
+  if (workflowSettings?.isNewFormat && installedVersion
+      && cmpVersion(installedVersion, WORKFLOW_FIELD_MIN_VERSION) < 0) {
+    console.log(`\n${HL}  ⚠ skill 版本落后于配置：本项目标记块已是新字段格式（需 skill ≥ v${WORKFLOW_FIELD_MIN_VERSION}），`
+      + `而已装 skill 为 v${installedVersion}。请重跑安装器升级 skill（本次运行即在做这件事；`
+      + '其他协作者也需各自重跑一次，skill 目录不入库）。' + HL_END);
   }
 
   console.log('\n  ⚠ 提示：');
@@ -1224,8 +1360,8 @@ async function main() {
       assertMarkedBlock(readTextIfExists(entry), WORKFLOW_MODE_START, WORKFLOW_MODE_END, entry);
     }
     console.log(sharedEntry
-      ? `✓ 已同步并校验 ${path.relative(target, claudeEntry) || claudeEntry} 的 ai-dev-workflow mode 标记（CLAUDE.md 与 AGENTS.md 共用此文件）`
-      : '✓ 已同步并校验 CLAUDE.md / AGENTS.md 的 ai-dev-workflow mode 标记');
+      ? `✓ 已同步并校验 ${path.relative(target, claudeEntry) || claudeEntry} 的 ai-dev-workflow 配置标记块（CLAUDE.md 与 AGENTS.md 共用此文件）`
+      : '✓ 已同步并校验 CLAUDE.md / AGENTS.md 的 ai-dev-workflow 配置标记块');
   }
 
   if (codexMode === 'uninstall' && codexToDisable.length) {
@@ -1256,7 +1392,8 @@ async function main() {
   console.log('\n完成。下一步：');
   console.log('  · 重启 Claude Code / Codex（或在本项目重新打开），项目级配置/指令才会进入新会话。');
   console.log('  · 在项目里唤起 skill（提到"AI 辅助开发 / 生成 spec / coding plan / 需求澄清"即可），');
-  console.log('    首次会询问本项目用个人版还是团队版，并写入 CLAUDE.md 与 AGENTS.md。');
+  console.log('    首次会询问本项目是否有其他人类协作方与合并方式，并写入 CLAUDE.md 与 AGENTS.md；');
+  console.log('    代码事实的供给方式无需回答，由项目实际资产探测得出。');
   } finally {
     source?.cleanup();
   }

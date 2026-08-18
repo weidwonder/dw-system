@@ -6,13 +6,18 @@
 
 ## 现行设计与规范（`docs/spec/`）
 
-- **[ai-dev-system 体系设计](./spec/2026-07-06-ai-dev-system-design.md)** — 三层架构、mode-aware 路由、Engineering Context 层的总设计。
+- **[ai-dev-system 体系设计](./spec/2026-07-06-ai-dev-system-design.md)** — 三层架构、按协作面与能力位两个维度的路由、Engineering Context 层的总设计。
 - **[ai-prd 设计](./spec/2026-07-06-ai-prd-design.md)** — 产 PRD skill 的设计；§7 是变更 PRD 模板的覆盖度映射，改模板前对照。
 - **[Skill 写作自检清单](./spec/2026-07-16-skill写作自检清单.md)** — 信息层级 / 六大失败模式 / 交叉引用同步；改任何 skill markdown 前后各过一遍。
 - **[Skill 版本管理与迁移机制](./spec/2026-07-16-skill版本管理与迁移机制.md)** — VERSION、migrations、tag 与安装器 stamp 的现行约定。
 - **[源头对齐基线与回灌机制](./spec/2026-07-14-源头对齐基线与回灌机制.md)** — 与上游来源保持对齐、变更回灌的治理规则。
 - **[codegraph 自动安装与索引](./spec/2026-08-14-codegraph自动安装与索引-lean-change-spec.md)** — 安装器保持 codegraph 最新、接线到 agent、给目标项目建索引的现行口径与选项。
 - **[ctx 全局命令安装](./spec/2026-08-16-ctx全局命令安装-lean-change-spec.md)** — 安装器把 skill 自带的 ctx CLI 链接成全局命令、验证可用性与失败降级的现行口径与选项。
+- **[项目真相源与 context-tier 重构](./spec/2026-08-16-项目真相源与context-tier重构-eng-spec.md)** — 2.0.0 的设计依据：删除原有的项目类型二分，改为「协作面（显式字段）+ 能力位（运行时探测）」两个正交维度，并定义三层真相源与资产补建信号机制。含用户逐条拍板的兼容取舍记录。
+
+## 进行中的计划（`docs/plan/`）
+
+- **[项目真相源与 context-tier 重构 Coding Plan](./plan/2026-08-16-项目真相源与context-tier重构-coding-plan.md)** — 上述 spec 的任务拆分（15 个任务 + 文件独占矩阵）。实现完成并合入后转 `lifecycle: merged` 并移入归档索引。
 
 ## 进行中的报告（`docs/report/`）
 

@@ -1,5 +1,7 @@
 # ctx — Engineering Context CLI
 
+> **本文小节**：[安装 / 运行](#安装--运行) · [命令](#命令) · [跨平台说明](#跨平台说明) · [测试](#测试) · [CI / 脚本用法（--json）](#ci--脚本用法--json) · [card 格式约定（供解析）](#card-格式约定供解析) · [ctx init --minimal — 三行 registry 起步](#ctx-init---minimal--三行-registry-起步) · [ctx search-semantic "<query>" — 语义兜底检索](#ctx-search-semantic-query--语义兜底检索) · [ctx probe — Frozen Probe Set 防腐门禁](#ctx-probe--frozen-probe-set-防腐门禁)
+
 查代码事实的 CLI，**替代 MCP**：Claude Code 与 Codex 都能通过 shell 调用。Node.js ≥20，**零运行时依赖**，跨平台。读本地 `engineering-context/`（markdown card + capability-registry），每条事实附 cite。
 
 ## 安装 / 运行
@@ -10,17 +12,27 @@
 
 ```bash
 # 直接运行（无需安装依赖，任何时候都可用；ctx 命令找不到时用它兜底）
-node <skill>/scripts/ctx/src/cli.js <命令>
+node <skill 根目录>/scripts/ctx/src/cli.js <命令>
 
 # 全局链接为 ctx 命令（安装器已自动做过；失败或想重做时手动执行）
-cd <skill>/scripts/ctx && npm link      # 之后可直接 `ctx <命令>`
+cd <skill 根目录>/scripts/ctx && npm link      # 之后可直接 `ctx <命令>`
+
+# 撤销全局链接
+npm rm -g ctx
 ```
+
+`<skill 根目录>` = `ai-dev-workflow` 的 `SKILL.md` 所在目录。安装后目标项目下有两份逐字节相同的副本：Claude Code 读 `.claude/skills/ai-dev-workflow/`，Codex 读 `.agents/skills/ai-dev-workflow/`——任选一份，**别写死其中一份**。
+
+> **全局 `ctx` 指向最后一次安装的那个项目里的副本**（`npm link` 只有一个全局 bin）。这不影响使用：`ctx` 按**运行目录**去找 `engineering-context/`，所以一份命令服务所有项目。但它确实意味着多项目并存时，你敲的可能是别的项目里那份 ctx 的**代码**——版本差异导致行为可疑时，用上面的直接运行方式跑本项目这一份来对照。
+
+**版本口径**：`package.json` 的 `version` 不是 ctx 自己的版本号。ctx **随 skill 一起分发、不单独发布 npm 包**，它的版本就是分发包版本（`ai-dev-system/VERSION`）；`package.json` 只为 `npm link` 提供 `name` 与 `bin` 两个字段而存在，这两个字段 MUST NOT 改（`install.mjs` 依赖它们）。要判断手上这份 ctx 有多新，看 skill 目录旁的 `ai-dev-system.version` stamp，不要看 `package.json`。
 
 ## 命令
 
 | 命令 | 作用 | 状态 |
 |---|---|---|
-| `ctx init [--dir <目标>]` | 生成 `engineering-context/` 骨架（registry + cards/ + probe-set + glossary） | ✅ |
+| `ctx init [--dir <目标>]` | 生成 `engineering-context/` 骨架（registry + cards/ + scenes/README + probe-set + glossary + README + `.gitignore`） | ✅ |
+| `ctx init --minimal [--dir <目标>]` | 只生成 `capability-registry.md` + `.gitignore`（三列即可起步，推荐先用它） | ✅ 见下 |
 | `ctx discover "<意图>"` | 意图 → 应加载的 card 清单（按命中分排序）+ out-of-scope 提示 | ✅ |
 | `ctx get-card <repo> [域]` | 取某仓 card；域为 `## 段落标题` | ✅ |
 | `ctx find-scenes <关键词...>` | 匹配 `scenes/*.md` 业务场景 | ✅ |
@@ -29,6 +41,9 @@ cd <skill>/scripts/ctx && npm link      # 之后可直接 `ctx <命令>`
 | `ctx probe` | 跑 Frozen Probe Set 防腐门禁（自检 + 棘轮 + 衰减） | ✅ 见下 |
 
 公共选项：`--dir <ctx目录>`（默认 `<cwd>/engineering-context`）；`--json` 输出 JSON。
+
+> `--dir` **只改 `engineering-context` 的位置，不改项目根**。`ctx probe` 的零上下文交接题型读的是项目自身文件（README / docs/index.md / 架构节列出的模块路径 / `.codegraph/`），项目根一律取 **`ctx` 的运行目录（cwd）**。所以要在别的项目上跑门禁，得进那个项目再跑，而不是只把 `--dir` 指过去。
+> 例外：`ctx init` 的 `--dir` 指的是**目标项目目录**（在它下面生成 `engineering-context/`），不是 ctx 目录。
 
 ## 跨平台说明
 
@@ -40,8 +55,12 @@ cd <skill>/scripts/ctx && npm link      # 之后可直接 `ctx <命令>`
 
 ## 测试
 
+测试与 fixtures **不随 skill 分发**，住在本体系仓库根的 `test/`（`test/ctx-*.test.mjs` + `test/fixtures/ctx-engineering-context/`）。已安装到目标项目的这份副本里没有它们，这是刻意的——它们对使用方无用。
+
 ```bash
-cd <skill>/scripts/ctx && node --test        # 全部用例，覆盖 cards 解析与全部命令（含 semantic / probe）
+# 在 ai-dev-system 仓库里
+node --test test/ctx-*.test.mjs     # ctx 全部用例（cards 解析 + 全部命令，含 semantic / probe）
+node --test test/*.test.mjs         # 连同安装器测试一起跑
 ```
 
 ## CI / 脚本用法（`--json`）
@@ -57,24 +76,101 @@ node src/cli.js discover "作业辅导 对话" --dir <ctx目录> --json | jq -r 
 
 # 断言某能力已登记（未登记则 CI 失败）
 node src/cli.js list-services --dir <ctx目录> --json \
-  | jq -e '[.[].capabilities[]] | index("背单词记录")' >/dev/null \
+  | jq -e '[.services[].capabilities[]] | index("背单词记录")' >/dev/null \
   || { echo "能力未登记，请补 capability-registry"; exit 1; }
+
+# 空结果的原因（目录写错了 / 还没建 registry / 只有占位行）：读 diagnosis，别只看空数组
+node src/cli.js list-services --dir <ctx目录> --json | jq -r '.diagnosis, .hint'
 ```
 
-`ctx probe --json` 输出衰减报告（verdict / passRate / passRateDelta），退出码 RED/GATE-BROKEN=1，供 CI 门禁读取：
+**`--json` 里的 `diagnosis` / `hint`**：`discover` / `list-services` / `find-scenes` / `get-card` 结果为空时，人读输出会说清是哪种原因，**`--json` 同样带这两个字段**——不带的话「`--dir` 打错字」「registry 表头写错」「只有 `【】` 占位行」在 CI 里一律长成 `[]`，与"这个项目真没建权威位"无法区分，于是脚本（和 agent）判定权威位不可用，退回裸 grep。
+
+| 命令 | `--json` 顶层结构 | `diagnosis` 取值 |
+|---|---|---|
+| `discover` | `{ cards, capabilities, outOfScope, diagnosis, hint }` | `ok` / 下面那组 registry 诊断码 |
+| `list-services` | `{ services, unreadableCards, diagnosis, hint }` | 同上 |
+| `find-scenes` | `{ scenes, diagnosis, hint }` | `ok` / `no-dir` / `no-scenes-dir` / `no-match` |
+| `get-card` | `{ service, content, cite, diagnosis, missing?, available? }` | `ok` / `section-not-found` |
+
+registry 诊断码：`no-dir`（`engineering-context` 目录本身不存在——**先怀疑 `--dir` 或运行目录**，不是"没建权威位"）/ `no-file` / `unreadable` / `no-header` / `no-separator` / `placeholder-only` / `no-row`。
+
+**段落不存在时 `get-card` 不发 cite 且退出 1**（`cite: null` + `diagnosis: "section-not-found"` + `available` 列出可用段落）。理由：体系铁律是"每条来自 card 的事实必须附 cite，无 cite 视为幻觉"——那么一条指向不存在锚点的 cite 比没有 cite 更糟，它给幻觉发通行证。
+
+`ctx probe --json` 输出衰减报告（`verdict` / `passRate` / `passRateDelta` / `skipped` / `results[]`），**`GREEN` 与 `AMBER` 退出 0，其余（`RED` / `GATE-BROKEN` / `NO-PROBE`）退出 1**——成因逐条见 ↓ §判级表。供 CI 门禁读取：
 
 ```bash
-# 发布前防腐门禁：门禁自己失效或出现新增失败 → 流水线红
-node src/cli.js probe --dir <ctx目录> --json | jq -e '.verdict=="GREEN" or .verdict=="AMBER"' >/dev/null \
-  || { echo "context 层防腐门禁未通过"; exit 1; }
+# 发布前防腐门禁：直接用退出码，门禁失效 / 新增失败 / 一道题都没跑 → 流水线红
+node src/cli.js probe --dir <ctx目录> --json >/tmp/probe.json \
+  || { echo "context 层防腐门禁未通过：$(jq -r .verdict /tmp/probe.json)"; exit 1; }
 ```
+
+> 用退出码，别只用 `jq -e '.verdict=="GREEN" or .verdict=="AMBER"'`：那样写等于把判级规则在 CI 里抄第二遍，新增 verdict（如 `NO-PROBE`）时两边会漂移。
+> 管道直连 `| jq` 是安全的：`cli.js` 用 `process.exitCode` 收尾而不是 `process.exit()`，stdout 会被完整 flush，实测数百 KB 的 `get-card --json` 经管道与重定向到文件字节数相同。
 
 ## card 格式约定（供解析）
 
 - card 放 `engineering-context/cards/<repo>.md`，文件名即 service 名。
 - 段落用 `## 标题`（`get-card <repo> <域>` 按此定位）。
-- `capability-registry.md` 用 markdown 表格，表头首列含 `Capability`；正文单元格避免裸 `|`。
-- `Freshness / Provenance` 段落里的 `YYYY-MM-DD` 用作 cite 的确认时间。
+- `capability-registry.md` 用 markdown 表格；正文单元格避免裸 `|`（不处理转义）。
+- **哪些行会被当作废弃声明**（选行判据，与下面的消歧判据不是一回事）：行里出现
+  `废弃` / `中间产物` / `不可用` / `deprecated`，或 `已下线` / `已弃用` / `已移除`
+  （`已` 可换成 `现已` / `即将`）。**裸的「下线」「移除」「停用」不选行**——
+  "移除了字段校验""已停用于灰度"是描述改动的普通措辞，选进来会把权威接口误判成废弃。
+  `停用` 只在下一条的消歧里用得上。整节标题命中 `废弃` / `中间产物` / `deprecat` 时，该节**整节**都是废弃声明，不再逐行选。
+- **废弃行怎么写**（`deprecated-trap` 判据）：一行里同时出现被废弃项与替代物是推荐写法，解析器按下列顺序区分——
+  ① **表格行按列序，但只在废弃语境里**：废弃段内的表格、或 registry 的「废弃/中间产物替代」列，
+  第一列是被废弃的那个（`| 废弃项 | 改用 | 原因 |`）。**「对外接口」表不适用**——那张表的
+  第一列是**权威**接口、备注列才提被替代者，套列序会让权威与废弃双向反转。
+  普通段落的表格行只判**主语列**（第一个非空单元格）里的实体，备注列里提到的其它接口
+  由它自己那一行去判；
+  ② 行内**只有一个**反引号实体：它就是被废弃的那个，措辞与位置不影响结论；
+  ③ 有两个以上实体时，看废弃词（废弃/中间产物/不可用/停用/下线/弃用/移除/deprecated）与指向词
+  （改用/请用/请调用/改为/换成/替换为/替代/取代/迁移到/统一走/见/新接口/权威实现是/→/use/instead/replaced by/…）——
+  **实体离谁近就归谁**；只有指向词时，指向词之后的实体是替代物（`X（replaced by Y）`），
+  指向词在所有实体之后时紧挨它的那个是替代物（`X 已被 Y 取代`）。
+  **判据不依赖指向词表命中**：漏在表外的措辞会退回"离废弃词最近的那个才是被废弃的"，
+  MUST NOT 出现"整行都判废弃"——那会让替代物被判废弃，进而让门禁自检的必错样本通过、判自己 GATE-BROKEN。
+- **表头必须紧跟一行分隔行**（`|---|---|`）才会被认作表头。每格 ≥1 个 `-` 即可，`|-|-|`、`|:-:|` 都算。
+  没有分隔行 → 整张表被忽略（`ctx list-services` 会明说是分隔行的问题，不会误报成表头写错）。
+- registry **按表头名取列，不按列序**（`src/cards.js` 的 `REGISTRY_FIELDS`，先到先得）：
+
+  | 字段 | 认得的表头写法 |
+  |---|---|
+  | `capability` | `Capability` / 含`能力` |
+  | `businessMeaning` | 含`业务含义` / `含义` |
+  | `canonicalRepo` | 含`权威仓库` / `仓库` / `repo` |
+  | `canonicalApi` | 含`权威实现` / `权威接口` / `实现` / `接口` |
+  | `deprecated` | 含`陷阱` / `废弃` / `中间产物` |
+  | `compatWindow` / `owner` / `testEntry` / `freshness` / `reason` | 含`兼容` / `owner`·`负责人` / `测试` / `freshness`·`新鲜`·`最近确认` / `理由` |
+
+  认不出的列直接忽略，缺席的列留空，**都不报错**。**最小合法 schema 只有 `Capability` / `权威实现` / `陷阱项（废弃或中间产物）` 三列**，完整模板十列，两种形态都必须能解析——所以顺序无所谓，加列减列也不会错位。
+- 表头首列认 `Capability` **与中文的「能力」**（复用 capability 列自己的别名表）；文件里**所有**表头首列命中的表都会被解析并合并——完整模板里三列最小表与十列完整表并存，填哪张都算。
+- registry 行的 **`Capability` 列含 `【】` 即视为模板占位，整行跳过，不算已登记能力**——一份没填过的 registry 因此等于"未启用权威位"（`ctx list-services` 为空，`implementation-usable` 的权威位分支不成立）。
+- `probe-set.md` 同样按表头名取列：探针表的表头首列是 `#`、次列含 `类型`/`type`，其余列按名匹配（`输入`/`input`、`期望`/`expected`、`severity`/`严重`、`weight`/`权重`、`status`/`状态`、`authority`/`refs`/`权威`）；标题含`基线`/`baseline`/`棘轮`/`ratchet` 的小节（`#` 到 `######` 任意层级）里**独立成行**的编号即棘轮基线编号。认这些前缀：列表符 `- * +`、有序号 `1.` `1)`、任务框 `[ ]` `[x]`、强调 `**12**` `_12_`、反引号 `` `12` ``、可选 `#`，以及表格首列 `| 12 |`。
+  **行内散落的数字（日期、issue 号）不算**，所以基线段可以放心写复核记录（`> 2026-08-16 复核：暂时容忍 #1，见 issue 4321。`）。
+  代价是"编号夹在句子里"的写法（`- 探针 #3：容忍到 2026-09`）也不算——这种行会被单独警告（`⚠️ 基线段有 N 行像编号却没被解析`），**不会**静默丢掉变成假 RED。
+- `Freshness / Provenance` 段落里的 `YYYY-MM-DD` 用作 cite 的确认时间；**抽不到日期就标 `未声明新鲜度`**，绝不按新鲜处理（`search-semantic --as-of` 下同样降权标 stale）。
+
+## `ctx init --minimal` — 三行 registry 起步
+
+```bash
+node src/cli.js init --minimal --dir <项目根>     # 落 engineering-context/capability-registry.md + .gitignore
+```
+
+`.gitignore` 一起生成，内容是忽略 `.index/`（`ctx probe` 的通过率历史，机器状态，不入库）。除这两个文件外 `--minimal` 不落任何东西——`cards/`、`scenes/`、`probe-set.md`、`glossary.md` 正是它要省掉的。
+
+**为什么**：一次性铺开 registry + cards/ + scenes/ + probe-set + glossary 五个待填文件，会把刚要建权威位的人劝退，反而退回裸 grep。权威位的起步成本应该是"三行 registry"。
+
+**最小合法 schema**（完整字段说明见 `../../assets/context-layer/capability-registry.md`）：
+
+| Capability | 权威实现 | 陷阱项（废弃或中间产物） |
+|---|---|---|
+| 登录 | `src/auth/login.ts::login()` | `src/auth/legacy_login.ts`（旧实现，勿改） |
+
+- 三列 MUST，其余列 MAY 缺席；缺列 `discover` 跳过而非报错。
+- `discover` 对 registry 命中**单独出结果**（`capabilities` 字段），一张 card 都没有也能用；命中行的陷阱项列进 `outOfScope`。
+- 无 `freshness` 列时，`cite` 写 `@未声明新鲜度`，人读输出附一行「⚠ 未声明新鲜度：…用前 MUST 回源码确认」。
+- 需要 cards / scenes / probe-set 时再跑一次不带 `--minimal` 的 `ctx init` 补齐（已存在的文件不会被覆盖）。
 
 ---
 
@@ -100,20 +196,81 @@ node src/cli.js search-semantic "背单词" --as-of 2026-07-20 --stale-days 90  
 
 **定位**：真实项目每次都变，不能当回归基线；用冻结、可打分、每发布周期重跑的题集检测 context 层**衰减**。题集见 `engineering-context/probe-set.md`（`ctx init` 生成模板）。
 
-**题型（机器可判）**：
-- `capability-mapping`：输入=能力名，期望=`权威仓库 :: 权威接口`；门禁按 registry 求解比对。
+**A 类题型 — context 层（读 `cards/` 与 `capability-registry.md`）**：
+- `capability-mapping`：输入=能力名，期望=`权威仓库 :: 权威实现`；门禁按 registry 求解比对。该能力被登记了多条互相矛盾的权威实现时直接判 FAIL（`actual` 里列出冲突项），先收敛 registry。
+  registry 是**三列最小 schema**（没有"权威仓库"列）时，期望串**只写权威实现**——仓库维度不存在、无从比对，门禁只判权威实现。此时写成 `repo :: api` 会恒失败，把一道好题变成永久红点并污染棘轮基线。
 - `deprecated-trap`：输入=接口/实体，期望=`deprecated`；门禁须从 cards/registry 判其废弃，被当 canonical 即失败。
+
+**B 类题型 — 零上下文交接（读项目自身文件，`eng-spec §3.6` 四项可达性检查）**：
+
+这四项**不依赖 context 层**，一张 card 都没有的项目照样能跑。类型名支持中英双写（表格"类型"列写哪个都行）。
+
+| 类型名 | 中文题名 | 输入 | 期望 | 通过标准 |
+|---|---|---|---|---|
+| `requirement-reachable` | 需求真相源可达 | `docs/REQUIREMENTS.md` 或 `README.md#需求`（`路径` 或 `路径#锚点`）| `≤2 跳` | 从入口文档沿 markdown 链接 BFS ≤N 跳到达 |
+| `architecture-reachable` | 架构真相源可达 | 同上，指向架构真相源 | `≤2 跳` | 同上 |
+| `implementation-usable` | 实现真相源可用 | 架构节 `README.md#架构与边界` | `usable` | 模块路径无条件校验 + 探测到的每一位都要成立，见下 |
+| `rationale-traceable` | 设计理由可追 | 索引路径（默认 `docs/index.md`）| `全部非空` | 索引**现行区**各 spec 的 frontmatter `authority_refs` 均非空 |
+
+- **入口文档**：仓库根的 `README*.md` 与 `docs/index.md`。两者皆无 → `NO-ENTRY-DOC`，判 FAIL。
+- **跳数**：入口文档本身算 0 跳，入口里的链接算 1 跳。期望串里的数字即上限（不写按 `≤2`）。
+- **锚点**：目标带 `#锚点` 时，锚点必须对应文中一个标题（中文小节名与 github slug 都认），否则 `ANCHOR-MISSING`。
+- **`implementation-usable` 的三项是「叠加」不是「互斥」**（能力位是探测结果，不是配置；两位可同时成立）：
+  - **架构节里列出的模块路径均存在**——这一项**无条件校验**，有没有能力位都要过。三行 registry 不该让实现层门禁永久变绿。
+  - 图谱位（`.codegraph/codegraph.db` 存在）→ 文件非空即索引可查询；权威位（`ctx list-services` 非空）→ 已登记服务/能力非空。探测到的每一位都要成立。
+  - **什么算"模块路径"**：反引号代码片段或相对链接，且满足下列任一——**含目录分隔 `/`**；以白名单扩展名结尾；或是白名单里的裸文件名 / 点开头配置文件（`Makefile`、`Dockerfile`、`.env.example`、`.gitignore` 之类）。**两份白名单的完整清单以 `src/probe.js` 的 `PATH_EXT` 与 `BARE_PATH_NAME` 为准，此处 MUST NOT 抄第二遍**（抄了必然漂移）。
+  - 判据 MUST 是白名单而非"点号后 1–8 位字母数字"——架构小节里用反引号写 `path.join`、`os.tmpdir`、`process.env` 极其常见，启发式会把它们当成带扩展名的路径，把一道好题变成永久红点。反过来，白名单**漏掉**真实路径同样危险：架构节列了三条不存在的 `go.mod`/`Makefile`，门禁却报"全部存在"——恒绿的门禁比没有门禁更糟。
+- **`authority_refs` 非空的判据**：至少一条实义条目；空值、含 `【】` 的模板占位、`TBD` / `待填` 均视为未填。
+- **`rationale-traceable` 只认 `spec/` 目录下的 `.md`**：本体系的文档目录是固定约定（spec → `docs/spec/`、plan → `docs/plan/`、report → `docs/report/`），判据据此锁定路径含 `spec/` 段的 markdown，避免把索引里的账本、ADR、原型一起拖进来判。spec 放在别处的项目要么把它们移进 `spec/` 目录，要么把探针输入指向真正列 spec 的那份索引。
+- **"归档"标题下链到的文档不参与判定**，且排除范围按**标题层级**计算：`## 归档` 之下的 `### 2026 Q1` 仍在归档区内，只有遇到同级或更高级标题才解除。按季度/年份给归档区分子标题是常见写法，按"任意标题就重置"会让归档文档又被算进来。
+- **零条目不算通过**：架构节一个模块路径都抽不到、索引现行区一篇 spec 都没链到 —— 一律 FAIL，"没有题目所以全绿"正是假门禁。
+
+失败原因串（进 `actual` 列 / `--json` 的 `results[].actual`）：
+
+| 串 | 含义 |
+|---|---|
+| `NO-ENTRY-DOC` | 仓库根没有 `README*.md`，也没有 `docs/index.md` |
+| `BAD-TARGET` | 探针没写真相源路径 |
+| `MISSING:<路径>` | 真相源（或索引）文件不存在 |
+| `ANCHOR-MISSING:<路径>#<锚点>` | 文件在，但锚点对不上任何标题 |
+| `UNREACHABLE(>N 跳)：<路径>` | 文件在，但从入口 N 跳内到不了 |
+| `NO-SPEC-LINK:<索引> 现行区没有链到任何 spec` | 索引现行区为空 |
+| `authority_refs 未填：<路径列表>` | 现行区某些 spec 的该字段为空/占位 |
+| `模块路径：缺失 <路径列表>` | 架构节列出的模块路径有的不存在 |
+| `模块路径：架构节未列出任何模块路径（<路径#小节>）` | 架构节一个模块路径都抽不到（零条目不算通过） |
+| `模块路径：探针未指定架构节` / `模块路径：架构真相源缺失 <路径>` / `模块路径：架构节缺失 <路径>#<锚点>` | 探针输入写得不对，或它指的文件/小节不存在 |
+| `图谱位：.codegraph/codegraph.db 为空，索引不可查询` | 有索引文件但零字节 |
+
+> **项目根 = cwd**：B 类题型按 `ctx probe` 的运行目录当项目根，`--dir` 只改 `engineering-context` 的位置。
 
 ```bash
 node src/cli.js probe --dir <ctx目录>          # 人读报告
-node src/cli.js probe --dir <ctx目录> --json    # CI 读；退出码 RED/GATE-BROKEN=1
+node src/cli.js probe --dir <ctx目录> --json    # CI 读；退出码见下表
 ```
 
-**已落地的三条铁律**：
-1. **门禁自检**（防"永远全绿"的假门禁）：真跑前植入必错样本（谎报权威映射 / 把 canonical 接口谎称 deprecated），断言门禁判它们 FAIL；抓不到 → `GATE-BROKEN`，退出 1。context 层为空也判 `GATE-BROKEN`。
-2. **棘轮**：`## 基线（棘轮）` 段登记容忍的失败 #；新增（非基线内）失败 → `RED`（退出 1）；失败全落基线内 → `AMBER`（退出 0，告警）；当前失败少于基线时提示可收紧。
-3. **衰减报告**：读/写 `.index/probe-history.json`，`--json` 给出 `passRate` 与 `passRateDelta`（较上周期）。
+### 判级表（`verdict` × 成因 × 退出码）
+
+| verdict | 什么情况 | 退出码 |
+|---|---|---|
+| `GREEN` | **零失败**，且基线无冗余、通过率 ≥ 地板 | 0 |
+| `AMBER` | 失败**全部落在基线内**（棘轮容忍），且通过率 ≥ 地板 | 0 |
+| `RED` | 命中下列任一：① 出现**基线外的新增失败**；② 任何 `severity=blocking` 的探针失败（**零容忍，基线不豁免**）；③ 加权通过率 **< 地板 0.9**；④ 基线里有**已不再失败**的编号（棘轮只许变短，冗余基线本身就是失准） | 1 |
+| `GATE-BROKEN` | 自检没能证明门禁有效，拒绝出具结论。三种成因：① 植入的必错样本竟被判通过（门禁形同虚设）；② **context 层为空**（无 registry 也无 cards）且题集里没有交接题型，无从植入；③ **构造不出自检样本**——registry 没有带权威实现的条目，cards 的废弃段里也没有可判为废弃的实体 | 1 |
+| `NO-PROBE` | 一道**未暂停**的探针都没跑（题集为空 / 全是 `【…】` 占位行 / 全被 `needs-reconfirm` 暂停）。"没有题目所以全绿"正是假门禁，因此判不通过 | 1 |
+
+> **自检先于 NO-PROBE 判定**：自检不过就直接 `GATE-BROKEN` 返回，一道真实探针都不跑。所以 `ctx init` 之后立刻 `ctx probe`（题集全是 `【…】` 占位、context 层为空）得到的是 `GATE-BROKEN` 而不是 `NO-PROBE`——两者退出码相同，但修复动作不同：前者先填 registry/cards，后者先填题。
+>
+> `NO-PROBE` 的判据是 **active（未暂停）** 探针数，不是 scored：题集全是 `blocking` 且全通过时门禁是有效的，判 `GREEN`——只是没有计分题，此时 `passRate` 为 `null`，人读模式打印 `—（本轮无计分题，仅 blocking）`。
+
+不计分的两种状态：`status` 为 `needs-reconfirm`（挂的权威面变了，等人重新确认）或 `quarantined` 的探针**暂不计入通过率**，但会在报告里显式列出题数——静默排除等于偷偷降低门槛。
+
+**四条铁律**：
+1. **门禁自检**（防"永远全绿"的假门禁）：真跑前植入必错样本（谎报权威映射 / 把 canonical 接口谎称 deprecated / **把 card 废弃段里的一条实体谎称 canonical** / 指向不存在的真相源 / 架构节列不出模块路径），断言门禁判它们 FAIL；抓不到 → `GATE-BROKEN`，退出 1。card 那条样本只靠 cards 就能成立——没有它，**只有 cards、没有 registry 的项目会永远 `GATE-BROKEN`**，而 `deprecated-trap` 明明只读 cards 就能作答。交接题型的样本不依赖 cards/registry，所以 context 层为空的直读项目也有真门禁。题集里**没有**交接题型且 context 层为空时判据不变，仍是 `GATE-BROKEN`，不放水。
+2. **双向棘轮**：`## 基线（棘轮）` 段登记容忍的失败编号。**新增**（基线外）失败 → `RED`；失败全落基线内 → `AMBER`（告警不拦）；基线里某个编号**已不再失败** → 同样 `RED`，必须把它从基线删掉。基线只许变短——留着已修好的编号，下次它再坏就没人发现了。
+   基线段的编号**只认独立成行的条目**（`- 12` / `* #12` / `12`）。这样在基线段写 `> 2026-08-16 复核：暂时容忍 #1，见 issue 4321。` 这类记录才不会把 `2026`/`08`/`16`/`4321` 也当成基线编号——那会让棘轮报一堆"基线 #2026 已不再失败"的假 RED。
+3. **地板**：加权通过率低于 `0.9` 直接 `RED`，与棘轮独立判定。基线能容忍"哪几道题坏了"，但不容忍"坏了一大半"。
+4. **衰减报告**：读/写 `.index/probe-history.json`，`--json` 给出 `passRate`、`passRateDelta`（较上周期）与 `skipped`（被跳过的占位行题号）。
 
 **运行节奏**：只在 CI 发布 / 里程碑节点，**不进 coding agent 每轮 loop**。
 
-> 完整理念见 `../../references/company/context-engineering.md`。
+> 完整理念见 `../../references/capability/context-engineering.md`。

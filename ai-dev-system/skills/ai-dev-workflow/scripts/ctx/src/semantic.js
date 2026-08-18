@@ -3,8 +3,10 @@
 // 定位：discover 用精确子串命中；本命令是 discover **未命中时的兜底**，用局部
 // 向量相似度（字符 bigram 余弦）+ 可选同义词扩展，抓近义/形近说法。
 //
-// 防腐红线（与 references/company/context-engineering.md 一致，务必保留）：
+// 防腐红线（与 references/capability/context-engineering.md 一致，务必保留）：
 //   1. 每个结果带 freshness；给了 --as-of 时对过期块降权并标 stale。
+//      未声明 freshness 的块同样降权并标 stale——"看起来权威但已过期的来源比没有来源更危险"，
+//      查不出确认时间就不能假定新鲜。
 //   2. 结果附权威指针（canonical / deprecated），而非单纯相似度——避免重蹈会过期的 RAG。
 //   3. 语义检索不是第一入口：权威 registry + discover 才是；本命令输出会明示这点。
 //
@@ -13,7 +15,8 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { loadCards, makeCite } from './cards.js';
+import { loadCards, makeCite, confirmedAtOf, UNDECLARED_FRESHNESS } from './cards.js';
+import { hasDeprecationKeyword, isDeprecationSectionTitle } from './probe.js';
 
 /** 归一化：小写 + 去除空白与标点，得到用于 n-gram 的紧凑串。 */
 function normTight(s) {
@@ -74,16 +77,41 @@ export function expandQuery(query, syn) {
   return extra.length ? `${query} ${extra.join(' ')}` : query;
 }
 
-/** 段落是否描述"废弃/中间产物"。 */
-function isDeprecatedSection(title, body) {
-  return /废弃|中间产物|deprecat/i.test(title) || /不可用|已废弃|deprecated/i.test(body);
+/**
+ * 判定一个命中块该标 deprecated 还是 canonical。
+ *
+ * 判据 MUST 复用 `probe.js` 导出的两个谓词，MUST NOT 在本文件另起一套字面量：
+ * 废弃判据在仓库里只应有一处定义——`probe.js` 的 `DEPRECATION_KEYWORD`（筛哪些行算废弃行，
+ * 即这里的 `hasDeprecationKeyword`）与节标题判据 `isDeprecationSectionTitle`。
+ * `probe.js` 还有第三个 `DEPRECATION_ANCHOR`，它比前者宽，**只**用于在**已确认的废弃行内**
+ * 定位"被废弃的是哪个实体"，MUST NOT 拿它来筛行——本文件也不需要它（这里不判实体，只判块）。
+ *
+ * 正文 MUST 按**行**判、且只判**命中的那几行**，MUST NOT 整段一票否决：
+ * card 的「对外接口」节里一行废弃备注（`POST /v1/x`（已废弃，请改用 `POST /v2/x`））
+ * 会让同一张表里的权威接口一起被标 ⚠已废弃——把权威说成废弃，与"把废弃说成权威"同样是
+ * 权威位失效，只是方向相反：使用者会绕开唯一正确的那个接口另找一个。
+ *
+ * 命中行取相似度最高的那一行；并列时只要其中一行带废弃标记就判废弃——展示层宁可多提示一次
+ * 废弃（人会去核对），也不该把废弃的那行静悄悄标成 canonical。
+ */
+function isDeprecatedHit(title, body, qv) {
+  if (isDeprecationSectionTitle(title)) return true; // 整节都是废弃物，无需逐行判
+  let bestScore = 0;
+  let bestLines = [];
+  for (const line of body.split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    const s = cosine(qv, bigramTf(line));
+    if (s <= 0) continue;
+    if (s > bestScore + 1e-9) { bestScore = s; bestLines = [line]; }
+    else if (s >= bestScore - 1e-9) bestLines.push(line);
+  }
+  return bestLines.some((line) => hasDeprecationKeyword(line));
 }
 
-/** 从 card 抽 freshness 日期（YYYY-MM-DD），无则 'unknown'。 */
+/** 从 card 抽 freshness 日期（YYYY-MM-DD），无则标 UNDECLARED_FRESHNESS。 */
 function freshnessOf(card) {
   const sec = card.sections['Freshness / Provenance'] || card.raw;
-  const m = /(\d{4}-\d{2}-\d{2})/.exec(sec);
-  return m ? m[1] : 'unknown';
+  return confirmedAtOf(sec);
 }
 
 /** 计算两个 YYYY-MM-DD 之间的天数（asOf - date）；不可解析返回 null。 */
@@ -121,12 +149,13 @@ export function searchSemantic(ctxDir, query, opts = {}) {
     for (const [section, body] of chunks) {
       let score = cosine(qv, bigramTf(`${section} ${body}`));
       if (score <= 0) continue;
-      const authority = isDeprecatedSection(section, body) ? 'deprecated' : 'canonical';
+      const authority = isDeprecatedHit(section, body, qv) ? 'deprecated' : 'canonical';
       let stale = null;
       if (asOf) {
         const age = ageDays(fresh, asOf);
-        stale = age !== null && age > staleDays;
-        if (stale) score *= 0.5; // 过期块降权（红线 1）
+        // 未声明 freshness → 无法判定，按"不新鲜"处理（MUST NOT 假定新鲜）
+        stale = fresh === UNDECLARED_FRESHNESS ? true : age !== null && age > staleDays;
+        if (stale) score *= 0.5; // 过期/未声明块降权（红线 1）
       }
       scored.push({
         service: card.service,
