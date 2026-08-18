@@ -86,7 +86,12 @@ scripts/ctx/           ctx CLI（Node.js，跨平台）：查代码事实
    探测不出来就按没有算，本来就是安全侧；把它升级成故障会让整条路由为一次
    偶发 IO 错误停摆。
 
-2. 【读标记块】MUST 把当前项目根的 CLAUDE.md 与 AGENTS.md **两个入口都读**
+2. 【读标记块】**本步只读、只对话，MUST NOT 落盘。** 下面 2a/2b/2c 说的"补齐/回写/注入"
+   都是**决定要写什么**，真正写文件排在**过完工作区隔离门、进入 worktree 之后**
+   （core/worktree开发纪律.md §工作区隔离门 第 4 步）：在门前写会把主工作树弄脏，
+   于是每个项目第一次唤起本 skill 都被自己的门拦下；而且写在主工作树的块不会出现在
+   随后新建的 worktree 里，配置悬空，下次唤起又要重来。
+   MUST 把当前项目根的 CLAUDE.md 与 AGENTS.md **两个入口都读**
    （字段以 CLAUDE.md 为准，AGENTS.md 用于比对与补齐，MUST NOT 读到一个就停）：
    <!-- ai-dev-workflow:start -->
    … collaboration="solo|team" merge-gate="direct|pr" worktree-dir="./.worktrees/" …
