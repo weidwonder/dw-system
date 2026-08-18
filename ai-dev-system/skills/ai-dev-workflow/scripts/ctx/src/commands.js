@@ -118,7 +118,11 @@ function matchCapabilities(registry, tokens, outOfScope) {
       cite: makeCite('capability-registry.md', row.capability, confirmedAt),
     });
     if (row.deprecated && !isPlaceholder(row.deprecated) && !/^(无|none|n\/a|-)$/i.test(row.deprecated)) {
-      outOfScope.push(`能力「${row.capability}」的陷阱项（废弃或中间产物，别当权威用）：${row.deprecated}`);
+      // 按**成稿内容**去重，MUST NOT 逐行直接 push：模板同时给了三列最小表与十列完整表并写着
+      // "填哪张都算"，同一能力在两张表各留一行是常见形态，逐行 push 会输出两条一字不差的警告。
+      // 重复的警告不增加任何信息，只会让人把这一栏读成噪音——而这是最小 schema 里唯一的防误用装置。
+      const line = `能力「${row.capability}」的陷阱项（废弃或中间产物，别当权威用）：${row.deprecated}`;
+      if (!outOfScope.includes(line)) outOfScope.push(line);
     }
   }
   hits.sort((a, b) => b.score - a.score);

@@ -25,7 +25,7 @@ npm rm -g ctx
 
 > **全局 `ctx` 指向最后一次安装的那个项目里的副本**（`npm link` 只有一个全局 bin）。这不影响使用：`ctx` 按**运行目录**去找 `engineering-context/`，所以一份命令服务所有项目。但它确实意味着多项目并存时，你敲的可能是别的项目里那份 ctx 的**代码**——版本差异导致行为可疑时，用上面的直接运行方式跑本项目这一份来对照。
 
-**版本口径**：`package.json` 的 `version` 不是 ctx 自己的版本号。ctx **随 skill 一起分发、不单独发布 npm 包**，它的版本就是分发包版本（`ai-dev-system/VERSION`）；`package.json` 只为 `npm link` 提供 `name` 与 `bin` 两个字段而存在。要判断手上这份 ctx 有多新，看 skill 目录旁的 `ai-dev-system.version` stamp，不要看 `package.json`。
+**版本口径**：`package.json` 的 `version` 不是 ctx 自己的版本号。ctx **随 skill 一起分发、不单独发布 npm 包**，它的版本就是分发包版本（`ai-dev-system/VERSION`）；`package.json` 只为 `npm link` 提供 `name` 与 `bin` 两个字段而存在，这两个字段 MUST NOT 改（`install.mjs` 依赖它们）。要判断手上这份 ctx 有多新，看 skill 目录旁的 `ai-dev-system.version` stamp，不要看 `package.json`。
 
 ## 命令
 
@@ -165,7 +165,7 @@ node src/cli.js search-semantic "背单词" --as-of 2026-07-20 --stale-days 90  
 **定位**：真实项目每次都变，不能当回归基线；用冻结、可打分、每发布周期重跑的题集检测 context 层**衰减**。题集见 `engineering-context/probe-set.md`（`ctx init` 生成模板）。
 
 **A 类题型 — context 层（读 `cards/` 与 `capability-registry.md`）**：
-- `capability-mapping`：输入=能力名，期望=`权威仓库 :: 权威实现`；门禁按 registry 求解比对。
+- `capability-mapping`：输入=能力名，期望=`权威仓库 :: 权威实现`；门禁按 registry 求解比对。该能力被登记了多条互相矛盾的权威实现时直接判 FAIL（`actual` 里列出冲突项），先收敛 registry。
   registry 是**三列最小 schema**（没有"权威仓库"列）时，期望串**只写权威实现**——仓库维度不存在、无从比对，门禁只判权威实现。此时写成 `repo :: api` 会恒失败，把一道好题变成永久红点并污染棘轮基线。
 - `deprecated-trap`：输入=接口/实体，期望=`deprecated`；门禁须从 cards/registry 判其废弃，被当 canonical 即失败。
 

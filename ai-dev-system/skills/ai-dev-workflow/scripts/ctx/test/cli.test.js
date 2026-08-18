@@ -169,6 +169,43 @@ test('CLI init --minimal 在目标目录只落 registry 与 .gitignore', () => {
   }
 });
 
+test('discover 的陷阱项警告按内容去重（同一能力登记在两张表里）', () => {
+  // 模板同时给了三列最小表与十列完整表并写着"填哪张都算"，同一条留在两处是常见形态。
+  // 一字不差的两行警告不增加任何信息，只会让人把这一栏读成噪音。
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ctx-dup-'));
+  try {
+    const base = path.join(tmp, 'engineering-context');
+    fs.mkdirSync(base, { recursive: true });
+    fs.writeFileSync(
+      path.join(base, 'capability-registry.md'),
+      '# Capability Registry\n\n' +
+        '| Capability | 权威实现 | 陷阱项（废弃或中间产物） |\n|---|---|---|\n' +
+        '| 登录 | src/auth/login.ts::login() | src/auth/legacy_login.ts（旧实现，勿改） |\n\n' +
+        '| Capability | 权威仓库 | 权威实现 | 陷阱项（废弃或中间产物） |\n|---|---|---|---|\n' +
+        '| 登录 | auth | src/auth/login.ts::login() | src/auth/legacy_login.ts（旧实现，勿改） |\n',
+      'utf8',
+    );
+    const r = discover(base, '登录');
+    const traps = r.outOfScope.filter((w) => /legacy_login/.test(w));
+    assert.equal(traps.length, 1, '同一条陷阱项 MUST 只输出一次');
+    assert.equal(new Set(r.outOfScope).size, r.outOfScope.length, 'out-of-scope 里不得有重复行');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('CLI find-scenes 缺 scenes/ 时只陈述事实并给可选项，不替调用方做决定', () => {
+  // 这行同时说给 agent 和直接敲命令的人看，后者没有"本次"这个上下文；
+  // 同时 MUST NOT 建议用户去建资产（SKILL.md 明令）。
+  withMinimalCtx(['| 登录 | src/auth/login.ts::login() | 无 |'], (base, tmp) => {
+    const stdout = runCli(['find-scenes', '登录', '--dir', base], tmp);
+    assert.match(stdout, /scenes\/ 目录不存在：本项目尚未建场景层/);
+    assert.match(stdout, /需要收窄范围时用 `ctx discover/);
+    assert.doesNotMatch(stdout, /本次/, 'MUST NOT 替调用方宣布一个它没做过的决定');
+    assert.doesNotMatch(stdout, /建议(你|先)?(补|建|新建)/, 'MUST NOT 建议用户建资产');
+  });
+});
+
 test('CLI discover 人读输出标注未声明新鲜度', () => {
   withMinimalCtx(['| 登录 | src/auth/login.ts::login() | 无 |'], (base, tmp) => {
     const stdout = runCli(['discover', '登录', '--dir', base], tmp);

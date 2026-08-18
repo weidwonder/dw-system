@@ -26,6 +26,33 @@ test('searchSemantic 把废弃/中间产物段落标为 authority=deprecated', (
   assert.ok(dep, '命中废弃段应标 deprecated');
 });
 
+test('searchSemantic 的废弃标记按行判：同表里的权威接口 MUST NOT 被邻行连坐', () => {
+  // card 最标准的写法就是把权威行与废弃行放进同一张「对外接口」表。整段判会把权威接口
+  // 一起标成 ⚠已废弃——使用者于是绕开唯一正确的那个接口另找一个。
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ctx-sem-dep-'));
+  try {
+    const cardsDir = path.join(tmp, 'cards');
+    fs.mkdirSync(cardsDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(cardsDir, 'sample.md'),
+      '# sample\n\n## 对外接口\n' +
+        '| 接口 | 说明 |\n|---|---|\n' +
+        '| `POST /v2/word/record` | canonical，记录背单词结果 |\n' +
+        '| `POST /v1/word/record` | 已废弃，请改用 `POST /v2/word/record` |\n\n' +
+        '## Freshness / Provenance\n最近确认：2026-08-01\n',
+      'utf8',
+    );
+    const canonical = searchSemantic(tmp, '背单词记录').results.find((x) => x.section === '对外接口');
+    assert.ok(canonical, '应命中对外接口节');
+    assert.equal(canonical.authority, 'canonical', '命中的是权威行，MUST NOT 因邻行废弃备注而连坐');
+
+    const deprecated = searchSemantic(tmp, 'v1 word record 已废弃').results.find((x) => x.section === '对外接口');
+    assert.equal(deprecated.authority, 'deprecated', '命中废弃行时仍 MUST 标 deprecated');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('searchSemantic 传 --as-of 时对过期块降权并标 stale', () => {
   const fresh = searchSemantic(ctxDir, '背单词 记录', { asOf: '2026-07-10', staleDays: 90 });
   const stale = searchSemantic(ctxDir, '背单词 记录', { asOf: '2027-01-01', staleDays: 90 });

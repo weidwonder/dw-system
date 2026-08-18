@@ -173,6 +173,29 @@ test('diagnoseRegistry 把"缺分隔行"与"表头不对"分开报', () => {
   }
 });
 
+test('diagnoseRegistry：表头后面是空行 / 表头就是最后一行，仍报 no-separator', () => {
+  // 分隔行缺失的两种常见形态。报成 no-header 会把人指向"首列表头请写 Capability"，
+  // 而表头本来就是对的——照提示改永远改不好，正是这条诊断要消灭的误导。
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ctx-diag-sep2-'));
+  try {
+    const blankAfter = path.join(tmp, 'blank-after');
+    fs.mkdirSync(blankAfter);
+    fs.writeFileSync(
+      path.join(blankAfter, 'capability-registry.md'),
+      '| 能力 | 权威实现 |\n\n登记见上表。\n',
+      'utf8',
+    );
+    assert.equal(diagnoseRegistry(blankAfter), 'no-separator');
+
+    const atEof = path.join(tmp, 'at-eof');
+    fs.mkdirSync(atEof);
+    fs.writeFileSync(path.join(atEof, 'capability-registry.md'), '| Capability | 权威实现 |', 'utf8');
+    assert.equal(diagnoseRegistry(atEof), 'no-separator');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('registryConflicts 找出同一能力的互相矛盾登记', () => {
   // 合并全文件所有能力表之后这种冲突才可能出现（旧实现只读第一张表）。
   // 静默并存是最差的一种：权威位的全部承诺就是"信哪个"，两条并列等于把问题原样退回，

@@ -114,16 +114,26 @@ function mapRegistryHeader(cells) {
  * "首列命中就当表头"的隐患：一张表进入数据区后，它的数据行（如占位行 `| 【能力】 |`，
  * 首列同样命中 /能力/）不再有机会被误判成新表的表头。
  *
- * @returns {Array<{cols: Map<string,number>, rows: string[][]}>}
+ * @returns {{tables: Array<{cols: Map<string,number>, rows: string[][]}>, unconfirmedHeader: boolean}}
+ *          `unconfirmedHeader` 供 `diagnoseRegistry` 区分"表头没写对"与"表头对、缺分隔行"。
  */
 function capabilityTables(raw) {
   const tables = [];
-  let unconfirmedHeader = false; // 首列命中能力列、但下一行不是分隔行 → 诊断要指向分隔行
+  let unconfirmedHeader = false; // 首列命中能力列、但没被分隔行确认 → 诊断要指向分隔行
   let cur = null;      // 已确认表头、正在收数据行的表
   let pending = null;  // 候选表头，待分隔行确认
   for (const line of raw.split(/\r?\n/)) {
     const cells = parseTableRow(line);
-    if (!cells) { cur = null; pending = null; continue; } // 非表格行 → 当前表结束，继续找下一张
+    if (!cells) {
+      // 非表格行 → 当前表结束，继续找下一张。候选表头在这里被丢弃时同样要置位：
+      // 「表头 + 空行」和「表头 + 正文」都是分隔行缺失的常见形态（分隔行忘了写，
+      // 或被编辑器的自动换行拆开），丢了这个信号诊断就退回 no-header，
+      // 把人指向"首列表头请写 Capability"——而表头本来就是对的，照提示改永远改不好。
+      if (pending) unconfirmedHeader = true;
+      cur = null;
+      pending = null;
+      continue;
+    }
     if (pending) {
       if (isSeparatorRow(cells)) {
         cur = { cols: mapRegistryHeader(pending), rows: [] };
@@ -141,6 +151,8 @@ function capabilityTables(raw) {
     if (isSeparatorRow(cells)) continue;
     cur.rows.push(cells);
   }
+  // 候选表头正好是文件最后一行时循环内没有机会判它——同样是分隔行缺失，MUST 一并置位。
+  if (pending) unconfirmedHeader = true;
   return { tables, unconfirmedHeader };
 }
 

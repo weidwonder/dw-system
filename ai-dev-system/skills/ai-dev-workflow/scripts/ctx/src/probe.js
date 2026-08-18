@@ -7,7 +7,8 @@
 //
 // 机器可判题型（两类）：
 //   A. context 层题型（读 cards/registry）
-//     capability-mapping  输入=能力名，期望=`权威实现` 或 `权威仓库 :: 权威实现`。按 registry 求解比对。
+//     capability-mapping  输入=能力名，期望=`权威实现` 或 `权威仓库 :: 权威实现`。按 registry 求解比对；
+//                         该能力在 registry 里有互相矛盾的登记时直接判 FAIL（此时这道题没有正确答案）。
 //     deprecated-trap     输入=接口/实体，期望=`deprecated`（或 canonical）。按 cards/registry 判定其权威状态。
 //   B. 零上下文交接题型（读项目自身文件，见 eng-spec §3.6 四项可达性检查）
 //     requirement-reachable    输入=需求真相源（`路径` 或 `路径#小节`），期望含跳数上限（默认 ≤2 跳）
@@ -23,7 +24,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { listServices } from './commands.js';
-import { isRegistryPlaceholder } from './cards.js';
+import { isRegistryPlaceholder, registryConflicts } from './cards.js';
 
 const norm = (s) => (s || '').toLowerCase().replace(/\s+/g, ' ').trim();
 const normTight = (s) => norm(s).replace(/\s+/g, '');
@@ -179,8 +180,22 @@ export function loadProbes(ctxDir) {
 const REDIRECT_MARKER =
   /(改用|请用|请调用|改为|换成|替换为|替代为|替代|取代|迁移到|迁移至|请走|务必走|统一走|参见|详见|见 |新接口|新版本|权威实现是|→|->|=>|(?:^|[^a-z])(?:use|instead|replaced\s+by|superseded\s+by|moved\s+to|switch\s+to)(?![a-z]))/i;
 
-// 筛选"哪些行算废弃行"。classifyEntity 复用它，MUST NOT 再抄一份字面量。
+// 筛选"哪些行算废弃行"。classifyEntity 与 semantic.js 都复用它，MUST NOT 再抄一份字面量。
 const DEPRECATION_KEYWORD = /(废弃|中间产物|不可用|deprecated)/i;
+
+/**
+ * 一行文本是否带废弃标记。**行级**判据，MUST NOT 拿去判一整段：
+ * card 的「对外接口」表里通常一行废弃、其余行权威，整段判会把同表的权威接口一起打成废弃。
+ * 导出是为了让 `semantic.js` 复用同一套字面量——废弃判据每多一套，就多一处
+ * "这里说废弃、那里说权威"的分歧，而这正是权威位要消灭的东西。
+ */
+export const hasDeprecationKeyword = (line) => DEPRECATION_KEYWORD.test(line);
+
+/**
+ * 段落标题是否宣告"这一整节都是废弃物"（card 模板里的「废弃/中间产物标记 ★防误用」节）。
+ * 与 `hasDeprecationKeyword` 的分工：标题命中 → 整节都是废弃项；标题不命中 → 只能逐行判。
+ */
+export const isDeprecationSectionTitle = (title) => /废弃|中间产物|deprecat/i.test(title || '');
 
 // 就近归属时给"被废弃的那个"用的锚点词，比上面宽。放宽是安全的：本表只在**已确认是废弃行**
 // 的行内用于定位（要么整段是废弃段，要么该行已被 DEPRECATION_KEYWORD 选中），
@@ -291,7 +306,7 @@ export function classifyEntity(cards, registry, entity) {
   const e = entity;
   for (const card of cards) {
     for (const [title, body] of Object.entries(card.sections)) {
-      if (!/废弃|中间产物|deprecat/i.test(title)) continue;
+      if (!isDeprecationSectionTitle(title)) continue;
       // MUST 按行判，MUST NOT 整段判：废弃段里几乎必然写着"改用哪个"，
       // 整段判会把段里提到的替代物一起打成废弃。
       for (const line of body.split(/\r?\n/)) {
@@ -299,7 +314,7 @@ export function classifyEntity(cards, registry, entity) {
       }
     }
     for (const line of card.raw.split(/\r?\n/)) {
-      if (DEPRECATION_KEYWORD.test(line) && isDeprecationSubject(line, e)) return 'deprecated';
+      if (hasDeprecationKeyword(line) && isDeprecationSubject(line, e)) return 'deprecated';
     }
   }
   for (const r of registry) if (r.deprecated && includesTight(r.deprecated, e)) return 'deprecated';
@@ -323,6 +338,20 @@ export function answerProbe(cards, registry, probe, ctx = {}) {
     const row = registry.find((r) => norm(r.capability) === norm(probe.input))
       || registry.find((r) => norm(r.capability).includes(norm(probe.input)) && norm(probe.input).length > 0);
     if (!row) return { actual: 'NOT-FOUND', pass: false };
+    // 该能力被登记了多条互相矛盾的权威实现时 MUST 判 FAIL，MUST NOT 让 `registry.find` 静默取第一条。
+    // 这道题问的就是"这个能力信哪个"，registry 里并列着两个答案时它已经没有正确答案了；
+    // 取第一条会让门禁在权威位失效的当口显示绿色——而"同一能力多处实现时信哪个"正是权威位
+    // 唯一的承诺，它失效的直接证据就是这种冲突，最该在门禁里红的就是它。
+    // 判据 MUST 复用 cards.js 的 registryConflicts，MUST NOT 另写一套：那边刻意只比权威实现列
+    // （最小表升级到完整表时同一行留在两处只有仓库列差异，拼起来比会误报），两套判据一漂移，
+    // discover 报冲突而门禁全绿（或反过来），使用者无从判断该信谁。
+    const conflict = registryConflicts(registry).find((c) => norm(c.capability) === norm(row.capability));
+    if (conflict) {
+      return {
+        actual: `CONFLICT：registry 里有 ${conflict.canonicals.length} 条互相矛盾的登记（${conflict.canonicals.join(' / ')}），先收敛`,
+        pass: false,
+      };
+    }
     // 期望串两种写法：`权威仓库 :: 权威实现`（完整 schema）与 `权威实现`（最小 schema 只有三列）。
     const parts = String(probe.expected || '').split('::').map((x) => x.trim());
     const wantApi = parts.length > 1 ? parts.slice(1).join('::').trim() : parts[0];

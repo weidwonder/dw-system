@@ -201,6 +201,32 @@ test('capability-mapping：完整 schema 下仓库仍参与比对（容忍不得
   assert.equal(wrongRepo.pass, false, 'registry 声明了仓库，写错仓库 MUST 判 FAIL');
 });
 
+test('capability-mapping：能力被登记了互相矛盾的权威实现时 MUST 判 FAIL', () => {
+  // registry.find 会静默取第一条，于是权威位失效的当口门禁反而全绿——
+  // 而"同一能力多处实现时信哪个"正是权威位唯一的承诺，这种冲突就是它失效的直接证据。
+  const CONFLICT_REGISTRY = MINIMAL_REGISTRY +
+    '\n| Capability | 权威实现 |\n|---|---|\n| 背单词记录 | POST /v3/word/record |\n';
+  withCtxDir({ 'capability-registry.md': CONFLICT_REGISTRY }, (dir) => {
+    const reg = loadRegistry(dir);
+    assert.equal(reg.length, 2, '两张表的登记都要被读到');
+    for (const expected of ['POST /v2/word/record', 'POST /v3/word/record']) {
+      const r = answerProbe([], reg, { type: 'capability-mapping', input: '背单词记录', expected });
+      assert.equal(r.pass, false, `冲突未收敛时，期望 ${expected} 也 MUST NOT 判 PASS`);
+      assert.match(r.actual, /2 条互相矛盾的登记/, 'actual MUST 说清是冲突，而不是答案不对');
+    }
+  });
+});
+
+test('capability-mapping：仅仓库列填没填的同一条登记不算冲突（误报会训练人忽略告警）', () => {
+  const SAME_API = '| Capability | 权威仓库 | 权威实现 |\n|---|---|---|\n' +
+    '| 背单词记录 | sample-service | POST /v2/word/record |\n' +
+    '\n| Capability | 权威实现 |\n|---|---|\n| 背单词记录 | POST /v2/word/record |\n';
+  withCtxDir({ 'capability-registry.md': SAME_API }, (dir) => {
+    const r = answerProbe([], loadRegistry(dir), { type: 'capability-mapping', input: '背单词记录', expected: 'sample-service :: POST /v2/word/record' });
+    assert.equal(r.pass, true);
+  });
+});
+
 test('selfCheck：最小 schema registry 上门禁自检仍有效（植入样本被判 FAIL）', () => {
   withCtxDir({ 'capability-registry.md': MINIMAL_REGISTRY }, (dir) => {
     const sc = selfCheck([], loadRegistry(dir));
