@@ -33,7 +33,8 @@
 
 ## 4 批提问
 
-> **每批都有退出条件，写在该批小节末尾**：退出条件全部勾验通过才进下一批；任一不通过 → **只就不通过的那几点再批量追问一次**，MUST NOT 整批重来、MUST NOT 带着不通过项进下一批。
+> **每批都有退出条件，写在该批小节末尾**：退出条件全部勾验通过才进下一批；任一不通过 → **只就不通过的那几点再批量追问一次**，MUST NOT 整批重来。
+> **追问一次后仍未闭合的点，MUST 转成显式的「开放问题」**（写清问题源自哪里、卡住谁的决策）后进下一批：MUST NOT 无限追问，MUST NOT 静默略过，也 MUST NOT 就此卡住不前——用户说不出可衡量目标、说不清特殊场景处理都是常态。开放问题在成稿前按 `collab/` 的规则闭环（solo 自己逐条拍板或写成非目标，team 挂评审）。
 > 判定"还有没有缺口"的**权威判据是 `question-bank.md` §追问触发**，四批共用同一份；四批小节的退出条件只是该判据在本批的具体勾验项，**MUST NOT 自行另立标准**。两者冲突时以 `question-bank.md` §追问触发为准。
 
 ### 批 A —— 立项（一句话结论 · 背景 · 目标 · 非目标）
@@ -86,7 +87,10 @@
 3. `ctx get-card <repo> [域]` —— 取该仓权威事实（职责/对外接口/上下游/废弃标记）；
 4. 用取到的事实**预填现状草稿，每条附 cite**（`path#anchor @确认时间`），再请用户确认/纠偏。
 
-命令找不到时 MUST NOT 判定"没有可信事实"，用 `node <skills 根>/ai-dev-workflow/scripts/ctx/src/cli.js <命令>` 兜底（例如 `.claude/skills/ai-dev-workflow/scripts/ctx/src/cli.js`）。**`ctx` CLI 随姊妹 skill `ai-dev-workflow` 分发，`ai-prd` 自身不带**——本 skill 目录下没有 `scripts/`，在本 skill 目录里找 ctx 一定落空，MUST NOT 因此判定判据不成立。
+命令找不到时 MUST NOT 判定"没有可信事实"，用 `node <skills 根>/ai-dev-workflow/scripts/ctx/src/cli.js <命令>` 兜底。
+`<skills 根>` = **本 SKILL.md 所在目录的父目录**——Claude Code 下是 `.claude/skills/`、Codex 下是 `.agents/skills/`，**MUST NOT 写死其中一侧**（写死 `.claude/` 会让 Codex 侧照抄即 ENOENT）。
+**`ctx` CLI 随姊妹 skill `ai-dev-workflow` 分发，`ai-prd` 自身不带**——本 skill 目录下没有 `scripts/`，在本 skill 目录里找 ctx 一定落空，MUST NOT 因此判定判据不成立。
+**`ctx` 与 `node` 兜底都执行不了时**（两条都报错，不是"零命中"）：MUST 就地降级到下面的**读代码核实路径**并按表标注，一句话告知用户原因，MUST NOT 阻断流程、MUST NOT 反复重试——与上面"探测失败"同款处置。
 
 **零命中就地降级（MUST）**：即使判据成立，若 `ctx find-scenes` 与 `ctx discover "<意图>"` 对本次意图**均零命中**，MUST 就地转到下面的**读代码核实路径**完成本次取证，并向用户提示"本次涉及的能力尚未登记进 `capability-registry.md` / card，可补登记"。MUST NOT 停下等资产补齐，MUST NOT 凭空写现状，**MUST NOT 编造 cite**（无 card 依据的 cite 视为幻觉）。
 
@@ -94,7 +98,11 @@
 
 **读代码核实路径（判据不成立，或 ctx 路径零命中降级而来）**：
 
-让用户口述现状 + AI 就模糊处追问 + **直接读代码核实**，每条现状注明来源（代码位置或"用户口述"）；并在 PRD 现状节 MUST 原文照抄下面**恰好一句**标注：
+让用户口述现状 + AI 就模糊处追问 + **直接读代码核实**，每条现状注明来源（代码位置或"用户口述"）；
+
+> **项目根存在 `.codegraph/codegraph.db` 时**（姊妹 skill 称【图谱位】），"读代码核实"MUST 先走**代码图谱**（MCP 工具或 `codegraph` 命令，子命令以工具自身说明为准）查符号、调用链与影响面，**MUST NOT 直接裸 grep 全仓**；图谱不可用就回退到子代理外包重探索，**MUST NOT 阻断流程**。它与上面的权威位**正交**——图谱位管"找得到吗"，权威位管"信哪个"，两位可同时成立、也可都没有。判据与降级见姊妹 skill 的 `ai-dev-workflow/references/capability/graph.md`，本文 MUST NOT 展开成 codegraph 使用手册。
+
+并在 PRD 现状节 MUST 原文照抄下面**恰好一句**标注：
 
 | 情形 | 现状节 MUST 出现的标注原文 |
 |---|---|
@@ -185,7 +193,12 @@
 1. 按所选模板把四批产出拼装成完整 PRD，补流程图（mermaid）与 changelog。
 2. 涉及 UI 时，按 `UI原型纪律.md` 与 `assets/templates/ui-prototype.html` 生成独立 HTML 原型；PRD 中只链接原型文件并说明覆盖路径、样式依据和关键状态。
 3. 跑 `prd质量清单.md` 自检；不过则就缺项再批量追问或补写。
-4. **交付门：先取得用户确认再落盘**。组稿后把关键取舍、非目标、验收口径回述给用户；涉及 UI 时同时回述原型覆盖范围和样式依据，**达成共识后才写文件**——不要在用户还没确认的情况下就当成定稿交付。
+4. **落盘确认门：先取得用户确认再落盘**。组稿后把关键取舍、非目标、验收口径回述给用户；涉及 UI 时同时回述原型覆盖范围和样式依据，**达成共识后才写文件**——不要在用户还没确认的情况下就当成定稿交付。
+
+   **怎样算"确认了"（三条判据，MUST 照此判，MUST NOT 自行解释）**：
+   - 用户逐点回复，或明确说"就按你说的走 / 没问题 / 可以落盘"这类整体认可 → **算确认**，落盘。
+   - 用户只回了其中一部分 → **只就未确认的那几项再回述一次**，已确认的不重复问；MUST NOT 因为部分未确认就整份重来。
+   - **用户没有回复** → MUST NOT 落盘正式路径，也 MUST NOT 反复追问。把当前稿留在对话里，一句话告知"等你确认后我再写文件"，然后停在这里等——这是**唯一**允许因等用户而挂起的点（它是门，不是对齐开销）。
 5. 落盘（命名：变更 PRD → `docs/spec/<name>-PRD-YYYYMMDD.md`；UI 原型 → `docs/spec/<name>-prototype-YYYYMMDD.html`；整品 → `docs/REQUIREMENTS.md`，唯一真相源放 `docs/` 根）。
 6. **项目有 `docs/index.md` 时**：MUST 同步更新（doc 治理要求）——**PRD 与 UI 原型都要进索引**，原型与 PRD 同条目并列标注。索引只放现行口径，PRD frontmatter 带 `lifecycle: active`；归档进 `docs/index-archive.md`（见下方 §PRD 生命周期）。项目**没有** `docs/index.md` 时，MUST NOT 为了本次落盘临时造一个索引，只做 frontmatter 与归档头注两个动作（呼应 `ai-dev-workflow` 的 `references/core/文档治理.md`）。
 7. 收尾提示：这份 PRD **连同 UI 原型**一并作为 `ai-dev-workflow` Step 1 的输入，接着做 Overview / 技术 Spec；告诉用户下游会按原型落用户可见行为，原型与 PRD 正文冲突会被立为开放问题。
