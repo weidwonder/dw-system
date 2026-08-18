@@ -227,7 +227,11 @@ export function initScaffold(targetDir, opts = {}) {
   if (opts.minimal) {
     fs.mkdirSync(base, { recursive: true });
     writeIfAbsent(path.join(base, 'capability-registry.md'), MINIMAL_REGISTRY_STUB);
-    return { base, files: ['capability-registry.md'] };
+    // .gitignore MUST 一起生成：`--minimal` 是 CLI 自己推荐的起步方式，之后手写 probe-set
+    // 再跑 `ctx probe`，`.index/probe-history.json` 就会变成未忽略的脏文件。
+    // 那个文件是本地衰减历史，不该入库，也不该每次 git status 都跳出来。
+    writeIfAbsent(path.join(base, '.gitignore'), GITIGNORE_STUB);
+    return { base, files: ['capability-registry.md', '.gitignore'] };
   }
   fs.mkdirSync(path.join(base, 'cards'), { recursive: true });
   writeIfAbsent(path.join(base, 'cards', '.gitkeep'), '');

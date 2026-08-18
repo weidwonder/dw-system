@@ -114,7 +114,7 @@
 
 很多项目让 Claude Code 与 Codex **共用一份指导文件**，做法是把 `AGENTS.md` 软链接到 `CLAUDE.md`（反向亦有，也可能两者都链到仓库外的共用文件）。这种链接是用户的刻意配置，**任何写入都必须保留它**。
 
-写 `CLAUDE.md` / `AGENTS.md` 之前，先各判断一次（例如 `ls -l CLAUDE.md AGENTS.md`，或 `readlink CLAUDE.md`）：
+写 `CLAUDE.md` / `AGENTS.md` 之前，先各判断一次（例如 `ls -l CLAUDE.md AGENTS.md`，或 `readlink CLAUDE.md`（POSIX）/ `Get-Item CLAUDE.md | Select-Object LinkType,Target`（Windows PowerShell），或直接用 harness 的文件工具判断）：
 
 - **不是链接** → 按上面的幂等规则直接写这个文件。
 - **是链接** → 逐层解析到实体文件，**把实体文件当作写入对象**，对它照常判断"替换块内"还是"追加新块"。链接本身不删、不改、不替换成普通文件；不要用"先删再建"或整文件覆盖的写法。

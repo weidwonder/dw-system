@@ -130,13 +130,17 @@ test('listServices 列出没有 card 的 registry 能力（三行 registry 即�
   });
 });
 
-test('initScaffold --minimal 只生成 capability-registry.md', () => {
+test('initScaffold --minimal 只生成 registry 与 .gitignore', () => {
+  // .gitignore 必须一起生成：--minimal 之后手写 probe-set 再跑 ctx probe，
+  // .index/probe-history.json 会变成未忽略的脏文件。除这两个之外 MUST NOT 多生成
+  // 任何东西——cards/ scenes/ probe-set/ glossary 那一整套正是 --minimal 要省掉的。
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ctx-'));
   try {
     const { base, files } = initScaffold(tmp, { minimal: true });
     assert.ok(fs.existsSync(path.join(base, 'capability-registry.md')));
-    assert.deepEqual(fs.readdirSync(base), ['capability-registry.md'], '最小骨架只有 registry 一个文件');
-    assert.deepEqual(files, ['capability-registry.md']);
+    assert.deepEqual(fs.readdirSync(base).sort(), ['.gitignore', 'capability-registry.md']);
+    assert.deepEqual(files, ['capability-registry.md', '.gitignore']);
+    assert.match(fs.readFileSync(path.join(base, '.gitignore'), 'utf8'), /\.index\//);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
@@ -154,11 +158,11 @@ test('--minimal 生成的 registry 含三列最小 schema，且只有模板行�
   }
 });
 
-test('CLI init --minimal 在目标目录只落一个 registry 文件', () => {
+test('CLI init --minimal 在目标目录只落 registry 与 .gitignore', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ctx-cli-'));
   try {
     const stdout = runCli(['init', '--minimal', '--dir', tmp], tmp);
-    assert.deepEqual(fs.readdirSync(path.join(tmp, 'engineering-context')), ['capability-registry.md']);
+    assert.deepEqual(fs.readdirSync(path.join(tmp, 'engineering-context')).sort(), ['.gitignore', 'capability-registry.md']);
     assert.match(stdout, /capability-registry\.md/);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });

@@ -1,6 +1,6 @@
 ---
 name: ai-prd
-description: "AI 协助产出 PRD。当用户要写/生成 PRD、把需求或想法整理成产品需求文档、做需求立项、把脑子里的功能变更落成可评审的 PRD，或提到'帮我写个 PRD / 生成需求文档 / 把这个需求写成 PRD / 需求文档怎么写'时使用。已有 PRD、要做技术设计/Overview/spec/写代码时不要用本 skill，用 ai-dev-workflow。采用批量提问（非一问一答）分批澄清目标/非目标/现状/边界/验收，按变更PRD·轻量Issue·整品PRD 三类模板成稿；涉及用户可见 UI 新增/调整时，必须参考现有 UI 样式并产出独立 HTML 高保真交互原型。产物可直接作为 ai-dev-workflow Step 1 的输入。"
+description: "AI 协助产出 PRD。当用户要写/生成 PRD、把需求或想法整理成产品需求文档、做需求立项、把脑子里的功能变更落成可评审的 PRD，或提到'帮我写个 PRD / 生成需求文档 / 把这个需求写成 PRD / 需求文档怎么写 / 梳理需求 / 把需求写清楚'，或用英文说 write a PRD、draft a PRD、product requirements document、requirements doc 时使用。已有 PRD、要做技术设计/Overview/spec/写代码时不要用本 skill，用 ai-dev-workflow。采用批量提问（非一问一答）分批澄清目标/非目标/现状/边界/验收，按变更PRD·轻量Issue·整品PRD 三类模板成稿；涉及用户可见 UI 新增/调整时，必须参考现有 UI 样式并产出独立 HTML 高保真交互原型。产物可直接作为 ai-dev-workflow Step 1 的输入。"
 ---
 
 # ai-prd
@@ -8,6 +8,8 @@ description: "AI 协助产出 PRD。当用户要写/生成 PRD、把需求或想
 把脑子里的需求 / 一段零散描述 / 一个 Issue，**批量澄清后**降解成一份结构完备、非目标够硬、验收可判定的 PRD。北极星形状是 brownfield 变更/功能 PRD（见 `assets/templates/change-prd.md`）。
 
 本 skill 补 `ai-dev-workflow` 的前置空缺：workflow 从"已有 PRD"起步，本 skill 负责**产出那份 PRD**。
+
+**本 skill 不做**：技术方案与实现设计、Overview / 技术 spec、写代码，也不替用户拍板业务口径（只给推荐，决策权在用户）。这些是 `ai-dev-workflow` 与用户各自的职责。
 
 ## 目录结构（本 skill 自身）
 

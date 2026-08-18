@@ -181,7 +181,10 @@ function main() {
       if (r.length) {
         human = r.map((s) => `• ${s.scene} (score ${s.score}) — ${s.path}`).join('\n');
       } else if (!fs.existsSync(path.join(ctxDir, 'scenes'))) {
-        human = '（scenes/ 目录不存在：场景层尚未建立。按 scene-blueprint 模板生产蓝图落入 engineering-context/scenes/ 后方可检索）';
+        // 文案 MUST 保持中性、MUST NOT 直接建议用户建资产：SKILL.md 明令"没探测到资产时
+        // MUST NOT 建议用户建资产"，补场景蓝图的建议有自己的时机（curated.md §3：确实跨服务
+        // 且在收尾汇报里提一次）。CLI 这句会被 agent 原样转述给用户，所以只陈述事实与本次去向。
+        human = '（scenes/ 目录不存在：本项目尚未建场景层，本次改用 discover 收窄）';
       } else {
         human = '（无匹配场景：换关键词重试，或该场景尚未有蓝图）';
       }

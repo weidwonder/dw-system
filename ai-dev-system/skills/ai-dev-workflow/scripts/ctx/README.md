@@ -1,5 +1,7 @@
 # ctx — Engineering Context CLI
 
+> **本文小节**：[安装 / 运行](#安装--运行) · [命令](#命令) · [跨平台说明](#跨平台说明) · [测试](#测试) · [CI / 脚本用法（--json）](#ci--脚本用法--json) · [card 格式约定（供解析）](#card-格式约定供解析) · [ctx init --minimal — 三行 registry 起步](#ctx-init---minimal--三行-registry-起步) · [ctx search-semantic "<query>" — 语义兜底检索](#ctx-search-semantic-query--语义兜底检索) · [ctx probe — Frozen Probe Set 防腐门禁](#ctx-probe--frozen-probe-set-防腐门禁)
+
 查代码事实的 CLI，**替代 MCP**：Claude Code 与 Codex 都能通过 shell 调用。Node.js ≥20，**零运行时依赖**，跨平台。读本地 `engineering-context/`（markdown card + capability-registry），每条事实附 cite。
 
 ## 安装 / 运行

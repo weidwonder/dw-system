@@ -3,7 +3,7 @@
 > 加载条件：**要新建或修改 `engineering-context/` 资产时**才读（建 registry / 写 card / 画场景蓝图 / 维护探针集 / 判新鲜度）。日常取事实只读同目录 `curated.md`，不必读本文。
 > 权威位的完整设计。本文是 `curated.md` 背后的资产层设计。目标：**让 AI 在具体任务中读到正确代码、避开错误的相似旧代码，并能证明这层上下文"一直新鲜"。**
 > 落地形态：项目内 `engineering-context/` 目录（markdown card）+ `ctx` CLI（查询）。用 `ctx init` 生成骨架。
-> 目录：§0 为什么自建 ｜ §1 四层栈 ｜ §2 核心资产（registry / card / scene / glossary）｜ §3 真相方向铁律 ｜ §4 资产分层 ｜ §5 新鲜度 ｜ §6 Validation ｜ §7 本轮交付程度 ｜ §8 要避免的误区
+> 目录：§0 为什么自建 ｜ §1 四层栈 ｜ §2 核心资产（registry / card / scene / glossary）｜ §3 真相方向铁律 ｜ §4 资产分层 ｜ §5 新鲜度 ｜ §6 Validation ｜ §7 当前可用程度 ｜ §8 要避免的误区
 
 ## 0. 为什么必须自建这一层
 
@@ -89,9 +89,9 @@ runProbeGate():
 
 **探针自防腐**：探针的"已知正确答案"本身也是权威事实，会过期——**拿过期真相打分比没有评测更糟**（绿着脸掩盖上下文已腐化）。所以探针集必须与 §5 的权威面触发**共用同一套刷新机制**：每题用 `authority_refs` 挂到它依赖的权威面，被挂权威面一变更，对应探针自动置 `needs-reconfirm`、暂不计入通过率，等人重新确认后再恢复计分（详见 `assets/context-layer/probe-set.md`）。门禁报告须显式列出 `needs-reconfirm` 题数。
 
-## 7. 本轮交付程度（诚实标注）
+## 7. 当前可用程度（诚实标注）
 
-| 组件 | 本轮 | 说明 |
+| 组件 | 状态 | 说明 |
 |---|---|---|
 | capability-registry / card / scene-blueprint | ✅ 模板 + 指南 | 真实内容由团队按指南填；高频跨服务场景优先补 scene 蓝图 |
 | `ctx` discover/get-card/find-scenes/list-services/init | ✅ 可运行骨架 | 读本地 markdown card，关键词匹配 |
