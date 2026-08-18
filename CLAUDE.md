@@ -19,10 +19,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # ctx CLI 的单元测试（Node 内置 test runner，零第三方依赖，需 Node ≥20）
-cd ai-dev-system/skills/ai-dev-workflow/scripts/ctx && node --test
+# 测试与 fixtures 住在仓库根 test/，不随 skill 分发进目标项目
+node --test test/ctx-*.test.mjs
 
 # 跑单个测试文件
-cd ai-dev-system/skills/ai-dev-workflow/scripts/ctx && node --test test/cli.test.js
+node --test test/ctx-cli.test.mjs
 
 # 直接运行 ctx CLI（无需 install）
 node ai-dev-system/skills/ai-dev-workflow/scripts/ctx/src/cli.js <命令>
@@ -39,7 +40,7 @@ npx --yes github:weidwonder/ai-dev-system <目标项目目录>
 # 验证 npm 命令入口（会打包到临时目录并真实执行 --help）
 node --test test/npm-entrypoint.test.mjs
 
-# 安装器全部测试（含 codegraph 那段，用假 CLI 跑，不碰本机全局安装）
+# 全部测试（安装器 + ctx，一条命令跑完）
 # 必须写通配符：Node ≥22 下 `node --test test/` 会把目录当模块解析，报 MODULE_NOT_FOUND
 node --test test/*.test.mjs
 ```
@@ -115,7 +116,7 @@ ai-dev-system/skills/ai-dev-workflow/
   assets/templates/                spec/plan/test/overview/lean-change-spec/test-coverage 模板
   assets/config-snippets/          注入 CLAUDE.md/AGENTS.md 的片段：base（无条件）+ collab-solo/collab-team
   assets/context-layer/            capability-registry/card/scene-blueprint/probe-set/glossary 模板
-  scripts/ctx/                     ctx CLI（src/ + test/ + fixtures/）
+  scripts/ctx/                     ctx CLI（只有 src/：测试与 fixtures 在仓库根 test/，不随 skill 分发）
 ```
 
 同一批路径的可点形式（上面的树给人看，下面这份给机器抽——`ctx probe` 的 `implementation-usable` 只认反引号代码片段与相对链接，抽不到路径直接判失败）：
@@ -157,8 +158,8 @@ Codex 安装默认不修改用户级全局插件配置，而是在目标项目 `
 - **测试资产目录约定**：探测项目既有测试目录优先，兜底 `tests/fixtures/<场景名>/`；凭证进同级 `secrets/`（gitignore）+ `secrets.example/`（入库）。权威定义在 `references/core/测试资产纪律.md` §2，`test-spec.md` §4 Fixture 表与 `文档治理.md` 的表格引用它，改约定要三处同改。
 - **UI 原型是跨 skill 的契约**：`ai-prd` 涉及用户可见界面时产出 `docs/spec/<name>-prototype-YYYYMMDD.html`（单文件、零外链、可离线打开），`ai-dev-workflow` 的 Step 1/2/4/8 把它与 PRD 一并作为输入。改这条链路要三处同改：`ai-prd/references/UI原型纪律.md`（权威定义）、三类 PRD 模板的「UI 原型」五项表、`ai-dev-workflow/references/core/00-流程总纲.md` 的输入声明与参考 prompt。
 - `ai-prd` 的北极星参考物是 `orgin/prd.demo/` 下的变更 PRD 范例（brownfield 变更 PRD 骨架，本地参考、不入库）；改 `change-prd.md` 模板前对照设计文档 `docs/spec/2026-07-06-ai-prd-design.md §7` 的覆盖度映射，别丢节。
-- 改 `ctx` 逻辑 → 同步更新 `scripts/ctx/test/` 下的测试，跑 `node --test` 保持全绿。card/registry 的格式约定见 `scripts/ctx/README.md` §card 格式约定，解析器依赖它。
-- **`ctx` 的"能不能直接敲"是跨文件的契约**：安装器负责 `npm link`（`install.mjs` 的 `CTX` 常量与 `syncCtx` 一族函数），文档负责在链接失败时把人和 AI 引到兜底调用方式而不是 grep。改这条链路要同改 `install.mjs`、CLAUDE.md §安装器的关键设计、`references/capability/curated.md` §2 调用方式、`assets/config-snippets/base.md` 最后一条（条件式那条：项目里存在已填写的 registry 时才适用）、`scripts/ctx/README.md` §安装/运行、两个 README 的安装器职责清单与 `ctx init` 示例，并跑 `node --test test/ctx-link.test.mjs`。判定 ctx 是否为"我们这一个"依赖 `ctx --help` 首行的签名串 `Engineering Context CLI`——改 `cli.js` 的 HELP 首行会静默打断这个判定，两处同改。测试同样用**假 npm + 假 ctx 放进收窄的 PATH**，新增会调用安装器的测试记得带 `--no-ctx-link`。
+- 改 `ctx` 逻辑 → 同步更新仓库根 `test/ctx-*.test.mjs`（fixtures 在 `test/fixtures/ctx-engineering-context/`），跑 `node --test test/*.test.mjs` 保持全绿。**测试与 fixtures 刻意放在 skill 目录之外**：`install.mjs` 整目录复制 skill，放在里面会把 1.4k 行对使用方无用的测试装进每个目标项目。card/registry 的格式约定见 `scripts/ctx/README.md` §card 格式约定，解析器依赖它。
+- **`ctx` 的"能不能直接敲"是跨文件的契约**：安装器负责 `npm link`（`install.mjs` 的 `CTX` 常量与 `syncCtx` 一族函数），文档负责在链接失败时把人和 AI 引到兜底调用方式而不是 grep。改这条链路要同改 `install.mjs`、CLAUDE.md §安装器的关键设计、`references/capability/curated.md` §2 调用方式、`assets/config-snippets/base.md` 最后一条（条件式那条：项目里存在已填写的 registry 时才适用）、`scripts/ctx/README.md` §安装/运行 与 §测试、两个 README 的安装器职责清单与 `ctx init` 示例，并跑 `node --test test/ctx-link.test.mjs`。判定 ctx 是否为"我们这一个"依赖 `ctx --help` 首行的签名串 `Engineering Context CLI`——改 `cli.js` 的 HELP 首行会静默打断这个判定，两处同改。测试同样用**假 npm + 假 ctx 放进收窄的 PATH**，新增会调用安装器的测试记得带 `--no-ctx-link`。
 - 改 `assets/context-layer/` 模板 → 同步 `scripts/ctx/src/commands.js` 内对应的 init stub（脚手架用的精简副本），反之亦然；两处漂移会让 `ctx init` 生成物与文档教的模板不一致。
 - 本仓库自身与安装目标的文档目录固定为：spec → `docs/spec/`，plan → `docs/plan/`，report → `docs/report/`。
 - **版本管理**：分发版本在 `ai-dev-system/VERSION`（旧无 stamp 安装追认为 1.0.0）。凡改变已安装项目的行为契约或目录约定就 bump；需要用户动作的升级必须同时新增 `ai-dev-system/migrations/<新版本>.md`（安装器会在升级时高亮全文打印，指南保持一屏内）。安装器把版本 stamp 写入目标两个 skills 目录的 `ai-dev-system.version`。**每次版本变更合入 main 后必须打 annotated tag `v<版本>`**（如 `v1.1.0`），tag 与 VERSION 始终一致，供 `--ref=v<版本>` 锁版本安装与回溯。机制详见 `docs/spec/2026-07-16-skill版本管理与迁移机制.md`；改动后跑 `node --test test/installer-migration.test.mjs`。

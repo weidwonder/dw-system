@@ -55,8 +55,12 @@ npm rm -g ctx
 
 ## 测试
 
+测试与 fixtures **不随 skill 分发**，住在本体系仓库根的 `test/`（`test/ctx-*.test.mjs` + `test/fixtures/ctx-engineering-context/`）。已安装到目标项目的这份副本里没有它们，这是刻意的——它们对使用方无用。
+
 ```bash
-cd <skill>/scripts/ctx && node --test        # 全部用例，覆盖 cards 解析与全部命令（含 semantic / probe）
+# 在 ai-dev-system 仓库里
+node --test test/ctx-*.test.mjs     # ctx 全部用例（cards 解析 + 全部命令，含 semantic / probe）
+node --test test/*.test.mjs         # 连同安装器测试一起跑
 ```
 
 ## CI / 脚本用法（`--json`）

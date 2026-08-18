@@ -4,10 +4,10 @@ import path from 'node:path';
 import os from 'node:os';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { loadCards, loadRegistry, diagnoseRegistry, registryConflicts, makeCite } from '../src/cards.js';
+import { loadCards, loadRegistry, diagnoseRegistry, registryConflicts, makeCite } from '../ai-dev-system/skills/ai-dev-workflow/scripts/ctx/src/cards.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const ctxDir = path.join(here, '..', 'fixtures', 'engineering-context');
+const ctxDir = path.join(here, 'fixtures', 'ctx-engineering-context');
 
 /** 在临时目录里造一份 engineering-context/capability-registry.md，返回 ctx 目录。 */
 function withRegistry(content, fn) {

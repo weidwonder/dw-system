@@ -4,12 +4,12 @@ import path from 'node:path';
 import os from 'node:os';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { loadCards, loadRegistry } from '../src/cards.js';
-import { loadProbes, classifyEntity, answerProbe, selfCheck, evaluateGate, handoffKind } from '../src/probe.js';
-import { initScaffold } from '../src/commands.js';
+import { loadCards, loadRegistry } from '../ai-dev-system/skills/ai-dev-workflow/scripts/ctx/src/cards.js';
+import { loadProbes, classifyEntity, answerProbe, selfCheck, evaluateGate, handoffKind } from '../ai-dev-system/skills/ai-dev-workflow/scripts/ctx/src/probe.js';
+import { initScaffold } from '../ai-dev-system/skills/ai-dev-workflow/scripts/ctx/src/commands.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const ctxDir = path.join(here, '..', 'fixtures', 'engineering-context');
+const ctxDir = path.join(here, 'fixtures', 'ctx-engineering-context');
 const cards = loadCards(ctxDir);
 const registry = loadRegistry(ctxDir);
 

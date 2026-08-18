@@ -11,11 +11,11 @@ import {
   findScenes,
   listServices,
   initScaffold,
-} from '../src/commands.js';
+} from '../ai-dev-system/skills/ai-dev-workflow/scripts/ctx/src/commands.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const ctxDir = path.join(here, '..', 'fixtures', 'engineering-context');
-const cliPath = path.join(here, '..', 'src', 'cli.js');
+const ctxDir = path.join(here, 'fixtures', 'ctx-engineering-context');
+const cliPath = path.join(here, '..', 'ai-dev-system', 'skills', 'ai-dev-workflow', 'scripts', 'ctx', 'src', 'cli.js');
 
 /** 三列最小 registry（无 cards/），返回 ctx 目录供命令层直接读。 */
 function withMinimalCtx(rows, fn) {

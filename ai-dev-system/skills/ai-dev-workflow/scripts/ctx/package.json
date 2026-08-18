@@ -10,8 +10,5 @@
   "engines": {
     "node": ">=20"
   },
-  "scripts": {
-    "test": "node --test"
-  },
   "license": "UNLICENSED"
 }
