@@ -28,7 +28,7 @@
 
 合并**方式**由标记块的 `merge-gate` 字段决定（见 `core/worktree开发纪律.md`），不由本文决定。
 
-**先划清边界**：`merge-gate="pr"` 本身要做的事——开 PR 前先过代码评审门（地板不是天花板，MUST NOT 替代人审）、PR 描述引用 spec / plan 任务号并附影响范围、保护分支须审批与 CI 全通过才自动合并、死代码检查挂 PR gate、PR 粒度约 3–8 文件——**全部在 `core/` 常驻，与协作面无关，本文 MUST NOT 复述**。理由：`merge-gate` 与 `collaboration` 是两个独立字段，一个人的开源项目照样走 PR；把那几条写在只有 `collaboration="team"` 才加载的本文里，solo + pr 的项目就读不到了。判据见 `core/代码评审纪律.md` §处置 与 `core/worktree开发纪律.md` §完成与自动合并门。
+**先划清边界**：`merge-gate="pr"` 本身要做的事**全部在 `core/` 常驻，与协作面无关**——判据见 `core/代码评审纪律.md` §处置 与 `core/worktree开发纪律.md` §完成与自动合并门，**本文 MUST NOT 复述，连列举都不要**（列举一样会漂移）。理由：`merge-gate` 与 `collaboration` 是两个独立字段，一个人的开源项目照样走 PR；把那几条写在只有 `collaboration="team"` 才加载的本文里，solo + pr 的项目就读不到了。
 
 本节只规定**因为有别的人**而额外要做的事：
 
