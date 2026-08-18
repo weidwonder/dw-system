@@ -168,7 +168,12 @@ function freshnessDate(card) {
 
 /**
  * getCard：取某仓 card。domain 传入时只返回该段落，否则返回全文。
- * @returns {{service, content, cite}|null}
+ *
+ * **段落不存在时 MUST NOT 发 cite**（`cite: null` + `missing: true`，由 CLI 转成退出码 1）。
+ * 体系铁律是"每条来自 card 的事实必须附 cite，无 cite 视为幻觉"——发一条锚点根本不存在的
+ * `[cite: cards/x.md#不存在的段 @日期]`，等于给幻觉发通行证：下游（人或 agent）拿它当
+ * 已核实事实往 spec 里抄，而那个锚点点开是空的。宁可少一条 cite，不可发假 cite。
+ * @returns {{service, content, cite:string|null, missing?:true, available?:string[]}|null}
  */
 export function getCard(ctxDir, service, domain) {
   const card = loadCards(ctxDir).find((c) => c.service === service);
@@ -177,10 +182,13 @@ export function getCard(ctxDir, service, domain) {
   if (domain) {
     const content = card.sections[domain];
     if (content === undefined) {
+      const available = Object.keys(card.sections);
       return {
         service,
-        content: `（未找到段落 "${domain}"，可用段落：${Object.keys(card.sections).join(', ')}）`,
-        cite: makeCite(card.path, domain, confirmedAt),
+        content: `（未找到段落 "${domain}"，可用段落：${available.join(', ')}）`,
+        cite: null,
+        missing: true,
+        available,
       };
     }
     return { service, content, cite: makeCite(card.path, domain, confirmedAt) };
@@ -320,7 +328,7 @@ const REGISTRY_STUB = `# Capability Registry — 产品能力到权威代码实�
 
 ## 能力表（完整形态）
 
-| Capability | 业务含义 | 权威仓库 | 权威接口(含版本) | 废弃/中间产物替代 | 兼容窗口 | owner | 测试入口 | freshness | 理由链 |
+| Capability | 业务含义 | 权威仓库 | 权威接口(含版本) | 废弃/中间产物替代 | 兼容窗口 | owner | 测试入口 | freshness(最近确认) | 理由链 |
 |---|---|---|---|---|---|---|---|---|---|
 | 【能力】 | 【含义】 | 【repo】 | 【POST /v2/xxx】 | 【旧接口不可用】 | 【切点】 | 【owner】 | 【测试入口】 | 【YYYY-MM-DD / PR】 | 【诞生压力】 |
 `;

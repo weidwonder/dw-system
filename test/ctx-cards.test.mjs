@@ -4,7 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { loadCards, loadRegistry, diagnoseRegistry, registryConflicts, makeCite } from '../ai-dev-system/skills/ai-dev-workflow/scripts/ctx/src/cards.js';
+import { loadCards, loadRegistry, diagnoseRegistry, unreadableCards, registryConflicts, makeCite } from '../ai-dev-system/skills/ai-dev-workflow/scripts/ctx/src/cards.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ctxDir = path.join(here, 'fixtures', 'ctx-engineering-context');
@@ -235,4 +235,66 @@ test('registryConflicts 不把"同一 API、仅权威仓库列填没填"报成�
   ]);
   assert.equal(real.length, 1, '两个不同 API 才是冲突');
   assert.equal(real[0].canonicals.length, 2);
+});
+
+// ---- 诊断：目录不存在 / 文件读不出来 ----
+
+test('diagnoseRegistry 把"engineering-context 目录不存在"与"没建 registry"分开报', () => {
+  // 合报的实测后果：`--dir <打错字>` 与"这个项目真没建权威位"输出一字不差、退出码都是 0，
+  // 使用者据此判定权威位不可用 → 退回裸 grep。两者的修复动作完全不同。
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ctx-nodir-'));
+  try {
+    assert.equal(diagnoseRegistry(path.join(tmp, '压根不存在')), 'no-dir');
+    fs.mkdirSync(path.join(tmp, '空的'));
+    assert.equal(diagnoseRegistry(path.join(tmp, '空的')), 'no-file', '目录在、只是没建 registry');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+/** 造一个当前进程读不出来的文件；造不出来（root / Windows）返回 false 由调用方跳过。 */
+function makeUnreadable(file) {
+  try {
+    fs.chmodSync(file, 0o000);
+    fs.readFileSync(file, 'utf8');
+    return false;   // 还是读得出来（root 或不支持权限位的文件系统）
+  } catch {
+    return true;
+  }
+}
+
+test('registry 读不出来时不抛栈，诊断报 unreadable', (t) => {
+  // `unreadable` 分支曾是死代码：loadRegistry 先崩，抛出 `Error: EACCES … at loadRegistry`。
+  // 对着 Node 栈没人知道该做什么，agent 见到 ctx 崩了就退回裸 grep。
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ctx-unread-'));
+  try {
+    const base = path.join(tmp, 'engineering-context');
+    fs.mkdirSync(base, { recursive: true });
+    const f = path.join(base, 'capability-registry.md');
+    fs.writeFileSync(f, '| Capability | 权威实现 | 陷阱项 |\n|---|---|---|\n| 登录 | a | 无 |\n', 'utf8');
+    if (!makeUnreadable(f)) return t.skip('当前环境造不出不可读文件（root 或无权限位的文件系统）');
+    assert.deepEqual(loadRegistry(base), [], '读不出来按空处理，MUST NOT 抛');
+    assert.equal(diagnoseRegistry(base), 'unreadable');
+  } finally {
+    try { fs.chmodSync(path.join(tmp, 'engineering-context', 'capability-registry.md'), 0o644); } catch { /* 已删或本就可读 */ }
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('card 读不出来时不抛栈：loadCards 跳过它，unreadableCards 报出来', (t) => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ctx-unread-card-'));
+  const cardsDir = path.join(tmp, 'engineering-context', 'cards');
+  try {
+    fs.mkdirSync(cardsDir, { recursive: true });
+    fs.writeFileSync(path.join(cardsDir, 'ok.md'), '# ok\n\n## 职责\nx\n', 'utf8');
+    const bad = path.join(cardsDir, 'bad.md');
+    fs.writeFileSync(bad, '# bad\n\n## 职责\ny\n', 'utf8');
+    if (!makeUnreadable(bad)) return t.skip('当前环境造不出不可读文件（root 或无权限位的文件系统）');
+    const base = path.join(tmp, 'engineering-context');
+    assert.deepEqual(loadCards(base).map((c) => c.service), ['ok'], '读不出的 card 跳过，MUST NOT 抛');
+    assert.deepEqual(unreadableCards(base), ['bad.md'], '跳过的必须报出来——否则会被读成"这个仓没登记"');
+  } finally {
+    try { fs.chmodSync(path.join(cardsDir, 'bad.md'), 0o644); } catch { /* 已删或本就可读 */ }
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
 });

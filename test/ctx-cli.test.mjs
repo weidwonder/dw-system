@@ -293,3 +293,122 @@ test('--json 大输出经管道仍是完整合法 JSON（MUST NOT 用 process.ex
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+// ---- 错误处理与诊断：把 agent 推回裸 grep 的那几条 ----
+
+/** 跑 CLI 并连非零退出码一起拿到（execFileSync 在非零退出时抛）。 */
+function runCliRaw(args, cwd) {
+  try {
+    return { status: 0, stdout: execFileSync(process.execPath, [cliPath, ...args], { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }), stderr: '' };
+  } catch (e) {
+    return { status: e.status, stdout: e.stdout || '', stderr: e.stderr || '' };
+  }
+}
+
+test('get-card 段落不存在时 MUST NOT 发 cite，且退出 1', () => {
+  // 体系铁律是"每条来自 card 的事实必须附 cite，无 cite 视为幻觉"——那么一条指向
+  // **不存在锚点**的 cite 比没有 cite 更糟：它给幻觉发通行证，下游会拿它当已核实事实抄走。
+  const r = runCliRaw(['get-card', 'sample-service', '压根不存在的段', '--dir', ctxDir], here);
+  assert.equal(r.status, 1, '段落不存在 MUST NOT 退出 0');
+  assert.doesNotMatch(r.stdout, /\[cite:/, '不得为不存在的锚点发 cite');
+  assert.match(r.stdout, /可用段落/, '要列出可用段落，让调用方能自己改对');
+
+  const json = JSON.parse(runCliRaw(['get-card', 'sample-service', '压根不存在的段', '--dir', ctxDir, '--json'], here).stdout);
+  assert.equal(json.cite, null);
+  assert.equal(json.diagnosis, 'section-not-found');
+  assert.ok(json.available.includes('对外接口'), 'available 列出真实段落名');
+
+  const ok = runCliRaw(['get-card', 'sample-service', '对外接口', '--dir', ctxDir], here);
+  assert.equal(ok.status, 0, '段落存在时照旧退出 0');
+  assert.match(ok.stdout, /\[cite:/, '段落存在时照旧发 cite');
+});
+
+test('--dir 指向不存在的目录 MUST NOT 与"没建权威位"输出成同一句', () => {
+  // 实测过：两者一字不差、退出码都是 0，于是 `--dir` 打错字被读成"本项目没有权威位"，
+  // 使用者（尤其是 agent）据此退回裸 grep。
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ctx-nodir-cli-'));
+  try {
+    const missing = path.join(tmp, '不存在的目录');
+    const empty = path.join(tmp, '空目录');
+    fs.mkdirSync(empty);
+
+    const a = runCli(['list-services', '--dir', missing], tmp);
+    const b = runCli(['list-services', '--dir', empty], tmp);
+    assert.notEqual(a, b, '"目录不存在"与"目录在但没建 registry"MUST 是两句不同的话');
+    assert.ok(a.includes(missing), '提示 MUST 写出解析后的绝对路径');
+    assert.match(a, /不存在：确认 --dir/);
+    assert.match(a, /项目根/, '要提醒 ctx 默认读 <cwd>/engineering-context');
+
+    assert.match(runCli(['discover', '登录', '--dir', missing], tmp), /不存在：确认 --dir/, 'discover 同理');
+    assert.match(runCli(['find-scenes', '登录', '--dir', missing], tmp), /不存在：确认 --dir/, 'find-scenes 同理');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('--json MUST 带 diagnosis：CI 那一路不能只看到空数组', () => {
+  // 与 probe 的 `skipped` 同一条理由：人读那一路精心区分了各种空的原因，
+  // CI 那一路一律拿到 `[]`，于是"目录写错了"长得和"这个项目没建权威位"一模一样。
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ctx-json-diag-'));
+  try {
+    const missing = path.join(tmp, '不存在的目录');
+    const base = path.join(tmp, 'engineering-context');
+    fs.mkdirSync(base, { recursive: true });
+    // 表头写错（首列不是能力列）→ 整张表被忽略
+    fs.writeFileSync(path.join(base, 'capability-registry.md'),
+      '# R\n\n| 名字 | 权威实现 |\n|---|---|\n| 登录 | a |\n', 'utf8');
+
+    const noDir = JSON.parse(runCli(['list-services', '--dir', missing, '--json'], tmp));
+    assert.deepEqual(noDir.services, []);
+    assert.equal(noDir.diagnosis, 'no-dir');
+    assert.ok(noDir.hint.includes(missing));
+
+    const badHeader = JSON.parse(runCli(['list-services', '--dir', base, '--json'], tmp));
+    assert.equal(badHeader.diagnosis, 'no-header');
+    assert.notEqual(badHeader.hint, noDir.hint, '两种成因的提示 MUST 不同');
+
+    // 只有占位行
+    fs.writeFileSync(path.join(base, 'capability-registry.md'),
+      '# R\n\n| Capability | 权威实现 |\n|---|---|\n| 【能力】 | 【实现】 |\n', 'utf8');
+    assert.equal(JSON.parse(runCli(['list-services', '--dir', base, '--json'], tmp)).diagnosis, 'placeholder-only');
+
+    const scenes = JSON.parse(runCli(['find-scenes', '登录', '--dir', base, '--json'], tmp));
+    assert.deepEqual(scenes.scenes, []);
+    assert.equal(scenes.diagnosis, 'no-scenes-dir', 'find-scenes 的空结果同样要能区分成因');
+
+    const disc = JSON.parse(runCli(['discover', 'zzz无关qqq', '--dir', base, '--json'], tmp));
+    assert.equal(disc.diagnosis, 'placeholder-only');
+    assert.ok(Array.isArray(disc.cards), 'discover 的既有字段 MUST 保持不变');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('list-services 命中时 diagnosis 为 ok，且 services 仍是那张列表', () => {
+  withMinimalCtx(['| 登录 | src/auth/login.ts::login() | 无 |'], (base, tmp) => {
+    const r = JSON.parse(runCli(['list-services', '--dir', base, '--json'], tmp));
+    assert.equal(r.diagnosis, 'ok');
+    assert.equal(r.hint, null);
+    assert.ok(r.services.some((s) => s.capabilities.includes('登录')));
+  });
+});
+
+test('读文件失败 MUST 退化成一句可行动的中文提示，MUST NOT 抛 Node 栈', (t) => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ctx-eacces-'));
+  const f = path.join(tmp, 'engineering-context', 'capability-registry.md');
+  try {
+    fs.mkdirSync(path.dirname(f), { recursive: true });
+    fs.writeFileSync(f, '| Capability | 权威实现 |\n|---|---|\n| 登录 | a |\n', 'utf8');
+    fs.chmodSync(f, 0o000);
+    try {
+      fs.readFileSync(f, 'utf8');
+      return t.skip('当前环境造不出不可读文件（root 或无权限位的文件系统）');
+    } catch { /* 确实读不出来，继续 */ }
+    const r = runCliRaw(['list-services', '--dir', path.dirname(f)], tmp);
+    assert.doesNotMatch(r.stdout + r.stderr, /at loadRegistry|node:internal/, 'MUST NOT 冒出 Node 栈');
+    assert.match(r.stdout, /读不出来/, '要说清是读不出来，而不是"没登记"');
+  } finally {
+    try { fs.chmodSync(f, 0o644); } catch { /* 已删或本就可读 */ }
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});

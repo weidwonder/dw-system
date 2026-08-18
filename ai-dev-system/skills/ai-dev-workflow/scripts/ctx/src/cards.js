@@ -36,19 +36,59 @@ function splitSections(raw) {
 export function loadCards(ctxDir) {
   const cardsDir = path.join(ctxDir, 'cards');
   if (!fs.existsSync(cardsDir)) return [];
-  return fs
-    .readdirSync(cardsDir)
-    .filter((f) => f.endsWith('.md'))
-    .map((f) => {
-      const full = path.join(cardsDir, f);
-      const raw = fs.readFileSync(full, 'utf8');
-      return {
-        service: path.basename(f, '.md'),
-        path: path.join('cards', f),
-        sections: splitSections(raw),
-        raw,
-      };
+  // 读失败 MUST NOT 冒泡成 Node 栈：一张 card 权限不对、被别的进程占住、或是坏软链，
+  // 抛出去的样子是 `Error: EACCES ... at loadCards (cards.js:…)` —— 对着栈没人知道
+  // 该做什么，而 agent 见到 ctx 崩了就直接退回裸 grep（本层要消灭的正是这个行为）。
+  // 读不出的当作不存在跳过；目录本身读不出时按"没有 cards"处理，诊断由各命令自己给。
+  let entries;
+  try {
+    entries = fs.readdirSync(cardsDir);
+  } catch {
+    return [];
+  }
+  const cards = [];
+  for (const f of entries) {
+    if (!f.endsWith('.md')) continue;
+    let raw;
+    try {
+      raw = fs.readFileSync(path.join(cardsDir, f), 'utf8');
+    } catch {
+      continue;
+    }
+    cards.push({
+      service: path.basename(f, '.md'),
+      path: path.join('cards', f),
+      sections: splitSections(raw),
+      raw,
     });
+  }
+  return cards;
+}
+
+/**
+ * cards/ 目录里读不出来的 card 文件名（权限/编码问题）。**只用于人类可读的提示**：
+ * `loadCards` 静默跳过它们，不报的话使用者会看到"这个仓没登记"而真相是"这张卡读不出来"。
+ * @returns {string[]}
+ */
+export function unreadableCards(ctxDir) {
+  const cardsDir = path.join(ctxDir, 'cards');
+  if (!fs.existsSync(cardsDir)) return [];
+  let entries;
+  try {
+    entries = fs.readdirSync(cardsDir);
+  } catch {
+    return [];
+  }
+  const bad = [];
+  for (const f of entries) {
+    if (!f.endsWith('.md')) continue;
+    try {
+      fs.readFileSync(path.join(cardsDir, f), 'utf8');
+    } catch {
+      bad.push(f);
+    }
+  }
+  return bad;
 }
 
 /**
@@ -165,7 +205,14 @@ function capabilityTables(raw) {
 export function loadRegistry(ctxDir) {
   const file = path.join(ctxDir, 'capability-registry.md');
   if (!fs.existsSync(file)) return [];
-  const raw = fs.readFileSync(file, 'utf8');
+  // 与 loadCards 同一条理由：读失败 MUST 退化成"权威位未启用"，MUST NOT 抛栈。
+  // 抛栈还有个副作用——`diagnoseRegistry` 的 'unreadable' 分支永远走不到（它在这行之后才跑）。
+  let raw;
+  try {
+    raw = fs.readFileSync(file, 'utf8');
+  } catch {
+    return [];
+  }
   const rows = [];
   for (const { cols, rows: cells } of capabilityTables(raw).tables) {
     for (const cell of cells) {
@@ -219,9 +266,14 @@ export function registryConflicts(rows) {
  * 存在的理由：`loadRegistry` 返回空数组时，"文件没建"/"表头没被认出"/"只有模板行" 三种原因
  * 的处置动作完全不同（建文件 / 改表头 / 填内容）。把三者都报成"只有模板行"会把人引向
  * 错误的修复方向——曾经真的发生过：表头写「能力」时表整张没被识别，提示却说行是模板行。
- * @returns {'no-file'|'unreadable'|'no-header'|'no-separator'|'placeholder-only'|'no-row'|'ok'}
+ * `no-dir`（engineering-context 目录本身不存在）MUST 与 `no-file` 分开报：前者的修复动作是
+ * "改 --dir / 换个目录跑"，后者才是"建 registry"。合报的后果实测过——`--dir` 打错字时
+ * 输出与"这个项目真没建权威位"**一字不差**且都退出 0，使用者据此判定"本项目没有权威位"，
+ * 于是退回裸 grep。
+ * @returns {'no-dir'|'no-file'|'unreadable'|'no-header'|'no-separator'|'placeholder-only'|'no-row'|'ok'}
  */
 export function diagnoseRegistry(ctxDir) {
+  if (!fs.existsSync(ctxDir)) return 'no-dir';
   const file = path.join(ctxDir, 'capability-registry.md');
   if (!fs.existsSync(file)) return 'no-file';
   let raw;

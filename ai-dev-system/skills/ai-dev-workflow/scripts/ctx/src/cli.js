@@ -10,12 +10,13 @@ import {
   listServices,
   initScaffold,
 } from './commands.js';
-import { loadCards, loadRegistry, diagnoseRegistry, UNDECLARED_FRESHNESS } from './cards.js';
+import { loadCards, loadRegistry, diagnoseRegistry, unreadableCards, UNDECLARED_FRESHNESS } from './cards.js';
 import { searchSemantic } from './semantic.js';
 import { loadProbes, evaluateGate, readHistory, writeHistory } from './probe.js';
 
-// registry 解析不出数据行时的提示：三种原因对应三个完全不同的修复动作，MUST 分开报。
+// registry 解析不出数据行时的提示：每种原因对应一个完全不同的修复动作，MUST 分开报。
 const REGISTRY_EMPTY_HINT = {
+  'no-dir': null,   // 由 ctxDirMissingHint 生成（要把解析后的绝对路径写进提示里）
   'no-file': '（没有 capability-registry.md；权威位未启用。想起步：ctx init --minimal）',
   unreadable: '（capability-registry.md 读不出来；权威位按未启用处理，请检查文件权限与编码）',
   'no-header':
@@ -25,6 +26,30 @@ const REGISTRY_EMPTY_HINT = {
   'placeholder-only': '（registry 只有模板占位行（含【】）；填一行真实数据即启用权威位）',
   'no-row': '（无已登记服务/能力；registry 尚无真实数据行，权威位未启用）',
 };
+
+/**
+ * engineering-context 目录本身不存在时的提示。**MUST 与"权威位未启用"分开报**：
+ * 实测 `--dir <打错字的路径>` 与"这个项目真没建权威位"的输出一字不差、退出码都是 0，
+ * 于是使用者（尤其是 agent）据此判定"本项目没有权威位"并退回裸 grep——而真相只是路径写错了。
+ * 提示里 MUST 写**解析后的绝对路径**：相对路径看不出 ctx 到底去哪儿找了。
+ */
+function ctxDirMissingHint(ctxDir) {
+  return `（${ctxDir} 不存在：确认 --dir，或确认是否在项目根运行（ctx 默认读 \`<cwd>/engineering-context\`））`;
+}
+
+/**
+ * "为什么是空的"——诊断码 + 人读提示。结果非空时不诊断（`ok` / 无提示）。
+ * **MUST 同时进 --json**：人读那一路精心区分了目录不存在 / 表头写错 / 只有占位行，
+ * CI 那一路却一律拿到 `[]`——`cli.js` 自己为 probe 的 `skipped` 写过同一条理由：
+ * "一道题都没跑"长得和"全部通过"一模一样，静默的空结果就是假绿。
+ */
+function emptyDiagnosis(ctxDir) {
+  const code = diagnoseRegistry(ctxDir);
+  const hint = code === 'no-dir'
+    ? ctxDirMissingHint(ctxDir)
+    : REGISTRY_EMPTY_HINT[code] || REGISTRY_EMPTY_HINT['no-row'];
+  return { diagnosis: code, hint };
+}
 
 /** 用法错误：由 main 捕获 → 打到 stderr 并退出 2。 */
 class UsageError extends Error {}
@@ -165,22 +190,41 @@ function main() {
         blocks.push(r.cards.map((c) => `• ${c.service}  (score ${c.score}) — ${c.why}\n    ${c.cite}${freshnessNote(c)}`).join('\n'));
       }
       if (r.outOfScope.length) blocks.push(`out-of-scope：\n- ${r.outOfScope.join('\n- ')}`);
-      out(json, blocks.length ? blocks.join('\n\n') : '（无命中）', r);
+      const hit = r.capabilities.length || r.cards.length;
+      const d = hit ? { diagnosis: 'ok', hint: null } : emptyDiagnosis(ctxDir);
+      if (d.hint) blocks.push(d.hint);
+      out(json, blocks.length ? blocks.join('\n\n') : '（无命中）', { ...r, ...d });
       return 0;
     }
     case 'get-card': {
       const [, service, domain] = positional;
       if (!service) { console.error('用法：ctx get-card <repo> [域]'); return 2; }
       const c = getCard(ctxDir, service, domain);
-      if (!c) { console.error(`未找到服务 card：${service}`); return 1; }
-      out(json, `${c.content}\n\n${c.cite}`, c);
+      if (!c) {
+        console.error(`未找到服务 card：${service}`);
+        if (!fs.existsSync(ctxDir)) console.error(ctxDirMissingHint(ctxDir));
+        return 1;
+      }
+      // 段落不存在 → **不发 cite**，退出 1。发一条锚点不存在的 cite 等于给幻觉发通行证
+      // （体系铁律：无 cite 视为幻觉，那么假 cite 比无 cite 更糟）；退出 0 则让脚本与 agent
+      // 把"这个段落不存在"读成"取到了"。
+      if (c.missing) {
+        out(json, `${c.content}\n\n（该段落不存在，因此不发 cite；换用上面列出的段落名重试）`,
+          { ...c, diagnosis: 'section-not-found' });
+        return 1;
+      }
+      out(json, `${c.content}\n\n${c.cite}`, { ...c, diagnosis: 'ok' });
       return 0;
     }
     case 'find-scenes': {
       const r = findScenes(ctxDir, positional.slice(1));
       let human;
+      let diagnosis = 'ok';
       if (r.length) {
         human = r.map((s) => `• ${s.scene} (score ${s.score}) — ${s.path}`).join('\n');
+      } else if (!fs.existsSync(ctxDir)) {
+        diagnosis = 'no-dir';
+        human = ctxDirMissingHint(ctxDir);
       } else if (!fs.existsSync(path.join(ctxDir, 'scenes'))) {
         // 文案 MUST 保持中性、MUST NOT 直接建议用户建资产：SKILL.md 明令"没探测到资产时
         // MUST NOT 建议用户建资产"，补场景蓝图的建议有自己的时机（curated.md §3：确实跨服务
@@ -188,23 +232,31 @@ function main() {
         // 同样 MUST NOT 替调用方决定下一步（"本次改用 …"）：这行同时说给 agent 和直接敲命令的
         // 人看，后者没有"本次"这个上下文，被 CLI 通知自己刚做了个没做过的决定只会让人困惑。
         // 只陈述事实，把去向写成**可选项**，选不选由调用方定。
+        diagnosis = 'no-scenes-dir';
         human = '（scenes/ 目录不存在：本项目尚未建场景层；需要收窄范围时用 `ctx discover "<意图>"`）';
       } else {
+        diagnosis = 'no-match';
         human = '（无匹配场景：换关键词重试，或该场景尚未有蓝图）';
       }
-      out(json, human, r);
+      // --json 同样 MUST 带诊断：`[]` 无法区分"没建场景层"与"建了但没匹配上"。
+      out(json, human, { scenes: r, diagnosis, hint: diagnosis === 'ok' ? null : human });
       return 0;
     }
     case 'list-services': {
       const r = listServices(ctxDir);
-      const human = r.length
-        ? r.map((s) => {
-            const name = s.service || '（未登记权威仓库的能力）';
-            const caps = s.capabilities.length ? `  能力：${s.capabilities.join('、')}` : '';
-            return `• ${name}${caps}${s.hasCard ? '' : '  [无 card，仅 registry 登记]'}`;
-          }).join('\n')
-        : REGISTRY_EMPTY_HINT[diagnoseRegistry(ctxDir)] || REGISTRY_EMPTY_HINT['no-row'];
-      out(json, human, r);
+      const d = r.length ? { diagnosis: 'ok', hint: null } : emptyDiagnosis(ctxDir);
+      const lines = r.map((s) => {
+        const name = s.service || '（未登记权威仓库的能力）';
+        const caps = s.capabilities.length ? `  能力：${s.capabilities.join('、')}` : '';
+        return `• ${name}${caps}${s.hasCard ? '' : '  [无 card，仅 registry 登记]'}`;
+      });
+      if (!lines.length) lines.push(d.hint);
+      // 读不出来的 card MUST 报出来：loadCards 静默跳过它们，不报的话使用者会把
+      // "这张卡读不出来"读成"这个仓没登记"，照着后者永远修不好。
+      // 它与 registry 的诊断是**两件事**，MUST 都打印：只打印其中一条时，另一条的修复动作就丢了。
+      const bad = unreadableCards(ctxDir);
+      if (bad.length) lines.push(`⚠ ${bad.length} 张 card 读不出来（已跳过）：${bad.join('、')}——请检查文件权限与编码。`);
+      out(json, lines.join('\n'), { services: r, unreadableCards: bad, ...d });
       return 0;
     }
     case 'search-semantic': {
@@ -292,4 +344,23 @@ function main() {
 // 重定向到文件是完整的 400101 字节，经管道只剩 65536 字节且退出码仍为 0——
 // README 教的 `ctx probe --json | jq` 这类 CI 用法会拿到"截断后的合法前缀"，静默出错。
 // 设 exitCode 后让 Node 自然退出，stdout 会被 flush 完；退出码语义不变。
-process.exitCode = main();
+/**
+ * 兜底：任何没被上面各层接住的异常 MUST NOT 以 Node 栈的形式出现。
+ * 栈对使用者（尤其是 agent）只有一个含义——"ctx 坏了"，于是退回裸 grep，
+ * 而这正是本层要消灭的行为。转成一句可行动的中文提示 + 固定退出码 1。
+ */
+function run() {
+  try {
+    return main();
+  } catch (e) {
+    console.error(
+      `ctx 运行失败：${e && e.message ? e.message : e}\n`
+      + '这不是"权威位不可用"，MUST NOT 据此退回裸 grep。'
+      + '先检查 engineering-context/ 下文件的权限与编码，再用 `--dir <绝对路径>` 重试；'
+      + '仍失败就带上这行报错反馈给 skill 维护者。',
+    );
+    return 1;
+  }
+}
+
+process.exitCode = run();
