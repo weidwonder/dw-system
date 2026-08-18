@@ -488,6 +488,55 @@ test('门禁自检：有交接题型时，即便 context 层为空也能自检�
   });
 });
 
+test('只有 cards、没有 registry 的项目也能起门禁（自检从废弃段取必错样本）', () => {
+  // 三个原有植入样本全依赖 registry 或交接题型，于是这类项目**永远** GATE-BROKEN——
+  // 而 deprecated-trap 明明只靠 cards 就能作答。GATE-BROKEN 的文案说"门禁形同虚设"，
+  // 照着它去查永远查不到真因（真因是"没东西可植入"）。
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ctx-cards-only-'));
+  try {
+    const base = path.join(tmp, 'engineering-context');
+    fs.mkdirSync(path.join(base, 'cards'), { recursive: true });
+    fs.writeFileSync(path.join(base, 'cards', 'svc.md'),
+      '# svc\n\n## 对外接口\n| 接口 | 状态 |\n|---|---|\n| `POST /v2/x` | canonical |\n\n'
+      + '## 废弃 / 中间产物标记\n- `POST /v1/x` — 上次重构的中间产物，改用 `POST /v2/x`\n\n'
+      + '## Freshness / Provenance\n- 最近确认：2026-08-01\n', 'utf8');
+    const onlyCards = loadCards(base);
+    assert.equal(loadRegistry(base).length, 0, '这条测试的前提是 registry 为空');
+
+    const sc = selfCheck(onlyCards, []);
+    assert.equal(sc.ok, true, `自检 MUST 成立，实得：${sc.reason}`);
+    const fromCard = sc.planted.filter((p) => p.n === 'self-card-dep');
+    assert.equal(fromCard.length, 1, 'MUST 从 cards 的废弃段植入一条样本');
+    assert.equal(fromCard[0].input, 'POST /v1/x', '取的是废弃项本身，不是替代物');
+    assert.equal(fromCard[0].expected, 'canonical', '谎称 canonical 才是必错样本');
+    assert.equal(fromCard[0].pass, false, '门禁 MUST 判它 FAIL');
+
+    const probes = [{ n: '1', type: 'deprecated-trap', input: 'POST /v1/x', expected: 'deprecated', severity: 'blocking', weight: 1, status: '' }];
+    const ev = evaluateGate(onlyCards, [], probes, new Set(), { root: tmp, ctxDir: base });
+    assert.equal(ev.verdict, 'GREEN', `cards-only 项目 MUST 能真正跑出判级，实得 ${ev.verdict}（${ev.selfCheck.reason}）`);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('自检取的必错样本 MUST 是门禁真判 deprecated 的实体（否则样本白植）', () => {
+  // 拿一条门禁其实答 unknown 的实体去植入，样本照样 FAIL，自检却什么都没验证。
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ctx-cards-noent-'));
+  try {
+    const base = path.join(tmp, 'engineering-context');
+    fs.mkdirSync(path.join(base, 'cards'), { recursive: true });
+    // 废弃段里只有模板占位，抽不出任何可判为废弃的实体
+    fs.writeFileSync(path.join(base, 'cards', 'svc.md'),
+      '# svc\n\n## 废弃 / 中间产物标记\n- 【旧接口】 — 【为什么】，改用 【新接口】\n', 'utf8');
+    const sc = selfCheck(loadCards(base), []);
+    assert.equal(sc.ok, false, '抽不到实体时 MUST 老实说构造不出样本，MUST NOT 放水');
+    assert.match(sc.reason, /构造不出|无法构造/);
+    assert.match(sc.reason, /cards/, '文案 MUST 说清 registry 与 cards 两处都找过了——只说"registry 缺权威条目"会让人以为补 registry 是唯一出路');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('门禁自检不得被削弱：无交接题型且 context 层为空仍 GATE-BROKEN', () => {
   const ev = evaluateGate([], [], [passProbe(1)], new Set(), { root: os.tmpdir() });
   assert.equal(ev.verdict, 'GATE-BROKEN');

@@ -784,6 +784,31 @@ function answerHandoffProbe(probe, ctx = {}) {
  * @param {{root?:string, ctxDir?:string}} [ctx] 传了 root 才植入交接题型样本（由 evaluateGate 按题集决定）
  * @returns {{ok:boolean, reason:string, planted:Array}}
  */
+/**
+ * 从 cards 的废弃段里取一条**确实被判为 deprecated** 的实体，供自检植入必错样本
+ * （谎称它是 canonical）。取不到返回 null。
+ *
+ * MUST 用 `classifyEntity` 复核而不是取到就用：植入样本的全部意义是"门禁本该判它 FAIL"，
+ * 拿一条门禁其实答 unknown 的实体去植入，样本照样 FAIL，自检却什么都没验证。
+ * 候选只认**反引号代码片段**——card 模板明确要求用反引号括接口/类名，
+ * 裸文本行在一行两实体时本来就消歧不了，不该拿来当自检的基准。
+ */
+function deprecatedEntityFromCards(cards, registry) {
+  for (const card of cards) {
+    for (const [title, body] of Object.entries(card.sections)) {
+      if (!isDeprecationSectionTitle(title)) continue;
+      for (const line of body.split(/\r?\n/)) {
+        for (const m of line.matchAll(/`([^`\n]+)`/g)) {
+          const e = m[1].trim();
+          if (!e || isRegistryPlaceholder(e)) continue;
+          if (classifyEntity(cards, registry, e) === 'deprecated') return e;
+        }
+      }
+    }
+  }
+  return null;
+}
+
 export function selfCheck(cards, registry, ctx = {}) {
   // ctx.root 由 evaluateGate 在"题集里确实有交接题型"时传入：交接题型不依赖 cards/registry，
   // 所以能在 context 层为空的项目上照样植入必错样本。没有交接题型时判据不变，不得放水。
@@ -804,7 +829,17 @@ export function selfCheck(cards, registry, ctx = {}) {
     const p = { n: 'self-dep', type: 'deprecated-trap', input: canon.canonicalApi, expected: 'deprecated' };
     planted.push({ ...p, ...answerProbe(cards, registry, p) });
   }
-  // 样本3（交接题型）：指向一个必然不存在的真相源 → 门禁应判 FAIL。
+  // 样本3：cards-only 项目的必错样本——取废弃段里一条实体，谎称它是 canonical。
+  // 没有这一条时，**只有 cards、没有 registry 的项目永远 GATE-BROKEN**：上面两个样本
+  // 都依赖 registry，交接样本又要题集里确实有交接题型，于是 `deprecated-trap` 明明只靠
+  // cards 就能作答，门禁却拒绝出具任何结论——而 GATE-BROKEN 的文案说的是"门禁形同虚设"，
+  // 照着它去查永远查不到真因（真因是"没东西可植入"）。
+  const depEntity = deprecatedEntityFromCards(cards, registry);
+  if (depEntity) {
+    const p = { n: 'self-card-dep', type: 'deprecated-trap', input: depEntity, expected: 'canonical' };
+    planted.push({ ...p, ...answerProbe(cards, registry, p) });
+  }
+  // 样本4（交接题型）：指向一个必然不存在的真相源 → 门禁应判 FAIL。
   // 它只依赖项目文件，不依赖 context 层，所以直读项目也能有真门禁。
   if (canPlantHandoff) {
     const p = {
@@ -814,7 +849,7 @@ export function selfCheck(cards, registry, ctx = {}) {
       expected: '≤2 跳',
     };
     planted.push({ ...p, ...answerProbe(cards, registry, p, ctx) });
-    // 样本4：implementation-usable，指向必然不存在的架构节 → 门禁应判 FAIL。
+    // 样本5：implementation-usable，指向必然不存在的架构节 → 门禁应判 FAIL。
     // 这道样本此前无法成立：旧实现探测到任一能力位就无条件通过，植入什么都抓不到。
     // 模块路径校验改成叠加后它才有意义，也正是那条修复的自检保险。
     const q = {
@@ -826,7 +861,11 @@ export function selfCheck(cards, registry, ctx = {}) {
     planted.push({ ...q, ...answerProbe(cards, registry, q, ctx) });
   }
   if (planted.length === 0) {
-    return { ok: false, reason: '无法构造自检样本（registry 缺权威条目）', planted };
+    return {
+      ok: false,
+      reason: '无法构造自检样本（registry 缺权威条目，cards 的废弃段里也没有可判为废弃的实体）',
+      planted,
+    };
   }
   // 每个植入样本都必须 FAIL；若任一 PASS，说明门禁不会判错 → 形同虚设。
   const leaked = planted.filter((p) => p.pass);
