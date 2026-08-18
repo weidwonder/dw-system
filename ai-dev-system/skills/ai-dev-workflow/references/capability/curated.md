@@ -94,7 +94,8 @@ git log --oneline -20 -- engineering-context/
 git diff 'HEAD@{2.weeks.ago}'..HEAD --stat -- engineering-context/cards/ engineering-context/capability-registry.md
 ```
 
-用时间锚（`HEAD@{2.weeks.ago}`）而不是"上次的 commit"——**本体系不记录"上次是哪个 SHA"，没有那个落点**，写成 `<上次>..HEAD` 就是一条填不出来的命令。时间跨度按你上次碰这个项目的间隔调；reflog 不够长（新 clone）时退化成 `git log --since='2 weeks' -- engineering-context/`。`engineering-context/` 确实是独立仓库时才用 `git -C engineering-context …`。
+用时间锚（`HEAD@{2.weeks.ago}`）而不是"上次的 commit"——**本体系不记录"上次是哪个 SHA"，没有那个落点**，写成 `<上次>..HEAD` 就是一条填不出来的命令。时间跨度按你上次碰这个项目的间隔调。
+**reflog 不够长（新 clone）时这条命令 MUST NOT 被当作"没变过"**：git 会回退到最旧的 reflog 条目（= HEAD），输出**空 diff 且退出码 0**，只在 stderr 打一行 `warning: log for 'HEAD' only goes back to …`。看到这行 warning 即表示时间锚被截断、本次 diff **不可信**，MUST 改用 `git log --since='2 weeks' -- engineering-context/`。`engineering-context/` 确实是独立仓库时才用 `git -C engineering-context …`。
 
 ## 8. 真相方向铁律
 
