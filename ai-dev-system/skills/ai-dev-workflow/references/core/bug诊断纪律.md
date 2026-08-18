@@ -77,7 +77,7 @@ MUST 在构造红回路之前完成：搜索本仓库 `docs/report/bug修复历�
 
   修复版本取值优先级：项目正式版本文件（`VERSION` / `package.json` / `Cargo.toml` / `CHANGELOG` 顶部条目等）＞最近 Git tag（`git describe --tags`）＞短 commit hash（`git rev-parse --short HEAD`）；项目没有任何正式版本机制时，MUST 至少记 commit hash，不得留空。
 
-  该文件是**追加式的单一账本**，不按 `<feature>-<report-type>-report.md` 规则拆成多个文件——这是 `文档治理.md` 报告命名规则的显式例外，专供 Phase 0 §查重复历史检索。
+  该文件是**追加式的单一账本**，不按 `<feature>-<report-type>-report.md` 规则拆成多个文件——这是 `文档治理.md` §硬规则 的三个固定文件名例外之一，专供 Phase 0 §查重复历史检索。
 
 - **根因是"改错了实现 / 被旧实现误导"时 MUST 同时记一条资产补建信号**：在写上述归档条目的**同时**（信号产生处即写入，MUST NOT 留到收尾再回忆）往 `docs/report/资产补建信号.md` 追加一行，指向**权威位**——这类根因说明项目里已经出现"同一能力有多处实现、分不清信哪个"的实际损失，而不只是这一次手滑。行格式、阈值与后续判定见 `资产补建信号.md`；**本处只记账，要不要建议补建资产在合并完成后的收尾汇报里判定**，MUST NOT 在诊断过程中向用户发问。根因属于局部实现错误、写错条件、边界没考虑等，则 MUST NOT 记——那是普通 bug，不是资产缺口。
 

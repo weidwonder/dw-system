@@ -30,13 +30,13 @@
 |---|---|---|---|---|
 | 需求真相源可达 | `requirement-reachable` | 需求真相源路径（`docs/REQUIREMENTS.md` 或 `README.md#需求`）| `≤2 跳` | 从入口文档沿链接 ≤2 跳到达 |
 | 架构真相源可达 | `architecture-reachable` | 架构真相源路径（`docs/ARCHITECTURE.md` 或 `README.md#架构与边界`）| `≤2 跳` | 同上 |
-| 实现真相源可用 | `implementation-usable` | 架构节（`README.md#架构与边界`）| `usable` | 模块路径无条件校验 + 探测到的每一位都要成立，见下 |
+| 实现真相源可用 | `implementation-usable` | 架构节（`README.md#架构与边界`）| `usable` | 模块路径无条件校验 + 探测到图谱位时它也要成立（权威位只加 note），见下 |
 | 设计理由可追 | `rationale-traceable` | 索引路径（默认 `docs/index.md`）| `全部非空` | 索引**现行区**各 spec 的 `authority_refs` 均非空。**只统计路径里含 `spec/` 的 `.md`**——`plan/`、`report/` 与外链不计入；spec 放在别的目录（如 `docs/设计/`）会直接判 `NO-SPEC-LINK` |
 
 **入口文档**：仓库根的 `README*.md` 与 `docs/index.md`（需求真相源"二选一即可"的判据见 `core/文档治理.md` §三层真相源）。两者都没有 → `NO-ENTRY-DOC`，判 FAIL——没有入口就谈不上交接。
 **跳数**：入口文档本身算 0 跳，入口里的链接算 1 跳。期望串里写数字即改上限（不写按 ≤2 跳）。目标带 `#锚点` 时，该锚点必须对应文中一个标题，否则 `ANCHOR-MISSING`。
 
-**"实现真相源可用"的三项是叠加，不是互斥**（能力位是探测结果，不是配置）：
+**"实现真相源可用"的三项是叠加，不是互斥**（能力位是探测结果，不是配置）；三项里**只有前两项参与 pass/fail**，权威位那项只追加说明性 note：
 
 | 检查项 | 何时校验 | 判定 | 失败样子 |
 |---|---|---|---|
@@ -93,7 +93,7 @@ runProbeGate():
   return gate(realProbeSet)      # 自检通过才跑真实探针
 ```
 
-交接题型也进自检：题集里有交接题型时，额外植入**两道**必错样本：一道指向必然不存在的真相源的可达性题，一道 `implementation-usable`（后者是「三项叠加」语义的保险——只校验能力位那几项、漏掉模块路径时它会失败）。
+交接题型也进自检：题集里有交接题型时，额外植入**两道**必错样本：一道指向必然不存在的真相源的可达性题，一道 `implementation-usable`（后者是「模块路径无条件校验」语义的保险——只校验能力位那几项、漏掉模块路径时它会失败）。
 它只依赖项目文件、不依赖 card/registry，所以**没有 context 层的直读项目也有真门禁**——
 但反过来，题集里没有交接题型且 context 层为空时判据不变，仍是 `GATE-BROKEN`，不得放水。
 
