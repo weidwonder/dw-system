@@ -100,3 +100,20 @@ runProbeGate():
 - 只在 **CI 发布 / 里程碑节点**运行，**不进 coding agent 的每轮 loop**。
 - `ctx probe` 已可运行：机器可判题型（context 层的 capability-mapping / deprecated-trap，零上下文交接的 requirement-reachable / architecture-reachable / implementation-usable / rationale-traceable）+ 门禁自检 + 棘轮 + 衰减报告，`--json` 退出码供 CI 门禁（见 `scripts/ctx/README.md`）。"按权威面自动触发重扫"的 CI hook 仍待接。
 - 交接题型读的是**项目自身文件**，按 `ctx probe` 的运行目录（cwd）当项目根；`--dir` 只改 `engineering-context` 的位置，不改项目根。
+
+## 基线（棘轮）
+> 已知、暂时容忍的失败项（按 # 列）。规则：**只许变短**——基线外新增失败即 RED；基线内已修复也 RED（强制删除该条）。
+> 编号 MUST **独立成行**：`- 12` / `* #12` / `1. 12` / `- [ ] 12` / `` - `12` `` / 表格首列 `| 12 |` 都认。
+> 夹在句子里的编号（`- 探针 #3：容忍到 2026-09`）**不认**，会被单独警告——那种写法一旦被漏读就是假 RED。
+> 复核记录照常写，行内的日期与 issue 号不会被误当编号：
+> `> 2026-08-16 复核：暂时容忍 #1，见 issue 4321。`
+
+（空）
+
+## 判级与退出码
+| verdict | 退出码 | 说明 |
+|---|---|---|
+| `GREEN` / `AMBER` | 0 | AMBER = 失败全落在基线内 |
+| `RED` | 1 | 新增失败 / blocking 失败 / 通过率低于地板 / 基线有冗余 |
+| `GATE-BROKEN` | 1 | 自检没抓住植入的必错样本，拒绝出具结论 |
+| `NO-PROBE` | 1 | 一道**未暂停**的探针都没跑——"没有题目所以全绿"是假门禁 |

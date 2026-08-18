@@ -4,6 +4,7 @@ import path from 'node:path';
 import {
   loadCards,
   loadRegistry,
+  registryConflicts,
   makeCite,
   confirmedAtOf,
   UNDECLARED_FRESHNESS,
@@ -56,6 +57,12 @@ export function discover(ctxDir, intent) {
   const scored = [];
   const outOfScope = [];
   const capabilities = matchCapabilities(registry, tokens, outOfScope);
+  // 冲突只对**本次命中**的能力报——全表扫会把无关冲突也堆进来，冲淡真正相关的那条。
+  const hitCaps = new Set(capabilities.map((c) => (c.capability || '').trim().toLowerCase()));
+  for (const c of registryConflicts(registry)) {
+    if (!hitCaps.has(c.capability.trim().toLowerCase())) continue;
+    outOfScope.push(`⚠ 能力「${c.capability}」在 registry 里有 ${c.canonicals.length} 条互相矛盾的权威实现（${c.canonicals.join(' / ')}）——MUST 先收敛 registry，MUST NOT 随手取一条当权威。`);
+  }
   for (const card of cards) {
     let score = scoreHits(card.raw, tokens);
     // registry 中指向该仓库的能力，若命中 intent，给 card 加权

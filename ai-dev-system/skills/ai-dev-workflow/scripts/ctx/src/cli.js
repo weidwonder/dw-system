@@ -112,7 +112,7 @@ registry 最小合法 schema：Capability / 权威实现 / 陷阱项（废弃或
 没写 freshness 的条目输出标注「未声明新鲜度」——不假定新鲜，用前回源码确认。
 search-semantic：--as-of 启用 freshness 降权（过期块标 stale 并 ×0.5）。
 probe 退出码：GREEN / AMBER → 0；RED / GATE-BROKEN / NO-PROBE → 1（供 CI 门禁）。
-NO-PROBE = 一道计分探针都没跑（题集空 / 全占位 / 全暂停）——"没有题目所以全绿"是假门禁，判不通过。
+NO-PROBE = 一道未暂停的探针都没跑（题集空 / 全占位 / 全暂停）——"没有题目所以全绿"是假门禁，判不通过。
 每条来自 card 的事实带 cite（path#anchor @确认时间）。`;
 
 function main() {
@@ -217,7 +217,7 @@ function main() {
     case 'probe': {
       const cards = loadCards(ctxDir);
       const registry = loadRegistry(ctxDir);
-      const { probes, baseline, skipped } = loadProbes(ctxDir);
+      const { probes, baseline, skipped, baselineUnparsed } = loadProbes(ctxDir);
       // MUST 把已解析的 ctxDir 传下去：不传的话 B 类交接题型会退回 <cwd>/engineering-context 兜底，
       // 而 A 类题型读的是 --dir 指定的目录——同一次 probe 里两类题看两份不同的 registry，
       // 于是 --dir 下 list-services 认得出权威位、implementation-usable 却判"直读"并报 RED。
@@ -226,7 +226,7 @@ function main() {
       const delta = prev && ev.passRate != null ? Number((ev.passRate - prev.passRate).toFixed(4)) : null;
       // `skipped` MUST 进 --json：人读输出早就提示"跳过 N 条占位行"，CI 读的那一路却看不到，
       // 于是"一道题都没跑"在流水线里长得和"全部通过"一模一样。
-      const report = { ...ev, skipped, prevPassRate: prev ? prev.passRate : null, passRateDelta: delta };
+      const report = { ...ev, skipped, baselineUnparsed, prevPassRate: prev ? prev.passRate : null, passRateDelta: delta };
 
       const icon = { GREEN: '✅', AMBER: '🟡', RED: '🛑', 'GATE-BROKEN': '🛑', 'NO-PROBE': '🛑' }[ev.verdict] || '?';
       const lines = [];
@@ -234,11 +234,19 @@ function main() {
       if (skipped.length) {
         lines.push(`ℹ️  跳过 ${skipped.length} 条模板占位行（#${skipped.join(' #')}）：把 【…】 换成真实题目才会计入门禁。`);
       }
+      // 没解析出来的基线行 MUST 显式报出：否则它表现为"新增失败 #N"，
+      // 人会去查探针为什么失败，而真正的原因是这条基线压根没被读进来（假 RED）。
+      if (baselineUnparsed.length) {
+        lines.push(
+          `⚠️  基线段有 ${baselineUnparsed.length} 行像编号却没被解析（编号 MUST 独立成行，不能夹在句子里）：\n` +
+            baselineUnparsed.map((l) => `     ${l}`).join('\n'),
+        );
+      }
       if (ev.verdict === 'GATE-BROKEN') {
         lines.push('🛑 GATE-BROKEN：门禁自检未通过，拒绝出具结论（流水线应红）。');
       } else if (ev.verdict === 'NO-PROBE') {
         lines.push(
-          '🛑 NO-PROBE：一道计分探针都没跑（题集为空 / 全是 【…】 占位行 / 全被 needs-reconfirm 暂停）。'
+          '🛑 NO-PROBE：一道未暂停的探针都没跑（题集为空 / 全是 【…】 占位行 / 全被 needs-reconfirm 暂停）。'
           + '\n"没有题目所以全绿"正是假门禁，因此判不通过（退出 1）。'
           + '\n下一步：把 probe-set.md 的占位行换成真实题目——三道就够起步。',
         );
@@ -247,7 +255,12 @@ function main() {
           const inBase = baseline.has(String(r.n));
           lines.push(`  ${r.pass ? '✅' : (inBase ? '🟡' : '🛑')} #${r.n} [${r.type}] ${r.input}` + (r.pass ? '' : `\n       期望：${r.expected}\n       实得：${r.actual}` + (inBase ? '（基线容忍）' : '（新增失败）')));
         }
-        lines.push(`\n判级：${icon} ${ev.verdict}  加权通过率 ${(ev.passRate * 100).toFixed(0)}%` + (delta != null ? `（较上周期 ${delta >= 0 ? '+' : ''}${(delta * 100).toFixed(0)}%）` : ''));
+        // passRate 为 null = 本轮没有 scored 题（可以全是 blocking 且全过）。
+        // MUST NOT 让 null 参与算术：`null * 100` 是 0，会打出"GREEN 加权通过率 0%"这种自相矛盾的行。
+        const rate = ev.passRate == null
+          ? '—（本轮无计分题，仅 blocking）'
+          : `${(ev.passRate * 100).toFixed(0)}%` + (delta != null ? `（较上周期 ${delta >= 0 ? '+' : ''}${(delta * 100).toFixed(0)}%）` : '');
+        lines.push(`\n判级：${icon} ${ev.verdict}  加权通过率 ${rate}`);
         if (ev.newFailures.length) lines.push(`RED 原因：新增失败 #${ev.newFailures.map((r) => r.n).join(', #')}`);
         if (ev.blockingFailures.length) lines.push(`RED 原因：blocking 探针失败（零容忍）#${ev.blockingFailures.map((r) => r.n).join(', #')}`);
         if (ev.staleBaseline.length) lines.push(`RED 原因：基线 #${ev.staleBaseline.join(', #')} 已不再失败，必须从基线删除（棘轮只许变短）。`);

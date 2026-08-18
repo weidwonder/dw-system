@@ -4,7 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { loadCards, loadRegistry, diagnoseRegistry, makeCite } from '../src/cards.js';
+import { loadCards, loadRegistry, diagnoseRegistry, registryConflicts, makeCite } from '../src/cards.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ctxDir = path.join(here, '..', 'fixtures', 'engineering-context');
@@ -171,4 +171,21 @@ test('diagnoseRegistry 把"缺分隔行"与"表头不对"分开报', () => {
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
+});
+
+test('registryConflicts 找出同一能力的互相矛盾登记', () => {
+  // 合并全文件所有能力表之后这种冲突才可能出现（旧实现只读第一张表）。
+  // 静默并存是最差的一种：权威位的全部承诺就是"信哪个"，两条并列等于把问题原样退回，
+  // 而 agent 会随手取第一条，看起来还很权威。
+  const rows = [
+    { capability: '用户创建', canonicalRepo: '', canonicalApi: 'POST /v2/user' },
+    { capability: '用户创建', canonicalRepo: 'user-svc', canonicalApi: 'POST /v3/user' },
+    { capability: '支付', canonicalRepo: 'pay-svc', canonicalApi: 'POST /v1/pay' },
+    { capability: '重复但一致', canonicalRepo: '', canonicalApi: 'GET /x' },
+    { capability: '重复但一致', canonicalRepo: '', canonicalApi: 'GET /x' },
+  ];
+  const conflicts = registryConflicts(rows);
+  assert.equal(conflicts.length, 1, '只有真正取值不同的才算冲突');
+  assert.equal(conflicts[0].capability, '用户创建');
+  assert.equal(conflicts[0].canonicals.length, 2);
 });

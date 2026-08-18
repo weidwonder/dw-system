@@ -168,6 +168,30 @@ export function loadRegistry(ctxDir) {
 }
 
 /**
+ * 找出 registry 里**同一能力被登记了多个不同权威实现**的情况。
+ *
+ * 合并全文件所有能力表之后，这种冲突才可能出现（旧实现只读第一张表，撞不上）。
+ * 它 MUST 被显式报出来：权威位的全部承诺就是"同一能力多处实现时**信哪个**"，
+ * 两条并列输出等于把这个问题原样退还给使用者，而且是**静默**退还——
+ * agent 会随手取第一条，看起来还很权威。
+ *
+ * @returns {Array<{capability:string, canonicals:string[]}>}
+ */
+export function registryConflicts(rows) {
+  const byCap = new Map();
+  for (const r of rows) {
+    const key = (r.capability || '').trim().toLowerCase();
+    if (!key) continue;
+    const canonical = [r.canonicalRepo, r.canonicalApi].filter(Boolean).join(' :: ').trim();
+    if (!canonical) continue;
+    if (!byCap.has(key)) byCap.set(key, { capability: r.capability.trim(), canonicals: [] });
+    const g = byCap.get(key);
+    if (!g.canonicals.includes(canonical)) g.canonicals.push(canonical);
+  }
+  return [...byCap.values()].filter((g) => g.canonicals.length > 1);
+}
+
+/**
  * 诊断 registry 为什么解析不出数据行——**只用于人类可读的提示**，不参与任何路由判定。
  * 存在的理由：`loadRegistry` 返回空数组时，"文件没建"/"表头没被认出"/"只有模板行" 三种原因
  * 的处置动作完全不同（建文件 / 改表头 / 填内容）。把三者都报成"只有模板行"会把人引向

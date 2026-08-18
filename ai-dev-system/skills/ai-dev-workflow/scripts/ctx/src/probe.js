@@ -12,8 +12,9 @@
 //   B. 零上下文交接题型（读项目自身文件，见 eng-spec §3.6 四项可达性检查）
 //     requirement-reachable    输入=需求真相源（`路径` 或 `路径#小节`），期望含跳数上限（默认 ≤2 跳）
 //     architecture-reachable   同上，指向架构真相源
-//     implementation-usable    按探测到的能力位分支：无 → 架构节列出的模块路径均存在；
-//                              图谱位 → `.codegraph/codegraph.db` 可查询；权威位 → `ctx list-services` 非空
+//     implementation-usable    模块路径**无条件**校验（架构节列出的路径都存在），
+//                              再按探测到的每个能力位**叠加**一项——MUST 叠加，MUST NOT 择一：
+//                              三行 registry 不该让实现层门禁整个变绿。
 //     rationale-traceable      输入=索引路径（默认 docs/index.md），现行区各 spec 的 authority_refs 均非空
 //
 //   B 类题型需要项目根目录：由 evaluateGate 的 `options.root`（默认 process.cwd()）给出，
@@ -47,29 +48,46 @@ const isSeparator = (cells) => cells.every((c) => /^:?-+:?$/.test(c.replace(/\s/
  * 而整数通吃会把 2026/08/16/4321 全登记成基线编号 → 它们都不在失败集合里 →
  * staleBaseline 非空 → **假 RED**，还会提示"基线 #2026 已不再失败，必须删除"。
  */
-const BASELINE_NUM = /^\s*(?:[-*+]\s*)?#?(\d+)(?![\d.\-/:])/;
+const BASELINE_NUM =
+  /^\s*(?:[-*+]\s*)?(?:\d+[.)]\s*)?(?:\[[ xX]?\]\s*)?(?:[*_`]{0,2})#?(\d+)(?![\d.\-/:])/;
+
+/**
+ * 基线段里"看起来像编号、但没被 BASELINE_NUM 收进去"的行。
+ *
+ * 存在的理由：漏解析的后果是**假 RED**——被容忍的失败变成"新增失败"，而提示只会说
+ * "新增失败 #3"，不会说"你的基线没被读出来"。写法只要偏离一点（编号夹在句子中间，
+ * 如 `- 探针 #3：容忍到 2026-09`）就会静默失效。
+ *
+ * 判据 MUST 收窄成"**列表形态** + 带 `#` 的编号 + 没被解析"三条同时成立：
+ * 基线段里写带日期的复核记录（`> 2026-08-16 复核：暂时容忍 #1，见 issue 4321。`）是
+ * **被明确允许**的写法，对它报警告等于把一条正常用法变成噪音。
+ */
+const BASELINE_LOOSE = /^\s*[-*+]\s.*#\d/;
 
 /**
  * 解析 probe-set.md：探针表（表头首列 '#'，次列含 类型/type）+ 基线（棘轮）段的编号。
  * 模板占位行（`【…】`）不算探针，单列在 skipped 里供 CLI 提示——不提示的话
  * "6 道题只跑了 0 道"会被读成解析坏了。
- * @returns {{probes:Array<{n,type,input,expected}>, baseline:Set<string>, skipped:string[]}}
+ * @returns {{probes:Array<{n,type,input,expected}>, baseline:Set<string>, skipped:string[], baselineUnparsed:string[]}}
  */
 export function loadProbes(ctxDir) {
   const file = path.join(ctxDir, 'probe-set.md');
-  if (!fs.existsSync(file)) return { probes: [], baseline: new Set(), skipped: [] };
+  if (!fs.existsSync(file)) return { probes: [], baseline: new Set(), skipped: [], baselineUnparsed: [] };
   const raw = fs.readFileSync(file, 'utf8');
   const lines = raw.split(/\r?\n/);
 
   const probes = [];
   const skipped = [];
+  const baselineUnparsed = [];
   let inTable = false;
   let headerCols = null;
   let baselineMode = false;
   const baseline = new Set();
 
   for (const line of lines) {
-    if (/^##\s/.test(line)) {
+    // MUST 认任意层级标题（`## 基线` 与 `### 基线（棘轮）` 都常见）：
+    // 只认 `##` 时，写成 h3 的基线段整段不进 baselineMode → 基线全丢 → 假 RED。
+    if (/^#{1,6}\s/.test(line)) {
       baselineMode = /基线|baseline|棘轮|ratchet/i.test(line);
       inTable = false;
       continue;
@@ -87,6 +105,7 @@ export function loadProbes(ctxDir) {
       }
       const m = BASELINE_NUM.exec(line);
       if (m) baseline.add(m[1]);
+      else if (line.trim() && BASELINE_LOOSE.test(line)) baselineUnparsed.push(line.trim());
       continue;
     }
     const cells = parseRow(line);
@@ -127,7 +146,7 @@ export function loadProbes(ctxDir) {
       authorityRefs: pick('authority', 'refs', '权威'),
     });
   }
-  return { probes, baseline, skipped };
+  return { probes, baseline, skipped, baselineUnparsed };
 }
 
 // 废弃行里指向替代物的措辞。
@@ -419,7 +438,20 @@ export function detectCapabilityBits(root, ctxDir) {
  * `path.join` / `os.tmpdir` 当成带扩展名的模块路径并判"模块路径缺失"。而这个题型是**无能力位
  * 项目唯一的实现层门禁**，误判会把它逼成永久红点（再叠加基线段的整数通吃就会被塞进棘轮基线）。
  */
-const PATH_EXT = /\.(js|mjs|cjs|jsx|ts|tsx|mts|cts|py|pyi|go|rs|rb|php|java|kt|kts|scala|swift|m|mm|c|h|cc|cpp|hpp|cs|sh|bash|zsh|sql|proto|graphql|md|markdown|rst|txt|json|jsonc|yaml|yml|toml|ini|cfg|conf|env|xml|html|htm|css|scss|sass|less|vue|svelte|tf|tfvars|gradle|lock|cmake|mk|dockerfile)$/i;
+const PATH_EXT = /\.(js|mjs|cjs|jsx|ts|tsx|mts|cts|py|pyi|go|rs|rb|php|java|kt|kts|scala|swift|m|mm|c|h|cc|cpp|hpp|cs|sh|bash|zsh|sql|proto|graphql|md|markdown|rst|txt|json|jsonc|yaml|yml|toml|ini|cfg|conf|xml|html|htm|css|scss|sass|less|vue|svelte|tf|tfvars|gradle|lock|cmake|mk|dockerfile|mod|sum|gemspec|podspec|csproj|sln)$/i;
+
+/**
+ * 没有扩展名、但确实是路径的裸文件名，以及点开头的配置文件。
+ *
+ * 白名单只按扩展名判会漏掉一整类真实路径（`Makefile` / `Dockerfile` / `.env.example`），
+ * 而漏掉的后果**不是少报**：架构节列了三条不存在的路径，门禁照样绿，还反过来说"全部存在"——
+ * 一个恒绿的门禁比没有门禁更危险。
+ *
+ * `.env` MUST 写成"点开头"才算：`env` 若留在扩展名表里，`process.env` 这类 API 名会被
+ * 当成路径判缺失，正是白名单本身要消灭的那类误判。
+ */
+const BARE_PATH_NAME =
+  /^(makefile|dockerfile|containerfile|gemfile|rakefile|procfile|jenkinsfile|vagrantfile|brewfile|justfile|readme|license|licence|notice|codeowners|\.env(\..+)?|\.[a-z][a-z0-9-]*(ignore|rc|config)(\..+)?)$/i;
 
 /** 从架构节里抽"看起来是模块路径"的 token（反引号代码片段 + 相对链接）。 */
 function modulePathCandidates(section) {
@@ -431,7 +463,7 @@ function modulePathCandidates(section) {
     if (/[*?<>|"'`（）()【】]/.test(s) || s.startsWith('#')) return;
     // 候选路径 MUST 含目录分隔，或以白名单扩展名结尾——把"点号后是已知扩展名"
     // 与"点号后是标识符（API 名）"区分开。
-    if (!s.includes('/') && !PATH_EXT.test(s)) return;
+    if (!s.includes('/') && !PATH_EXT.test(s) && !BARE_PATH_NAME.test(s)) return;
     const rel = normRel(s);
     if (rel && !out.includes(rel)) out.push(rel);
   };
@@ -649,7 +681,9 @@ export function selfCheck(cards, registry, ctx = {}) {
  *   · scored 探针按 weight 计**加权通过率**；低于 floor（默认关闭，CLI 传 0.9）= RED。
  *   · 棘轮**双向**：基线外新失败 = RED；基线内已不再失败 = staleBaseline，必须删除，也 RED（只许变短）。
  *   · needs-reconfirm / quarantined 的探针 ground truth 可能过期，暂不计分，只报告（探针自防腐）。
- *   · 计分探针数为 0（题集为空 / 全是占位行 / 全被暂停）= NO-PROBE，passRate 为 null，退出码同 RED。
+ *   · 未暂停的探针数为 0（题集为空 / 全是占位行 / 全被暂停）= NO-PROBE，退出码同 RED。
+ *     注意判据是 **active（未暂停）**，不是 scored：全 blocking 且全过时门禁是有效的，
+ *     只是没有计分题 → passRate 为 null（CLI 打印成"—"，MUST NOT 当 0 参与运算）。
  * @returns {{selfCheck, results, failing, newFailures, blockingFailures, staleBaseline, needsReconfirm, passRate, floor, belowFloor, verdict, canTightenBaseline}}
  */
 export function evaluateGate(cards, registry, probes, baseline, options = {}) {
