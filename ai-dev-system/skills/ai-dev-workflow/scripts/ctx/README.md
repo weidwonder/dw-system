@@ -32,7 +32,7 @@ npm rm -g ctx
 | 命令 | 作用 | 状态 |
 |---|---|---|
 | `ctx init [--dir <目标>]` | 生成 `engineering-context/` 骨架（registry + cards/ + scenes/README + probe-set + glossary + README + `.gitignore`） | ✅ |
-| `ctx init --minimal [--dir <目标>]` | **只**生成 `capability-registry.md`（三列即可起步，推荐先用它） | ✅ 见下 |
+| `ctx init --minimal [--dir <目标>]` | 只生成 `capability-registry.md` + `.gitignore`（三列即可起步，推荐先用它） | ✅ 见下 |
 | `ctx discover "<意图>"` | 意图 → 应加载的 card 清单（按命中分排序）+ out-of-scope 提示 | ✅ |
 | `ctx get-card <repo> [域]` | 取某仓 card；域为 `## 段落标题` | ✅ |
 | `ctx find-scenes <关键词...>` | 匹配 `scenes/*.md` 业务场景 | ✅ |
@@ -76,9 +76,25 @@ node src/cli.js discover "作业辅导 对话" --dir <ctx目录> --json | jq -r 
 
 # 断言某能力已登记（未登记则 CI 失败）
 node src/cli.js list-services --dir <ctx目录> --json \
-  | jq -e '[.[].capabilities[]] | index("背单词记录")' >/dev/null \
+  | jq -e '[.services[].capabilities[]] | index("背单词记录")' >/dev/null \
   || { echo "能力未登记，请补 capability-registry"; exit 1; }
+
+# 空结果的原因（目录写错了 / 还没建 registry / 只有占位行）：读 diagnosis，别只看空数组
+node src/cli.js list-services --dir <ctx目录> --json | jq -r '.diagnosis, .hint'
 ```
+
+**`--json` 里的 `diagnosis` / `hint`**：`discover` / `list-services` / `find-scenes` / `get-card` 结果为空时，人读输出会说清是哪种原因，**`--json` 同样带这两个字段**——不带的话「`--dir` 打错字」「registry 表头写错」「只有 `【】` 占位行」在 CI 里一律长成 `[]`，与"这个项目真没建权威位"无法区分，于是脚本（和 agent）判定权威位不可用，退回裸 grep。
+
+| 命令 | `--json` 顶层结构 | `diagnosis` 取值 |
+|---|---|---|
+| `discover` | `{ cards, capabilities, outOfScope, diagnosis, hint }` | `ok` / 下面那组 registry 诊断码 |
+| `list-services` | `{ services, unreadableCards, diagnosis, hint }` | 同上 |
+| `find-scenes` | `{ scenes, diagnosis, hint }` | `ok` / `no-dir` / `no-scenes-dir` / `no-match` |
+| `get-card` | `{ service, content, cite, diagnosis, missing?, available? }` | `ok` / `section-not-found` |
+
+registry 诊断码：`no-dir`（`engineering-context` 目录本身不存在——**先怀疑 `--dir` 或运行目录**，不是"没建权威位"）/ `no-file` / `unreadable` / `no-header` / `no-separator` / `placeholder-only` / `no-row`。
+
+**段落不存在时 `get-card` 不发 cite 且退出 1**（`cite: null` + `diagnosis: "section-not-found"` + `available` 列出可用段落）。理由：体系铁律是"每条来自 card 的事实必须附 cite，无 cite 视为幻觉"——那么一条指向不存在锚点的 cite 比没有 cite 更糟，它给幻觉发通行证。
 
 `ctx probe --json` 输出衰减报告（`verdict` / `passRate` / `passRateDelta` / `skipped` / `results[]`），**`GREEN` 与 `AMBER` 退出 0，其余（`RED` / `GATE-BROKEN` / `NO-PROBE`）退出 1**——成因逐条见 ↓ §判级表。供 CI 门禁读取：
 
@@ -88,7 +104,8 @@ node src/cli.js probe --dir <ctx目录> --json >/tmp/probe.json \
   || { echo "context 层防腐门禁未通过：$(jq -r .verdict /tmp/probe.json)"; exit 1; }
 ```
 
-> 用退出码，别只用 `jq -e '.verdict=="GREEN" or .verdict=="AMBER"'`：那样写等于把判级规则在 CI 里抄第二遍，新增 verdict（如 `NO-PROBE`）时两边会漂移。同理，**MUST NOT** 用 `| jq` 直连——大输出经管道时请先落文件再读（`get-card --json` 的整卡全文可达数百 KB）。
+> 用退出码，别只用 `jq -e '.verdict=="GREEN" or .verdict=="AMBER"'`：那样写等于把判级规则在 CI 里抄第二遍，新增 verdict（如 `NO-PROBE`）时两边会漂移。
+> 管道直连 `| jq` 是安全的：`cli.js` 用 `process.exitCode` 收尾而不是 `process.exit()`，stdout 会被完整 flush，实测数百 KB 的 `get-card --json` 经管道与重定向到文件字节数相同。
 
 ## card 格式约定（供解析）
 
@@ -137,8 +154,10 @@ node src/cli.js probe --dir <ctx目录> --json >/tmp/probe.json \
 ## `ctx init --minimal` — 三行 registry 起步
 
 ```bash
-node src/cli.js init --minimal --dir <项目根>     # 只落 engineering-context/capability-registry.md
+node src/cli.js init --minimal --dir <项目根>     # 落 engineering-context/capability-registry.md + .gitignore
 ```
+
+`.gitignore` 一起生成，内容是忽略 `.index/`（`ctx probe` 的通过率历史，机器状态，不入库）。除这两个文件外 `--minimal` 不落任何东西——`cards/`、`scenes/`、`probe-set.md`、`glossary.md` 正是它要省掉的。
 
 **为什么**：一次性铺开 registry + cards/ + scenes/ + probe-set + glossary 五个待填文件，会把刚要建权威位的人劝退，反而退回裸 grep。权威位的起步成本应该是"三行 registry"。
 
@@ -217,7 +236,9 @@ node src/cli.js search-semantic "背单词" --as-of 2026-07-20 --stale-days 90  
 | `UNREACHABLE(>N 跳)：<路径>` | 文件在，但从入口 N 跳内到不了 |
 | `NO-SPEC-LINK:<索引> 现行区没有链到任何 spec` | 索引现行区为空 |
 | `authority_refs 未填：<路径列表>` | 现行区某些 spec 的该字段为空/占位 |
-| `直读：模块路径缺失 <路径列表>` / `直读：架构节未列出任何模块路径（…）` | 无能力位分支的两种失败 |
+| `模块路径：缺失 <路径列表>` | 架构节列出的模块路径有的不存在 |
+| `模块路径：架构节未列出任何模块路径（<路径#小节>）` | 架构节一个模块路径都抽不到（零条目不算通过） |
+| `模块路径：探针未指定架构节` / `模块路径：架构真相源缺失 <路径>` / `模块路径：架构节缺失 <路径>#<锚点>` | 探针输入写得不对，或它指的文件/小节不存在 |
 | `图谱位：.codegraph/codegraph.db 为空，索引不可查询` | 有索引文件但零字节 |
 
 > **项目根 = cwd**：B 类题型按 `ctx probe` 的运行目录当项目根，`--dir` 只改 `engineering-context` 的位置。
@@ -234,15 +255,17 @@ node src/cli.js probe --dir <ctx目录> --json    # CI 读；退出码见下表
 | `GREEN` | **零失败**，且基线无冗余、通过率 ≥ 地板 | 0 |
 | `AMBER` | 失败**全部落在基线内**（棘轮容忍），且通过率 ≥ 地板 | 0 |
 | `RED` | 命中下列任一：① 出现**基线外的新增失败**；② 任何 `severity=blocking` 的探针失败（**零容忍，基线不豁免**）；③ 加权通过率 **< 地板 0.9**；④ 基线里有**已不再失败**的编号（棘轮只许变短，冗余基线本身就是失准） | 1 |
-| `GATE-BROKEN` | 门禁自检没抓住植入的必错样本——门禁形同虚设，拒绝出具结论 | 1 |
+| `GATE-BROKEN` | 自检没能证明门禁有效，拒绝出具结论。三种成因：① 植入的必错样本竟被判通过（门禁形同虚设）；② **context 层为空**（无 registry 也无 cards）且题集里没有交接题型，无从植入；③ **构造不出自检样本**——registry 没有带权威实现的条目，cards 的废弃段里也没有可判为废弃的实体 | 1 |
 | `NO-PROBE` | 一道**未暂停**的探针都没跑（题集为空 / 全是 `【…】` 占位行 / 全被 `needs-reconfirm` 暂停）。"没有题目所以全绿"正是假门禁，因此判不通过 | 1 |
 
+> **自检先于 NO-PROBE 判定**：自检不过就直接 `GATE-BROKEN` 返回，一道真实探针都不跑。所以 `ctx init` 之后立刻 `ctx probe`（题集全是 `【…】` 占位、context 层为空）得到的是 `GATE-BROKEN` 而不是 `NO-PROBE`——两者退出码相同，但修复动作不同：前者先填 registry/cards，后者先填题。
+>
 > `NO-PROBE` 的判据是 **active（未暂停）** 探针数，不是 scored：题集全是 `blocking` 且全通过时门禁是有效的，判 `GREEN`——只是没有计分题，此时 `passRate` 为 `null`，人读模式打印 `—（本轮无计分题，仅 blocking）`。
 
 不计分的两种状态：`status` 为 `needs-reconfirm`（挂的权威面变了，等人重新确认）或 `quarantined` 的探针**暂不计入通过率**，但会在报告里显式列出题数——静默排除等于偷偷降低门槛。
 
 **四条铁律**：
-1. **门禁自检**（防"永远全绿"的假门禁）：真跑前植入必错样本（谎报权威映射 / 把 canonical 接口谎称 deprecated / 指向不存在的真相源 / 架构节列不出模块路径），断言门禁判它们 FAIL；抓不到 → `GATE-BROKEN`，退出 1。交接题型的样本不依赖 cards/registry，所以 context 层为空的直读项目也有真门禁。题集里**没有**交接题型且 context 层为空时判据不变，仍是 `GATE-BROKEN`，不放水。
+1. **门禁自检**（防"永远全绿"的假门禁）：真跑前植入必错样本（谎报权威映射 / 把 canonical 接口谎称 deprecated / **把 card 废弃段里的一条实体谎称 canonical** / 指向不存在的真相源 / 架构节列不出模块路径），断言门禁判它们 FAIL；抓不到 → `GATE-BROKEN`，退出 1。card 那条样本只靠 cards 就能成立——没有它，**只有 cards、没有 registry 的项目会永远 `GATE-BROKEN`**，而 `deprecated-trap` 明明只读 cards 就能作答。交接题型的样本不依赖 cards/registry，所以 context 层为空的直读项目也有真门禁。题集里**没有**交接题型且 context 层为空时判据不变，仍是 `GATE-BROKEN`，不放水。
 2. **双向棘轮**：`## 基线（棘轮）` 段登记容忍的失败编号。**新增**（基线外）失败 → `RED`；失败全落基线内 → `AMBER`（告警不拦）；基线里某个编号**已不再失败** → 同样 `RED`，必须把它从基线删掉。基线只许变短——留着已修好的编号，下次它再坏就没人发现了。
    基线段的编号**只认独立成行的条目**（`- 12` / `* #12` / `12`）。这样在基线段写 `> 2026-08-16 复核：暂时容忍 #1，见 issue 4321。` 这类记录才不会把 `2026`/`08`/`16`/`4321` 也当成基线编号——那会让棘轮报一堆"基线 #2026 已不再失败"的假 RED。
 3. **地板**：加权通过率低于 `0.9` 直接 `RED`，与棘轮独立判定。基线能容忍"哪几道题坏了"，但不容忍"坏了一大半"。

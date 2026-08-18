@@ -3,7 +3,7 @@ lifecycle: active          # active | merged | superseded | obsolete，见 refer
 superseded_by: ''          # superseded 时填取代它的文档相对路径
 archived: ''               # 非 active 时填转归档日期 YYYY-MM-DD
 last_confirmed: ''         # 最近一次被权威面触发复核、判定仍准确的日期；新建时填当天
-authority_refs:            # 本文冻结的权威面；准出时与本次触碰的权威面比对判定去留。写到可比对的粒度，没有则写 ['无']
+authority_refs:            # 本文冻结的权威面；准出时与本次触碰的权威面比对判定去留。写到可比对的粒度，确实没有就写一条 无（注释里 MUST NOT 出现引号：ctx probe 的 rationale-traceable 见引号即不剥注释，整条注释会被当成已填的条目）
   - '【如：POST /api/v2/orders 请求体契约】'
   - '【如：order 表唯一键 (tenant_id, order_no)】'
 ---

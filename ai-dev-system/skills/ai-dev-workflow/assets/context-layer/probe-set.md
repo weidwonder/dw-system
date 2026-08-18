@@ -4,9 +4,12 @@
 > 起步 40~50 题即可，随人工纠正不断补充（人工纠正 → 新 Probe 题 + card/registry 更新，闭环）。
 > 种子题取自真实歧义案例，**有已知正确答案**。
 
-## 题型与示例
+## 题型说明（非探针表）
 
-| # | 题型 | 示例 | 期望答案 |
+> 这张表是**题型清单**，不是探针表：`ctx probe` 不解析它（它的首列不是 `#`、次列也不含"类型"）。
+> 真正要填的探针写进下面的 `## 探针` 表——**只有那张表里的行才会被跑**。
+
+| 题型编号 | 题型 | 示例 | 期望答案 |
 |---|---|---|---|
 | 1 | Capability Mapping | 概念【背单词记录】→ 哪个 canonical service + 接口？ | 【权威服务/接口，并标出废弃替代】 |
 | 2 | Deprecated / Intermediate Trap | 路由指向 V2，V1 是上次重构中间产物——V1 状态是？ | 【标为"中间产物，不可用"，既非旧亦非新】 |
@@ -15,7 +18,7 @@
 | 5 | Impact Radius | 给 diff，判断影响范围 | 【单模块/跨服务/跨仓】 |
 | 6 | PRD-Spec Conflict | PRD 说"可复用" + 代码事实 | 【发现"假复用"冲突】 |
 
-> 上表第 1、2 类已由 `ctx probe` 机器判定（类型列填 `capability-mapping` / `deprecated-trap`），3~6 类目前靠人工判。
+> 上表第 1、2 类已由 `ctx probe` 机器判定（在 `## 探针` 表的"类型"列写 `capability-mapping` / `deprecated-trap`），3~6 类目前靠人工判。
 > `capability-mapping` 的期望串写 `权威仓库 :: 权威实现`，registry 是**三列最小 schema**（没有"权威仓库"列）时只写 `权威实现` 即可；
 > 此时仓库维度不存在、无从比对，门禁只判权威实现——**不会因为缺列而恒失败**，那种恒红只会污染棘轮基线。
 > 下一节的四项零上下文交接检查同样是机器判定的。
@@ -61,6 +64,22 @@
 | 42 | architecture-reachable | README.md#架构与边界 | ≤2 跳 | blocking | 1 | | README.md#架构与边界 |
 | 43 | implementation-usable | README.md#架构与边界 | usable | scored | 2 | | 架构节列出的模块路径 |
 | 44 | rationale-traceable | docs/index.md | 全部非空 | scored | 2 | | docs/index.md 现行区条目 |
+
+## 探针
+
+> **这就是 `ctx probe` 真正解析的那张表**：判据是首列 `#` + 次列含"类型"/`type`，其余列按名匹配。
+> 表头下必须紧跟分隔行。含 `【…】` 的行算模板占位，被跳过并在报告里单列（不会静默当成"跑过了"）。
+> 与 `ctx init` 生成的 `probe-set.md` 骨架同构——两处漂移会让脚手架与本模板教的不一致。
+> 列 severity（blocking=零容忍 / scored=计入加权通过率）、weight（scored 权重，默认 1）、status（正常留空；权威面变更待重认填 needs-reconfirm、退役填 quarantined，均暂不计分）、authority_refs 均可选，字段含义见下一节。
+
+| # | 类型 | 输入 | 期望 | severity | weight | status | authority_refs |
+|---|---|---|---|---|---|---|---|
+| 1 | capability-mapping | 【能力名，如 背单词记录】 | 【repo :: POST /v2/xxx；最小 schema 只写 POST /v2/xxx】 | scored | 1 | | 【capability-registry.md#能力名】 |
+| 2 | deprecated-trap | 【废弃接口，如 POST /v1/xxx】 | deprecated | blocking | 1 | | 【cards/<repo>.md#废弃 / 中间产物标记】 |
+| 3 | requirement-reachable | 【需求真相源，如 docs/index.md 或 README.md#需求】 | ≤2 跳 | blocking | 1 | | 【README.md 的入口链接结构】 |
+| 4 | architecture-reachable | 【架构真相源，如 README.md#架构与边界】 | ≤2 跳 | blocking | 1 | | 【README.md#架构与边界】 |
+| 5 | implementation-usable | 【架构节，如 README.md#架构与边界】 | usable | scored | 2 | | 【架构节列出的模块路径】 |
+| 6 | rationale-traceable | 【索引路径，默认 docs/index.md】 | 全部非空 | scored | 2 | | 【docs/index.md 现行区条目】 |
 
 ## 探针字段 schema（每题除"输入/期望"外，登记以下元字段）
 

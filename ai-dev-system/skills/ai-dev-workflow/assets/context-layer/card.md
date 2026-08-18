@@ -1,5 +1,11 @@
 # Codebase Card — 【repo 名】
 
+> **存放路径与文件名是解析契约**：card 落 `engineering-context/cards/<repo>.md`，**文件名即 service 名**——
+> `ctx get-card <repo> [域]` 的 `<repo>` 就是它（不含 `.md`），放到别的目录一律扫不到。
+> 这个名字还 MUST 与 `capability-registry.md`「权威仓库」列填的名字**逐字一致**：
+> 匹配是严格相等，写成 `order-service` 对 `orders` 不会报错，只是**静默**失去 card 加权，
+> `ctx discover` 于是把本该排第一的 card 排到后面。
+>
 > 每仓一张。让 AI 从产品能力定位到本仓、判断哪个是当前有效实现。
 > 事实以**源码**为准（基于"本次发布 vs 上一基线"的真实 diff 派生）。`ctx get-card <repo> [域]` 会读本卡；段落标题用 `## ` 便于 CLI 切分。
 > 卡片记的是**人工判断**：哪个是权威、哪个已废弃、业务含义是什么——这些从代码里读不出来，正是 card 存在的理由。
