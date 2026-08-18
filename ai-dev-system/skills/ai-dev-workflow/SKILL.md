@@ -30,9 +30,9 @@ references/
     文档归档与账本收敛.md 【条件】归档头注模板 + 结算示例 + 两个账本各自的收敛方式
     资产补建信号.md      【条件】结果性信号判据 + 账本格式 + 阈值 + 收尾汇报怎么建议（只建议，不是门）
     用户沟通纪律.md      业务语言 + 大架构确认 + 详细设计自主决策
-    bug诊断纪律.md       红回路优先：先造能变红的复现命令，再谈假设
-    代码评审纪律.md      编码后强制子代理三轴评审 + 替换清单（旧逻辑登记与核销）
-    测试资产纪律.md      长链路端到端 + 真实输入固化 + 覆盖度台账
+    bug诊断纪律.md       【条件】红回路优先：先造能变红的复现命令，再谈假设
+    代码评审纪律.md      【条件】编码后强制子代理三轴评审 + 替换清单（旧逻辑登记与核销）
+    测试资产纪律.md      【条件】长链路端到端 + 真实输入固化 + 覆盖度台账
     上下文卫生.md        聪明区决策 / 交接不硬撑 / 编码任务零上下文起步
   collab/                【按 collaboration 字段二选一，必加载一份】
     solo.md              无其他人类协作方：可跳步、你自己拍板兼容、子代理是唯一第二双眼睛
@@ -42,7 +42,7 @@ references/
     curated.md           探测到已填写的 capability-registry.md 时：ctx + cite 取权威口径
     context-engineering.md  权威位的完整资产层设计（要建/要修 engineering-context 时才读）
   init-初始化.md         如何幂等写入 CLAUDE.md/AGENTS.md
-  环境冲突扫描.md        初始化/体系扫描时检查项目自带 rules/skills/agents 的工作方式冲突
+  环境冲突扫描.md        初始化/体系扫描时检查项目自带指令（CLAUDE.md 正文 / skills / agents / commands）的工作方式冲突
 assets/
   templates/           lean-change-spec / overview / eng-spec / coding-plan / test-spec / test-coverage
   config-snippets/     注入 CLAUDE.md 与 AGENTS.md 的片段（base.md 无条件 + collab-solo/collab-team 二选一）
@@ -57,14 +57,17 @@ scripts/ctx/           ctx CLI（Node.js，跨平台）：查代码事实
 
 ```
 1. 【探测】看项目现在有哪些代码事实资产（两处文件存在性检查 + 一次小文件读取，秒级；
-   MUST 在路由阶段一次做完，MUST NOT 塞进任何流程门内部）：
-     - engineering-context/capability-registry.md 存在，且除模板注释与表头外
+   MUST 在路由阶段一次做完，MUST NOT 塞进任何流程门内部）。两条判据里的路径都相对于
+   **项目根**（含 CLAUDE.md / AGENTS.md 的那一层），MUST NOT 按当前工作目录解释：
+     - **项目根**下的 engineering-context/capability-registry.md 存在，且除模板注释与表头外
        至少有一行真实数据行（该行不含【】占位）→ 启用【权威位】
-       等价判据：`ctx list-services` 非空（命令找不到时改用
-       node <本skill根目录>/scripts/ctx/src/cli.js list-services；
+       等价判据：`ctx list-services` 非空。该命令默认读 <cwd>/engineering-context，
+       所以 MUST 在**项目根**执行，或用 --dir <项目根>/engineering-context 显式指定；
+       在子目录里跑它会返回空且退出码为 0（静默），把有权威位误判成没有。
+       （命令找不到时改用 node <本skill根目录>/scripts/ctx/src/cli.js list-services；
        <本skill根目录> = 本 SKILL.md 所在目录，Claude Code 下为
        .claude/skills/ai-dev-workflow/、Codex 下为 .agents/skills/ai-dev-workflow/）。
-     - .codegraph/codegraph.db 存在 → 启用【图谱位】。
+     - **项目根**下的 .codegraph/codegraph.db 存在 → 启用【图谱位】。
      - 两位正交，可同时成立；都不成立 → 直读（无附加能力位），代码事实靠
        子代理外包重探索（core/上下文卫生.md 规则 4）。
    MUST NOT 从标记块字段、历史配置或用户口述推断能力位——只认本次探测结果。
@@ -74,18 +77,26 @@ scripts/ctx/           ctx CLI（Node.js，跨平台）：查代码事实
    "登记表建了但没填，本次按直读工作"——这不是补建建议，是纠正"我以为我有"
    这个错误认知（空壳资产比没有资产更容易造成错误的安全感）。同样提过一次即止，
    写法见 core/资产补建信号.md §5 建了但从没填过。
-   【探测本身失败时】（权限不足、IO 错误、文件损坏）：MUST 把该位视为未启用、
-   按直读继续，并用一句话告知用户探测失败的原因。MUST NOT 阻断流程，
+   【探测本身失败时】（权限不足、IO 错误、文件损坏）：先排除一种**不算探测失败**的情况——
+   **MUST NOT 把"`ctx` 命令找不到"算作探测失败**：CLI 本体随本 skill 一起落盘，它有确定的
+   兜底（改用 node <本skill根目录>/scripts/ctx/src/cli.js list-services，判据见
+   references/capability/curated.md §2 调用方式），兜底也跑不起来才按探测失败处理。
+   真的探测失败时：MUST 把该位视为未启用、按直读继续，并用一句话告知用户失败的原因。MUST NOT 阻断流程，
    MUST NOT 反复重试，MUST NOT 因此改问用户"这个项目有没有 xx 资产"——
    探测不出来就按没有算，本来就是安全侧；把它升级成故障会让整条路由为一次
    偶发 IO 错误停摆。
 
-2. 【读标记块】读当前项目根的 CLAUDE.md（优先）或 AGENTS.md：
+2. 【读标记块】MUST 把当前项目根的 CLAUDE.md 与 AGENTS.md **两个入口都读**
+   （字段以 CLAUDE.md 为准，AGENTS.md 用于比对与补齐，MUST NOT 读到一个就停）：
    <!-- ai-dev-workflow:start -->
    … collaboration="solo|team" merge-gate="direct|pr" worktree-dir="./.worktrees/" …
    <!-- ai-dev-workflow:end -->
+   下面 2a/2b 说的"块"= CLAUDE.md 里的那一块；CLAUDE.md 没有块而 AGENTS.md 有，
+   就先读 AGENTS.md 的块走 2a/2b，并按 2a 把它幂等补进 CLAUDE.md。
 
-2a. 块内【有】collaboration → 直接用，不再询问；另一文件缺失或无块时幂等补齐同一块
+2a. 块内【有】collaboration → 直接用，不再询问。另一文件缺失、无块、或块内**字段与本文件
+     不一致**时，按 references/init-初始化.md §幂等规则 处置：以 CLAUDE.md 的值为准幂等
+     补齐/覆盖另一入口，且 MUST 多说一句被覆盖掉的是什么
      （软链接规则见 references/init-初始化.md §入口是软链接时）。
 
 2b. 块内【只有】旧版安装留下的 mode 字段、没有 collaboration → 按旧值推协作字段：
@@ -94,7 +105,7 @@ scripts/ctx/           ctx CLI（Node.js，跨平台）：查代码事实
      （回写后块已含显式字段，下次走 2a）。文案与规则见 init-初始化.md §从旧标记块推断协作面。
      MUST NOT 由旧值推出任何能力位，MUST NOT 因旧值改变分流默认假设——那两件事只认第 1 步。
 
-2c. 【没有】标记块 → 进入【初始化】（references/init-初始化.md）：先自动跑
+2c. 两个入口都【没有】标记块 → 进入【初始化】（references/init-初始化.md）：先自动跑
      references/环境冲突扫描.md，再只问一个问题（协作面）+ 一条待拍板的 merge-gate 建议，
      按 assets/config-snippets/base.md + collab-<collaboration>.md 幂等注入
      CLAUDE.md 和 AGENTS.md（都要写，兼容 Claude Code + Codex）。能力位不问。
@@ -113,7 +124,9 @@ scripts/ctx/           ctx CLI（Node.js，跨平台）：查代码事实
                              team → references/collab/team.md
      - 能力位（命中几个加几个，可零篇）：图谱位 → references/capability/graph.md
                                           权威位 → references/capability/curated.md
-       （要新建或修 engineering-context 资产时才另读 capability/context-engineering.md）
+     - references/capability/context-engineering.md：读不读**与本次探测结果无关**，只看本次
+       要不要动资产——要新建或修改 engineering-context/ 资产时读（用户说"帮我把这层建起来"
+       时权威位通常正好未启用，此时同样要读），不动资产就不读。
    【此时不要读流程分册】——分流之后才知道该读哪一份。
 
 4. 按 00-流程总纲.md 驱动：先过 worktree 工作区隔离门，再做 Triage 分流，
@@ -149,7 +162,7 @@ scripts/ctx/           ctx CLI（Node.js，跨平台）：查代码事实
 - **文档只写标准目录，且有退出机制**：spec→`docs/spec/`、plan→`docs/plan/`、report→`docs/report/`；新建文档带 `lifecycle` + `authority_refs`，准出时按权威面结算去留，索引只放现行口径。→ `core/文档治理.md`
 - **写到零上下文也能动手**：RFC2119、无占位符、事实带来源。→ `core/spec写作纪律.md`
 - **上下文卫生**：方向性决策在聪明区内完成，逼近上限就交接，重探索外包子代理。→ `core/上下文卫生.md`
-- **代码事实按探测到的能力位取，MUST NOT 裸 grep 找权威实体**：探测到**权威位** → 先 `ctx discover`/`find-scenes` 再读 card，事实必须附 cite，无 cite 视为幻觉（`capability/curated.md`）；探测到**图谱位** → 结构检索走代码图谱（`capability/graph.md`）；一位都没有 → 把重探索外包给子代理（`core/上下文卫生.md`）。
+- **代码事实按探测到的能力位取，MUST NOT 裸 grep 找权威实体**：探测到**权威位** → 先 `ctx find-scenes` 取业务全景，再 `ctx discover` / `get-card` 收窄（排序铁律见 `capability/curated.md` §3），事实必须附 cite，无 cite 视为幻觉；探测到**图谱位** → 结构检索走代码图谱（`capability/graph.md`）；一位都没有 → 把重探索外包给子代理（`core/上下文卫生.md`）。
 
 **按阶段触发的门（命中就必须过，Lean 也不豁免）**：
 
