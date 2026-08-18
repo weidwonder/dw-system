@@ -189,3 +189,27 @@ test('registryConflicts 找出同一能力的互相矛盾登记', () => {
   assert.equal(conflicts[0].capability, '用户创建');
   assert.equal(conflicts[0].canonicals.length, 2);
 });
+
+test('registryConflicts 不把"同一 API、仅权威仓库列填没填"报成冲突', () => {
+  // 模板同时给了三列最小表与十列完整表并写着"填哪张都算"，从最小表升级到完整表时
+  // 把同一行留在两处是常见做法。拼 `repo :: api` 比会把它报成"权威层自相矛盾"，
+  // 而这条警告语气很重（MUST/MUST NOT），误报会训练使用者忽略它。
+  const same = registryConflicts([
+    { capability: '背单词记录', canonicalRepo: '', canonicalApi: 'POST /v2/word/record' },
+    { capability: '背单词记录', canonicalRepo: 'word-svc', canonicalApi: 'POST /v2/word/record' },
+  ]);
+  assert.deepEqual(same, [], '同一个 API 不是冲突');
+
+  const backticks = registryConflicts([
+    { capability: '背单词记录', canonicalRepo: '', canonicalApi: '`POST /v2/word/record`' },
+    { capability: '背单词记录', canonicalRepo: '', canonicalApi: 'POST /v2/word/record' },
+  ]);
+  assert.deepEqual(backticks, [], '反引号与大小写差异不是冲突');
+
+  const real = registryConflicts([
+    { capability: '背单词记录', canonicalRepo: '', canonicalApi: 'POST /v2/word/record' },
+    { capability: '背单词记录', canonicalRepo: '', canonicalApi: 'POST /v3/word/record' },
+  ]);
+  assert.equal(real.length, 1, '两个不同 API 才是冲突');
+  assert.equal(real[0].canonicals.length, 2);
+});

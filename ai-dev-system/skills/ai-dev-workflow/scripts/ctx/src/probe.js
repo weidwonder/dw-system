@@ -58,11 +58,21 @@ const BASELINE_NUM =
  * "新增失败 #3"，不会说"你的基线没被读出来"。写法只要偏离一点（编号夹在句子中间，
  * 如 `- 探针 #3：容忍到 2026-09`）就会静默失效。
  *
- * 判据 MUST 收窄成"**列表形态** + 带 `#` 的编号 + 没被解析"三条同时成立：
- * 基线段里写带日期的复核记录（`> 2026-08-16 复核：暂时容忍 #1，见 issue 4321。`）是
- * **被明确允许**的写法，对它报警告等于把一条正常用法变成噪音。
+ * 判据 MUST 排除**本来就不承载编号**的行：基线段里写复核记录（`2026-08-16 复核：…`）、
+ * 引用 issue / PR、写"见 X 的讨论"都是被明确允许的写法，对它们报警告等于把正常用法变成噪音。
+ * 剩下的"列表形态 + 含数字 + 没解析出来"才报——`- 探针 3：容忍到 2026-09` 这种
+ * 编号夹在句子里的写法就落在这里。
  */
-const BASELINE_LOOSE = /^\s*[-*+]\s.*#\d/;
+function looksLikeBaselineEntry(line) {
+  if (!/^\s*[-*+]\s/.test(line)) return false;          // 只看列表形态
+  if (/(见|详见|参见)/.test(line)) return false;          // "见 PR #88 的讨论"是说明，不承载编号
+  // 日期与 issue/PR 号先剥掉再看还剩不剩数字：`- 探针 3：容忍到 2026-09` 里真正的编号是 3，
+  // 不能因为句尾有个日期就把整行放过（那正是最容易被漏读、最容易变成假 RED 的写法）。
+  const rest = line
+    .replace(/\d{4}-\d{2}(-\d{2})?/g, '')
+    .replace(/(issue|pr)\s*#?\s*\d+/gi, '');
+  return /\d/.test(rest);
+}
 
 /**
  * 解析 probe-set.md：探针表（表头首列 '#'，次列含 类型/type）+ 基线（棘轮）段的编号。
@@ -82,13 +92,22 @@ export function loadProbes(ctxDir) {
   let inTable = false;
   let headerCols = null;
   let baselineMode = false;
+  let baselineLevel = 0;   // 进入基线段时的标题层级；更深的子标题不解除
   const baseline = new Set();
 
   for (const line of lines) {
-    // MUST 认任意层级标题（`## 基线` 与 `### 基线（棘轮）` 都常见）：
-    // 只认 `##` 时，写成 h3 的基线段整段不进 baselineMode → 基线全丢 → 假 RED。
-    if (/^#{1,6}\s/.test(line)) {
-      baselineMode = /基线|baseline|棘轮|ratchet/i.test(line);
+    // 标题按**层级**判，MUST NOT 见标题就退出基线段：
+    //   · 认任意层级的基线标题（`## 基线` 与 `### 基线（棘轮）` 都常见）；
+    //   · 但基线段内部的**更深层**子标题（`### 2026 Q3 复核`）MUST NOT 终止它——
+    //     终止的后果是其后的编号全被丢掉，且丢得静默（那些行压根不进 baselineMode，
+    //     baselineUnparsed 也抓不到），表现为假 RED。
+    // 与本文件 currentSpecLinks 的归档区判定同一套写法：只有同级或更高级标题才解除。
+    const head = /^(#{1,6})\s+(.+?)\s*$/.exec(line);
+    if (head) {
+      const level = head[1].length;
+      if (baselineLevel && level <= baselineLevel) baselineLevel = 0;
+      if (!baselineLevel && /基线|baseline|棘轮|ratchet/i.test(head[2])) baselineLevel = level;
+      baselineMode = baselineLevel > 0;
       inTable = false;
       continue;
     }
@@ -98,14 +117,18 @@ export function loadProbes(ctxDir) {
       const cells = parseRow(line);
       if (cells) {
         if (!isSeparator(cells)) {
-          const m = /^#?(\d+)$/.exec(cells[0] || '');
+          const first = cells[0] || '';
+          const m = /^#?(\d+)$/.exec(first);
           if (m) baseline.add(m[1]);
+          // 首列带注解（`探针 #12`、`12（blocking）`）时同样报出来：表格首列是模板明确
+          // 推荐的写法，加注解是必然发生的；静默丢掉就是假 RED，而 README 承诺了不会静默。
+          else if (/\d/.test(first)) baselineUnparsed.push(line.trim());
         }
         continue;
       }
       const m = BASELINE_NUM.exec(line);
       if (m) baseline.add(m[1]);
-      else if (line.trim() && BASELINE_LOOSE.test(line)) baselineUnparsed.push(line.trim());
+      else if (line.trim() && looksLikeBaselineEntry(line)) baselineUnparsed.push(line.trim());
       continue;
     }
     const cells = parseRow(line);
@@ -501,7 +524,7 @@ export function detectCapabilityBits(root, ctxDir) {
  * `path.join` / `os.tmpdir` 当成带扩展名的模块路径并判"模块路径缺失"。而这个题型是**无能力位
  * 项目唯一的实现层门禁**，误判会把它逼成永久红点（再叠加基线段的整数通吃就会被塞进棘轮基线）。
  */
-const PATH_EXT = /\.(js|mjs|cjs|jsx|ts|tsx|mts|cts|py|pyi|go|rs|rb|php|java|kt|kts|scala|swift|m|mm|c|h|cc|cpp|hpp|cs|sh|bash|zsh|sql|proto|graphql|md|markdown|rst|txt|json|jsonc|yaml|yml|toml|ini|cfg|conf|xml|html|htm|css|scss|sass|less|vue|svelte|tf|tfvars|gradle|lock|cmake|mk|dockerfile|mod|sum|gemspec|podspec|csproj|sln)$/i;
+const PATH_EXT = /\.(js|mjs|cjs|jsx|ts|tsx|mts|cts|py|pyi|go|rs|rb|php|java|kt|kts|scala|swift|m|mm|c|h|cc|cpp|hpp|cs|sh|bash|zsh|sql|proto|graphql|md|markdown|rst|txt|json|jsonc|yaml|yml|toml|ini|cfg|conf|xml|html|htm|css|scss|sass|less|vue|svelte|tf|tfvars|gradle|lock|cmake|mk|dockerfile|gemspec|podspec|csproj|sln)$/i;
 
 /**
  * 没有扩展名、但确实是路径的裸文件名，以及点开头的配置文件。
@@ -510,11 +533,17 @@ const PATH_EXT = /\.(js|mjs|cjs|jsx|ts|tsx|mts|cts|py|pyi|go|rs|rb|php|java|kt|k
  * 而漏掉的后果**不是少报**：架构节列了三条不存在的路径，门禁照样绿，还反过来说"全部存在"——
  * 一个恒绿的门禁比没有门禁更危险。
  *
- * `.env` MUST 写成"点开头"才算：`env` 若留在扩展名表里，`process.env` 这类 API 名会被
- * 当成路径判缺失，正是白名单本身要消灭的那类误判。
+ * 同形风险的三条硬规则：
+ *   · `.env` MUST 写成"点开头"才算——`env` 留在扩展名表里会让 `process.env` 被判成缺失路径；
+ *   · `go.mod` / `go.sum` / `cargo.toml` MUST 按**整词**收进本表，MUST NOT 把 `.mod`/`.sum`
+ *     当通用扩展名——那会让 `np.mod`、`df.sum`、`math.mod` 这类 API 名被判成缺失路径；
+ *   · `readme` / `license` / `notice` 这类**裸词** MUST NOT 进本表——它们在架构散文里
+ *     作为普通名词出现的概率远高于作为路径。真要指文件，写成 `README.md` 或带目录即可命中。
+ * 判据是白名单，代价就是漏与误两侧都得逐条权衡；这一题是无能力位项目唯一的实现层门禁，
+ * 误判即永久红点，漏判则让门禁恒绿——两边都不能凭"看着像"放宽。
  */
 const BARE_PATH_NAME =
-  /^(makefile|dockerfile|containerfile|gemfile|rakefile|procfile|jenkinsfile|vagrantfile|brewfile|justfile|readme|license|licence|notice|codeowners|\.env(\..+)?|\.[a-z][a-z0-9-]*(ignore|rc|config)(\..+)?)$/i;
+  /^(makefile|dockerfile|containerfile|gemfile|rakefile|procfile|jenkinsfile|vagrantfile|brewfile|justfile|go\.(mod|sum)|cargo\.(toml|lock)|\.env(\..+)?|\.[a-z][a-z0-9-]*(ignore|rc|config)(\..+)?)$/i;
 
 /** 从架构节里抽"看起来是模块路径"的 token（反引号代码片段 + 相对链接）。 */
 function modulePathCandidates(section) {

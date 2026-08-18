@@ -647,3 +647,78 @@ test('门禁自检不会被 card 的一句措辞打成 GATE-BROKEN', () => {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+// ---- P1 回归：基线解析的三条静默失效路径 ----
+
+test('基线段内的更深层子标题不终止基线段', () => {
+  // 只认 `##` → h3 基线段整段失效；见标题就退出 → 段内按季度分的子标题把其后编号全丢。
+  // 两种丢法都是**静默**的（那些行不进 baselineMode，baselineUnparsed 也抓不到），表现为假 RED。
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ctx-blvl-'));
+  try {
+    const cases = [
+      ['## 基线（棘轮）\n- 1\n- 2\n', ['1', '2'], '无子标题'],
+      ['## 基线（棘轮）\n### 2026 Q3 复核\n- 1\n- 2\n', ['1', '2'], '段内子标题不解除'],
+      ['## 基线（棘轮）\n- 1\n### 说明\n- 2\n', ['1', '2'], '子标题后继续收集'],
+      ['### 基线（棘轮）\n- 1\n- 2\n', ['1', '2'], 'h3 基线段'],
+      ['## 基线（棘轮）\n- 1\n## 其它\n- 99\n', ['1'], '同级标题解除'],
+      ['### 基线（棘轮）\n- 1\n## 顶层\n- 99\n', ['1'], '更高级标题解除'],
+    ];
+    for (const [body, want, why] of cases) {
+      fs.writeFileSync(path.join(tmp, 'probe-set.md'), body, 'utf8');
+      assert.deepEqual([...loadProbes(tmp).baseline], want, why);
+    }
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('没解析出来的基线行 MUST 报警告，复核记录 MUST NOT 报', () => {
+  // 表格首列是模板推荐的写法，加注解（`探针 #12`）是必然发生的；静默丢掉即假 RED。
+  // 反过来，基线段里写复核记录、引 issue/PR 是被明确允许的，对它们报警告就是噪音。
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ctx-blwarn-'));
+  try {
+    const cases = [
+      ['| 12 |', 'parse'],
+      ['| 探针 #12 | 等重构 |', 'warn'],
+      ['| 12（blocking） | 等重构 |', 'warn'],
+      ['- 探针 3：容忍到 2026-09', 'warn'],
+      ['- 2026-08-16 复核：暂时容忍 #1，见 issue 4321。', 'quiet'],
+      ['- 详见 issue #4321 的讨论', 'quiet'],
+      ['- 说明：本期不新增基线', 'quiet'],
+      ['（空）', 'quiet'],
+    ];
+    for (const [line, want] of cases) {
+      fs.writeFileSync(path.join(tmp, 'probe-set.md'), `## 基线（棘轮）\n${line}\n`, 'utf8');
+      const r = loadProbes(tmp);
+      const got = r.baseline.size ? 'parse' : r.baselineUnparsed.length ? 'warn' : 'quiet';
+      assert.equal(got, want, `${line} 应 ${want}`);
+    }
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('模块路径白名单不把同形的 API 名与裸词当路径', () => {
+  // 白名单两侧都要权衡：漏掉真实路径 → 门禁恒绿（比没有门禁更糟）；
+  // 误收 API 名 → 无能力位项目唯一的实现层门禁变成永久红点。
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ctx-path-'));
+  try {
+    fs.mkdirSync(path.join(root, 'docs'));
+    fs.mkdirSync(path.join(root, 'src'));
+    fs.writeFileSync(path.join(root, 'src', 'app.js'), '', 'utf8');
+    fs.writeFileSync(path.join(root, 'docs', 'arch.md'), [
+      '# a', '## 架构与边界',
+      '- 入口：`src/app.js`',
+      '- 依赖：`go.mod`、`Makefile`、`.env.example`',
+      '- 运行时用 `np.mod`、`df.sum`、`process.env`、`path.join`、`os.tmpdir`；见 notice 与 license 章节',
+    ].join('\n'), 'utf8');
+    const probe = { type: 'implementation-usable', input: 'docs/arch.md#架构与边界', expected: 'usable' };
+    const missing = answerProbe([], [], probe, { root });
+    assert.match(missing.actual, /go\.mod/, '无扩展名的真实路径 MUST 被计入');
+    assert.doesNotMatch(missing.actual, /np\.mod|df\.sum|process\.env|path\.join|notice|license/, 'API 名与裸词 MUST NOT 被当成路径');
+    for (const f of ['go.mod', 'Makefile', '.env.example']) fs.writeFileSync(path.join(root, f), '', 'utf8');
+    assert.equal(answerProbe([], [], probe, { root }).pass, true);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

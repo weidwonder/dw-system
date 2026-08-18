@@ -93,7 +93,7 @@ const HELP = `ctx — Engineering Context CLI
 
 用法：
   ctx init [--minimal] [--dir <目标目录>]    在目标下生成 engineering-context/ 骨架
-                                             --minimal 只生成 capability-registry.md（三列即可起步，推荐先用它）
+                                             --minimal 只生成 capability-registry.md + .gitignore（三列即可起步，推荐先用它）
   ctx discover "<意图>" [--dir <ctx目录>]    意图 → 应加载的 card 清单 + out-of-scope
   ctx get-card <repo> [域] [--dir <ctx目录>]  取某仓 card（可指定段落）
   ctx find-scenes <关键词...> [--dir <ctx目录>]  端到端业务场景
@@ -139,6 +139,7 @@ function main() {
     const human = minimal
       ? [
           `✅ 已生成最小权威位骨架：${path.join(base, 'capability-registry.md')}`,
+          `   同时生成 ${path.join(base, '.gitignore')}（忽略 .index/ 机器状态，不入库）。`,
           '下一步：填三列（Capability / 权威实现 / 陷阱项），一行一条权威事实——三行即可起步。',
           '缺列不影响 ctx discover；没写 freshness 的条目会被标注「未声明新鲜度」。',
           '只剩模板行时视为未启用权威位。cards/ 与 probe-set 等按需再用 `ctx init` 补齐。',

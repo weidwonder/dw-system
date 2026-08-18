@@ -325,9 +325,10 @@ const PROBE_STUB = `# Frozen Probe Set — 上下文层防腐检测题集
 >   requirement-reachable  —— 输入=需求真相源 \`路径\` 或 \`路径#小节\`，期望=\`≤2 跳\`（写数字即改上限）。
 >                             入口文档=仓库根 README*.md 与 docs/index.md，从入口沿链接 BFS。
 >   architecture-reachable —— 同上，指向架构真相源。
->   implementation-usable  —— 输入=架构节 \`路径#小节\`，期望=\`usable\`。按探测到的能力位分支，各位都要成立：
->                             无能力位=架构节里列出的模块路径（反引号代码片段或相对链接）均存在；
->                             图谱位=\`.codegraph/codegraph.db\` 非空可查询；权威位=\`ctx list-services\` 非空。
+>   implementation-usable  —— 输入=架构节 \`路径#小节\`，期望=\`usable\`。判定是**叠加**不是择一：
+>                             架构节里列出的模块路径（反引号代码片段或相对链接）**无条件**均需存在；
+>                             探测到图谱位再叠加一项 \`.codegraph/codegraph.db\` 非空可查询。
+>                             探测到权威位只追加一条说明性 note，**不参与 pass/fail**。
 >   rationale-traceable    —— 输入=索引路径（默认 docs/index.md），期望=\`全部非空\`：
 >                             索引**现行区**（非"归档"标题下）链到的各 spec，frontmatter \`authority_refs\` 均非空。
 >   类型名可写中文题名：需求真相源可达 / 架构真相源可达 / 实现真相源可用 / 设计理由可追。
@@ -347,6 +348,9 @@ const PROBE_STUB = `# Frozen Probe Set — 上下文层防腐检测题集
 
 ## 基线（棘轮）
 > 已知、暂时容忍的失败项（按 # 列）。规则：**只许变短**——基线外新增失败即 RED；基线内已修复也 RED（强制删除该条）。
+> 编号 MUST **独立成行**：\`- 12\` / \`* #12\` / \`1. 12\` / \`- [ ] 12\` / 表格首列 \`| 12 |\` 都认。
+> 夹在句子里的编号（\`- 探针 3：容忍到 2026-09\`）不认，会被单独警告——漏读一条基线就是假 RED。
+> 复核记录照常写，行内的日期与 issue 号不会被误当编号。
 （空）
 `;
 

@@ -178,17 +178,28 @@ export function loadRegistry(ctxDir) {
  * @returns {Array<{capability:string, canonicals:string[]}>}
  */
 export function registryConflicts(rows) {
+  // 比较键 MUST 只看**权威实现**，MUST NOT 把 `repo :: api` 拼起来比：
+  // 模板同时给了三列最小表与十列完整表并写着"填哪张都算"，从最小表升级到完整表时
+  // 把同一行留在两处是常见做法，此时只有"权威仓库"列一个填了一个没填——
+  // 拼起来比会把它报成"权威层自相矛盾、必须先收敛"。这条警告语气很重，
+  // 误报会训练使用者忽略它，而它正是为真冲突准备的。
+  // 归一化也 MUST 与分组键同一套（都走 norm），否则反引号或大小写差异会被判成冲突。
+  const norm = (t) => (t || '').trim().toLowerCase().replace(/`/g, '').replace(/\s+/g, ' ');
   const byCap = new Map();
   for (const r of rows) {
-    const key = (r.capability || '').trim().toLowerCase();
+    const key = norm(r.capability);
     if (!key) continue;
-    const canonical = [r.canonicalRepo, r.canonicalApi].filter(Boolean).join(' :: ').trim();
-    if (!canonical) continue;
-    if (!byCap.has(key)) byCap.set(key, { capability: r.capability.trim(), canonicals: [] });
+    const api = norm(r.canonicalApi);
+    if (!api) continue;
+    if (!byCap.has(key)) byCap.set(key, { capability: r.capability.trim(), byApi: new Map() });
     const g = byCap.get(key);
-    if (!g.canonicals.includes(canonical)) g.canonicals.push(canonical);
+    if (!g.byApi.has(api)) {
+      g.byApi.set(api, [r.canonicalRepo, r.canonicalApi].filter(Boolean).join(' :: ').trim());
+    }
   }
-  return [...byCap.values()].filter((g) => g.canonicals.length > 1);
+  return [...byCap.values()]
+    .filter((g) => g.byApi.size > 1)
+    .map((g) => ({ capability: g.capability, canonicals: [...g.byApi.values()] }));
 }
 
 /**
