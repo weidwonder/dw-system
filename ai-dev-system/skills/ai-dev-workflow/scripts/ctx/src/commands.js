@@ -31,14 +31,31 @@ function isPlaceholder(line) {
   return /[【】]/.test(line);
 }
 
-/** 取 card 中"废弃/中间产物标记 ★防误用"段落的真实条目（跳过占位）。 */
+/**
+ * 段落里"这一行是写给人看的说明，不是数据"——MUST 在逐行抽条目前剔掉。
+ * card 模板自己就在废弃段里放了三行 `>` 引导语和一张示例表的表头，
+ * 它们不含【】占位，于是会原样变成 out-of-scope 警告里的"废弃项"：
+ * 实测一张只有两条真实废弃项的 card，警告里 8 条有 6 条是噪音，
+ * 而表头/分隔行对**任何**采用表格形态的 card 都必然出现（模板恰恰推荐表格形态）。
+ * 这一栏是本层的立身之本，被稀释成噪音后 agent 就开始跳读。
+ */
+function isProseLine(line) {
+  const t = line.trim();
+  if (t.startsWith('>')) return true;                       // 引用块：模板的引导说明
+  if (/^\|?\s*:?-{2,}/.test(t) && /^[|\s:-]+$/.test(t)) return true;  // 表格分隔行
+  if (/^\|/.test(t) && /废弃项|改用|为什么|原因|替代/.test(t) && !/`/.test(t)) return true; // 表头（无反引号实体）
+  if (/^#{1,6}\s/.test(t)) return true;                      // 段内小标题
+  return false;
+}
+
+/** 取 card 中"废弃/中间产物标记 ★防误用"段落的真实条目（跳过占位与说明行）。 */
 function deprecationMarkers(card) {
   const key = Object.keys(card.sections).find((k) => /废弃|防误用|中间产物/.test(k));
   if (!key) return [];
   return card.sections[key]
     .split(/\r?\n/)
     .map((l) => l.replace(/^[-*]\s*/, '').trim())
-    .filter((l) => l.length > 0 && !isPlaceholder(l));
+    .filter((l) => l.length > 0 && !isPlaceholder(l) && !isProseLine(l));
 }
 
 /**
