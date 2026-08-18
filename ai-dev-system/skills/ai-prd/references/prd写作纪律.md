@@ -26,7 +26,7 @@
 - **无 card 依据的 cite 视为幻觉**：走 ctx 路径但 `discover`/`find-scenes` 对本次意图零命中时，MUST 就地降级到读代码核实路径并标注，**MUST NOT 编造 cite**、MUST NOT 凭空写现状。
 - **绝不把意图/愿景写成现状**。PRD 描述的"想要的样子"与线上"已落地的事实"常背离；把二者混写会误导后续设计。显式分区：现状 = 事实，目标 = 意图。
 - PRD 意图与代码事实冲突时，标为**待人工复核**，不替产品拍板。
-- 呼应 `ai-dev-workflow` 的 `references/capability/context-engineering.md §3`。
+- 呼应姊妹 skill 的 `<skills 根>/ai-dev-workflow/references/capability/context-engineering.md` §3（`<skills 根>` 的定义见 `00-prd生成流程.md` §批 B → 现状怎么取证）。
 
 ## 5. 无占位符成稿
 

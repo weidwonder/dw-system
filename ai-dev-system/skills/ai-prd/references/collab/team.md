@@ -37,7 +37,7 @@
 | 真相方向铁律（现状=事实，目标=意图） | `prd写作纪律.md` §4 |
 | 技术事实怎么翻译成业务语言 | `业务语言纪律.md` |
 | PRD 落盘、索引与归并 | `00-prd生成流程.md` §组稿、§PRD 生命周期 |
-| 工程侧的兼容取舍门、评审门怎么走 | `ai-dev-workflow` 的 `references/core/00-流程总纲.md` |
+| 工程侧的兼容取舍门、评审门怎么走 | 姊妹 skill 的 `<skills 根>/ai-dev-workflow/references/core/00-流程总纲.md`（`<skills 根>` 定义见 `00-prd生成流程.md` §批 B → 现状怎么取证） |
 
 ## 一句话
 
