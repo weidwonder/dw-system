@@ -44,7 +44,7 @@ On top of that foundation, exactly two things vary:
     └── skills/                 # two skills (shared by Claude Code + Codex)
         ├── ai-prd/             # PRD authoring: batched questioning + staged elicitation
         │   ├── SKILL.md        # entry: read collaboration surface → PRD type routing → 4 question batches
-        │   ├── references/     # generation flow / business-language & writing discipline / quality gate / review gate
+        │   ├── references/     # generation flow / business-language & writing discipline / UI prototype discipline / quality gate / review gate
         │   │   └── collab/     # solo.md / team.md (one of the two, by collaboration surface)
         │   └── assets/         # templates: change-prd (primary) / lite-issue-prd / product-prd
         └── ai-dev-workflow/    # the main pipeline, starting from an existing PRD
