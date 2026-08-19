@@ -15,6 +15,7 @@
 - **[ctx 全局命令安装](./spec/2026-08-16-ctx全局命令安装-lean-change-spec.md)** — 安装器把 skill 自带的 ctx CLI 链接成全局命令、验证可用性与失败降级的现行口径与选项。
 - **[代码事实层强制化](./spec/2026-08-18-代码事实层强制化-eng-spec.md)** — 2.1.0 的设计依据：`engineering-context/` 卡片层改为**无条件必备**（初始化建骨架、干活过程中渐进补齐），取消按项目资产分档；分流默认倾向改为无条件。`authority_refs`：SKILL.md §路由逻辑、总纲 §默认倾向、core/代码事实纪律.md、references/ 目录分层。
 - **[PRD 复核门](./spec/2026-08-19-prd复核门-lean-change-spec.md)** — 2.2.0 的设计依据：`ai-prd` 组稿后、落盘确认门前新增双轴子代理复核（自洽轴查 PRD 内部打架、冲突轴查与现有系统的功能/约束冲突）；三个出口的分流判据是"事实错了回去补，取舍待定才给用户"。`authority_refs`：ai-prd/references/prd复核纪律.md、00-prd生成流程.md §组稿、prd质量清单.md、ai-prd/SKILL.md §路由逻辑。
+- **[文档轴](./spec/2026-08-19-文档轴-lean-change-spec.md)** — 2.3.0 的设计依据：代码评审门新增恒跑的 **D 文档轴**（参照物是 `docs/` 现行文档与真相源，查正文与代码是否背离 / 断链与孤儿 / 真相源跟上没有），agent 架构轴顺延为 E；完成门那条文档结算从"执行整套盘点"改成"核对 D 轴报告"。`authority_refs`：代码评审纪律.md §四条轴、worktree开发纪律.md §完成与自动合并门、文档治理.md §3、00-流程总纲.md §代码评审门。
 
 ## 进行中的计划（`docs/plan/`）
 
