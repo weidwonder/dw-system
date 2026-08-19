@@ -89,9 +89,11 @@ test('子代理 prompt 模板守住三条硬约束', () => {
   assert.ok(/尚未落盘/.test(prompt), 'prompt 未说明 PRD 尚未落盘、需内联')
 })
 
-test('VERSION 已 bump 到 2.2.0 并带一屏内的迁移指南', () => {
+test('VERSION 不低于 2.2.0（复核门自此版起）并带一屏内的迁移指南', () => {
+  // 与 cards-mandatory 同一修法：写死当前版本会让此后每次无关的 bump 都在这里假红
   const version = read(repoRoot, 'ai-dev-system', 'VERSION').trim()
-  assert.equal(version, '2.2.0')
+  const [maj, min] = version.split('.').map(Number)
+  assert.ok(maj > 2 || (maj === 2 && min >= 2), `复核门自 2.2.0 起，VERSION 不应低于它：${version}`)
   const migration = path.join(repoRoot, 'ai-dev-system', 'migrations', `${version}.md`)
   assert.ok(existsSync(migration), `缺迁移指南：${migration}`)
   assert.ok(readFileSync(migration, 'utf8').split('\n').length <= 45, '迁移指南要保持一屏内（≤45 行）')
