@@ -66,18 +66,50 @@ test('完成门那条已从"执行整套结算"改成"核对 D 轴报告"', () =
   assert.ok(/四轴/.test(wt), '代码评审门那条的轴数未同改')
 })
 
-test('文档治理 §3 的触发点已改挂到评审门，且 probe 是 SHOULD 辅助', () => {
+test('文档治理 §3 的触发点已改挂到评审门，判定与落盘的执行者都写死了', () => {
   const gov = read(wfRoot, 'references', 'core', '文档治理.md')
   assert.ok(/触发点挂在既有的代码评审门上/.test(gov), '§3 触发点未改挂到代码评审门')
   assert.ok(!/触发点挂在既有的完成与自动合并门上/.test(gov), '§3 残留旧触发点')
-  // 判据仍归 §3，D 轴只是执行者——两处都要说清，否则会变成两套判据
   assert.ok(/判据仍在本节/.test(gov), '§3 未说明判据仍归本节、D 轴只是执行者')
-  // probe 的定位：辅助不是门禁，绿了不等于准
-  for (const [name, body] of [['文档治理', gov], ['代码评审纪律', read(wfRoot, 'references', 'core', '代码评审纪律.md')]]) {
-    assert.ok(/probe/.test(body), `${name} 未提 ctx probe`)
-    assert.ok(/MUST NOT/.test(body.slice(body.indexOf('probe') - 400, body.indexOf('probe') + 600)),
-      `${name} 未挡住"probe 绿了就算过"`)
-  }
+  // 落盘曾经没有执行者：D 轴只报告不写文件，而"仍准确→更新 last_confirmed"不是 P0/P1，
+  // 挂在"P0/P1 修完才过门"下永远轮不到执行，完成门却要核对它已执行。
+  assert.ok(/落盘/.test(gov) && /主会话/.test(gov), '§3 未指派落盘的执行者')
+  const rev = read(wfRoot, 'references', 'core', '代码评审纪律.md')
+  assert.ok(/不受 P0\/P1 口径限制/.test(rev), '§处置 未把文档落盘排除在 P0/P1 口径之外')
+})
+
+test('probe 的定位只有一处权威定义，另一处是指针（不重复堆叠）', () => {
+  // 曾经在两个文件里各写了一遍完整定位，而 代码评审纪律 自己刚立过
+  // "判据不在本文重复定义"的规矩——测试当时还把这份重复锁死了。
+  const gov = read(wfRoot, 'references', 'core', '文档治理.md')
+  const rev = read(wfRoot, 'references', 'core', '代码评审纪律.md')
+  const pos = gov.indexOf('是这三步的辅助')
+  assert.ok(pos > 0, '文档治理 §3 缺 probe 的权威定位段')
+  assert.ok(/MUST NOT/.test(gov.slice(pos, pos + 500)), 'probe 权威定位段未挡住"绿了就算过"')
+  assert.ok(/probe/.test(rev), '代码评审纪律 未提 probe')
+  assert.ok(/文档治理\.md` §3/.test(rev.slice(rev.indexOf('D 轴与 `ctx probe` 的分工'), rev.indexOf('D 轴与 `ctx probe` 的分工') + 400)),
+    '代码评审纪律 的 probe 段未指向权威定义')
+})
+
+test('总纲的完成门也已改成核对形态（曾漏改，且当时测试只锁了 worktree开发纪律）', () => {
+  // 总纲是常驻骨架，读到它的主会话会在完成门重做一遍盘点——本次变更的核心目的当场失效。
+  const outline = read(wfRoot, 'references', 'core', '00-流程总纲.md')
+  const sec = outline.slice(outline.indexOf('## 完成与自动合并门'))
+  assert.ok(/只核对/.test(sec), '总纲完成门段仍是执行式表述')
+  assert.ok(/MUST NOT 在此重做盘点/.test(sec), '总纲完成门段未挡住"在此重做盘点"')
+  assert.ok(!/本门同时结算文档生命周期/.test(outline), '总纲残留旧的执行式表述')
+})
+
+test('权威面判据补了"流程与门禁契约"一类（纯 markdown 变更的后门）', () => {
+  // 原六类全是代码型面，改一道门的轴集合套不进任何一类，
+  // "本次没触碰任何权威面"就成了合法的收工借口。
+  const gov = read(wfRoot, 'references', 'core', '文档治理.md')
+  assert.ok(/流程与门禁契约/.test(gov), '§3 未补"流程与门禁契约"类权威面')
+  // 机械比对之外必须再做一次全文检索，否则正文描述了本次改动、
+  // 却没在 authority_refs 里登记它的文档会被整篇漏掉
+  assert.ok(/全文检索/.test(gov), '§3 未要求 authority_refs 比对之外再做全文检索')
+  // 勾验表按勾选状态判，此前无判据
+  assert.ok(/未勾选/.test(gov) && /已勾选/.test(gov), '§3 未定义勾验表怎么判')
 })
 
 test('VERSION 不低于 2.3.0（文档轴自此版起）并带一屏内的迁移指南', () => {

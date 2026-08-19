@@ -1,6 +1,6 @@
 ---
 name: ai-dev-workflow
-description: "AI 辅助开发主流程。当用户要做需求落地、AI 辅助开发、澄清已有 PRD、顶层架构 Overview、技术 spec、coding plan、拆任务、测试方案，或提到'开发流程/怎么用 AI 把需求做成代码/技术设计'时使用。编码完成后的代码评审（规范/忠实/残留四轴子代理评审）、清理被取代的旧逻辑、决定是否向后兼容、把真实数据固化成测试用例、补端到端用例或维护测试覆盖度台账时同样使用。从零产出一份新 PRD 时不要用本 skill，用 ai-prd（本 skill 从已有 PRD 起步，其产物即本 skill Step 1 的输入）。首次在某项目调用只问一次协作面（除你之外是否还有人一起开发），把配置写入 CLAUDE.md 与 AGENTS.md 并建起 engineering-context 骨架，之后按块内字段路由。取代码事实一律先查 engineering-context 卡片，没有卡片就读源码、读完当场把卡片补上，绝不裸 grep 找权威实现；探测到 codegraph 索引时结构检索走代码图谱。用户要求扫描/体检项目的 ai-dev 体系、检查项目里的 rules/skills/agents 是否与本流程冲突时也使用。"
+description: "AI 辅助开发主流程。当用户要做需求落地、AI 辅助开发、澄清已有 PRD、顶层架构 Overview、技术 spec、coding plan、拆任务、测试方案，或提到'开发流程/怎么用 AI 把需求做成代码/技术设计'时使用。编码完成后的代码评审（规范/忠实/残留/文档四轴子代理评审）、清理被取代的旧逻辑、决定是否向后兼容、把真实数据固化成测试用例、补端到端用例或维护测试覆盖度台账时同样使用。从零产出一份新 PRD 时不要用本 skill，用 ai-prd（本 skill 从已有 PRD 起步，其产物即本 skill Step 1 的输入）。首次在某项目调用只问一次协作面（除你之外是否还有人一起开发），把配置写入 CLAUDE.md 与 AGENTS.md 并建起 engineering-context 骨架，之后按块内字段路由。取代码事实一律先查 engineering-context 卡片，没有卡片就读源码、读完当场把卡片补上，绝不裸 grep 找权威实现；探测到 codegraph 索引时结构检索走代码图谱。用户要求扫描/体检项目的 ai-dev 体系、检查项目里的 rules/skills/agents 是否与本流程冲突时也使用。"
 ---
 
 # ai-dev-workflow
@@ -139,7 +139,7 @@ scripts/ctx/           ctx CLI（Node.js，跨平台）：查代码事实
      - 代码评审纪律.md：**改产品代码的任务基本都要读，分两次**——写 spec 时读
        §替换清单（登记），编码完成派评审子代理时读 §四条轴与 §子代理 prompt 模板。
      - 测试资产纪律.md：进入 Step 8–10、用户提供了真实数据或凭证、bug 修复归档时。
-     - 文档归档与账本收敛.md：准出结算判定出某篇文档需转归档时、或要写
+     - 文档归档与账本收敛.md：D 轴判定出某篇文档需转归档时、或要写
        bug修复历史.md / 测试场景覆盖度.md 时。判据本身在 文档治理.md §3，无需为读判据而读它。
 ```
 
@@ -151,7 +151,7 @@ scripts/ctx/           ctx CLI（Node.js，跨平台）：查代码事实
 - **不问第二次协作面**：初始化后固化在 CLAUDE.md/AGENTS.md 的 `collaboration` 字段，除非用户显式要求切换。**代码图谱既不问也不写**——每次运行探测得出。
 - **开发全程隔离并自动归并**：任何文档或代码落盘前进入、并**全程使用独立 worktree**（目录读 CLAUDE.md/AGENTS.md 标记块的 `worktree-dir` 字段，缺失时默认 `./.worktrees/`）；门禁全过后按 `merge-gate` 合并主分支，失败保留现场不绕过保护分支。→ `core/worktree开发纪律.md`
 - **用户沟通只用业务语言**：大架构由用户确认，模块内设计只问业务问题，详细程序设计自主完成。→ `core/用户沟通纪律.md`
-- **文档只写标准目录，且有退出机制**：spec→`docs/spec/`、plan→`docs/plan/`、report→`docs/report/`；新建文档带 `lifecycle` + `authority_refs`，准出时按权威面结算去留，索引只放现行口径。→ `core/文档治理.md`
+- **文档只写标准目录，且有退出机制**：spec→`docs/spec/`、plan→`docs/plan/`、report→`docs/report/`；新建文档带 `lifecycle` + `authority_refs`，评审门 D 轴按权威面判定去留、准出核对，索引只放现行口径。→ `core/文档治理.md`
 - **写到零上下文也能动手**：RFC2119、无占位符、事实带来源。→ `core/spec写作纪律.md`
 - **上下文卫生**：方向性决策在聪明区内完成，逼近上限就交接，重探索外包子代理。→ `core/上下文卫生.md`
 

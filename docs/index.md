@@ -19,7 +19,6 @@
 
 ## 进行中的计划（`docs/plan/`）
 
-- **[项目真相源与 context-tier 重构 Coding Plan](./plan/2026-08-16-项目真相源与context-tier重构-coding-plan.md)** — 2.0.0 重构的任务拆分（15 个任务 + 文件独占矩阵）；其 spec 已于 2026-08-18 转 `superseded`，见[归档索引](./index-archive.md)。实现完成并合入后转 `lifecycle: merged` 并移入归档索引。
 
 ## 进行中的报告（`docs/report/`）
 

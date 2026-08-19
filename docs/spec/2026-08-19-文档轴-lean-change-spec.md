@@ -5,7 +5,7 @@ superseded_by: ''
 archived: ''
 last_confirmed: '2026-08-19'
 authority_refs:
-  - 'ai-dev-system/skills/ai-dev-workflow/references/core/代码评审纪律.md#四条轴'
+  - 'ai-dev-system/skills/ai-dev-workflow/references/core/代码评审纪律.md#四条轴分开查分开报'
   - 'ai-dev-system/skills/ai-dev-workflow/references/core/worktree开发纪律.md#完成与自动合并门'
   - 'ai-dev-system/skills/ai-dev-workflow/references/core/文档治理.md#3-归档触发按权威面不按日期'
   - 'ai-dev-system/skills/ai-dev-workflow/references/core/00-流程总纲.md#代码评审门'
@@ -103,6 +103,7 @@ D 轴 MUST 每次都派，MUST NOT 由主会话先判"本次有没有碰文档/�
 - **不做**：
   - **不给 `ctx` 加任何子命令、不改 `probe.js`**——D 轴用现有的 `ctx probe`，机器可判的部分已经在 B 类题型里了。
   - 不改 `文档治理.md` 的**判据本身**（`lifecycle` 取值、归档三动作、按权威面触发）——只改"这套判据由谁在哪一步执行"。
+    **三条例外（实现期确认，2026-08-19）**：①§3 新增"零命中同样 MUST 留下书面结论"——它正是本文 §问题 第 2 条点名要解的缺陷，不解等于本次白改；②权威面补第七类「流程与门禁契约」+ 比对补一步全文检索 + 勾验表怎么判——三者都是第一次实跑 D 轴时暴露的判据空洞（前者让纯 markdown 变更有一个"合法收工"的后门，中者让最有价值的那条发现只能靠绕开写明的方法找到）；③落盘的执行者从无到有——原文本下 D 轴只报告不写文件、"仍准确 → 更新 `last_confirmed`"又不是 P0/P1，落盘动作没有任何执行者。这三条都在"谁在哪一步执行"的范围内或为补足它而必需，不是判据本身的改动。
   - 不动 agent 架构轴的任何判据，只改它的字母编号。
   - 不做断链检查的脚本化（用户已明确：硬手段作辅助不作主流程，本次连辅助脚本也不新增，D 轴用现有 probe + 子代理自己检索）。
 - 关键 NFR：每次代码评审多一个并行子代理（完整流程 3→4，Lean 仍 1 个但多跑一轴）。换掉的是"旧口径被后来的 agent 当成现行事实"这类无声的错。

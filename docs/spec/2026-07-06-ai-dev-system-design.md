@@ -4,7 +4,7 @@ status: 'design-approved-pending-review'
 documentRole: 'design-spec'
 sourceOfTruth: true
 lifecycle: active
-last_confirmed: '2026-08-18'
+last_confirmed: '2026-08-19'
 authority_refs:
   - 'skill 的交付形态与目录结构：ai-dev-system/skills/<name>/{SKILL.md,references/,assets/,scripts/}'
   - 'references/ 的分层职责：core 常驻 + 按维度追加的分册'
@@ -78,7 +78,7 @@ ai-dev-system/
 ```
 
 **分层职责**：
-- **core**：任何项目、任何技术栈都加载。流程骨架 + 四道门 + 写作纪律 + AI overlay，以及原先散在两个外壳里、其实对谁都成立的约定（六条"不裁剪"护栏、按边界拆 spec、PR 粒度、文档治理与准出结算）。
+- **core**：任何项目、任何技术栈都加载。流程骨架 + 四道门 + 写作纪律 + AI overlay，以及原先散在两个外壳里、其实对谁都成立的约定（六条"不裁剪"护栏、按边界拆 spec、PR 粒度、文档治理与评审门文档结算）。
 - **collab/**：只放**因为有没有别人一起干而不同**的事（owner 对齐、评审会、兼容由谁拍板、PR 平台动作）。
 - **capability/**：只放**因为项目攒了什么家底而不同**的事（怎么取代码事实、分流默认倾向）。两位正交，任一可单独启用。
 
