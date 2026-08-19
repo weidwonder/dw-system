@@ -44,7 +44,7 @@
     └── skills/                 # 两个 skill（Claude Code + Codex 通用）
         ├── ai-prd/             # 产 PRD：批量提问 + 阶段化 elicitation
         │   ├── SKILL.md        # 入口：读协作面 → PRD 类型分流 → 4 批提问
-        │   ├── references/     # 生成流程 / 业务语言纪律 / 写作纪律 / 质量清单
+        │   ├── references/     # 生成流程 / 业务语言纪律 / 写作纪律 / UI 原型纪律 / 质量清单 / 复核纪律
         │   │   └── collab/     # solo.md / team.md（按协作面二选一）
         │   └── assets/         # 模板：change-prd（主）/ lite-issue-prd / product-prd
         └── ai-dev-workflow/    # 从已有 PRD 起步的主流程

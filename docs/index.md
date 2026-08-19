@@ -14,6 +14,7 @@
 - **[codegraph 自动安装与索引](./spec/2026-08-14-codegraph自动安装与索引-lean-change-spec.md)** — 安装器保持 codegraph 最新、接线到 agent、给目标项目建索引的现行口径与选项。
 - **[ctx 全局命令安装](./spec/2026-08-16-ctx全局命令安装-lean-change-spec.md)** — 安装器把 skill 自带的 ctx CLI 链接成全局命令、验证可用性与失败降级的现行口径与选项。
 - **[代码事实层强制化](./spec/2026-08-18-代码事实层强制化-eng-spec.md)** — 2.1.0 的设计依据：`engineering-context/` 卡片层改为**无条件必备**（初始化建骨架、干活过程中渐进补齐），取消按项目资产分档；分流默认倾向改为无条件。`authority_refs`：SKILL.md §路由逻辑、总纲 §默认倾向、core/代码事实纪律.md、references/ 目录分层。
+- **[PRD 复核门](./spec/2026-08-19-prd复核门-lean-change-spec.md)** — 2.2.0 的设计依据：`ai-prd` 组稿后、落盘确认门前新增双轴子代理复核（自洽轴查 PRD 内部打架、冲突轴查与现有系统的功能/约束冲突）；三个出口的分流判据是"事实错了回去补，取舍待定才给用户"。`authority_refs`：ai-prd/references/prd复核纪律.md、00-prd生成流程.md §组稿、prd质量清单.md、ai-prd/SKILL.md §路由逻辑。
 
 ## 进行中的计划（`docs/plan/`）
 

@@ -243,9 +243,12 @@ test('ctx CLI 的对外契约没有被这次变更碰到', () => {
   assert.deepEqual(files, ['capability-registry.md', '.gitignore'], '--minimal 的行为 MUST NOT 变')
 })
 
-test('版本已 bump 到 2.1.0 并带迁移指南', () => {
+test('VERSION 不低于 2.1.0（卡片必备自此版起）并带配套迁移指南', () => {
+  // 不写死当前版本：这条锁的是"卡片必备的起始版本 + VERSION 与 migrations 必须配套"，
+  // 写死会让此后每一次无关的 bump 都在这里假红。
   const version = read(repoRoot, 'ai-dev-system', 'VERSION').trim()
-  assert.equal(version, '2.1.0')
+  const [maj, min] = version.split('.').map(Number)
+  assert.ok(maj > 2 || (maj === 2 && min >= 1), `卡片必备自 2.1.0 起，VERSION 不应低于它：${version}`)
   const migration = path.join(repoRoot, 'ai-dev-system', 'migrations', `${version}.md`)
   assert.ok(existsSync(migration), `缺迁移指南：${migration}`)
   const body = readFileSync(migration, 'utf8')
