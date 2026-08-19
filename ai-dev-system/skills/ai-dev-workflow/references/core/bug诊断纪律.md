@@ -77,7 +77,7 @@ MUST 在构造红回路之前完成：搜索本仓库 `docs/report/bug修复历�
 
   修复版本取值优先级：项目正式版本文件（`VERSION` / `package.json` / `Cargo.toml` / `CHANGELOG` 顶部条目等）＞最近 Git tag（`git describe --tags`）＞短 commit hash（`git rev-parse --short HEAD`）；项目没有任何正式版本机制时，MUST 至少记 commit hash，不得留空。
 
-  该文件是**追加式的单一账本**，不按 `<feature>-<report-type>-report.md` 规则拆成多个文件——这是 `文档治理.md` §硬规则 的三个固定文件名例外之一，专供 Phase 0 §查重复历史检索。
+  该文件是**追加式的单一账本**，不按 `<feature>-<report-type>-report.md` 规则拆成多个文件——这是 `文档治理.md` §硬规则 的两个固定文件名例外之一，专供 Phase 0 §查重复历史检索。
 
 - **根因是"改错了实现 / 被旧实现误导"时 MUST 同时把这次消歧结果落进卡片**：把"哪处是权威实现、哪处是不该再用的旧实现"写进对应卡片的对外接口与陷阱项（`代码事实纪律.md` §4.1 / §4.2），随本次分支提交。这类根因说明项目里已经出现"同一能力有多处实现、分不清信哪个"的实际损失，不补卡下一个 agent 会照样踩。
 

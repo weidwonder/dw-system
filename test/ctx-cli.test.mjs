@@ -322,8 +322,8 @@ test('get-card 段落不存在时 MUST NOT 发 cite，且退出 1', () => {
   assert.match(ok.stdout, /\[cite:/, '段落存在时照旧发 cite');
 });
 
-test('--dir 指向不存在的目录 MUST NOT 与"没建权威位"输出成同一句', () => {
-  // 实测过：两者一字不差、退出码都是 0，于是 `--dir` 打错字被读成"本项目没有权威位"，
+test('--dir 指向不存在的目录 MUST NOT 与"登记表还是空的"输出成同一句', () => {
+  // 实测过：两者一字不差、退出码都是 0，于是 `--dir` 打错字被读成"本项目还没登记过条目"，
   // 使用者（尤其是 agent）据此退回裸 grep。
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ctx-nodir-cli-'));
   try {
@@ -347,7 +347,7 @@ test('--dir 指向不存在的目录 MUST NOT 与"没建权威位"输出成同�
 
 test('--json MUST 带 diagnosis：CI 那一路不能只看到空数组', () => {
   // 与 probe 的 `skipped` 同一条理由：人读那一路精心区分了各种空的原因，
-  // CI 那一路一律拿到 `[]`，于是"目录写错了"长得和"这个项目没建权威位"一模一样。
+  // CI 那一路一律拿到 `[]`，于是"目录写错了"长得和"这个项目的登记表还是空的"一模一样。
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ctx-json-diag-'));
   try {
     const missing = path.join(tmp, '不存在的目录');

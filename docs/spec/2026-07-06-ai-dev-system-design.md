@@ -28,7 +28,7 @@ authority_refs:
 本项目把这套体系裁剪成适合我们的形态。**目标**：
 
 1. 产出一个**内核常驻、外壳按需追加的 skill**（`ai-dev-workflow`），同时服务一个人的轻量项目与多人多仓的公司项目。（2.0.0 起不再是"个人 / 团队"一个开关；2.1.0 起外壳只按**协作面**追加，另加探测到的**代码图谱**一篇。）
-2. skill 首次在某项目调用时**初始化一次**（只问协作面：除你之外还有没有人一起开发），把结论幂等写入该项目的 `CLAUDE.md` + `AGENTS.md`，之后每次调用直接读标记块，不再询问；项目有哪些代码事实资产**每次运行探测得出**，不问、不写进配置。
+2. skill 首次在某项目调用时**初始化一次**（只问协作面：除你之外还有没有人一起开发），把结论幂等写入该项目的 `CLAUDE.md` + `AGENTS.md`，之后每次调用直接读标记块，不再询问；代码事实层是**必备资产**（初始化时建骨架，内容随任务渐进补齐）；项目有没有**代码图谱索引**每次运行探测得出，不问、不写进配置。
 3. 任何装了本体系的项目都维护一层**轻量 Engineering Context**（方案 B：Codebase Card + capability 登记 + 新鲜度 + Frozen Probe Set），其代码事实访问以 **CLI（`ctx`）**而非 MCP 形态交付。（2.1.0 起它是必备地基：初始化建骨架，内容随任务渐进补齐。）
 4. 全套 **Claude Code + Codex 通用**：内核为可移植 markdown，双入口（CLAUDE.md / AGENTS.md）。
 
@@ -114,7 +114,7 @@ ai-dev-system/
 > **本项目采用 ai-dev-workflow**
 > (mode="team" collaboration="solo" merge-gate="direct" worktree-dir="./.worktrees/")
 >
-> - 唤起 skill 时按本块字段路由；项目有哪些代码事实资产由 skill 每次运行探测得出，MUST NOT 写死在本块里。
+> - 唤起 skill 时按本块字段路由；本项目有没有代码图谱索引由 skill 每次运行时探测得出，MUST NOT 写死在本块里。
 > - 文档目录固定：spec → docs/spec/，plan → docs/plan/，report → docs/report/。
 > - 任何文档或代码落盘前 MUST 先建立独立 worktree；编码完成后 MUST 过代码评审门；AI MUST NOT 默认向后兼容。
 > - 本项目若存在已填写的 engineering-context/capability-registry.md，查权威实现 MUST 先用 `ctx`、每条事实附 cite，MUST NOT grep 旧代码。

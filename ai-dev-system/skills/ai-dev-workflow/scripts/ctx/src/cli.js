@@ -227,7 +227,7 @@ function main() {
         human = ctxDirMissingHint(ctxDir);
       } else if (!fs.existsSync(path.join(ctxDir, 'scenes'))) {
         // 文案 MUST 保持中性、MUST NOT 在这里催用户建资产：scenes/ 为空是正常起步态，
-        // 补场景蓝图的建议有自己的时机（代码事实纪律.md §3：确实跨服务且在收尾汇报里提一次）。
+        // 补场景蓝图的建议有自己的时机（代码事实纪律.md §3：确实跨服务时顺手补）。
         // 同样 MUST NOT 替调用方决定下一步（"本次改用 …"）：这行同时说给 agent 和直接敲命令的
         // 人看，后者没有"本次"这个上下文，被 CLI 通知自己刚做了个没做过的决定只会让人困惑。
         // 只陈述事实，把去向写成**可选项**，选不选由调用方定。

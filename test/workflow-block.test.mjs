@@ -149,7 +149,7 @@ test('新旧标记块的字段集合完全相同，只有协作维度的值不�
   assert.deepEqual(fieldsFor('personal'), fieldsFor('team'))
 })
 
-test('两条迁移路径的正文差异只在协作语义，不在能力位（§8.3 边界 1 的精确守卫）', () => {
+test('两条迁移路径的正文差异只在协作语义，不在代码事实供给（精确守卫）', () => {
   const bodyFor = mode => withTarget('block-body-' + mode, target => {
     write(path.join(target, 'CLAUDE.md'), legacyBlock(mode))
     const result = install(target)
@@ -163,12 +163,12 @@ test('两条迁移路径的正文差异只在协作语义，不在能力位（§
 
   // 差异行 = 两侧各自独有的行（即 collab-solo.md 与 collab-team.md 的内容）。
   // 这条断言不依赖关键词黑名单：无论 base.md 将来怎么改，只要旧 mode 值影响到了
-  // 协作以外的任何一条正文，差异行里就会冒出能力位词，测试立刻红。
+  // 协作以外的任何一条正文，差异行里就会冒出代码事实供给相关的词，测试立刻红。
   const diff = [...solo.filter(l => !team.includes(l)), ...team.filter(l => !solo.includes(l))]
   assert.ok(diff.length > 0, '两个协作面理应有差异，一条都没有说明 collab 分册没被注入')
   for (const line of diff) {
     assert.doesNotMatch(line, /engineering-context|capability-registry|codegraph|权威位|图谱位/,
-      `旧 mode 值只允许影响协作语义，这一行却带了能力位内容：${line}`)
+      `旧 mode 值只允许影响协作语义，这一行却带了代码事实供给的内容：${line}`)
   }
   // 公共部分（base.md）必须真的存在且非空——否则上面的差集判定是空转。
   assert.ok(solo.filter(l => team.includes(l)).length >= 5, 'base.md 的公共正文缺失')

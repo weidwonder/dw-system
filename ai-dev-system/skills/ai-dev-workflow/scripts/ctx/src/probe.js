@@ -842,7 +842,7 @@ export function selfCheck(cards, registry, ctx = {}) {
     planted.push({ ...p, ...answerProbe(cards, registry, p) });
   }
   // 样本4（交接题型）：指向一个必然不存在的真相源 → 门禁应判 FAIL。
-  // 它只依赖项目文件，不依赖 context 层，所以直读项目也能有真门禁。
+  // 它只依赖项目文件，不依赖卡片里有多少条目，所以卡片还没补起来的项目也能有真门禁。
   if (canPlantHandoff) {
     const p = {
       n: 'self-reach',

@@ -252,3 +252,74 @@ test('版本已 bump 到 2.1.0 并带迁移指南', () => {
   // 安装器会高亮全文打印，指南必须保持一屏内
   assert.ok(body.split('\n').length <= 45, '迁移指南要保持一屏内（≤45 行）')
 })
+
+// ── 计数词一致性 ────────────────────────────────────────────────────────────
+// 这一组不是本次变更特有的契约，而是本次 review 里**同一类 bug 咬了两次**之后加的机械闸：
+// 总纲的护栏从六条加到七条，`collab/solo.md` 的跳转表还写着"六条"并漏掉新增那条；
+// `文档治理.md` 的固定文件名例外从三个收敛到两个，另外四处引用仍写"三个"。
+// 两次都是"权威定义改了、别处的计数词没跟改"，人工 review 才发现——这正是机器该做的事。
+
+const CN_NUM = { 一: 1, 二: 2, 两: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 }
+
+test('"N 条不裁剪护栏"的计数词与总纲里实际的条数一致', () => {
+  const outline = read(workflowRoot, 'references', 'core', '00-流程总纲.md')
+  const start = outline.indexOf('"不裁剪"护栏\n')
+  assert.ok(start > 0, '找不到护栏小节')
+  const section = outline.slice(start, outline.indexOf('\n## ', start))
+  // 护栏条目形如 `1. **目录不裁剪。**`，逐条数出权威值
+  const actual = [...section.matchAll(/^(\d+)\. \*\*/gm)].length
+  assert.ok(actual >= 5, `护栏条目数解析异常（数出 ${actual} 条），断言本身可能已失效`)
+
+  const wrong = []
+  for (const [file, body] of skillFiles) {
+    for (const m of body.matchAll(/([一二两三四五六七八九十])条["“]?不裁剪/g)) {
+      if (CN_NUM[m[1]] !== actual) wrong.push(`${file} ← 写着"${m[1]}条"，实际 ${actual} 条`)
+    }
+  }
+  assert.deepEqual(wrong, [], '护栏计数词与总纲不一致：\n' + wrong.join('\n'))
+})
+
+test('"N 个固定文件名例外"的计数词与文档治理里实际登记的个数一致', () => {
+  const gov = read(workflowRoot, 'references', 'core', '文档治理.md')
+  // 权威值 = 文档治理里被点名的固定文件名账本，逐个数出来
+  const named = new Set(
+    [...gov.matchAll(/`(bug修复历史\.md|测试场景覆盖度\.md|资产补建信号\.md)`/g)].map(m => m[1]),
+  )
+  const actual = named.size
+  assert.ok(actual >= 1, '固定文件名账本解析异常，断言本身可能已失效')
+
+  const wrong = []
+  for (const [file, body] of skillFiles) {
+    for (const m of body.matchAll(/([一二两三四五六七八九十])个固定文件名/g)) {
+      if (CN_NUM[m[1]] !== actual) wrong.push(`${file} ← 写着"${m[1]}个"，实际 ${actual} 个`)
+    }
+  }
+  assert.deepEqual(wrong, [], '固定文件名例外计数词不一致：\n' + wrong.join('\n'))
+})
+
+test('删段没有把 --- 挤成 setext 标题', () => {
+  // 删掉一整段时最容易连它前后的空行一起带走。紧跟正文行的 `---` 在 markdown 里是
+  // **setext H2**，不是分隔线：那行正文会被渲染成一级大标题，章节分隔也一并消失。
+  // 本次 review 在 00-流程总纲.md 抓到过一次，肉眼几乎看不出来。
+  const bad = []
+  for (const [file, body] of skillFiles) {
+    if (!file.endsWith('.md')) continue
+    const lines = body.split('\n')
+    // frontmatter 的收尾 `---` 天然紧跟正文（最后一个 YAML 字段），不是缺陷——跳过它
+    let start = 1
+    if (lines[0] === '---') {
+      const close = lines.indexOf('---', 1)
+      if (close > 0) start = close + 1
+    }
+    let inFence = false
+    for (let i = start; i < lines.length; i++) {
+      if (/^\s*```/.test(lines[i])) inFence = !inFence
+      if (inFence) continue
+      if (!/^-{3,}\s*$/.test(lines[i])) continue
+      const prev = lines[i - 1]
+      // 表格分隔行（|---|---|）不长这样；紧邻的上一行非空即为 setext
+      if (prev.trim() !== '') bad.push(`${file}:${i + 1} 上一行是「${prev.trim().slice(0, 40)}」`)
+    }
+  }
+  assert.deepEqual(bad, [], '`---` 紧跟正文，会被渲染成 setext 标题：\n' + bad.join('\n'))
+})
