@@ -100,16 +100,52 @@ test('总纲的完成门也已改成核对形态（曾漏改，且当时测试�
   assert.ok(!/本门同时结算文档生命周期/.test(outline), '总纲残留旧的执行式表述')
 })
 
-test('权威面判据补了"流程与门禁契约"一类（纯 markdown 变更的后门）', () => {
-  // 原六类全是代码型面，改一道门的轴集合套不进任何一类，
-  // "本次没触碰任何权威面"就成了合法的收工借口。
+test('新判据落在 D 轴真正会读的那一段里（不是只出现在文件某处）', () => {
+  // 上一版这三条是**整文件级**正则：判据写在类目表、而 D 轴执行的 §3 第 1 步里没有，
+  // 断言照样绿——C1 那个 P0 就是这么溜过去的。现在切到使用该判据的段内再断言。
   const gov = read(wfRoot, 'references', 'core', '文档治理.md')
-  assert.ok(/流程与门禁契约/.test(gov), '§3 未补"流程与门禁契约"类权威面')
-  // 机械比对之外必须再做一次全文检索，否则正文描述了本次改动、
-  // 却没在 authority_refs 里登记它的文档会被整篇漏掉
-  assert.ok(/全文检索/.test(gov), '§3 未要求 authority_refs 比对之外再做全文检索')
-  // 勾验表按勾选状态判，此前无判据
-  assert.ok(/未勾选/.test(gov) && /已勾选/.test(gov), '§3 未定义勾验表怎么判')
+  const step1 = gov.slice(gov.indexOf('1. **盘点本次触碰的权威面**'), gov.indexOf('2. **比对'))
+  const step2 = gov.slice(gov.indexOf('2. **比对'), gov.indexOf('3. **逐篇判定'))
+  const step3 = gov.slice(gov.indexOf('3. **逐篇判定'))
+
+  assert.ok(/流程与门禁契约/.test(step1), '第 1 步的盘点清单里没有「流程与门禁契约」')
+  assert.ok(/全文检索/.test(step2), '第 2 步没有全文检索兜底')
+  assert.ok(/未勾选/.test(step3) && /已勾选/.test(step3), '第 3 步没有勾验表判据')
+
+  // 刷卡面是 5 条，文档层权威面更宽——说成"同一个面"会把文档层专有的三类挤掉
+  assert.ok(!/与刷卡片用的是\*\*同一个面\*\*/.test(gov), '§3 仍把文档权威面说成与刷卡面同一个面')
+})
+
+test('权威面清单只有一份，且引用它的地方数量词对得上', () => {
+  // 曾经两份枚举并存且内容不一致（一份有"对外契约"、另一份有"废弃标记/兼容窗口"），
+  // 于是加第七类时只加进了没人读的那一份，还引出"七类/前六类/实际6条"三个数字打架。
+  const gov = read(wfRoot, 'references', 'core', '文档治理.md')
+  const step1 = gov.slice(gov.indexOf('1. **盘点本次触碰的权威面**'), gov.indexOf('2. **比对'))
+  const rows = [...step1.matchAll(/^\s*\| \d+ \| /gm)].length
+  assert.ok(rows >= 6, `第 1 步的权威面表只解析出 ${rows} 行，断言本身可能已失效`)
+
+  // 引用方写的数量词必须等于这张表的实际行数
+  const CN = { 五: 5, 六: 6, 七: 7, 八: 8, 九: 9 }
+  const wrong = []
+  for (const [f, body] of skillFiles) {
+    for (const m of body.matchAll(/([五六七八九])类(?:面|权威面)/g)) {
+      if (CN[m[1]] !== rows) wrong.push(`${f} ← 写着"${m[1]}类"，实际 ${rows} 类`)
+    }
+  }
+  assert.deepEqual(wrong, [], '权威面数量词与 §3 第 1 步的实际条目数不符：\n' + wrong.join('\n'))
+
+  // 类目表那处必须是指针，不能再复制一份清单
+  const decl = gov.slice(gov.indexOf('`authority_refs` 写本文所描述的权威实体'), gov.indexOf('**触发点挂在既有的代码评审门上'))
+  assert.ok(/§3 第 1 步/.test(decl), 'authority_refs 声明处未指向唯一权威清单')
+  assert.ok(!/DB schema 与唯一键/.test(decl), 'authority_refs 声明处又复制了一份清单')
+})
+
+test('「待归并」例外与它修饰的判据同处（读表的人和读 prompt 的人不能得到两个结论）', () => {
+  const rev = read(wfRoot, 'references', 'core', '代码评审纪律.md')
+  const row = rev.slice(rev.indexOf('| **D 文档轴**'), rev.indexOf('| **E agent 架构轴**'))
+  assert.ok(/待归并/.test(row), 'D 轴定义表里缺「待归并」例外——只写在 prompt 会让读表的人误报')
+  const prompt = rev.slice(rev.indexOf('- 文档轴：'), rev.indexOf('- agent 架构轴（仅 Agentic 项目'))
+  assert.ok(/待归并/.test(prompt), 'prompt 模板里缺「待归并」例外')
 })
 
 test('VERSION 不低于 2.3.0（文档轴自此版起）并带一屏内的迁移指南', () => {

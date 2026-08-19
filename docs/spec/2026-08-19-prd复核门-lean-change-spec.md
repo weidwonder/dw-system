@@ -102,7 +102,7 @@ authority_refs:
   - `ai-prd/references/prd质量清单.md` — 成稿前自检 gate，与新门分工（出处：本文件全文）
   - `ai-prd/references/00-prd生成流程.md` §组稿 — 落盘确认门所在（出处：`00-prd生成流程.md` §组稿 第 4 条）
   - `ai-prd/references/00-prd生成流程.md` §批 B → 现状怎么取证 — 取证顺序的唯一权威定义，乙轴引用它而非另立（出处：同文件第 71–111 行）
-  - `ai-dev-workflow/references/core/代码评审纪律.md` — 子代理评审的既有范式，本次照它的框架切轴（出处：该文件 §门禁 / §四条轴 / §子代理 prompt 模板）
+  - `ai-dev-workflow/references/core/代码评审纪律.md` — 子代理评审的既有范式，本次照它的框架切轴（出处：该文件 §门禁 / §四条轴 / §子代理 prompt 模板；当时该节名为 §三条轴，2.3.0 新增文档轴后改名）
   - `ai-prd/references/collab/{solo,team}.md` — 开放问题的既有结算规则，复核结论接进同一处（出处：两文件 §2）
   - `ai-prd/assets/question-bank.md` §追问触发 — `[组稿]` 批次标签的既有落点（出处：该节）
 - 本次补的卡片：无需新补（本仓库自身的 `engineering-context/` 未启用；改动全部落在 skill markdown，事实出处已在上表逐条给出 `文件` 级定位）
@@ -137,7 +137,7 @@ authority_refs:
 - [ ] `node --test test/*.test.mjs` — 全绿（本次不动代码，用于确认没有误伤安装器对 skill 目录的假设）。
 - [ ] `./install.mjs <临时目录> --source-dir=. --no-codegraph --no-ctx-link --dry-run` — 新增的 references 文件被正常发现与复制。
 - [ ] 对照 `docs/spec/2026-07-16-skill写作自检清单.md` 过一遍新建文件（信息层级 / 六大失败模式 / 交叉引用同步）。
-- [ ] **代码评审门**：派子代理跑四轴精简版（规范 / 忠实 / 残留 / 文档），报告分四节写，P0/P1 修完才算过门。（当次以三轴跑过，2.3.0 起为四轴。）
+- [x] **代码评审门**：派子代理跑四轴精简版（规范 / 忠实 / 残留 / 文档），报告分四节写，P0/P1 修完才算过门。（当次以**三轴**跑过三轮，P0 1 条 + P1 10 条全修完；2.3.0 起为四轴。）
 - [ ] **机器闸的门禁自检**：`test/prd-review-gate.test.mjs` 的断言 MUST 用植入必错样本验过——
   已发生过的失败（出口计数漏改、标签枚举漏改）植入后必须 RED，契约不变的合法改写必须 GREEN。
   只跑"全绿"不算验证：上一版闸全绿，但把 `SKILL.md` 改回"两个出口"照样全绿。

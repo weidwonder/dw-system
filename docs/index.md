@@ -19,6 +19,8 @@
 
 ## 进行中的计划（`docs/plan/`）
 
+（暂无——已完成的计划见[归档索引](./index-archive.md)。）
+
 
 ## 进行中的报告（`docs/report/`）
 
