@@ -2,7 +2,7 @@
 lifecycle: active
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-08-14'
+last_confirmed: '2026-08-19'
 authority_refs:
   - 'install.mjs 的命令行选项：--no-codegraph / --codegraph-location=<local|global>'
   - '安装器写入目标项目 .gitignore 标记块的条目清单'
@@ -73,7 +73,7 @@ authority_refs:
 
 - [x] `node --test test/` 全绿（50 项）。
 - [x] `node install.mjs <临时目录> --source-dir=. --dry-run --no-agentic --no-plugins`：真机（codegraph v0.7.9，无 `upgrade` 子命令）输出"本机 v0.7.9｜远端 未知 → 将执行 codegraph upgrade"，未落盘。
-- [x] **代码评审门**：三轴（规范 / 忠实 / 残留）。
+- [x] **代码评审门**：三轴（规范 / 忠实 / 残留）。（当时口径为三轴；2.3.0 起为四轴，新增 D 文档轴。）
 
 ## 回滚方式
 

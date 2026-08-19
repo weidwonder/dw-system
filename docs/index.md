@@ -21,7 +21,6 @@
 
 （暂无——已完成的计划见[归档索引](./index-archive.md)。）
 
-
 ## 进行中的报告（`docs/report/`）
 
 - **[agentic-principle 缺口报告](./report/agentic-principle-gap-report.md)** — 待 `agentic_principle` 维护者评估，未结案。
