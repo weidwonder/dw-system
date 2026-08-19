@@ -25,7 +25,7 @@
 ## 2. 交付 HTML 高保真交互页
 
 - 涉及 UI 的 PRD MUST 配一个独立 HTML 原型文件：`docs/spec/<name>-prototype-YYYYMMDD.html`。PRD 只放链接、覆盖范围和关键状态清单，不把大段 HTML 嵌进 PRD。
-- **产出时机只有一个**：批 C 只产出 UI Prototype Brief，HTML 原型在 `00-prd生成流程.md` §组稿 第 2 步生成，与 PRD 一起过第 4 条的落盘确认门后才写入 `docs/spec/`。**MUST NOT 在批 C 就把原型落盘**——那道门要回述的正是原型覆盖范围与样式依据，提前落盘等于绕门。
+- **产出时机只有一个**：批 C 只产出 UI Prototype Brief，HTML 原型在 `00-prd生成流程.md` §组稿 第 2 步生成，与 PRD 一起过第 5 条的落盘确认门后才写入 `docs/spec/`。**MUST NOT 在批 C 就把原型落盘**——那道门要回述的正是原型覆盖范围与样式依据，提前落盘等于绕门。
 - 原型 MUST 是可在浏览器直接打开的**单文件** HTML（含内联 CSS 与少量 JS），能点击 / 切换关键状态。
 - **MUST NOT 引用任何外部资源**：不用 CDN 脚本或样式、不用网络字体、不用远程图片（图片改用内联 SVG 或纯 CSS 占位），字体只用系统字体栈。原型要能离线、内网、断网打开——依赖外链的原型等于交付了一个会白屏的文件。
 - **原型文件本身 MUST NOT 用 Markdown 表格、mermaid 或静态文字块替代**。（此条只约束原型文件；PRD 正文的业务流程图仍然用 mermaid，不受影响。）
