@@ -100,7 +100,7 @@ test('旧 mode="personal" 迁移为 collaboration="solo" / merge-gate="direct"',
   })
 })
 
-test('旧 mode="team" 只映射协作维度，MUST NOT 推出任何能力位', () => {
+test('旧 mode="team" 只映射协作维度，MUST NOT 推出别的任何东西', () => {
   withTarget('block-legacy-team', target => {
     write(path.join(target, 'CLAUDE.md'), legacyBlock('team'))
 
@@ -111,28 +111,31 @@ test('旧 mode="team" 只映射协作维度，MUST NOT 推出任何能力位', (
     assert.match(block, /collaboration="team"/)
     assert.match(block, /merge-gate="pr"/)
 
-    // spec §8.1 第 2、3 条拍板"不兼容" + §8.3 边界 1：旧 team 声明对能力档位零效力。
+    // 旧 team 声明只映射协作维度，对别的任何东西零效力。
     // 字段面：除四个已定义字段外不得多出任何字段。
     assert.deepEqual(fieldNames(block), ['collaboration', 'merge-gate', 'mode', 'worktree-dir'])
-    // 内容面：不得**声明**项目启用了哪个能力位。
-    // 注意判据是"声明式"而非关键词黑名单：base.md 里有一条**条件式** ctx 指引
-    //（"本项目若存在已填写的 registry，则查权威实现时先用 ctx"），它对所有项目无条件注入，
-    // 描述的是"如果有就怎么用"，不声明本项目属于哪一档，因此不构成能力位映射。
-    // 用黑名单会连它一起误杀——那条是 ctx 跨文件契约的落点，删掉就等于让 agent 退回 grep。
-    assert.doesNotMatch(block, /(启用了?|已有|具备)\s*(权威位|图谱位)/)
-    // ctx 指令必须是条件式：同一行里要么带条件前缀（"若存在…"），要么不该出现强制用 ctx。
-    for (const line of block.split('\n')) {
-      if (!/MUST\s+(先)?用\s*`?ctx/.test(line)) continue
-      assert.match(line, /若存在|若已|探测到|存在已填写/,
-        `无条件的 ctx 强制指令即为能力位映射，只允许条件式：${line}`)
+    // 内容面：不得**声明**这个项目已经有代码图谱索引——那是每次唤起时探测出来的。
+    assert.doesNotMatch(block, /(启用了?|已有|具备|已建)\s*(代码图谱|\.codegraph)/)
+    // 2.1.0 起 ctx 指令**必须是无条件的**：代码事实层是必备资产，不再有"若存在 registry 才用 ctx"
+    // 这一档。这条断言与 2.0.0 那条正好相反，是本次变更刻意翻转的契约，理由见
+    // docs/spec/2026-08-18-代码事实层强制化-eng-spec.md 的变更总览 2.8。
+    const ctxLines = block.split('\n').filter(line => /MUST\s+(先)?用\s*`?ctx/.test(line))
+    assert.ok(ctxLines.length > 0, '标记块里必须有一条强制用 ctx 的指令')
+    for (const line of ctxLines) {
+      assert.doesNotMatch(
+        line,
+        /若存在|若已|存在已填写|探测到/,
+        `ctx 指令 MUST NOT 再是条件式——卡片层是必备的：${line}`,
+      )
     }
-    // 副作用面：不得替目标项目建出任何权威资产。
+    // 副作用面：安装器不建骨架。建骨架是 skill 初始化第 5b 步的事，且必须发生在 worktree 内；
+    // 安装器在这里落盘会绕过工作区隔离门，把用户主工作树弄脏。
     assert.equal(existsSync(path.join(target, 'engineering-context')), false)
     assert.equal(existsSync(path.join(target, '.codegraph')), false)
-    // 告知文案面：不得声称启用了什么能力。
+    // 告知文案面：不得声称这个项目已经具备什么。
     const notice = result.stdout.slice(result.stdout.indexOf('改写前后对照'))
-    assert.doesNotMatch(notice, /engineering-context|权威|registry|图谱/)
-    assert.match(notice, /探测/, '必须说明供给方式由探测得出，而不是由旧声明得出')
+    assert.doesNotMatch(notice, /(启用了?|已有|具备|已建)\s*(代码图谱|代码事实层|卡片)/)
+    assert.match(notice, /探测/, '必须说明代码图谱由探测得出，而不是由旧声明得出')
   })
 })
 
@@ -146,7 +149,7 @@ test('新旧标记块的字段集合完全相同，只有协作维度的值不�
   assert.deepEqual(fieldsFor('personal'), fieldsFor('team'))
 })
 
-test('两条迁移路径的正文差异只在协作语义，不在能力位（§8.3 边界 1 的精确守卫）', () => {
+test('两条迁移路径的正文差异只在协作语义，不在代码事实供给（精确守卫）', () => {
   const bodyFor = mode => withTarget('block-body-' + mode, target => {
     write(path.join(target, 'CLAUDE.md'), legacyBlock(mode))
     const result = install(target)
@@ -160,12 +163,12 @@ test('两条迁移路径的正文差异只在协作语义，不在能力位（§
 
   // 差异行 = 两侧各自独有的行（即 collab-solo.md 与 collab-team.md 的内容）。
   // 这条断言不依赖关键词黑名单：无论 base.md 将来怎么改，只要旧 mode 值影响到了
-  // 协作以外的任何一条正文，差异行里就会冒出能力位词，测试立刻红。
+  // 协作以外的任何一条正文，差异行里就会冒出代码事实供给相关的词，测试立刻红。
   const diff = [...solo.filter(l => !team.includes(l)), ...team.filter(l => !solo.includes(l))]
   assert.ok(diff.length > 0, '两个协作面理应有差异，一条都没有说明 collab 分册没被注入')
   for (const line of diff) {
     assert.doesNotMatch(line, /engineering-context|capability-registry|codegraph|权威位|图谱位/,
-      `旧 mode 值只允许影响协作语义，这一行却带了能力位内容：${line}`)
+      `旧 mode 值只允许影响协作语义，这一行却带了代码事实供给的内容：${line}`)
   }
   // 公共部分（base.md）必须真的存在且非空——否则上面的差集判定是空转。
   assert.ok(solo.filter(l => team.includes(l)).length >= 5, 'base.md 的公共正文缺失')

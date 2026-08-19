@@ -4,6 +4,8 @@
 
 查代码事实的 CLI，**替代 MCP**：Claude Code 与 Codex 都能通过 shell 调用。Node.js ≥20，**零运行时依赖**，跨平台。读本地 `engineering-context/`（markdown card + capability-registry），每条事实附 cite。
 
+**卡片层是必备资产**：装了本体系的项目一律维护 `engineering-context/`，没有"启不启用"的开关。`ctx init` 只建骨架，内容按任务**渐进补齐**——要用某个模块的事实就先查卡片，查不到就读源码、读完当场补卡（判据见 `../../references/core/代码事实纪律.md` §4）。因此 **registry 只有 `【】` 占位行、`ctx list-services` 为空是正常起步态**，MUST NOT 据此判定这层不可用、更 MUST NOT 退回裸 grep。
+
 ## 安装 / 运行
 
 安装器（`install.mjs`）在装完 skill 后会自动执行下面的 `npm link`，所以通常直接 `ctx <命令>` 就能用。
@@ -32,7 +34,7 @@ npm rm -g ctx
 | 命令 | 作用 | 状态 |
 |---|---|---|
 | `ctx init [--dir <目标>]` | 生成 `engineering-context/` 骨架（registry + cards/ + scenes/README + probe-set + glossary + README + `.gitignore`） | ✅ |
-| `ctx init --minimal [--dir <目标>]` | 只生成 `capability-registry.md` + `.gitignore`（三列即可起步，推荐先用它） | ✅ 见下 |
+| `ctx init --minimal [--dir <目标>]` | 只生成 `capability-registry.md` + `.gitignore`（三列即可起步；**初始化的推荐路径是完整 `ctx init`**） | ✅ 见下 |
 | `ctx discover "<意图>"` | 意图 → 应加载的 card 清单（按命中分排序）+ out-of-scope 提示 | ✅ |
 | `ctx get-card <repo> [域]` | 取某仓 card；域为 `## 段落标题` | ✅ |
 | `ctx find-scenes <关键词...>` | 匹配 `scenes/*.md` 业务场景 | ✅ |
@@ -83,7 +85,7 @@ node src/cli.js list-services --dir <ctx目录> --json \
 node src/cli.js list-services --dir <ctx目录> --json | jq -r '.diagnosis, .hint'
 ```
 
-**`--json` 里的 `diagnosis` / `hint`**：`discover` / `list-services` / `find-scenes` / `get-card` 结果为空时，人读输出会说清是哪种原因，**`--json` 同样带这两个字段**——不带的话「`--dir` 打错字」「registry 表头写错」「只有 `【】` 占位行」在 CI 里一律长成 `[]`，与"这个项目真没建权威位"无法区分，于是脚本（和 agent）判定权威位不可用，退回裸 grep。
+**`--json` 里的 `diagnosis` / `hint`**：`discover` / `list-services` / `find-scenes` / `get-card` 结果为空时，人读输出会说清是哪种原因，**`--json` 同样带这两个字段**——不带的话「`--dir` 打错字」「registry 表头写错」「只有 `【】` 占位行」在 CI 里一律长成 `[]`，与"这个项目的卡片层还在起步态"无法区分，于是脚本（和 agent）判定卡片层不可用，退回裸 grep。
 
 | 命令 | `--json` 顶层结构 | `diagnosis` 取值 |
 |---|---|---|
@@ -92,7 +94,7 @@ node src/cli.js list-services --dir <ctx目录> --json | jq -r '.diagnosis, .hin
 | `find-scenes` | `{ scenes, diagnosis, hint }` | `ok` / `no-dir` / `no-scenes-dir` / `no-match` |
 | `get-card` | `{ service, content, cite, diagnosis, missing?, available? }` | `ok` / `section-not-found` |
 
-registry 诊断码：`no-dir`（`engineering-context` 目录本身不存在——**先怀疑 `--dir` 或运行目录**，不是"没建权威位"）/ `no-file` / `unreadable` / `no-header` / `no-separator` / `placeholder-only` / `no-row`。
+registry 诊断码：`no-dir`（`engineering-context` 目录本身不存在——**先怀疑 `--dir` 或运行目录**，不是"这个项目没有卡片层"）/ `no-file` / `unreadable` / `no-header` / `no-separator` / `placeholder-only` / `no-row`。
 
 **段落不存在时 `get-card` 不发 cite 且退出 1**（`cite: null` + `diagnosis: "section-not-found"` + `available` 列出可用段落）。理由：体系铁律是"每条来自 card 的事实必须附 cite，无 cite 视为幻觉"——那么一条指向不存在锚点的 cite 比没有 cite 更糟，它给幻觉发通行证。
 
@@ -145,7 +147,7 @@ node src/cli.js probe --dir <ctx目录> --json >/tmp/probe.json \
 
   认不出的列直接忽略，缺席的列留空，**都不报错**。**最小合法 schema 只有 `Capability` / `权威实现` / `陷阱项（废弃或中间产物）` 三列**，完整模板十列，两种形态都必须能解析——所以顺序无所谓，加列减列也不会错位。
 - 表头首列认 `Capability` **与中文的「能力」**（复用 capability 列自己的别名表）；文件里**所有**表头首列命中的表都会被解析并合并——完整模板里三列最小表与十列完整表并存，填哪张都算。
-- registry 行的 **`Capability` 列含 `【】` 即视为模板占位，整行跳过，不算已登记能力**——一份没填过的 registry 因此等于"未启用权威位"（`ctx list-services` 为空，`implementation-usable` 的权威位分支不成立）。
+- registry 行的 **`Capability` 列含 `【】` 即视为模板占位，整行跳过，不算已登记能力**——一份没填过的 registry 因此是**正常起步态**（`ctx list-services` 为空，`implementation-usable` 的 registry 叠加项不成立），不是"这个项目没有卡片层"。
 - `probe-set.md` 同样按表头名取列：探针表的表头首列是 `#`、次列含 `类型`/`type`，其余列按名匹配（`输入`/`input`、`期望`/`expected`、`severity`/`严重`、`weight`/`权重`、`status`/`状态`、`authority`/`refs`/`权威`）；标题含`基线`/`baseline`/`棘轮`/`ratchet` 的小节（`#` 到 `######` 任意层级）里**独立成行**的编号即棘轮基线编号。认这些前缀：列表符 `- * +`、有序号 `1.` `1)`、任务框 `[ ]` `[x]`、强调 `**12**` `_12_`、反引号 `` `12` ``、可选 `#`，以及表格首列 `| 12 |`。
   **行内散落的数字（日期、issue 号）不算**，所以基线段可以放心写复核记录（`> 2026-08-16 复核：暂时容忍 #1，见 issue 4321。`）。
   代价是"编号夹在句子里"的写法（`- 探针 #3：容忍到 2026-09`）也不算——这种行会被单独警告（`⚠️ 基线段有 N 行像编号却没被解析`），**不会**静默丢掉变成假 RED。
@@ -159,7 +161,7 @@ node src/cli.js init --minimal --dir <项目根>     # 落 engineering-context/c
 
 `.gitignore` 一起生成，内容是忽略 `.index/`（`ctx probe` 的通过率历史，机器状态，不入库）。除这两个文件外 `--minimal` 不落任何东西——`cards/`、`scenes/`、`probe-set.md`、`glossary.md` 正是它要省掉的。
 
-**为什么**：一次性铺开 registry + cards/ + scenes/ + probe-set + glossary 五个待填文件，会把刚要建权威位的人劝退，反而退回裸 grep。权威位的起步成本应该是"三行 registry"。
+**什么时候用**：**初始化一律跑完整 `ctx init`**（`../../references/init-初始化.md` 第 5b 步）——`cards/` 目录必须从第一天就在，否则第一次补卡的 agent 还要先决定目录放哪。`--minimal` 保留给"手工在既有项目上先落一份 registry"这类场景：先把出过问题的能力写成三行，其余文件之后跑一次不带 `--minimal` 的 `ctx init` 补齐。
 
 **最小合法 schema**（完整字段说明见 `../../assets/context-layer/capability-registry.md`）：
 
@@ -215,9 +217,9 @@ node src/cli.js search-semantic "背单词" --as-of 2026-07-20 --stale-days 90  
 - **入口文档**：仓库根的 `README*.md` 与 `docs/index.md`。两者皆无 → `NO-ENTRY-DOC`，判 FAIL。
 - **跳数**：入口文档本身算 0 跳，入口里的链接算 1 跳。期望串里的数字即上限（不写按 `≤2`）。
 - **锚点**：目标带 `#锚点` 时，锚点必须对应文中一个标题（中文小节名与 github slug 都认），否则 `ANCHOR-MISSING`。
-- **`implementation-usable` 的三项是「叠加」不是「互斥」**（能力位是探测结果，不是配置；两位可同时成立）：
-  - **架构节里列出的模块路径均存在**——这一项**无条件校验**，有没有能力位都要过。三行 registry 不该让实现层门禁永久变绿。
-  - 图谱位（`.codegraph/codegraph.db` 存在）→ 文件非空即索引可查询；权威位（`ctx list-services` 非空）→ 已登记服务/能力非空。探测到的每一位都要成立。
+- **`implementation-usable` 的三项是「叠加」不是「互斥」**（后两项是运行时探测结果，不是配置；可同时成立）：
+  - **架构节里列出的模块路径均存在**——这一项**无条件校验**，探测到什么都要过。三行 registry 不该让实现层门禁永久变绿。
+  - 代码图谱（`.codegraph/codegraph.db` 存在）→ 文件非空即索引可查询；registry 有真实数据行（`ctx list-services` 非空）→ 已登记服务/能力非空。探测到的每一项都要成立（报告里这两项的标签串是 `src/probe.js` 的固定输出，见下方失败原因表）。
   - **什么算"模块路径"**：反引号代码片段或相对链接，且满足下列任一——**含目录分隔 `/`**；以白名单扩展名结尾；或是白名单里的裸文件名 / 点开头配置文件（`Makefile`、`Dockerfile`、`.env.example`、`.gitignore` 之类）。**两份白名单的完整清单以 `src/probe.js` 的 `PATH_EXT` 与 `BARE_PATH_NAME` 为准，此处 MUST NOT 抄第二遍**（抄了必然漂移）。
   - 判据 MUST 是白名单而非"点号后 1–8 位字母数字"——架构小节里用反引号写 `path.join`、`os.tmpdir`、`process.env` 极其常见，启发式会把它们当成带扩展名的路径，把一道好题变成永久红点。反过来，白名单**漏掉**真实路径同样危险：架构节列了三条不存在的 `go.mod`/`Makefile`，门禁却报"全部存在"——恒绿的门禁比没有门禁更糟。
 - **`authority_refs` 非空的判据**：至少一条实义条目；空值、含 `【】` 的模板占位、`TBD` / `待填` 均视为未填。
@@ -239,7 +241,7 @@ node src/cli.js search-semantic "背单词" --as-of 2026-07-20 --stale-days 90  
 | `模块路径：缺失 <路径列表>` | 架构节列出的模块路径有的不存在 |
 | `模块路径：架构节未列出任何模块路径（<路径#小节>）` | 架构节一个模块路径都抽不到（零条目不算通过） |
 | `模块路径：探针未指定架构节` / `模块路径：架构真相源缺失 <路径>` / `模块路径：架构节缺失 <路径>#<锚点>` | 探针输入写得不对，或它指的文件/小节不存在 |
-| `图谱位：.codegraph/codegraph.db 为空，索引不可查询` | 有索引文件但零字节 |
+| `代码图谱：.codegraph/codegraph.db 为空，索引不可查询` | 有索引文件但零字节 |
 
 > **项目根 = cwd**：B 类题型按 `ctx probe` 的运行目录当项目根，`--dir` 只改 `engineering-context` 的位置。
 
@@ -265,7 +267,7 @@ node src/cli.js probe --dir <ctx目录> --json    # CI 读；退出码见下表
 不计分的两种状态：`status` 为 `needs-reconfirm`（挂的权威面变了，等人重新确认）或 `quarantined` 的探针**暂不计入通过率**，但会在报告里显式列出题数——静默排除等于偷偷降低门槛。
 
 **四条铁律**：
-1. **门禁自检**（防"永远全绿"的假门禁）：真跑前植入必错样本（谎报权威映射 / 把 canonical 接口谎称 deprecated / **把 card 废弃段里的一条实体谎称 canonical** / 指向不存在的真相源 / 架构节列不出模块路径），断言门禁判它们 FAIL；抓不到 → `GATE-BROKEN`，退出 1。card 那条样本只靠 cards 就能成立——没有它，**只有 cards、没有 registry 的项目会永远 `GATE-BROKEN`**，而 `deprecated-trap` 明明只读 cards 就能作答。交接题型的样本不依赖 cards/registry，所以 context 层为空的直读项目也有真门禁。题集里**没有**交接题型且 context 层为空时判据不变，仍是 `GATE-BROKEN`，不放水。
+1. **门禁自检**（防"永远全绿"的假门禁）：真跑前植入必错样本（谎报权威映射 / 把 canonical 接口谎称 deprecated / **把 card 废弃段里的一条实体谎称 canonical** / 指向不存在的真相源 / 架构节列不出模块路径），断言门禁判它们 FAIL；抓不到 → `GATE-BROKEN`，退出 1。card 那条样本只靠 cards 就能成立——没有它，**只有 cards、没有 registry 的项目会永远 `GATE-BROKEN`**，而 `deprecated-trap` 明明只读 cards 就能作答。交接题型的样本不依赖 cards/registry，所以 卡片还没补起来的项目也有真门禁。题集里**没有**交接题型且 context 层为空时判据不变，仍是 `GATE-BROKEN`，不放水。
 2. **双向棘轮**：`## 基线（棘轮）` 段登记容忍的失败编号。**新增**（基线外）失败 → `RED`；失败全落基线内 → `AMBER`（告警不拦）；基线里某个编号**已不再失败** → 同样 `RED`，必须把它从基线删掉。基线只许变短——留着已修好的编号，下次它再坏就没人发现了。
    基线段的编号**只认独立成行的条目**（`- 12` / `* #12` / `12`）。这样在基线段写 `> 2026-08-16 复核：暂时容忍 #1，见 issue 4321。` 这类记录才不会把 `2026`/`08`/`16`/`4321` 也当成基线编号——那会让棘轮报一堆"基线 #2026 已不再失败"的假 RED。
 3. **地板**：加权通过率低于 `0.9` 直接 `RED`，与棘轮独立判定。基线能容忍"哪几道题坏了"，但不容忍"坏了一大半"。
@@ -273,4 +275,4 @@ node src/cli.js probe --dir <ctx目录> --json    # CI 读；退出码见下表
 
 **运行节奏**：只在 CI 发布 / 里程碑节点，**不进 coding agent 每轮 loop**。
 
-> 完整理念见 `../../references/capability/context-engineering.md`。
+> 完整理念见 `../../references/core/engineering-context设计.md`；日常"先查卡片、没卡就读源码并当场补卡"的纪律见 `../../references/core/代码事实纪律.md`。

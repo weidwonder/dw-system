@@ -15,3 +15,4 @@
 | [Codex 冲突技能处理方式选择（Lean Spec）](./spec/2026-08-04-codex-conflict-choice-lean-change-spec.md) | merged | 已落进 `install.mjs` 与 `CLAUDE.md` §安装器的关键设计 |
 | [Codex 冲突技能处理方式计划](./plan/2026-08-04-codex-conflict-choice.md) | merged | 同上，任务已全部执行 |
 | [文档生命周期门控（Lean Spec）](./spec/2026-08-10-文档生命周期门控-lean-change-spec.md) | merged | 规则已落进 `references/core/文档治理.md` §文档生命周期与索引门控；本文保留设计取舍与用户拍板记录 |
+| [项目真相源与 context-tier 重构](./spec/2026-08-16-项目真相源与context-tier重构-eng-spec.md) | superseded | 代码事实供给口径已被 [代码事实层强制化](./spec/2026-08-18-代码事实层强制化-eng-spec.md) 取代（卡片层改为无条件必备，取消按资产分档）；协作面字段模型的现行口径见 `CLAUDE.md` §安装器的关键设计与 `references/init-初始化.md` |

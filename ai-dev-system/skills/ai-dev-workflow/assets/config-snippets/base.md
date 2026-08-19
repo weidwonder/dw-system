@@ -2,7 +2,7 @@
 > **本项目采用 ai-dev-workflow**
 > (mode="team" collaboration="solo|team" merge-gate="direct|pr" worktree-dir="./.worktrees/")
 >
-> - 唤起 `ai-dev-workflow` / `ai-prd` skill 时按本块字段路由，MUST NOT 再问一次；项目有哪些代码事实资产由 skill 每次运行时探测得出，MUST NOT 写死在本块里。
+> - 唤起 `ai-dev-workflow` / `ai-prd` skill 时按本块字段路由，MUST NOT 再问一次；本项目有没有代码图谱索引由 skill 每次运行时探测得出，MUST NOT 写死在本块里。
 > - 文档目录固定：spec → `docs/spec/`，plan → `docs/plan/`，report → `docs/report/`。
 > - 文档有生命周期：新建文档 frontmatter MUST 带 `lifecycle: active` 与 `authority_refs`；`docs/index.md` 只放现行口径，归档进 `docs/index-archive.md`；准出时按本次**触碰的权威面**（与刷新代码事实同一个面）结算文档去留。
 > - **任何文档或代码落盘前 MUST 先建立独立 worktree**，Lean Change Spec 也不例外；多仓需求每个仓库各建一个。MUST NOT 在主工作树直接改，MUST NOT stash / reset 用户既有改动。
@@ -13,5 +13,8 @@
 > - 真实数据固化进项目既有测试目录，没有则 `tests/fixtures/<场景名>/`（凭证进同级 `secrets/` 并 gitignore，脱敏副本入库）；长链路 MUST 有断言中间结果的端到端用例；未覆盖的重要场景挂账到 `docs/report/测试场景覆盖度.md`。
 > - **Agentic 应用 MUST 加载 `agentic-principle` skill**（模型自主规划 / 直接调工具 / 未过闸门就改状态 / 记忆跨会话影响决策）：架构选型、提示词、注意力与并发预算、步骤级测试用它；运行期 AI 契约仍用 ai-dev-workflow 的 AI overlay。两者内容互相独立，MUST NOT 合并。
 > - 用户沟通只用业务语言：大架构 MUST 交用户确认，模块内设计只问业务问题，详细程序设计不要求用户确认。
-> - 本项目若存在 `engineering-context/capability-registry.md` **且其中至少有一行不含【】的真实数据行**（等价判据：`ctx list-services` 非空），查"能力对应哪个仓库/接口""跨服务影响面""哪个是权威实现"时 MUST 先用 `ctx`，MUST NOT grep 旧代码；每条据此得到的事实 MUST 附 cite（path + anchor + 确认时间）。`ctx` 命令找不到时改用 `node <本skill根目录>/scripts/ctx/src/cli.js <命令>`（功能相同；`<本skill根目录>` = ai-dev-workflow 的 SKILL.md 所在目录）——Claude Code 下是 `.claude/skills/ai-dev-workflow/`，Codex 下是 `.agents/skills/ai-dev-workflow/`，两份内容一致，用你这一侧那份；**MUST NOT 退回 grep**。
+> - **本项目维护 `engineering-context/` 代码事实层**：`capability-registry.md`（能力 → 权威实现的登记表）+ `cards/<repo>.md`（每个仓库一张事实卡）。它没有开关，内容按任务渐进补齐；起步时只有模板占位是正常状态。
+> - 查"能力对应哪个仓库/接口""跨服务影响面""哪个是权威实现"时 MUST 先用 `ctx`：`ctx find-scenes <关键词>`（未限定单仓时先取端到端全景）→ `ctx discover "<意图>"` → `ctx get-card <repo> [域]`。每条据此得到的事实 MUST 附 cite（path + anchor + 确认时间），无 cite 视为幻觉。
+> - **`ctx` 查不到卡片时 MUST 读源码把事实核实清楚，并当场把卡片补上**（职责 / 对外接口带 `文件:行` / 陷阱项 / 确认时间四项即可），随本次分支一起提交，MUST NOT 顺延到以后；**MUST NOT 退回 grep 找权威实现**。
+> - `ctx` 命令找不到时改用 `node <本skill根目录>/scripts/ctx/src/cli.js <命令>`（功能相同；`<本skill根目录>` = ai-dev-workflow 的 SKILL.md 所在目录）——Claude Code 下是 `.claude/skills/ai-dev-workflow/`，Codex 下是 `.agents/skills/ai-dev-workflow/`，两份内容一致，用你这一侧那份；**MUST NOT 退回 grep**。
 <!-- ai-dev-workflow:end -->

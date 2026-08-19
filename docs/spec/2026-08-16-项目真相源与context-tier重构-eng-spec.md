@@ -1,7 +1,7 @@
 ---
-lifecycle: active
-superseded_by: ''
-archived: ''
+lifecycle: superseded
+superseded_by: './2026-08-18-代码事实层强制化-eng-spec.md'
+archived: '2026-08-18'
 last_confirmed: '2026-08-16'
 authority_refs:
   - 'CLAUDE.md / AGENTS.md 标记块字段：mode 的值域与语义'
@@ -14,6 +14,8 @@ authority_refs:
   - '代码事实供给的判定方式：由标记块声明改为运行时资产探测'
   - '文档治理.md §2 索引分层的适用条件（团队版 MUST / 个人版 SHOULD）'
 ---
+
+> **已归档（2026-08-18）｜lifecycle: superseded**：本文的代码事实供给口径（能力位两位、其中权威位是运行时探测出来的开关、卡片按信号补建）已被 `docs/spec/2026-08-18-代码事实层强制化-eng-spec.md` 取代——卡片层现为无条件必备。协作面字段模型与三层真相源部分的现行口径见 `CLAUDE.md` 与 `references/init-初始化.md`。与现行文档冲突时**以现行为准**，MUST NOT 据本文实施。
 
 # ai-dev-system_技术 Spec — 项目真相源分层与 mode 二分重构
 

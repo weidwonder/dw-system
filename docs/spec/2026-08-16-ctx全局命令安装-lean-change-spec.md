@@ -28,7 +28,7 @@ authority_refs:
 
 ## 为什么
 
-skill 文档（权威位分册、`scripts/ctx/README.md`、`SKILL.md`、注入到目标项目 `CLAUDE.md` 的配置片段）通篇指导用户和 AI 用 `ctx <命令>`。命令不在 PATH 上时，使用者——**尤其是 AI agent**——极易把"`which ctx` 为空"读成"Engineering Context 不可用"，从而退化成裸 grep 旧代码。这正是探测到权威位时**明令禁止**的行为，也是本体系核心信念（给 AI 一层可信、新鲜、权威的代码事实）的直接失效。该误判已在真实使用中发生过。
+skill 文档（代码事实分册、`scripts/ctx/README.md`、`SKILL.md`、注入到目标项目 `CLAUDE.md` 的配置片段）通篇指导用户和 AI 用 `ctx <命令>`。命令不在 PATH 上时，使用者——**尤其是 AI agent**——极易把"`which ctx` 为空"读成"Engineering Context 不可用"，从而退化成裸 grep 旧代码。这正是本体系**明令禁止**的行为，也是本体系核心信念（给 AI 一层可信、新鲜、权威的代码事实）的直接失效。该误判已在真实使用中发生过。
 
 同一段路径上 codegraph 有完整的安装 / 版本检查 / 升级 / PATH 缺失报错处理，而本体系**自己的** CLI 一点都没有，属明显的对称性缺口。
 
@@ -37,7 +37,7 @@ skill 文档（权威位分册、`scripts/ctx/README.md`、`SKILL.md`、注入�
 - `install.mjs` — 新增 `CTX` 常量与 `CTX_CMD_TIMEOUT_MS`；新增 `ctxPackageDir` / `ctxFallbackHint` / `detectCtx` / `linkCtxCli` / `printCtxPlan` / `syncCtx`；`main()` 的计划输出插入第 6 项（codegraph 顺延为第 7 项），在 dry-run 分支与伴生 skill 之后各调用一次 `syncCtx`（排在 `syncCodegraph` 之前，避免被小时级的建索引拖住）。
 - `install.mjs` `parseArgs` / `helpText` / 文件头注释 — 新增 `--no-ctx-link`。
 - `scripts/ctx/src/cli.js` — 补可执行位（`bin` 入口本就该可执行；`fs.cpSync` 保留 mode，Codex 侧 `.agents/` 副本与直接 `./src/cli.js` 调用同样受益）。
-- 权威位分册 §2 调用方式（改动时为 `references/company/mode-team.md`，2.0.0 起是 `references/capability/curated.md`）— 改写：安装器会做全局链接；**"ctx 命令找不到"不等于权威位不可用**；任何情况下不得因此退回 grep。
+- 代码事实分册 §2 调用方式（改动时为 `references/company/mode-team.md`，2.0.0 为 `references/capability/curated.md`，2.1.0 起是无条件常驻的 `references/core/代码事实纪律.md`）— 改写：安装器会做全局链接；**"ctx 命令找不到"不等于这一层不可用**；任何情况下不得因此退回 grep。
 - 配置注入片段（改动时为 `assets/config-snippets/team.md` 第 1 条，2.0.0 起是 `base.md` 的 ctx 那一条）— 补一句兜底调用方式与"不是退回 grep"。
 - `scripts/ctx/README.md` §安装/运行 — 说明安装器已自动 link，失败时直接运行方式照常可用。
 - `README.md` / `README_zh.md` — 安装器职责清单新增第 6 条；快速开始里的 `ctx init` 示例改为"全局命令优先 + 兜底"两行。
@@ -85,7 +85,9 @@ skill 文档（权威位分册、`scripts/ctx/README.md`、`SKILL.md`、注入�
 全局 `ctx` 命令的装法、验证方式与失败降级均未变。两点补充，登记在此以免生成物清单没有现行出处：
 
 - **`ctx init` 的生成物**：`engineering-context/` 下 `capability-registry.md`、`cards/`（占位 `.gitkeep`）、`scenes/README.md`、`probe-set.md`、`glossary.md`、`README.md`。
-- **`ctx init --minimal` 的生成物（2.0.0 新增）**：只有 `engineering-context/capability-registry.md` 一份，**不建** `cards/` / `scenes/` / `probe-set.md` / `glossary.md` / `README.md`。它服务于"先写三行权威条目就能起步"的项目——权威位的启用判据是 registry 里有真实数据行（模板占位行不算），而不是资产建齐；`cards/` 等按需再跑一次 `ctx init` 补齐。
+- **`ctx init --minimal` 的生成物（2.0.0 新增）**：只有 `engineering-context/capability-registry.md` 一份，**不建** `cards/` / `scenes/` / `probe-set.md` / `glossary.md` / `README.md`。它服务于"先写三行权威条目就能起步"的手工场景；`cards/` 等按需再跑一次 `ctx init` 补齐。
+
+  **2026-08-18 补记（2.1.0）**：`--minimal` 的**行为未变**，但它**不再是初始化的推荐路径**——skill 初始化现在一律跑完整 `ctx init`，`cards/` 目录必须从第一天就在。当时那句"启用判据是 registry 里有真实数据行"也已作废：卡片层无条件必备，registry 只剩模板占位是正常起步态，不是"未启用"。见 `2026-08-18-代码事实层强制化-eng-spec.md`。
 - 两者一律 **write-if-absent**，已存在的文件不覆盖。
 
 ## 回滚方式

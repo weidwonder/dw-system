@@ -66,7 +66,7 @@ test('loadRegistry 解析最小三列 registry：缺的列留空而不报错', (
   });
 });
 
-test('loadRegistry 跳过模板占位行（只有模板行 = 未启用权威位）', () => {
+test('loadRegistry 跳过模板占位行（只有模板行 = 尚无已登记条目）', () => {
   const stub = `# Capability Registry
 
 | Capability | 权威实现 | 陷阱项（废弃或中间产物） |
@@ -89,7 +89,7 @@ test('makeCite 拼出 path + anchor + 时间', () => {
 
 test('loadRegistry 认得中文表头「能力」（首列判据 MUST 复用 capability 的模式表）', () => {
   // 三列最小形态的另两列列名本来就是中文，首列写「能力」是最自然的写法。
-  // 只认 /capability/i 时整张表被忽略 → 权威位探测为假 → agent 静默退回直读。
+  // 只认 /capability/i 时整张表被忽略 → 已登记的条目一条都读不出来 → agent 静默退回裸 grep。
   const table = ['| 能力 | 权威实现 | 陷阱项（废弃或中间产物） |', '|---|---|---|', '| 背单词记录 | svc :: POST /v2/word/record | POST /v1/word/record |'];
   withRegistry(`# r\n\n${table.join('\n')}\n`, (base) => {
     const rows = loadRegistry(base);
@@ -131,7 +131,7 @@ test('diagnoseRegistry 把三种"解析不出数据行"的原因分开报', () =
 
 test('loadRegistry 认 GFM 的单破折号与对齐冒号分隔行', () => {
   // GFM 只要求每格 ≥1 个 `-`。判据写成 `-{2,}` 时表头无法被确认 → 整张 registry 被丢弃 →
-  // 权威位探测为假 → agent 静默退回裸 grep，而诊断还会反过来说"表头请写 Capability"。
+  // 已登记的条目一条都读不出来 → agent 静默退回裸 grep，而诊断还会反过来说"表头请写 Capability"。
   // 这是相对旧实现的回归：旧版没有分隔行确认机制，这张表读得出。
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ctx-sep-'));
   try {
@@ -198,7 +198,7 @@ test('diagnoseRegistry：表头后面是空行 / 表头就是最后一行，仍�
 
 test('registryConflicts 找出同一能力的互相矛盾登记', () => {
   // 合并全文件所有能力表之后这种冲突才可能出现（旧实现只读第一张表）。
-  // 静默并存是最差的一种：权威位的全部承诺就是"信哪个"，两条并列等于把问题原样退回，
+  // 静默并存是最差的一种：代码事实层的全部承诺就是"信哪个"，两条并列等于把问题原样退回，
   // 而 agent 会随手取第一条，看起来还很权威。
   const rows = [
     { capability: '用户创建', canonicalRepo: '', canonicalApi: 'POST /v2/user' },
@@ -240,8 +240,8 @@ test('registryConflicts 不把"同一 API、仅权威仓库列填没填"报成�
 // ---- 诊断：目录不存在 / 文件读不出来 ----
 
 test('diagnoseRegistry 把"engineering-context 目录不存在"与"没建 registry"分开报', () => {
-  // 合报的实测后果：`--dir <打错字>` 与"这个项目真没建权威位"输出一字不差、退出码都是 0，
-  // 使用者据此判定权威位不可用 → 退回裸 grep。两者的修复动作完全不同。
+  // 合报的实测后果：`--dir <打错字>` 与"这个项目的登记表还是空的"输出一字不差、退出码都是 0，
+  // 使用者据此判定这一层不可用 → 退回裸 grep。两者的修复动作完全不同。
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ctx-nodir-'));
   try {
     assert.equal(diagnoseRegistry(path.join(tmp, '压根不存在')), 'no-dir');

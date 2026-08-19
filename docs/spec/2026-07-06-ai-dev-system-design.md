@@ -4,7 +4,7 @@ status: 'design-approved-pending-review'
 documentRole: 'design-spec'
 sourceOfTruth: true
 lifecycle: active
-last_confirmed: '2026-08-17'
+last_confirmed: '2026-08-18'
 authority_refs:
   - 'skill 的交付形态与目录结构：ai-dev-system/skills/<name>/{SKILL.md,references/,assets/,scripts/}'
   - 'references/ 的分层职责：core 常驻 + 按维度追加的分册'
@@ -15,7 +15,7 @@ authority_refs:
   - '安装形态：随项目安装为推荐路径 + 项目级禁用冲突插件（D10）'
 ---
 
-> **现行性说明（2026-08-17）**：本文是体系的**设计真相源**，架构决策与理由仍现行。其中「个人 / 团队两档 mode」这一维度已在 2.0.0 被拆成**协作面**（显式字段）与**能力位**（运行时探测），下文相关小节已按新模型更新；决策表保留原始记录并逐条标注去向，取代口径见 `2026-08-16-项目真相源与context-tier重构-eng-spec.md`。
+> **现行性说明（2026-08-18）**：本文是体系的**设计真相源**，架构决策与理由仍现行。其中「个人 / 团队两档 mode」这一维度已在 2.0.0 被拆成**协作面**（显式字段）与**代码事实供给方式**；2.1.0 又取消了后者的分档——**代码事实层（`engineering-context/`）改为无条件必备**，只剩「有没有代码图谱索引」一项仍靠运行时探测。下文相关小节已按 2.1.0 更新；决策表保留原始记录并逐条标注去向。取代口径见 `2026-08-18-代码事实层强制化-eng-spec.md`（它取代的 `2026-08-16-项目真相源与context-tier重构-eng-spec.md` 已归档，MUST NOT 再当实施依据）。
 
 # 自有 AI 辅助开发体系 — 设计文档
 
@@ -27,9 +27,9 @@ authority_refs:
 
 本项目把这套体系裁剪成适合我们的形态。**目标**：
 
-1. 产出一个**内核常驻、外壳按需追加的 skill**（`ai-dev-workflow`），同时服务一个人的轻量项目与多人多仓的公司项目。（2.0.0 起：外壳按**协作面**与**能力位**两个正交维度追加，不再是"个人 / 团队"一个开关。）
-2. skill 首次在某项目调用时**初始化一次**（只问协作面：除你之外还有没有人一起开发），把结论幂等写入该项目的 `CLAUDE.md` + `AGENTS.md`，之后每次调用直接读标记块，不再询问；项目有哪些代码事实资产**每次运行探测得出**，不问、不写进配置。
-3. 项目具备**权威位**（已填写的 capability 登记表）时启用一层**轻量 Engineering Context**（方案 B：Codebase Card + capability 登记 + 新鲜度 + Frozen Probe Set），其代码事实访问以 **CLI（`ctx`）**而非 MCP 形态交付。
+1. 产出一个**内核常驻、外壳按需追加的 skill**（`ai-dev-workflow`），同时服务一个人的轻量项目与多人多仓的公司项目。（2.0.0 起不再是"个人 / 团队"一个开关；2.1.0 起外壳只按**协作面**追加，另加探测到的**代码图谱**一篇。）
+2. skill 首次在某项目调用时**初始化一次**（只问协作面：除你之外还有没有人一起开发），把结论幂等写入该项目的 `CLAUDE.md` + `AGENTS.md`，之后每次调用直接读标记块，不再询问；代码事实层是**必备资产**（初始化时建骨架，内容随任务渐进补齐）；项目有没有**代码图谱索引**每次运行探测得出，不问、不写进配置。
+3. 任何装了本体系的项目都维护一层**轻量 Engineering Context**（方案 B：Codebase Card + capability 登记 + 新鲜度 + Frozen Probe Set），其代码事实访问以 **CLI（`ctx`）**而非 MCP 形态交付。（2.1.0 起它是必备地基：初始化建骨架，内容随任务渐进补齐。）
 4. 全套 **Claude Code + Codex 通用**：内核为可移植 markdown，双入口（CLAUDE.md / AGENTS.md）。
 
 ## 2. 已确认的关键决策（来自交互澄清）
@@ -39,10 +39,10 @@ authority_refs:
 | D1 | 技术栈 | Web 全栈 / 后端服务 / AI-LLM / 数据脚本 **全覆盖** → 内核必须技术栈无关，AI/LLM 单独挂 overlay |
 | D2 | 团队规模 | 中等团队 5–20 人、10–30 仓 → 需要轻量 context 层，非 origin 完整机器 |
 | D3 | 工具链 | Claude Code + Codex 为主 → markdown 双入口，CLI 而非 MCP |
-| D4 | 仓库现状 | 历史包袱重、文档差 → 这类仓库**必须**有 context 层（2.0.0 起：由项目是否具备权威位决定是否启用，与人数无关——单人维护的遗留系统同样适用）|
+| D4 | 仓库现状 | 历史包袱重、文档差 → 这类仓库**必须**有 context 层（2.1.0 起：所有项目一律必备，与人数、与项目大小都无关——单人维护的遗留系统正是最需要它的一类）|
 | D5 | context 层深度 | 直接上**方案 B**（含 MCP→改 CLI + Frozen Probe Set 防腐） |
 | D6 | 交付形态 | **单个 skill**，分层结构收进 skill 的 `references/`（原为 core/personal/company 三层；2.0.0 起为 `core/` + `collab/` + `capability/`，见 §3）|
-| D7 | 初始化 | 首次调用写入 CLAUDE.md/AGENTS.md，幂等，之后不再问（2.0.0 起只固化**协作面**，能力位改为每次运行探测，不进配置）|
+| D7 | 初始化 | 首次调用写入 CLAUDE.md/AGENTS.md，幂等，之后不再问（2.0.0 起只固化**协作面**；2.1.0 起同时建 `engineering-context/` 骨架，代码图谱改为每次运行探测，不进配置）|
 | D8 | context 访问 | 做成 **CLI（`ctx`）**，不用 MCP；给设计 + 可运行骨架，其余写文档 |
 | D9 | CLI 语言 | **Node.js**，必须跨平台（路径/shell/行尾） |
 | D10 | 安装形态 + 冲突插件处理 | **改为「随项目安装」为推荐路径**：安装器 `install.mjs`（Node 跨平台）把 skill 复制进 `<项目>/.claude/skills/`，并在**项目级** settings 里把冲突插件设 `false`（覆盖用户级 `true`）→ **只在本项目禁用，全局不动**。默认写 gitignored 的 `.claude/settings.local.json`（仅影响本机），`--shared` 写 committed 的 `.claude/settings.json`（全仓共享）。冲突插件：`superpowers` / `everything-claude-code` / `oh-my-claudecode` / `general-task`（后者可 `--keep` 保留）。依据：Claude Code settings 优先级 Managed>Local>Project>User，`enabledPlugins` 全 scope 可设。前提：项目级 settings 首触发 workspace-trust 对话框；改动下次启动生效。**弃用**上一版「全局禁用冲突插件」方案。 |
@@ -54,7 +54,7 @@ ai-dev-system/
 ├── README.md                          # 体系入口：定位、两个维度怎么理解、如何安装 skill
 └── skills/
     └── ai-dev-workflow/               # ★ 唯一的 skill（Claude Code + Codex 通用）
-        ├── SKILL.md                   # 入口：探测能力位 → 读协作面 → 加载；首次运行 → 初始化
+        ├── SKILL.md                   # 入口：探测代码图谱 → 读协作面 → 加载；首次运行 → 初始化
         ├── references/
         │   ├── core/                  # 共享内核（tech-agnostic），无条件常驻
         │   │   ├── 00-流程总纲.md       # Triage 4 问 + 10 步 + 四道门，每步配 prompt
@@ -63,15 +63,13 @@ ai-dev-system/
         │   ├── collab/                # 协作面（读标记块字段，必加载一份）
         │   │   ├── solo.md               # 无其他人类协作方：可跳步 / 你自己拍板 / 子代理当第二双眼睛
         │   │   └── team.md               # 有其他人类协作方：owner 对齐 / 评审会 / 业务方拍板 / PR 平台动作
-        │   ├── capability/            # 能力位（运行时探测，可零篇、可多篇）
-        │   │   ├── graph.md              # 图谱位：探测到 .codegraph/codegraph.db 时，结构检索走图谱
-        │   │   ├── curated.md            # 权威位：探测到已填写的 capability-registry.md 时，ctx + cite 取权威口径
-        │   │   └── context-engineering.md  # 方案 B 完整设计：card/registry/新鲜度/Probe/棘轮
+        │   ├── capability/            # 运行时探测后追加，可零篇
+        │   │   └── graph.md              # 代码图谱：探测到 .codegraph/codegraph.db 时，结构检索走图谱
         │   └── init-初始化.md          # 如何幂等写入 CLAUDE.md / AGENTS.md
         ├── assets/
         │   ├── templates/            # core 模板：lean-spec / overview / eng-spec / coding-plan / test-spec
         │   ├── config-snippets/     # 注入 CLAUDE.md 与 AGENTS.md 的片段（base 无条件 + collab-solo/collab-team 二选一）
-        │   └── context-layer/       # 权威位资产：capability-registry 模板 + card 模板 + probe-set 模板
+        │   └── context-layer/       # 代码事实层资产：capability-registry 模板 + card 模板 + probe-set 模板
         └── scripts/
             └── ctx/                 # ★ CLI（替代 MCP）：Node.js 跨平台，可运行骨架
                 ├── README.md            # 命令说明 + card/registry 格式约定
@@ -88,21 +86,22 @@ ai-dev-system/
 
 ```
 调用 ai-dev-workflow：
-  1. 【探测】看项目现在有哪些代码事实资产（存在性检查 + 一次小文件读取）：
-       - engineering-context/capability-registry.md 有真实数据行 → 权威位
-       - .codegraph/codegraph.db 存在                              → 图谱位
-       - 都没有 → 直读（无附加能力位），代码事实靠子代理外包重探索
+  1. 【探测】只看一件事（一次存在性检查）：
+       - .codegraph/codegraph.db 存在 → 代码图谱，结构检索走它；否则重探索外包子代理
+       - MUST NOT 探测 engineering-context —— 它是必备资产，不参与路由判断
   2. 【读标记块】当前项目 CLAUDE.md（优先）或 AGENTS.md 里的
        <!-- ai-dev-workflow:start --> … collaboration="solo|team" … <!-- ai-dev-workflow:end -->
   2a. 无标记块 → 进入【初始化】：先跑环境冲突扫描，再只问一个问题（协作面）
-        + 一条待拍板的 merge-gate 建议，按 init-初始化.md 幂等写入 CLAUDE.md + AGENTS.md。能力位不问。
+        + 一条待拍板的 merge-gate 建议，按 init-初始化.md 幂等写入 CLAUDE.md + AGENTS.md，
+        并在 worktree 内跑 ctx init 建 engineering-context 骨架。代码图谱与代码事实层都不问。
   2b. 只有旧版留下的 mode 字段 → 只据它推协作面（team → team+pr，其余 → solo+direct），
-        一句话告知并回写；MUST NOT 由旧值推出任何能力位。
-  3. 【加载】core 常驻 + collab/<协作面>.md（必选一份）+ capability/ 命中的分册（可零篇）
+        一句话告知并回写；MUST NOT 由旧值推出别的任何东西。
+  3. 【加载】core 常驻七篇（含 代码事实纪律.md）+ collab/<协作面>.md（必选一份）
+       + 探测到代码图谱时加 capability/graph.md（可零篇）
   4. 按 core/00-流程总纲.md 驱动：先过 worktree 隔离门，再 Triage 分流，走对应深度的流程
 ```
 
-**两步互不推导**：MUST NOT 从协作字段推能力位，也 MUST NOT 从资产推协作面。判据是"探测得出来的不设字段，探测不出来的才设字段"——资产会随项目长大而变，写进配置就会漂移；"有没有别人一起干"文件系统里没有，只能问一次并固化。
+**两步互不推导**：MUST NOT 从协作字段推代码图谱，也 MUST NOT 从索引推协作面。判据是"探测得出来的不设字段，探测不出来的才设字段"——索引会随项目变，写进配置就会漂移；"有没有别人一起干"文件系统里没有，只能问一次并固化。**代码事实层既不探测也不设字段**：它是必备的，压根没有"启不启用"这个问题需要判定（2.1.0，取消分档的理由见 `2026-08-18-代码事实层强制化-eng-spec.md`）。
 
 **幂等**：初始化用注释包裹标记块（`<!-- ai-dev-workflow:start -->` … `<!-- ai-dev-workflow:end -->`），重复调用只更新块内内容，不重复追加。
 
@@ -115,7 +114,7 @@ ai-dev-system/
 > **本项目采用 ai-dev-workflow**
 > (mode="team" collaboration="solo" merge-gate="direct" worktree-dir="./.worktrees/")
 >
-> - 唤起 skill 时按本块字段路由；项目有哪些代码事实资产由 skill 每次运行探测得出，MUST NOT 写死在本块里。
+> - 唤起 skill 时按本块字段路由；本项目有没有代码图谱索引由 skill 每次运行时探测得出，MUST NOT 写死在本块里。
 > - 文档目录固定：spec → docs/spec/，plan → docs/plan/，report → docs/report/。
 > - 任何文档或代码落盘前 MUST 先建立独立 worktree；编码完成后 MUST 过代码评审门；AI MUST NOT 默认向后兼容。
 > - 本项目若存在已填写的 engineering-context/capability-registry.md，查权威实现 MUST 先用 `ctx`、每条事实附 cite，MUST NOT grep 旧代码。
@@ -125,7 +124,7 @@ ai-dev-system/
 
 `mode="team"` 是**墓碑字段**：新 skill 完全忽略，留着只为让尚未升级的旧 skill 不硬失败，`3.0.0` 移除。
 
-## 6. Engineering Context 层（方案 B，即权威位）
+## 6. Engineering Context 层（方案 B，2.1.0 起为必备地基）
 
 落地为项目内 `engineering-context/` 目录 + `ctx` CLI。
 
@@ -138,11 +137,11 @@ ai-dev-system/
 | Frozen Probe Set | **模板 + 文档** | 40–50 题冻结题集 + 门禁自检（plant 已知坏样本）的设计与种子题模板 |
 | 新鲜度触发 / 棘轮 | **文档** | 按"权威面"而非变更大小触发；棘轮清单只许变短 |
 
-**真相方向铁律**（写进 context-engineering.md）：card 的事实以合入后源码为准，PRD/Spec 仅作扫描范围约束 + 业务语境；禁止从 PRD 生成 card 事实。
+**真相方向铁律**（写进 `references/core/engineering-context设计.md`）：card 的事实以合入后源码为准，PRD/Spec 仅作扫描范围约束 + 业务语境；禁止从 PRD 生成 card 事实。
 
 ### 6.1 演进路线（从骨架到完整）
 
-> 2026-07-18 自 skill 的 `references/capability/context-engineering.md`（当时在 `references/company/`）§8 迁入（规划叙事不属于 runtime 文档）；skill 内保留 §7「本轮交付程度」表告知哪些能力当前可用。
+> 2026-07-18 自 skill 的 engineering-context 设计文档（当时在 `references/company/`，现为 `references/core/engineering-context设计.md`）§8 迁入（规划叙事不属于 runtime 文档）；skill 内保留 §7「本轮交付程度」表告知哪些能力当前可用。
 
 1. **现在**：`ctx init` 建目录 → 团队填 capability-registry + 高频仓 card → 开发时用 `ctx discover`；`ctx search-semantic` 做兜底；`ctx probe`（含门禁自检 + 棘轮 + 衰减报告）已可跑。发布后手动刷卡。
 2. **下一步**：把 40~50 题 Probe Set 填实，`ctx probe --json` 接进 CI 发布门禁；card 生成脚本化（code diff 为真相）。
@@ -184,7 +183,7 @@ ai-dev-system/
 - 不引入需要 `npm install` 第三方依赖的重实现（骨架零依赖）。
 - **不随包分发完整的 Agent 平台重型骨架**（Agent 能力扩展/平台核心类 eng-spec 指南全量、平台基线清单）：高度贴具体平台，超出"技术栈无关内核"定位。只在 `AI-LLM-overlay.md` 给平台无关的最小 agent 契约（判定边界 + 自主级别/审批闸门 + 继承声明 + 缺口清单）；平台核心改造参照使用方团队自有的重型规范。（2026-07-14 补记，对齐审计后确认为有意裁剪）
 - **不随包分发 Agentic / Agent 能力扩展产品 PRD 的整套模板**：`ai-prd` 分流表只声明边界，指引使用方参照其团队自有的 Agentic 产品 PRD 规范。
-- **不实现 MCP 的 `list_changes`/`get_readme`/`find_skills`/`info`**：MCP→ctx 有意改形态（D3/D8）。跨会话变更感知改用 `git diff engineering-context/`（`references/capability/curated.md` §7 新鲜度纪律）。
+- **不实现 MCP 的 `list_changes`/`get_readme`/`find_skills`/`info`**：MCP→ctx 有意改形态（D3/D8）。跨会话变更感知改用 `git diff engineering-context/`（`references/core/代码事实纪律.md` §8 新鲜度纪律）。
 
 > **源头仍在演进**：本体系裁剪自持续更新的上游，回灌基线与机制见 `docs/spec/2026-07-14-源头对齐基线与回灌机制.md`。
 
