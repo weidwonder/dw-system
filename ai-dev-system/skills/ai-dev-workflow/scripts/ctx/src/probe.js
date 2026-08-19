@@ -1,6 +1,6 @@
 // probe.js — ctx probe：Frozen Probe Set 防腐门禁（零依赖、可打分、跨平台）
 //
-// 理念（与 references/capability/context-engineering.md 一致，务必保留）：
+// 理念（与 references/core/engineering-context设计.md 一致，务必保留）：
 //   · 冻结题集，每发布周期重跑，检测 context 层"衰减"，不当回归基线。
 //   · 门禁自检：真跑前先植入必然失败的样本，抓不到 → 门禁形同虚设 → 流水线红。
 //   · 棘轮：容忍的腐化债登记为基线；新增失败 = RED；只许变短。
@@ -14,7 +14,7 @@
 //     requirement-reachable    输入=需求真相源（`路径` 或 `路径#小节`），期望含跳数上限（默认 ≤2 跳）
 //     architecture-reachable   同上，指向架构真相源
 //     implementation-usable    模块路径**无条件**校验（架构节列出的路径都存在），
-//                              再按探测到的每个能力位**叠加**一项——MUST 叠加，MUST NOT 择一：
+//                              探测到代码图谱时再**叠加**一项——MUST 叠加，MUST NOT 择一：
 //                              三行 registry 不该让实现层门禁整个变绿。
 //     rationale-traceable      输入=索引路径（默认 docs/index.md），现行区各 spec 的 authority_refs 均非空
 //
@@ -192,7 +192,7 @@ const DEPRECATION_KEYWORD =
  * 一行文本是否带废弃标记。**行级**判据，MUST NOT 拿去判一整段：
  * card 的「对外接口」表里通常一行废弃、其余行权威，整段判会把同表的权威接口一起打成废弃。
  * 导出是为了让 `semantic.js` 复用同一套字面量——废弃判据每多一套，就多一处
- * "这里说废弃、那里说权威"的分歧，而这正是权威位要消灭的东西。
+ * "这里说废弃、那里说权威"的分歧，而这正是代码事实层要消灭的东西。
  */
 export const hasDeprecationKeyword = (line) => DEPRECATION_KEYWORD.test(line);
 
@@ -212,7 +212,7 @@ const DEPRECATION_ANCHOR = /(废弃|中间产物|不可用|deprecated|停用|下
  *
  * card 最标准的废弃写法就是把两者写在同一行（`assets/context-layer/card.md` 的模板正是这么诱导的）：
  *   - `POST /v1/word/record`（已废弃，请改用 `POST /v2/word/record`）
- * 只判"这一行含废弃关键词且含 entity"会把 **v2 也判成 deprecated**——权威位的核心承诺
+ * 只判"这一行含废弃关键词且含 entity"会把 **v2 也判成 deprecated**——代码事实层的核心承诺
  * "信哪个"当场反过来：问 canonical 接口，`ctx` 告诉你它已废弃。所以这不是边缘情况。
  *
  * 判据 MUST NOT 写成"在指向词之后即替代物"：那只覆盖「旧（已废弃，请改用 新）」一种句序。
@@ -381,8 +381,8 @@ export function answerProbe(cards, registry, probe, ctx = {}) {
     if (!row) return { actual: 'NOT-FOUND', pass: false };
     // 该能力被登记了多条互相矛盾的权威实现时 MUST 判 FAIL，MUST NOT 让 `registry.find` 静默取第一条。
     // 这道题问的就是"这个能力信哪个"，registry 里并列着两个答案时它已经没有正确答案了；
-    // 取第一条会让门禁在权威位失效的当口显示绿色——而"同一能力多处实现时信哪个"正是权威位
-    // 唯一的承诺，它失效的直接证据就是这种冲突，最该在门禁里红的就是它。
+    // 取第一条会让门禁在 registry 失准的当口显示绿色——而"同一能力多处实现时信哪个"正是
+    // 代码事实层唯一的承诺，它失效的直接证据就是这种冲突，最该在门禁里红的就是它。
     // 判据 MUST 复用 cards.js 的 registryConflicts，MUST NOT 另写一套：那边刻意只比权威实现列
     // （最小表升级到完整表时同一行留在两处只有仓库列差异，拼起来比会误报），两套判据一漂移，
     // discover 报冲突而门禁全绿（或反过来），使用者无从判断该信谁。
@@ -570,8 +570,9 @@ export function reachTruthSource(root, targetSpec, maxHops = DEFAULT_HOPS) {
 }
 
 /**
- * 探测项目具备哪些能力位（eng-spec §3.2/§3.3；正交，不是有序三档）。
- * 权威位直接用 `ctx list-services` 是否非空判定——registry 只剩模板占位行时它为空。
+ * 探测两件事：项目有没有代码图谱索引，registry 里有没有真实条目。两者正交、都不是分档开关。
+ * registry 那一项直接用 `ctx list-services` 是否非空判定——只剩模板占位行时它为空，
+ * 那是**正常起步态**，只影响要不要追加说明性 note，MUST NOT 据此判定卡片层不可用。
  */
 export function detectCapabilityBits(root, ctxDir) {
   let graph = false;
@@ -591,8 +592,8 @@ export function detectCapabilityBits(root, ctxDir) {
  *
  * MUST 用白名单，MUST NOT 用"点号后 1-8 位字母数字就算扩展名"的启发式：架构小节里用反引号
  * 写 API 名是极常见的写法（`` 跨平台全程用 `path.join` 与 `os.tmpdir` ``），启发式会把
- * `path.join` / `os.tmpdir` 当成带扩展名的模块路径并判"模块路径缺失"。而这个题型是**无能力位
- * 项目唯一的实现层门禁**，误判会把它逼成永久红点（再叠加基线段的整数通吃就会被塞进棘轮基线）。
+ * `path.join` / `os.tmpdir` 当成带扩展名的模块路径并判"模块路径缺失"。而这个题型是**卡片还没
+ * 补起来的项目唯一的实现层门禁**，误判会把它逼成永久红点（再叠加基线段的整数通吃就会被塞进棘轮基线）。
  */
 const PATH_EXT = /\.(js|mjs|cjs|jsx|ts|tsx|mts|cts|py|pyi|go|rs|rb|php|java|kt|kts|scala|swift|m|mm|c|h|cc|cpp|hpp|cs|sh|bash|zsh|sql|proto|graphql|md|markdown|rst|txt|json|jsonc|yaml|yml|toml|ini|cfg|conf|xml|html|htm|css|scss|sass|less|vue|svelte|tf|tfvars|gradle|lock|cmake|mk|dockerfile|gemspec|podspec|csproj|sln)$/i;
 
@@ -609,7 +610,7 @@ const PATH_EXT = /\.(js|mjs|cjs|jsx|ts|tsx|mts|cts|py|pyi|go|rs|rb|php|java|kt|k
  *     当通用扩展名——那会让 `np.mod`、`df.sum`、`math.mod` 这类 API 名被判成缺失路径；
  *   · `readme` / `license` / `notice` 这类**裸词** MUST NOT 进本表——它们在架构散文里
  *     作为普通名词出现的概率远高于作为路径。真要指文件，写成 `README.md` 或带目录即可命中。
- * 判据是白名单，代价就是漏与误两侧都得逐条权衡；这一题是无能力位项目唯一的实现层门禁，
+ * 判据是白名单，代价就是漏与误两侧都得逐条权衡；这一题是卡片还没补起来的项目唯一的实现层门禁，
  * 误判即永久红点，漏判则让门禁恒绿——两边都不能凭"看着像"放宽。
  */
 const BARE_PATH_NAME =
@@ -653,21 +654,22 @@ function checkModulePaths(root, input) {
 }
 
 /**
- * 实现真相源可用：架构节列出的模块路径**始终**校验，探测到的每个能力位再**叠加**一项条件。
+ * 实现真相源可用：架构节列出的模块路径**始终**校验，探测到代码图谱时再**叠加**一项条件；
+ * registry 有条目只追加一条说明性 note，不参与 pass/fail。
  *
- * MUST 叠加，MUST NOT 互斥。旧实现只在"既无权威位又无图谱位"时才校验模块路径，于是
- * 三行 registry 就能让实现层门禁永久变绿——与"探测到的每一位都要成立"的承诺相反，
- * 而 selfCheck 又从不为该题型植入必错样本，自检也抓不到。能力位回答的是"找得到/信哪个"，
+ * MUST 叠加，MUST NOT 互斥。旧实现只在"既没有 registry 条目也没有图谱索引"时才校验模块路径，
+ * 于是三行 registry 就能让实现层门禁永久变绿——与"探测到的每一项都要成立"的承诺相反，
+ * 而 selfCheck 又从不为该题型植入必错样本，自检也抓不到。代码图谱回答的是"找得到吗"，
  * 它不替代"架构节把模块位置讲清楚了"这件事，两者是并列条件。
  */
 function checkImplementation(root, ctxDir, probe) {
   const bits = detectCapabilityBits(root, ctxDir);
   const notes = [];
   let ok = true;
-  if (bits.curated) notes.push(`权威位：ctx list-services ${bits.services} 条`);
+  if (bits.curated) notes.push(`代码事实层：ctx list-services ${bits.services} 条`);
   if (bits.graph) {
-    if (bits.graphBytes > 0) notes.push(`图谱位：.codegraph/codegraph.db ${bits.graphBytes} 字节，索引可查询`);
-    else { ok = false; notes.push('图谱位：.codegraph/codegraph.db 为空，索引不可查询'); }
+    if (bits.graphBytes > 0) notes.push(`代码图谱：.codegraph/codegraph.db ${bits.graphBytes} 字节，索引可查询`);
+    else { ok = false; notes.push('代码图谱：.codegraph/codegraph.db 为空，索引不可查询'); }
   }
   const r = checkModulePaths(root, probe.input);
   if (!r.ok) ok = false;
@@ -850,7 +852,7 @@ export function selfCheck(cards, registry, ctx = {}) {
     };
     planted.push({ ...p, ...answerProbe(cards, registry, p, ctx) });
     // 样本5：implementation-usable，指向必然不存在的架构节 → 门禁应判 FAIL。
-    // 这道样本此前无法成立：旧实现探测到任一能力位就无条件通过，植入什么都抓不到。
+    // 这道样本此前无法成立：旧实现探测到 registry 条目或图谱索引就无条件通过，植入什么都抓不到。
     // 模块路径校验改成叠加后它才有意义，也正是那条修复的自检保险。
     const q = {
       n: 'self-impl',
@@ -877,7 +879,7 @@ export function selfCheck(cards, registry, ctx = {}) {
 /**
  * 评估门禁（不依赖时钟；交接题型会读项目文件，除此之外无 IO）：自检 → 跑真实探针 → 加权打分 + 双向棘轮 → 定级。
  *
- * 规则（与 context-engineering.md §6 / probe-set.md 一致）：
+ * 规则（与 core/engineering-context设计.md §6 / probe-set.md 一致）：
  *   · blocking 探针失败 = 零容忍，直接 RED（不受基线豁免）。
  *   · scored 探针按 weight 计**加权通过率**；低于 floor（默认关闭，CLI 传 0.9）= RED。
  *   · 棘轮**双向**：基线外新失败 = RED；基线内已不再失败 = staleBaseline，必须删除，也 RED（只许变短）。

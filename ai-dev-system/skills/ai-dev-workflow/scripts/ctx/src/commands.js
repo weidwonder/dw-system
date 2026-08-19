@@ -218,7 +218,7 @@ export function findScenes(ctxDir, keywords) {
 /**
  * listServices：列出已登记的服务（来自 cards）与能力（来自 registry）。
  * **没有 card 的 registry 能力也要列出**：最小 schema 常常一张 card 都没有，
- * 若只按 card 列，registry-only 项目的 list-services 会空，看上去像"权威位不可用"。
+ * 若只按 card 列，registry-only 项目的 list-services 会空，看上去像"这个项目没有卡片层"。
  * @returns {Array<{service:string|null, hasCard:boolean, capabilities:string[]}>}
  */
 export function listServices(ctxDir) {
@@ -245,8 +245,11 @@ export function listServices(ctxDir) {
 
 /**
  * initScaffold：在 targetDir 下生成 engineering-context/ 骨架。
- * `{ minimal: true }` 只生成 `capability-registry.md`——权威位的起步成本是"三行 registry"，
- * 一次性铺开五个待填文件会把人劝退，反而退回裸 grep。
+ * **初始化一律跑完整形态**（`references/init-初始化.md` 第 5b 步）：cards/ 目录必须从第一天就在，
+ * 否则第一次补卡的 agent 还要先决定目录放哪。骨架里只有模板占位行，那是正常起步态，
+ * 内容按任务渐进补齐（`references/core/代码事实纪律.md` §4）。
+ * `{ minimal: true }` 仍可用、行为不变，但**不再是推荐路径**：它只生成 `capability-registry.md`，
+ * 适合"手工在既有项目上先落三行 registry"这类场景。
  * @param {string} targetDir
  * @param {{minimal?:boolean}} [opts]
  * @returns {{base:string, files:string[]}} base=engineering-context 绝对路径，files=本次确保存在的相对文件名
@@ -256,7 +259,7 @@ export function initScaffold(targetDir, opts = {}) {
   if (opts.minimal) {
     fs.mkdirSync(base, { recursive: true });
     writeIfAbsent(path.join(base, 'capability-registry.md'), MINIMAL_REGISTRY_STUB);
-    // .gitignore MUST 一起生成：`--minimal` 是 CLI 自己推荐的起步方式，之后手写 probe-set
+    // .gitignore MUST 一起生成：`--minimal` 落完 registry 之后手写 probe-set
     // 再跑 `ctx probe`，`.index/probe-history.json` 就会变成未忽略的脏文件。
     // 那个文件是本地衰减历史，不该入库，也不该每次 git status 都跳出来。
     writeIfAbsent(path.join(base, '.gitignore'), GITIGNORE_STUB);
@@ -299,14 +302,15 @@ const SCENES_README_STUB = `# 场景索引
 // 注意：以下四个 stub 是 assets/context-layer/ 同名模板的精简副本（init 脚手架用）。
 // 改 assets 模板须同步这里，反之亦然——两处漂移会让脚手架与文档教的模板不一致。
 
-// `ctx init --minimal` 用：权威位的最小起步形态，只有三列。
+// `ctx init --minimal` 用：registry 的最小起步形态，只有三列。
 const MINIMAL_REGISTRY_STUB = `# Capability Registry — 能力到权威实现的映射（最小形态）
 
-> 权威位的起步形态：**三列即可用，三行即可起步**。事实以**合入后的源码**为准，别从 PRD 生成。
+> 代码事实层的起步形态：**三列即可用，三行即可起步**。事实以**合入后的源码**为准，别从 PRD 生成（PRD 只作 scope + 业务语境）。
 > 其余列（业务含义 / 权威仓库 / 兼容窗口 / owner / 测试入口 / freshness / 理由链）按需再加：
 > \`ctx discover\` 对缺列**跳过而非报错**；没有 freshness 列时输出标注「未声明新鲜度」，不假定新鲜。
 > 完整字段说明见 ai-dev-workflow skill 的 assets/context-layer/capability-registry.md。
-> 只剩下面这行模板占位时视为**未启用**权威位（\`ctx list-services\` 为空）。
+> 只剩下面这行模板占位时 \`ctx list-services\` 为空——这是**正常起步态**，不是"这层没启用"：
+> 内容按任务渐进补齐，要用哪个模块的事实就补哪个模块（见 ai-dev-workflow 的 references/core/代码事实纪律.md §4）。
 
 | Capability | 权威实现 | 陷阱项（废弃或中间产物） |
 |---|---|---|
@@ -316,7 +320,10 @@ const MINIMAL_REGISTRY_STUB = `# Capability Registry — 能力到权威实现�
 const REGISTRY_STUB = `# Capability Registry — 产品能力到权威代码实体的映射
 
 > 精简骨架；完整字段说明与填写指南见 ai-dev-workflow skill 的 assets/context-layer/capability-registry.md。
-> 人工确认。事实以源码为准，PRD 仅作 scope。每条带 freshness 与理由链。
+> 代码事实层（"信哪个"）的核心资产，**每个装了本体系的项目都维护它**。人工确认。
+> 事实以源码为准，PRD 仅作 scope + 业务语境。每条带 freshness 与理由链。
+> 只剩【】占位行是**正常起步态**：内容按任务渐进补齐（见 references/core/代码事实纪律.md §4），
+> MUST NOT 因为表是空的就告警、或退回裸 grep 找权威实现。
 > 下面两张表**填哪张都算，解析器会合并**（表头首列命中 Capability/能力的表全部解析）：
 > 三列是 MUST，十列表里的其余列是 MAY——缺列跳过不报错，没有 freshness 列的条目输出标注「未声明新鲜度」。
 
@@ -356,8 +363,8 @@ const PROBE_STUB = `# Frozen Probe Set — 上下文层防腐检测题集
 >   architecture-reachable —— 同上，指向架构真相源。
 >   implementation-usable  —— 输入=架构节 \`路径#小节\`，期望=\`usable\`。判定是**叠加**不是择一：
 >                             架构节里列出的模块路径（反引号代码片段或相对链接）**无条件**均需存在；
->                             探测到图谱位再叠加一项 \`.codegraph/codegraph.db\` 非空可查询。
->                             探测到权威位只追加一条说明性 note，**不参与 pass/fail**。
+>                             探测到代码图谱再叠加一项 \`.codegraph/codegraph.db\` 非空可查询。
+>                             registry 有已登记条目时只追加一条说明性 note，**不参与 pass/fail**。
 >   rationale-traceable    —— 输入=索引路径（默认 docs/index.md），期望=\`全部非空\`：
 >                             索引**现行区**（非"归档"标题下）链到的各 spec，frontmatter \`authority_refs\` 均非空。
 >   类型名可写中文题名：需求真相源可达 / 架构真相源可达 / 实现真相源可用 / 设计理由可追。
@@ -396,7 +403,11 @@ const GLOSSARY_STUB = `# Glossary — 领域词汇表
 
 const CTX_README_STUB = `# engineering-context
 
-权威位的代码事实语义层（"信哪个"）。用 \`ctx\` 查询：discover / get-card / find-scenes / list-services。
-每条事实带 cite；没写 freshness 的会标「未声明新鲜度」，不当作新鲜用。
-填写指南见 ai-dev-workflow 的 references/capability/context-engineering.md。
+代码事实的语义层（"信哪个"）——装了 ai-dev-workflow 的项目一律维护它。
+用 \`ctx\` 查询：discover / get-card / find-scenes / list-services；每条事实带 cite，
+没写 freshness 的会标「未声明新鲜度」，不当作新鲜用。
+**内容渐进补齐**：要用某个模块的事实就先查卡片，查不到就读源码、读完当场补卡
+（判据与最小形态见 ai-dev-workflow 的 references/core/代码事实纪律.md §4）。
+只剩【】模板占位行是正常起步态，MUST NOT 据此退回裸 grep。
+结构与字段设计见 references/core/engineering-context设计.md。
 `;

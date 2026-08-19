@@ -146,13 +146,13 @@ test('initScaffold --minimal 只生成 registry 与 .gitignore', () => {
   }
 });
 
-test('--minimal 生成的 registry 含三列最小 schema，且只有模板行时视为未启用', () => {
+test('--minimal 生成的 registry 含三列最小 schema，且只有模板行时不算已登记', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ctx-'));
   try {
     const { base } = initScaffold(tmp, { minimal: true });
     const raw = fs.readFileSync(path.join(base, 'capability-registry.md'), 'utf8');
     assert.match(raw, /\|\s*Capability\s*\|\s*权威实现\s*\|\s*陷阱项（废弃或中间产物）\s*\|/);
-    assert.equal(listServices(base).length, 0, '只有模板行 → 未启用权威位');
+    assert.equal(listServices(base).length, 0, '只有模板行 → 没有已登记条目（正常起步态）');
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
@@ -238,14 +238,14 @@ test('initScaffold 生成 engineering-context 骨架', () => {
 test('probe --dir：A 类与 B 类题型 MUST 读同一份 registry（回归：cli 曾漏传 ctxDir）', () => {
   // cli.js 若不把已解析的 ctxDir 传给 evaluateGate，B 类交接题型会退回
   // <cwd>/engineering-context 兜底，而 A 类题型读 --dir 指定的目录——同一次运行里
-  // 两类题看两份不同的 registry：--dir 下 list-services 认得出权威位，
-  // implementation-usable 却判"直读"并因模块缺失报 RED。这条测试跑真实 CLI 覆盖那一层。
+  // 两类题看两份不同的 registry：--dir 下 list-services 认得出已登记条目，
+  // implementation-usable 却看不到它并因模块缺失报 RED。这条测试跑真实 CLI 覆盖那一层。
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-probe-root-'));
   const ctxElsewhere = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-probe-ctx-'));
   try {
-    // 项目根故意不放 engineering-context/。模块路径校验是无条件的（能力位只叠加、不豁免），
+    // 项目根故意不放 engineering-context/。模块路径校验是无条件的（探测项只叠加、不豁免），
     // 所以架构节列的路径要真实存在——这条测试考的是 ctxDir 有没有被 cli 传下去：
-    // 没传的话 detectCapabilityBits 读不到那份 registry，actual 里就不会出现"权威位"。
+    // 没传的话 detectCapabilityBits 读不到那份 registry，actual 里就不会出现"代码事实层"。
     fs.writeFileSync(path.join(root, 'README.md'),
       '# P\n\n## 架构与边界\n\n- `src/app.js` 是入口\n', 'utf8');
     fs.mkdirSync(path.join(root, 'src'), { recursive: true });
@@ -262,9 +262,8 @@ test('probe --dir：A 类与 B 类题型 MUST 读同一份 registry（回归：c
     // 拿 stdout 匹配关键词会在真通过时也查不到，得出相反结论。
     const report = JSON.parse(runCli(['probe', '--dir', ctxElsewhere, '--json'], root));
     const r = report.results[0];
-    assert.equal(r.pass, true, `应走权威位分支，实得：${r.actual}`);
-    assert.match(r.actual, /权威位/, 'actual 须表明命中的是权威位分支——registry 在 --dir 指定的目录里');
-    assert.doesNotMatch(r.actual, /直读/, 'ctxDir 生效时不应退回直读分支');
+    assert.equal(r.pass, true, `应读到 --dir 下的 registry，实得：${r.actual}`);
+    assert.match(r.actual, /代码事实层/, 'actual 须表明读到了已登记条目——registry 在 --dir 指定的目录里');
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
     fs.rmSync(ctxElsewhere, { recursive: true, force: true });

@@ -17,20 +17,20 @@ import { loadProbes, evaluateGate, readHistory, writeHistory } from './probe.js'
 // registry 解析不出数据行时的提示：每种原因对应一个完全不同的修复动作，MUST 分开报。
 const REGISTRY_EMPTY_HINT = {
   'no-dir': null,   // 由 ctxDirMissingHint 生成（要把解析后的绝对路径写进提示里）
-  'no-file': '（没有 capability-registry.md；权威位未启用。想起步：ctx init --minimal）',
-  unreadable: '（capability-registry.md 读不出来；权威位按未启用处理，请检查文件权限与编码）',
+  'no-file': '（没有 capability-registry.md；跑 `ctx init` 建骨架，卡片层的内容按任务渐进补齐）',
+  unreadable: '（capability-registry.md 读不出来；按无已登记条目处理，请检查文件权限与编码）',
   'no-header':
     '（registry 里有表格，但没有一张表的首列被识别为能力列 → 整张表被忽略；首列表头请写 Capability 或「能力」）',
   'no-separator':
     '（registry 的表头认出来了，但它下一行不是分隔行 → 整张表被忽略；表头下面补一行 |---|---|（每格至少一个 -））',
-  'placeholder-only': '（registry 只有模板占位行（含【】）；填一行真实数据即启用权威位）',
-  'no-row': '（无已登记服务/能力；registry 尚无真实数据行，权威位未启用）',
+  'placeholder-only': '（registry 只有模板占位行（含【】）；这是正常起步态，补一行真实数据即被登记）',
+  'no-row': '（无已登记服务/能力；registry 尚无真实数据行，这是正常起步态，不是这层不可用）',
 };
 
 /**
- * engineering-context 目录本身不存在时的提示。**MUST 与"权威位未启用"分开报**：
- * 实测 `--dir <打错字的路径>` 与"这个项目真没建权威位"的输出一字不差、退出码都是 0，
- * 于是使用者（尤其是 agent）据此判定"本项目没有权威位"并退回裸 grep——而真相只是路径写错了。
+ * engineering-context 目录本身不存在时的提示。**MUST 与"registry 还没填过"分开报**：
+ * 实测 `--dir <打错字的路径>` 与"这个项目的 registry 还没填过"的输出一字不差、退出码都是 0，
+ * 于是使用者（尤其是 agent）据此判定"本项目没有卡片层"并退回裸 grep——而真相只是路径写错了。
  * 提示里 MUST 写**解析后的绝对路径**：相对路径看不出 ctx 到底去哪儿找了。
  */
 function ctxDirMissingHint(ctxDir) {
@@ -163,13 +163,13 @@ function main() {
     const { base, files } = initScaffold(target, { minimal });
     const human = minimal
       ? [
-          `✅ 已生成最小权威位骨架：${path.join(base, 'capability-registry.md')}`,
+          `✅ 已生成最小 registry 骨架：${path.join(base, 'capability-registry.md')}`,
           `   同时生成 ${path.join(base, '.gitignore')}（忽略 .index/ 机器状态，不入库）。`,
           '下一步：填三列（Capability / 权威实现 / 陷阱项），一行一条权威事实——三行即可起步。',
           '缺列不影响 ctx discover；没写 freshness 的条目会被标注「未声明新鲜度」。',
-          '只剩模板行时视为未启用权威位。cards/ 与 probe-set 等按需再用 `ctx init` 补齐。',
+          '只剩模板行是正常起步态。cards/ 与 probe-set 等按需再用 `ctx init` 补齐。',
         ].join('\n')
-      : `✅ 已生成 Engineering Context 骨架：${base}\n下一步：按 context-engineering.md 填 capability-registry 与 cards/。\n（只想先起步？用 \`ctx init --minimal\`，只生成 capability-registry.md。）`;
+      : `✅ 已生成 Engineering Context 骨架：${base}\n下一步：不用一次填满——要用哪个模块的事实就补哪个模块的 card 与 registry 行（见 references/core/代码事实纪律.md §4）。\n（只想先落一份 registry？用 \`ctx init --minimal\`。）`;
     out(json, human, { base, files, minimal });
     return 0;
   }
@@ -226,9 +226,8 @@ function main() {
         diagnosis = 'no-dir';
         human = ctxDirMissingHint(ctxDir);
       } else if (!fs.existsSync(path.join(ctxDir, 'scenes'))) {
-        // 文案 MUST 保持中性、MUST NOT 直接建议用户建资产：SKILL.md 明令"没探测到资产时
-        // MUST NOT 建议用户建资产"，补场景蓝图的建议有自己的时机（curated.md §3：确实跨服务
-        // 且在收尾汇报里提一次）。
+        // 文案 MUST 保持中性、MUST NOT 在这里催用户建资产：scenes/ 为空是正常起步态，
+        // 补场景蓝图的建议有自己的时机（代码事实纪律.md §3：确实跨服务且在收尾汇报里提一次）。
         // 同样 MUST NOT 替调用方决定下一步（"本次改用 …"）：这行同时说给 agent 和直接敲命令的
         // 人看，后者没有"本次"这个上下文，被 CLI 通知自己刚做了个没做过的决定只会让人困惑。
         // 只陈述事实，把去向写成**可选项**，选不选由调用方定。
@@ -279,7 +278,7 @@ function main() {
       const { probes, baseline, skipped, baselineUnparsed } = loadProbes(ctxDir);
       // MUST 把已解析的 ctxDir 传下去：不传的话 B 类交接题型会退回 <cwd>/engineering-context 兜底，
       // 而 A 类题型读的是 --dir 指定的目录——同一次 probe 里两类题看两份不同的 registry，
-      // 于是 --dir 下 list-services 认得出权威位、implementation-usable 却判"直读"并报 RED。
+      // 于是 --dir 下 list-services 认得出已登记条目、implementation-usable 却看不到它。
       const ev = evaluateGate(cards, registry, probes, baseline, { floor: 0.9, ctxDir });
       const prev = readHistory(ctxDir);
       const delta = prev && ev.passRate != null ? Number((ev.passRate - prev.passRate).toFixed(4)) : null;
@@ -355,7 +354,7 @@ function run() {
   } catch (e) {
     console.error(
       `ctx 运行失败：${e && e.message ? e.message : e}\n`
-      + '这不是"权威位不可用"，MUST NOT 据此退回裸 grep。'
+      + '这不是"卡片层不可用"，MUST NOT 据此退回裸 grep。'
       + '先检查 engineering-context/ 下文件的权限与编码，再用 `--dir <绝对路径>` 重试；'
       + '仍失败就带上这行报错反馈给 skill 维护者。',
     );

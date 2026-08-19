@@ -113,7 +113,7 @@ const EMPTY_ROW = Object.fromEntries(REGISTRY_FIELDS.map(([k]) => [k, '']));
 
 // 表头首列的判据 MUST 复用 capability 字段自己的模式表，MUST NOT 另写一套只认英文的正则：
 // 三列最小形态的另两列列名本来就是中文，首列写「能力」是最自然的写法。只认 /capability/i
-// 的后果不是"少认一种别名"，而是整张表不被识别 → 权威位探测为假 → curated 分册不加载 →
+// 的后果不是"少认一种别名"，而是整张表不被识别 → registry 看上去是空的 →
 // agent 静默退回直读，而输出还会把原因说成"只有模板行"。
 const CAPABILITY_HEADER_PATTERNS = REGISTRY_FIELDS[0][1];
 
@@ -122,7 +122,7 @@ const isCapabilityHeader = (cell) => CAPABILITY_HEADER_PATTERNS.some((p) => p.te
 /** 分隔行 `|---|---|`。 */
 // GFM 只要求每格 **≥1** 个 `-`，`|-|-|` 与 `|:-:|` 都是合法分隔行。
 // MUST NOT 写成 `-{2,}`：表头要靠分隔行确认，认不出分隔行 → 整张 registry 被丢弃 →
-// 权威位探测为假 → agent 静默退回裸 grep，而诊断还会把原因说成"表头没写对"。
+// registry 看上去是空的 → agent 静默退回裸 grep，而诊断还会把原因说成"表头没写对"。
 const isSeparatorRow = (cells) => cells.every((c) => /^:?-+:?$/.test(c.replace(/\s/g, '')) || c === '');
 
 /** 表头单元格 → 字段名映射；认不出的列直接忽略。 */
@@ -147,7 +147,7 @@ function mapRegistryHeader(cells) {
  *
  * MUST 收集全部而非第一张：`assets/context-layer/capability-registry.md` 自己就有两张
  * 能力表（三列最小形态 + 十列完整形态），用户填哪张全凭直觉。只解析第一张的后果不是
- * "少认几行"，而是**填了第二张表的人拿到 0 行且零提示**——权威位探测为假，agent 静默退回裸 grep。
+ * "少认几行"，而是**填了第二张表的人拿到 0 行且零提示**——registry 看上去是空的，agent 静默退回裸 grep。
  * 列映射本来就按表头名取，天然支持不同 schema 的多张表合并。
  *
  * 表头 MUST 由紧随其后的分隔行（`|---|---|`）确认。这一条同时替掉了旧实现里
@@ -199,13 +199,13 @@ function capabilityTables(raw) {
 /**
  * 解析 capability-registry.md 的 markdown 表格。
  * 合并文件里**所有**表头首列含 `Capability`（或「能力」）的表，按表头名取列，缺列留空。
- * **模板占位行（含【】）不算已登记能力**——否则一份没填过的 registry 会被误当作已启用权威位。
+ * **模板占位行（含【】）不算已登记能力**——否则一份没填过的 registry 会被误当作已经登记了能力。
  * @returns {Array<{capability, businessMeaning, canonicalRepo, canonicalApi, deprecated, compatWindow, owner, testEntry, freshness, reason}>}
  */
 export function loadRegistry(ctxDir) {
   const file = path.join(ctxDir, 'capability-registry.md');
   if (!fs.existsSync(file)) return [];
-  // 与 loadCards 同一条理由：读失败 MUST 退化成"权威位未启用"，MUST NOT 抛栈。
+  // 与 loadCards 同一条理由：读失败 MUST 退化成"没有已登记条目"，MUST NOT 抛栈。
   // 抛栈还有个副作用——`diagnoseRegistry` 的 'unreadable' 分支永远走不到（它在这行之后才跑）。
   let raw;
   try {
@@ -230,7 +230,7 @@ export function loadRegistry(ctxDir) {
  * 找出 registry 里**同一能力被登记了多个不同权威实现**的情况。
  *
  * 合并全文件所有能力表之后，这种冲突才可能出现（旧实现只读第一张表，撞不上）。
- * 它 MUST 被显式报出来：权威位的全部承诺就是"同一能力多处实现时**信哪个**"，
+ * 它 MUST 被显式报出来：代码事实层的全部承诺就是"同一能力多处实现时**信哪个**"，
  * 两条并列输出等于把这个问题原样退还给使用者，而且是**静默**退还——
  * agent 会随手取第一条，看起来还很权威。
  *
@@ -268,7 +268,7 @@ export function registryConflicts(rows) {
  * 错误的修复方向——曾经真的发生过：表头写「能力」时表整张没被识别，提示却说行是模板行。
  * `no-dir`（engineering-context 目录本身不存在）MUST 与 `no-file` 分开报：前者的修复动作是
  * "改 --dir / 换个目录跑"，后者才是"建 registry"。合报的后果实测过——`--dir` 打错字时
- * 输出与"这个项目真没建权威位"**一字不差**且都退出 0，使用者据此判定"本项目没有权威位"，
+ * 输出与"这个项目的 registry 还没填过"**一字不差**且都退出 0，使用者据此判定"本项目没有卡片层"，
  * 于是退回裸 grep。
  * @returns {'no-dir'|'no-file'|'unreadable'|'no-header'|'no-separator'|'placeholder-only'|'no-row'|'ok'}
  */
@@ -318,7 +318,7 @@ function parseTableRow(line) {
 /**
  * 未声明新鲜度时统一的标注文案。**不得退化成 "unknown" 或留空**：
  * "一个看起来权威但已过期的来源，比没有来源更危险"——没声明就必须在输出里说没声明，
- * 不假定新鲜（见 references/capability/context-engineering.md）。
+ * 不假定新鲜（见 references/core/engineering-context设计.md）。
  */
 export const UNDECLARED_FRESHNESS = '未声明新鲜度';
 
