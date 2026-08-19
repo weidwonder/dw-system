@@ -6,22 +6,26 @@
 
 **The methodology layer your AI coding stack is missing.** Prompting harder doesn't make AI coding reliable — engineering does. ai-dev-system decomposes a raw requirement, layer by layer, into tasks so well-specified that **a zero-context AI agent can execute them dependably** — through Triage, top-level design, engineering specs, coding plans, coding, and tests.
 
-This is not a whiteboard framework. It is distilled from an AI-assisted development system **proven in real production across 50–60 brownfield repositories under bi-weekly, high-velocity iteration**, condensed into two skills. They layer onto one shared core along **two dimensions that do not imply each other**:
+This is not a whiteboard framework. It is distilled from an AI-assisted development system **proven in real production across 50–60 brownfield repositories under bi-weekly, high-velocity iteration**, condensed into two skills.
+
+Every project that installs it maintains one **mandatory foundation**: the `engineering-context/` **code-fact layer** (a capability registry + one card per repo). No tiers, no switch, regardless of project size or headcount. Initialization scaffolds it; from then on the rule is *need a fact about a module? Check the card first. No card? Read the source, then write the card on the spot* — committed with the same task branch, never deferred.
+
+On top of that foundation, exactly two things vary:
 
 - **Collaboration surface** (asked once, stored in config) — is anyone else developing this project with you. Decides whether to align with repo owners, hold review meetings, go through PRs, and who adjudicates backward-compatibility trade-offs.
-- **Capability bits** (detected at every run, never asked, never stored) — what code-fact assets **the project itself currently has**. A code-graph index → the **graph bit** (answers *can I find it*: symbols, call chains, blast radius). A filled-in capability registry → the **curated bit** (answers *which one do I trust*: when the same capability has several implementations, which is authoritative). The two are orthogonal; all four combinations are valid.
+- **Code graph** (detected at every run, never asked, never stored) — does the project have a local code-graph index. Purely a **retrieval accelerator** (answers *can I find it*: symbols, call chains, blast radius); it changes no process rule. Missing or unusable, the work is simply delegated to a sub-agent instead.
 
-**These two get mismatched constantly, which is why they must be separate**: a ten-thousand-file legacy system maintained by one person needs the curated bit but no review meetings; a three-person greenfield project needs alignment but not a full asset layer. Tie them to a single "project type" switch and you get half of them wrong.
+**Why there is no "which tier does this project need" question**: any such rule lags behind the project's actual risk. A ten-thousand-file legacy system maintained by one person has no assets yet — precisely the project that would be classified "no assets, take the short path, just grep the old code", which is the exact failure mode this system exists to kill. Cards are the foundation, not an upgrade.
 
 **Why teams pick it:**
 
-- 🎯 **One-command install** into any project — Claude Code and Codex at the same time. Exactly one question (is anyone else developing with you); assets are detected, so you never pick a "tier".
+- 🎯 **One-command install** into any project — Claude Code and Codex at the same time. Exactly one question (is anyone else developing with you); the code-fact layer is scaffolded for you, so there is no "tier" to pick.
 - 🧠 **Engineering Context as the moat** — capability registry, per-repo codebase cards, end-to-end scene blueprints, a frozen probe set as an anti-rot gate. Every fact cited (`path#anchor @confirmed-date`); **no cite = treated as hallucination**.
 - 🪶 **Zero runtime dependencies** — pure Node.js standard library + markdown. No build step, no lockfile drift, nothing to babysit.
 - 🔒 **Discipline built in, not bolted on** — mandatory git-worktree isolation for every change, auto-merge only after all gates pass, business-language-only user communication, RFC2119 spec writing with zero placeholders.
 - ⚖️ **Right-sized process** — a 4-question Triage routes small changes to a one-page Lean Spec and real risk (AI behavior, security, cross-service, irreversibility, external commitments) to the full pipeline. No cargo-cult ceremony.
 
-> Core belief: whether AI coding lands in production is decided not by the process itself (anyone can copy a process), but by **whether you can hand the AI a trustworthy layer of code facts**. The two capability bits exist precisely for that — and they have nothing to do with how many colleagues you have.
+> Core belief: whether AI coding lands in production is decided not by the process itself (anyone can copy a process), but by **whether you can hand the AI a trustworthy layer of code facts**. That is exactly why the code-fact layer is mandatory — and it has nothing to do with how many colleagues you have.
 
 ---
 
@@ -44,12 +48,11 @@ This is not a whiteboard framework. It is distilled from an AI-assisted developm
         │   │   └── collab/     # solo.md / team.md (one of the two, by collaboration surface)
         │   └── assets/         # templates: change-prd (primary) / lite-issue-prd / product-prd
         └── ai-dev-workflow/    # the main pipeline, starting from an existing PRD
-            ├── SKILL.md        # entry: detect capability bits → read collaboration surface → load; first call → initialization
+            ├── SKILL.md        # entry: detect code graph → read collaboration surface → load; first call → initialization
             ├── references/
-            │   ├── core/       # shared kernel: process / worktree / communication / writing / AI overlay / doc governance
+            │   ├── core/       # shared kernel: process / code facts / worktree / communication / writing / AI overlay / doc governance
             │   ├── collab/     # solo.md / team.md (exactly one is always loaded)
-            │   └── capability/ # graph.md / curated.md (loaded per detected bits; may be none)
-            │                   # + context-engineering.md (full design of the curated asset layer)
+            │   └── capability/ # graph.md (loaded only when a code-graph index is detected; may be none)
             ├── assets/         # templates: spec / plan / test / config snippets / cards
             └── scripts/ctx/    # ctx CLI (Node.js, cross-platform): query code facts, no MCP required
 ```
@@ -127,7 +130,7 @@ cp -r ai-dev-system/skills/ai-prd ai-dev-system/skills/ai-dev-workflow ~/.claude
 cp -r ai-dev-system/skills/ai-prd ai-dev-system/skills/ai-dev-workflow ~/.codex/skills/
 ```
 
-Then invoke the skill in any project (mentioning "AI-assisted development / dev workflow / generate a spec / coding plan" triggers it). The first call runs a one-time **initialization**: it asks exactly one question — **is anyone else developing this project with you** — writes the answer into the project root `CLAUDE.md` and `AGENTS.md`, and never asks again. What code-fact assets the project has is **never asked**; it is detected at every run.
+Then invoke the skill in any project (mentioning "AI-assisted development / dev workflow / generate a spec / coding plan" triggers it). The first call runs a one-time **initialization**: it asks exactly one question — **is anyone else developing this project with you** — writes the answer into the project root `CLAUDE.md` and `AGENTS.md`, and never asks again. Whether to maintain the code-fact layer is **never asked** — it is mandatory, and initialization scaffolds it inside the task worktree. Whether the project has a code-graph index is **never asked either**; it is detected at every run.
 
 > **Codex users**: project-level skills are installed under `<project>/.agents/skills/`; the **user-level** entry point is `~/.codex/skills/` (Codex has no `~/.agents/` user-level directory — don't install there). Codex reads `AGENTS.md`; initialization writes it too, recording the collaboration surface, the merge gate, and `ctx` usage. The `ctx` CLI is invoked via plain shell, so it works across tools.
 >
@@ -142,28 +145,27 @@ Then invoke the skill in any project (mentioning "AI-assisted development / dev 
 2. Describe your requirement. The AI creates an isolated worktree first; small changes go through a one-page Lean Spec, large ones escalate to the full pipeline.
 3. After all verification passes, the branch auto-merges into main and the worktree is cleaned up — no second confirmation needed.
 
-> Solo does **not** mean you need no code-fact assets. Once a project grows, "the same capability has two implementations and I edited the wrong one" happens regardless of headcount — that is what the curated bit below is for.
+> Solo does **not** mean you skip the code-fact layer. It is built either way: initialization scaffolds `engineering-context/`, and cards get filled in as you work. "The same capability has two implementations and I edited the wrong one" happens regardless of headcount.
 
 ### Working with others
 1. Invoke the skill in your project → answer "others too", and confirm the merge gate (merge locally / push a PR and let the platform merge).
 2. From then on, the AI creates a dedicated worktree per repo, produces an Overview before review meetings for anything spanning ≥3 repos, and aligns with the repo owner before touching someone else's repo.
 3. When all repos are ready, changes merge in dependency order through PR, CI, and protected-branch gates.
 
-### Building code-fact assets (**any project size — independent of headcount**)
+### The code-fact layer (**mandatory — every project, every size, any headcount**)
 
-When the project starts having "the same capability implemented in several places, and it's unclear which is authoritative", build the **curated bit**:
+You don't build this on demand and you don't decide when it's "worth it". The first time you invoke the skill, it scaffolds the whole thing inside the task worktree:
 
 ```bash
-ctx init --minimal                                    # capability registry only — three rows is enough to start
-ctx init                                              # full scaffold when you need it (cards + scenes + probe-set + glossary)
-node <skill>/scripts/ctx/src/cli.js init --minimal    # equivalent fallback if the global command is unavailable
+ctx init                                    # registry + cards/ + scenes/ + probe-set + glossary + README
+node <skill>/scripts/ctx/src/cli.js init    # equivalent fallback if the global command is unavailable
 ```
 
-From then on the AI uses `ctx discover "<intent>"` to locate authoritative code entities instead of grepping stale code — every fact carries a traceable cite.
+A scaffold containing nothing but template placeholders is the **normal starting state** — nobody warns you about it. Content accrues **as you work**: the AI runs `ctx discover "<intent>"` to locate authoritative code entities instead of grepping stale code, and every fact it uses carries a traceable cite. When a module has no card yet, it reads the source, **writes the card right then**, and commits it with the same branch — so the next zero-context agent never walks that path again.
 
-When the project grows to "I have to sweep the repo before I can find anything", build the **graph bit** (a local code-graph index; the installer already handles this step).
+The cost is honest: the first few tasks on an existing codebase are slower, because reading source and writing cards is real work. It gets faster from there, and it stops being your job to remember.
 
-> You don't have to watch for either of these yourself: the AI accumulates signals whenever **actual rework happens** (edited a non-authoritative copy, misled by a stale implementation, forced to explore many unregistered modules), and after two of them raises one concrete suggestion in the wrap-up report. It records outcomes only — never "that search felt tedious" — and once you decline, it never raises the same one again.
+A local **code graph** (a code-graph index; the installer already handles this step) is the optional half: it makes finding things faster, but it never answers *which implementation do I trust* — that is what the cards are for.
 
 ---
 
