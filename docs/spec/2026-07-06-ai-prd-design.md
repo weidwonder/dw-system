@@ -15,7 +15,7 @@ authority_refs:
   - '§7 demo 骨架 → change-prd 模板 的覆盖度映射（改模板前的对照表）'
 ---
 
-> **现行性说明（2026-08-17）**：设计仍现行。其中「mode 感知（personal/team）」这一维度已在 2.0.0 被拆成**协作面**（显式字段，本 skill 只读不写）与**能力位**（运行时探测），相关小节已按新模型更新。
+> **现行性说明（2026-08-18）**：设计仍现行。其中「mode 感知（personal/team）」这一维度已在 2.0.0 被拆开；2.1.0 起只剩**协作面**（显式字段，本 skill 只读不写）一项与本 skill 有关，代码事实层改为无条件必备、不再分档（`2026-08-18-代码事实层强制化-eng-spec.md`）。相关小节已按新模型更新。
 
 # ai-prd skill 设计文档
 
@@ -77,12 +77,12 @@ ai-dev-system/skills/ai-prd/
 1. **非目标必须硬**：无非目标不准成稿。每个目标尽量配一条"不做什么"。
 2. **边界必须显式**：brownfield 必须有"不改的线上逻辑"章节。
 3. **验收可判定**：禁止"提升体验"等不可勾验表述；用 RFC2119；验收项能被测试/评审直接勾验。
-4. **真相方向**：现状以**代码为准**（`ctx` 可用时带 cite），意图/愿景归意图，**不得把意图写成现状**。直接呼应 `ai-dev-workflow/references/capability/context-engineering.md §3`。
+4. **真相方向**：现状以**代码为准**（`ctx` 可用时带 cite），意图/愿景归意图，**不得把意图写成现状**。直接呼应 `ai-dev-workflow/references/core/engineering-context设计.md §3`。
 5. **无占位符成稿**：交付前 `【】` 清零（复用 `spec写作纪律` 精神）。
 
 ## 6. 路由（与 ai-dev-workflow 一致、不打架）
 
-读同一个 `<!-- ai-dev-workflow:start --> … collaboration="solo|team" … <!-- ai-dev-workflow:end -->` 标记块，**只取协作面**。没有标记块、或块里只有旧版安装留下的 `mode` 字段 → 一律按 `collaboration="solo"` 走，**不问用户、不写文件、不提示迁移**：写配置与旧值迁移是 `ai-dev-workflow` 的职责，本 skill 不写文件就保证不了"只提示一次"，抢过来只会变成每次唤起都打扰。能力位与协作面无关，本 skill 也不探测——它只需要知道"现状事实能不能用 `ctx` 取"。
+读同一个 `<!-- ai-dev-workflow:start --> … collaboration="solo|team" … <!-- ai-dev-workflow:end -->` 标记块，**只取协作面**。没有标记块、或块里只有旧版安装留下的 `mode` 字段 → 一律按 `collaboration="solo"` 走，**不问用户、不写文件、不提示迁移**：写配置与旧值迁移是 `ai-dev-workflow` 的职责，本 skill 不写文件就保证不了"只提示一次"，抢过来只会变成每次唤起都打扰。代码事实层是必备资产、不分档，本 skill 也不探测它——它只需要按 `ctx` 查得到就带 cite、查不到就现读源码并在 PRD 里标出来交下游补卡。
 
 ## 7. demo 骨架 → change-prd 模板 覆盖度映射（交付验证）
 

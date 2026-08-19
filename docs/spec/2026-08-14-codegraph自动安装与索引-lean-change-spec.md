@@ -24,7 +24,7 @@ authority_refs:
 
 ## 为什么
 
-本体系的核心信念是"给 AI 一层可信、新鲜、权威的代码事实"。Engineering Context（card + cite）解决**权威口径**（即**权威位**），但"当前代码到底长什么样"仍是盲区。codegraph 用本地图谱补这一层：`explore` / `impact` / `callers` 一次给出符号源码、调用链与影响面，且随文件变更 auto-sync。装了不用等于没装，所以安装器一并完成接线与建索引。
+本体系的核心信念是"给 AI 一层可信、新鲜、权威的代码事实"。Engineering Context（card + cite）解决**权威口径**，但"当前代码到底长什么样"仍是盲区。codegraph 用本地图谱补这一层：`explore` / `impact` / `callers` 一次给出符号源码、调用链与影响面，且随文件变更 auto-sync。装了不用等于没装，所以安装器一并完成接线与建索引。
 
 ## 具体改动点
 
@@ -39,7 +39,7 @@ authority_refs:
 
 - 影响：安装器执行链的末段；目标项目的 `.gitignore`、`.codegraph/`、`.mcp.json` 与 `.claude/CLAUDE.md`（后两个由 codegraph 自己写）；用户全局 npm 前缀目录（新增/更新 codegraph）。
 - **不做**：不改任何 skill 的方法论 markdown。找权威事实仍以 card + cite 为准，codegraph 只是找现状代码的通道，本次不写进 `references/`，也不进 config-snippet。
-  - **2026-08-17 补记（2.0.0 起部分失效）**：`.codegraph/codegraph.db` 现在是**图谱位**的探测依据，因此 codegraph 出现在 `references/capability/graph.md` 里，但只以"何时用它 / 它给什么 / 不可用怎么办"三句声明的形式出现（它是非硬依赖：命令不可用就回退子代理外包重探索，MUST NOT 阻断流程、MUST NOT 退回裸 grep）。**不进 config-snippet 这一条仍然成立**——能力位是探测结果，写进静态配置就会漂移。现行口径见 `2026-08-16-项目真相源与context-tier重构-eng-spec.md` §3.2/§3.5。
+  - **2026-08-18 补记（2.1.0，取代 2026-08-17 那条补记）**：`.codegraph/codegraph.db` 是**代码图谱**的探测依据，因此 codegraph 出现在 `references/capability/graph.md` 里，但只以"何时用它 / 它给什么 / 不可用怎么办"三句声明的形式出现（它是非硬依赖：命令不可用就回退子代理外包重探索，MUST NOT 阻断流程、MUST NOT 退回裸 grep）。**不进 config-snippet 这一条仍然成立**——有没有索引是探测结果，写进静态配置就会漂移。另有一条变了：代码图谱**不再与任何"权威口径"档位对称**——`engineering-context/` 卡片层 2.1.0 起无条件必备，只有图谱这一项仍靠探测。现行口径见 `2026-08-18-代码事实层强制化-eng-spec.md`。
 - **不做**：不把 codegraph 的内容搬进本仓库（与 `agentic-principle` 同样的外部工具边界）。
 - 关键 NFR：跨平台（`node:path` + `shell` 仅 win32 + 无 bash-only 语法）；子进程 stdin 一律 `ignore`，锁死子命令的非交互分支，安装器不可能被子进程提问挂住；装包/接线超时 15 分钟，建索引超时 60 分钟。
 
