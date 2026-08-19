@@ -6,6 +6,12 @@
 // 门的先后、五处接线、三个出口、步骤号全仓一致。
 //
 // spec：docs/spec/2026-08-19-prd复核门-lean-change-spec.md
+//
+// 这些断言自己过过一次门禁自检（植入必错样本，2026-08-19）：SKILL.md 退回"两个出口"、
+// SKILL.md 漏掉标签子类、出口列删一个取值、删掉取证足迹整段 → 四个样本全部 RED；
+// 合法改写勾验时机措辞、合法改写取证足迹措辞（契约不变）→ 两个样本全部 GREEN。
+// 改这些断言时请保持这条性质：**锁契约不锁措辞**——尤其不要把组稿步骤号写进断言，
+// 本次变更自己就把 4–7 挪成了 5–8，钉死编号会让"文档改对了、测试反而红"。
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
@@ -110,9 +116,24 @@ test('[组稿·复核后] 标签枚举三处同步（本次已重演两次的失
   const missing = spots.filter(([f]) => !read(prdRoot, f).includes('[组稿·复核后]'))
   assert.deepEqual(missing.map(([f, why]) => `${f}（${why}）`), [], '标签枚举漏同步')
 
-  // 勾验时机是这个子类存在的全部理由，丢了它就退化成一个多余的标签
+  // 勾验时机是这个子类存在的全部理由，丢了它就退化成一个多余的标签。
+  // 只锁契约不锁措辞：MUST NOT 组稿早期勾验 + 时机绑在复核门上。
+  // 刻意不断言步骤号——本次变更自己就把 4–7 挪成了 5–8，编号是会变的东西，
+  // 钉死它会让"文档改对了、测试反而红"。
   const qb = read(prdRoot, 'assets', 'question-bank.md')
-  assert.ok(/第 3 步 MUST NOT 勾验/.test(qb), 'question-bank 未写明第 3 步不勾验')
+  const def = qb.slice(qb.indexOf('`[组稿·复核后]` 是'), qb.indexOf('\n\n', qb.indexOf('`[组稿·复核后]` 是')))
+  assert.ok(/MUST NOT 勾验/.test(def), '子类定义未写明早期 MUST NOT 勾验')
+  assert.ok(/复核门/.test(def), '子类定义未把勾验时机绑到复核门上')
+})
+
+test('出口计数在入口层与流程层都没退回两个（round-1 的 P0 原样重放会被挡下）', () => {
+  // 这条锁的是**已经发生过**的那次 P0：改判时权威定义改了、SKILL.md 的摘要没跟上。
+  // 上一版闸只锁 prd复核纪律.md 内部的取值列表，把 SKILL.md 改回"两个出口"照样全绿。
+  const stale = prdFiles.filter(([, body]) => /两个出口|两出口/.test(body))
+  assert.deepEqual(stale.map(([f]) => f), [], 'skill 侧残留"两个出口"的旧表述')
+  for (const f of ['SKILL.md', 'references/00-prd生成流程.md']) {
+    assert.ok(/三个出口/.test(read(prdRoot, f)), `${f} 未写明三个出口`)
+  }
 })
 
 test('子代理报告的「出口」列取值能表达全部三个出口', () => {
@@ -124,5 +145,8 @@ test('子代理报告的「出口」列取值能表达全部三个出口', () =>
   }
   // 冲突轴的取证足迹是"补交接面"那条无条件 MUST 的唯一输入，缺了它该条就是空转
   assert.ok(/取证足迹/.test(body), '返回格式缺「取证足迹」段')
-  assert.ok(/与本轴有没有发现无关/.test(body), '取证足迹未写成无条件必交')
+  // 锁"它是无条件必交的"这个契约，不锁具体那句话怎么写
+  const trace = body.slice(body.indexOf('「取证足迹」'), body.indexOf('- 「未能取证」'))
+  assert.ok(/MUST\s*写|必写/.test(trace), '取证足迹未写成强制项')
+  assert.ok(/无论|与本轴有没有发现|不管/.test(trace), '取证足迹未写明与本轴有无发现无关')
 })

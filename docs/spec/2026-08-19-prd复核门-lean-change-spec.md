@@ -138,6 +138,9 @@ authority_refs:
 - [ ] `./install.mjs <临时目录> --source-dir=. --no-codegraph --no-ctx-link --dry-run` — 新增的 references 文件被正常发现与复制。
 - [ ] 对照 `docs/spec/2026-07-16-skill写作自检清单.md` 过一遍新建文件（信息层级 / 六大失败模式 / 交叉引用同步）。
 - [ ] **代码评审门**：派子代理跑三轴精简版（规范 / 忠实 / 残留），报告分三节写，P0/P1 修完才算过门。
+- [ ] **机器闸的门禁自检**：`test/prd-review-gate.test.mjs` 的断言 MUST 用植入必错样本验过——
+  已发生过的失败（出口计数漏改、标签枚举漏改）植入后必须 RED，契约不变的合法改写必须 GREEN。
+  只跑"全绿"不算验证：上一版闸全绿，但把 `SKILL.md` 改回"两个出口"照样全绿。
 
 ## 回滚方式
 
