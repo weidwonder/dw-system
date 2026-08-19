@@ -2,7 +2,7 @@
 lifecycle: active
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-08-16'
+last_confirmed: '2026-08-19'
 authority_refs:
   - 'install.mjs 的命令行选项：--no-ctx-link'
   - 'install.mjs 中 ctx 全局链接的来源目录：<项目>/.claude/skills/ai-dev-workflow/scripts/ctx'
@@ -78,7 +78,7 @@ skill 文档（代码事实分册、`scripts/ctx/README.md`、`SKILL.md`、注�
 - [x] `node --test test/` 全绿（58 项，其中 ctx 链路 7 项）。
 - [x] `cd ai-dev-system/skills/ai-dev-workflow/scripts/ctx && node --test` 全绿（31 项）。
 - [x] 真机实链：`npm link` 后 `which ctx` → `/opt/homebrew/bin/ctx`；在 myclaws 项目里 `ctx list-services` 正确列出 6 个服务。
-- [ ] **代码评审门**：三轴（规范 / 忠实 / 残留）——待跑。
+- [ ] **代码评审门**：四轴（规范 / 忠实 / 残留 / 文档）——待跑。
 
 ## 后续变化（2026-08-17 补记，随 2.0.0）
 

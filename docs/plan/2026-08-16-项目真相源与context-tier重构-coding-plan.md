@@ -1,8 +1,8 @@
 ---
-lifecycle: active
+lifecycle: merged
 superseded_by: ''
-archived: ''
-last_confirmed: '2026-08-16'
+archived: '2026-08-19'
+last_confirmed: '2026-08-19'
 authority_refs:
   - 'CLAUDE.md / AGENTS.md 标记块字段：collaboration / merge-gate / worktree-dir / mode 墓碑'
   - 'install.mjs 标记块解析与校验契约（getWorkflowMode / 迁移改写 / snippet 选择）'
@@ -11,6 +11,8 @@ authority_refs:
   - '代码事实供给的判定方式：运行时资产探测'
   - 'ctx CLI 命令契约：init --minimal、probe 新题型'
 ---
+
+> **已归档（2026-08-19）｜lifecycle: merged**：本计划的任务已随 2.0.0 全部执行并合入（`72aa828`），口径已落进 `CLAUDE.md` 与 `references/` 下各纪律。与现行文档冲突时**以现行为准**，MUST NOT 据本文实施——其中的准出勾验项停留在 2.0.0 当时的三轴口径，现行为四轴（见 `代码评审纪律.md` §四条轴）。
 
 # 项目真相源与 context-tier 重构 Coding Plan
 

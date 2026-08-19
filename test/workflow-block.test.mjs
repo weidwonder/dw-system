@@ -1,5 +1,6 @@
 // ai-dev-workflow 标记块的字段模型与迁移改写。
-// 契约来源：docs/spec/2026-08-16-项目真相源与context-tier重构-eng-spec.md §5 / §6.1 / §8.3 / §9。
+// 契约来源：docs/spec/2026-08-18-代码事实层强制化-eng-spec.md
+// （它取代了已归档的 2026-08-16-项目真相源与context-tier重构-eng-spec.md §5 / §6.1 / §8.3 / §9）。
 //
 // --no-agentic / --no-codegraph / --no-ctx-link 是硬规定：这三段会动跑测试这台机器的
 // 用户级 skills 目录、全局 npm 安装与全局 ctx 命令。本组测试一律带上。

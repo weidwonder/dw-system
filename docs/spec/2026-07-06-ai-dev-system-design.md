@@ -4,11 +4,12 @@ status: 'design-approved-pending-review'
 documentRole: 'design-spec'
 sourceOfTruth: true
 lifecycle: active
-last_confirmed: '2026-08-18'
+last_confirmed: '2026-08-19'
 authority_refs:
   - 'skill 的交付形态与目录结构：ai-dev-system/skills/<name>/{SKILL.md,references/,assets/,scripts/}'
   - 'references/ 的分层职责：core 常驻 + 按维度追加的分册'
   - 'skill 初始化把配置幂等写入目标项目 CLAUDE.md 与 AGENTS.md 标记块这一机制'
+  - '注入标记块的条目集合本身（本文 §5 复刻了 config-snippets 的正文，条目一改这里就失准）'
   - 'Engineering Context 的构成（方案 B）：capability-registry / cards / scenes / Frozen Probe Set / 新鲜度与棘轮'
   - '代码事实访问的交付形态：CLI（ctx）而非 MCP，及有意不实现的 MCP 方法清单'
   - 'ctx 的命令集合与跨平台硬约束（node:path / UTF-8 / 零第三方依赖）'
@@ -78,7 +79,7 @@ ai-dev-system/
 ```
 
 **分层职责**：
-- **core**：任何项目、任何技术栈都加载。流程骨架 + 四道门 + 写作纪律 + AI overlay，以及原先散在两个外壳里、其实对谁都成立的约定（六条"不裁剪"护栏、按边界拆 spec、PR 粒度、文档治理与准出结算）。
+- **core**：任何项目、任何技术栈都加载。流程骨架 + 四道门 + 写作纪律 + AI overlay，以及原先散在两个外壳里、其实对谁都成立的约定（六条"不裁剪"护栏、按边界拆 spec、PR 粒度、文档治理与评审门文档结算）。
 - **collab/**：只放**因为有没有别人一起干而不同**的事（owner 对齐、评审会、兼容由谁拍板、PR 平台动作）。
 - **capability/**：只放**因为项目攒了什么家底而不同**的事（怎么取代码事实、分流默认倾向）。两位正交，任一可单独启用。
 
@@ -117,7 +118,7 @@ ai-dev-system/
 > - 唤起 skill 时按本块字段路由；本项目有没有代码图谱索引由 skill 每次运行时探测得出，MUST NOT 写死在本块里。
 > - 文档目录固定：spec → docs/spec/，plan → docs/plan/，report → docs/report/。
 > - 任何文档或代码落盘前 MUST 先建立独立 worktree；编码完成后 MUST 过代码评审门；AI MUST NOT 默认向后兼容。
-> - 本项目若存在已填写的 engineering-context/capability-registry.md，查权威实现 MUST 先用 `ctx`、每条事实附 cite，MUST NOT grep 旧代码。
+> - 本项目维护 engineering-context/ 代码事实层（**没有开关**，内容按任务渐进补齐）；查权威实现 MUST 先用 `ctx`、每条事实附 cite，MUST NOT grep 旧代码；查不到就读源码并当场补卡。
 > - （协作面片段追加：solo → 兼容由你拍板、不等人；team → owner 对齐、业务方拍板、PR 动作）
 <!-- ai-dev-workflow:end -->
 ```
