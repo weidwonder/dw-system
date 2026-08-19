@@ -177,7 +177,14 @@ test('分流默认倾向是无条件的，不再由任何东西分档', () => {
   )
   assert.ok(section.length > 0, '找不到 §默认倾向 段')
   assert.match(section, /无条件适用于所有项目/, '默认倾向必须声明无条件')
-  assert.doesNotMatch(section, /默认走 Lean/, 'MUST NOT 再保留"某类项目默认走 Lean"的分档说法')
+  // 只禁**肯定式**的分档说法（"某类项目默认假设走 Lean"），不能连
+  // "MUST NOT 从'只有我一个人'推出'默认走最短流程'……默认走 Lean 是危险的"
+  // 这种否定式警告一起禁掉——那句正是本次要保留的护栏。
+  assert.doesNotMatch(
+    section,
+    /默认假设走 Lean|默认所有需求先假设|→ 默认走 Lean/,
+    'MUST NOT 再保留"某类项目默认走 Lean"的分档说法',
+  )
   // 判据 3 恒为真是旧架构删掉这四条的原因，新架构必须显式挡住这个读法
   assert.match(
     section,
