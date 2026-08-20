@@ -69,22 +69,29 @@ Design and implementation docs: `docs/spec/2026-07-06-ai-dev-system-design.md` a
 
 ## Install
 
-**Option A: npx per-project install (recommended)** — run one command at the target project root. npx fetches the installer entry from GitHub; the installer then pulls the skill package from the official repo's `main` branch and installs into both `.claude/skills/` (Claude Code) and `.agents/skills/` (Codex). Requires Node.js 20+, npm, and Git.
+**Option A: npx per-project install (recommended)** — run one command at the target project root. npx fetches the installer entry from GitHub; the installer then pulls the skill package of **its own version** from the official repo and installs into both `.claude/skills/` (Claude Code) and `.agents/skills/` (Codex). Requires Node.js 20+, npm, and Git.
 
 ```bash
 # Run at the target project root — macOS, Linux, Windows:
-npx --yes github:weidwonder/ai-dev-system .
+npx --yes git+https://github.com/weidwonder/ai-dev-system.git .
 
 # Dry-run first, nothing written:
-npx --yes github:weidwonder/ai-dev-system . --dry-run
+npx --yes git+https://github.com/weidwonder/ai-dev-system.git . --dry-run
 
-# Install a specific branch or tag, for canary or rollback:
-npx --yes github:weidwonder/ai-dev-system . --ref=<branch-or-tag>
+# Pin one release end to end — installer entry and skill source at the same tag:
+npx --yes git+https://github.com/weidwonder/ai-dev-system.git#v2.4.0 . --ref=v2.4.0
+
+# Follow the development branch instead:
+npx --yes git+https://github.com/weidwonder/ai-dev-system.git . --ref=main
 ```
 
-Common flags: `--shared` commits the Claude Code project settings for the whole team; `--keep=<plugin-short-name>` keeps a specific conflicting plugin; `--no-plugins` installs skills only; `--yes` skips the installer's own confirmation; `--no-codegraph` skips the codegraph step; `--codegraph-location=global` wires codegraph into every project instead of just this one. See all flags with `npx --yes github:weidwonder/ai-dev-system --help`.
+> Use the `git+https://` form rather than the `github:weidwonder/ai-dev-system` shorthand. The shorthand makes npm download a codeload tarball, which returns 404 in some environments (known on Windows + npm 12); `git+https://` goes through `git clone` and avoids that path.
 
-> The leading `npx --yes` only skips npm's download prompt; the installer still asks once before modifying your project. For fully unattended installs, pass `--yes` again after the target directory: `npx --yes github:weidwonder/ai-dev-system . --yes`.
+The installer's default `--ref` is the tag matching its own bundled `ai-dev-system/VERSION`, so the npx package version and the installed skill version always agree. If you pass `--ref` explicitly and that ref cannot be fetched, the installer fails with a non-zero exit code rather than silently installing something else.
+
+Common flags: `--shared` commits the Claude Code project settings for the whole team; `--keep=<plugin-short-name>` keeps a specific conflicting plugin; `--no-plugins` installs skills only; `--yes` skips the installer's own confirmation; `--no-codegraph` skips the codegraph step; `--codegraph-location=global` wires codegraph into every project instead of just this one. See all flags with `npx --yes git+https://github.com/weidwonder/ai-dev-system.git --help`.
+
+> The leading `npx --yes` only skips npm's download prompt; the installer still asks once before modifying your project. For fully unattended installs, pass `--yes` again after the target directory: `npx --yes git+https://github.com/weidwonder/ai-dev-system.git . --yes`.
 
 **Option B: local script install (repo maintenance & troubleshooting)**
 

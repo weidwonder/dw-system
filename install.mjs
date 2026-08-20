@@ -24,7 +24,7 @@
 //   --keep=<key>       保留插件，并撤销安装器此前写入的禁用/约束；可多次
 //   --no-plugins       只装 skill，不改任何冲突插件/技能设置
 //   --repo=<url>        安装源 Git 仓库（默认官方 GitHub 仓库）
-//   --ref=<name>        安装版本：分支或标签（默认 main）
+//   --ref=<name>        安装版本：分支或标签（默认取安装器自带 VERSION 对应的 tag）
 //   --source-dir=<dir>  使用本地仓库源码（仅用于开发和测试）
 //   --no-ctx-link       跳过把 skill 自带的 ctx CLI 链接成全局命令
 //   --no-codegraph      跳过 codegraph 的检查、安装、接线与建索引
@@ -46,9 +46,21 @@ import path from 'node:path';
 import readline from 'node:readline';
 import { spawnSync } from 'node:child_process';
 import { tmpdir, homedir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 
 const DEFAULT_REPO = 'https://github.com/weidwonder/ai-dev-system.git';
-const DEFAULT_REF = 'main';
+
+// 安装器自身所在目录。npm 包（package.json 的 files 带上 ai-dev-system/VERSION）与 git 检出里，
+// install.mjs 都与 ai-dev-system/ 同级，所以同一条相对路径在两种形态下都成立。
+const SELF_DIR = path.dirname(fileURLToPath(import.meta.url));
+
+// 默认安装版本【绑定到安装器自带的 VERSION】：npx 拉到哪个版本的 install.mjs，
+// 就默认装哪个版本的 skill。此前默认 main 会让"npx 包版本"与"技能源版本"各走各的——
+// 用旧包能装到新技能、用新包也可能装到尚未发布的 main HEAD，版本 stamp 与实际内容对不上。
+// 读不到 VERSION（例如把 install.mjs 单独拷了出来）时退回 main。
+const SELF_VERSION = readVersionFile(path.join(SELF_DIR, 'ai-dev-system', 'VERSION'));
+const FALLBACK_REF = 'main';
+const DEFAULT_REF = SELF_VERSION ? `v${SELF_VERSION}` : FALLBACK_REF;
 
 // 伴生 skill：本体系不收录其内容，只负责"装上并保持新"。
 // 装到【用户级】目录（跨项目共享一份），不进目标项目、不写目标项目 .gitignore。
@@ -143,6 +155,8 @@ function parseArgs(argv) {
     help: false,
     repo: DEFAULT_REPO,
     ref: DEFAULT_REF,
+    // 默认 ref 是推出来的 tag，取不到时允许回退到 main；用户显式指定的 ref 绝不回退。
+    refExplicit: false,
     sourceDir: null,
     noCompanions: false,
     companionRepos: {},
@@ -177,7 +191,7 @@ function parseArgs(argv) {
     else if (a.startsWith('--agentic-repo=')) opt.companionRepos['agentic-principle'] = a.slice('--agentic-repo='.length);
     else if (a.startsWith('--keep=')) opt.keep.push(a.slice('--keep='.length));
     else if (a.startsWith('--repo=')) opt.repo = a.slice('--repo='.length);
-    else if (a.startsWith('--ref=')) opt.ref = a.slice('--ref='.length);
+    else if (a.startsWith('--ref=')) { opt.ref = a.slice('--ref='.length); opt.refExplicit = true; }
     else if (a.startsWith('--source-dir=')) opt.sourceDir = a.slice('--source-dir='.length);
     else if (a.startsWith('-')) { console.error(`未知选项: ${a}`); process.exit(2); }
     else opt.target = a;
@@ -203,7 +217,7 @@ function helpText() {
   --codex-conflicts=<mode>
                    Codex 冲突处理：guard（项目级 AGENTS.md，默认）或 uninstall（全局卸载）
   --repo=<url>     安装源 Git 仓库（默认 ${DEFAULT_REPO}）
-  --ref=<name>     安装版本：分支或标签（默认 ${DEFAULT_REF}）
+  --ref=<name>     安装版本：分支或标签（默认 ${DEFAULT_REF}${SELF_VERSION ? '，取自安装器自带的 VERSION' : ''}）
   --source-dir=<dir>
                    使用本地仓库源码，不从 GitHub 下载（仅开发和测试）
   --no-agentic     跳过伴生 skill 的检查与安装（同义：--no-companions）
@@ -217,8 +231,10 @@ function helpText() {
   -h, --help       本帮助
 
 安装源：
-  默认从 ${DEFAULT_REPO} 的 ${DEFAULT_REF} 分支获取。
-  下载或源校验失败时，不会修改目标项目。
+  默认从 ${DEFAULT_REPO} 的 ${DEFAULT_REF} 获取——${SELF_VERSION
+    ? `与本安装器自带的版本 v${SELF_VERSION} 绑定，装到的技能版本即为该版本；\n  该 tag 尚未发布时会告警并回退到 ${FALLBACK_REF}（显式传 --ref 则不回退，直接失败）。`
+    : `读不到自带 VERSION，退回 ${FALLBACK_REF} 分支。`}
+  下载或源校验失败时不修改目标项目，并以非零退出码结束。
 
 伴生 skill（用户级，跨项目共享一份，不进目标项目）：
 ${COMPANION_SKILLS.map(c => `  - ${c.name}：${c.repo}\n      ${c.why}`).join('\n')}
@@ -641,19 +657,35 @@ function acquireSource(opt) {
 
   const tempRoot = fs.mkdtempSync(path.join(tmpdir(), 'ai-dev-system-download-'));
   const checkout = path.join(tempRoot, 'repo');
-  const result = spawnSync(
+  const clone = ref => spawnSync(
     'git',
-    ['clone', '--depth=1', '--single-branch', '--branch', opt.ref, '--', opt.repo, checkout],
+    ['clone', '--depth=1', '--single-branch', '--branch', ref, '--', opt.repo, checkout],
     { encoding: 'utf8' },
   );
+  const failed = r => Boolean(r.error) || r.status !== 0;
+  const gitMissing = r => r.error?.code === 'ENOENT';
 
-  if (result.error || result.status !== 0) {
+  let ref = opt.ref;
+  let result = clone(ref);
+
+  // 默认 ref 是从安装器自带 VERSION 推出的 tag。VERSION 已 bump 而 tag 还没推的窗口期里
+  // 这个 tag 并不存在——此时退回 main，但【必须显式告警】，绝不静默改装另一个版本。
+  // 用户显式传了 --ref 就绝不回退：他要哪个版本就是哪个版本，装不到就失败。
+  if (failed(result) && !gitMissing(result) && !opt.refExplicit && ref !== FALLBACK_REF) {
+    console.log(`  ⚠ 安装源里没有 ${ref}（安装器自带版本 v${SELF_VERSION} 对应的 tag 可能尚未发布），`
+      + `回退到 ${FALLBACK_REF} 分支。要锁定某个版本请显式传 --ref=<tag>。`);
+    fs.rmSync(checkout, { recursive: true, force: true });
+    ref = FALLBACK_REF;
+    result = clone(ref);
+  }
+
+  if (failed(result)) {
     fs.rmSync(tempRoot, { recursive: true, force: true });
-    if (result.error?.code === 'ENOENT') {
+    if (gitMissing(result)) {
       throw new Error('无法运行 Git。请先安装 Git 并确保 git 命令可用。');
     }
     const detail = (result.stderr || result.stdout || result.error?.message || '未知错误').trim();
-    throw new Error(`无法从安装源获取 ${opt.ref}：${detail}`);
+    throw new Error(`无法从安装源获取 ${ref}：${detail}`);
   }
 
   try {
@@ -664,7 +696,7 @@ function acquireSource(opt) {
       skillsRoot,
       skills,
       pkgRoot,
-      label: `${opt.repo} @ ${opt.ref}`,
+      label: `${opt.repo} @ ${ref}`,
       cleanup() { fs.rmSync(tempRoot, { recursive: true, force: true }); },
     };
   } catch (error) {

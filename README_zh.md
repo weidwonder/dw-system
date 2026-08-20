@@ -69,22 +69,29 @@
 
 ## 安装
 
-**方式 A：npx 随项目安装（推荐）** — 在目标项目根目录运行下面一条命令。npx 从 GitHub 获取安装入口，安装器再从官方仓库的 `main` 分支获取技能包，同时装进目标项目的 `.claude/skills/`（Claude Code）和 `.agents/skills/`（Codex）。需要 Node.js 20+、npm 和 Git。
+**方式 A：npx 随项目安装（推荐）** — 在目标项目根目录运行下面一条命令。npx 从 GitHub 获取安装入口，安装器再从官方仓库获取**与它自身版本一致**的技能包，同时装进目标项目的 `.claude/skills/`（Claude Code）和 `.agents/skills/`（Codex）。需要 Node.js 20+、npm 和 Git。
 
 ```bash
 # 在目标项目根目录运行，macOS、Linux、Windows 通用：
-npx --yes github:weidwonder/ai-dev-system .
+npx --yes git+https://github.com/weidwonder/ai-dev-system.git .
 
 # 先预演，不落盘：
-npx --yes github:weidwonder/ai-dev-system . --dry-run
+npx --yes git+https://github.com/weidwonder/ai-dev-system.git . --dry-run
 
-# 安装指定分支或标签，便于灰度和回滚：
-npx --yes github:weidwonder/ai-dev-system . --ref=<分支或标签>
+# 端到端锁定一个发布版本：安装入口与技能源取同一个 tag
+npx --yes git+https://github.com/weidwonder/ai-dev-system.git#v2.4.0 . --ref=v2.4.0
+
+# 想跟随开发分支：
+npx --yes git+https://github.com/weidwonder/ai-dev-system.git . --ref=main
 ```
 
-常用参数：`--shared` 把 Claude Code 项目配置提交给全仓共享；`--keep=<插件短名>` 保留指定冲突插件；`--no-plugins` 只装 skill；`--yes` 跳过安装器自身的交互确认；`--no-codegraph` 跳过 codegraph 那一段；`--codegraph-location=global` 把 codegraph 接到所有项目而不只是本项目。完整参数用 `npx --yes github:weidwonder/ai-dev-system --help` 查看。
+> 请用 `git+https://` 形式，别用 `github:weidwonder/ai-dev-system` 简写。简写会让 npm 去下载 GitHub 的 codeload tarball，部分环境（已知 Windows + npm 12）会拿到 404；`git+https://` 走 `git clone`，绕开该路径。
 
-> 命令前面的 `npx --yes` 只跳过 npm 下载确认，安装器仍会在修改项目之前询问一次。需要全自动安装时，在目标目录后再传一次：`npx --yes github:weidwonder/ai-dev-system . --yes`。
+安装器的默认 `--ref` 就是它自带的 `ai-dev-system/VERSION` 对应的 tag，因此 npx 包版本与装进项目的技能版本始终一致。显式传了 `--ref` 而该版本取不到时，安装器直接以非零退出码失败，不会悄悄换成别的版本装进去。
+
+常用参数：`--shared` 把 Claude Code 项目配置提交给全仓共享；`--keep=<插件短名>` 保留指定冲突插件；`--no-plugins` 只装 skill；`--yes` 跳过安装器自身的交互确认；`--no-codegraph` 跳过 codegraph 那一段；`--codegraph-location=global` 把 codegraph 接到所有项目而不只是本项目。完整参数用 `npx --yes git+https://github.com/weidwonder/ai-dev-system.git --help` 查看。
+
+> 命令前面的 `npx --yes` 只跳过 npm 下载确认，安装器仍会在修改项目之前询问一次。需要全自动安装时，在目标目录后再传一次：`npx --yes git+https://github.com/weidwonder/ai-dev-system.git . --yes`。
 
 **方式 B：本地脚本安装（仓库维护与排障）**
 
