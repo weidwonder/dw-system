@@ -21,12 +21,49 @@ test('root package exposes the GitHub npx installer command', () => {
   assert.equal(manifest.name, 'ai-dev-system')
   assert.equal(manifest.private, true)
   assert.equal(manifest.bin['ai-dev-system'], './install.mjs')
-  assert.deepEqual(manifest.files, ['install.mjs'])
+  // VERSION 必须随包分发：安装器据它推出默认 --ref，让 npx 包版本与技能源版本绑定。
+  assert.deepEqual(manifest.files, ['install.mjs', 'ai-dev-system/VERSION'])
   assert.match(manifest.repository.url, /github\.com\/weidwonder\/ai-dev-system/)
-  assert.match(readme, /npx --yes github:weidwonder\/ai-dev-system \./)
-  assert.match(readme, /npx --yes github:weidwonder\/ai-dev-system --help/)
-  assert.match(readme, /npx --yes github:weidwonder\/ai-dev-system \. --yes/)
-  assert.doesNotMatch(readme, /github:weidwonder\/ai-dev-system -- --help/)
+  // 推荐命令必须是 git+https:// 形式：github: 简写走 codeload tarball，
+  // 部分环境（已知 Windows + npm 12）会 404。
+  assert.match(readme, /npx --yes git\+https:\/\/github\.com\/weidwonder\/ai-dev-system\.git \./)
+  assert.match(readme, /npx --yes git\+https:\/\/github\.com\/weidwonder\/ai-dev-system\.git --help/)
+  assert.match(readme, /npx --yes git\+https:\/\/github\.com\/weidwonder\/ai-dev-system\.git \. --yes/)
+  assert.doesNotMatch(readme, /npx --yes github:weidwonder\/ai-dev-system/)
+})
+
+test('the default install ref is bound to the installer own VERSION', () => {
+  const version = readFileSync(path.join(repoRoot, 'ai-dev-system', 'VERSION'), 'utf8').trim()
+  const help = spawnSync(process.execPath, [path.join(repoRoot, 'install.mjs'), '--help'], {
+    encoding: 'utf8',
+  })
+
+  assert.equal(help.status, 0, help.stderr || help.stdout)
+  assert.match(help.stdout, new RegExp(`默认 v${version.replace(/\./g, '\\.')}`))
+  assert.doesNotMatch(help.stdout, /安装版本：分支或标签（默认 main）/)
+})
+
+test('an explicitly requested ref never falls back to another version', () => {
+  const target = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-ref-'))
+  try {
+    // 源仓库存在但里面没有这个 ref：显式 --ref 必须硬失败（非零退出码），
+    // 绝不能悄悄退回 main 把别的版本装进目标项目。
+    const missingRepo = path.join(target, 'no-such-repository')
+    const result = spawnSync(
+      process.execPath,
+      [
+        path.join(repoRoot, 'install.mjs'), target, '--yes', '--no-plugins', '--no-agentic',
+        '--no-codegraph', '--no-ctx-link', '--repo=' + missingRepo, '--ref=v0.0.0-does-not-exist',
+      ],
+      { encoding: 'utf8' },
+    )
+
+    assert.notEqual(result.status, 0)
+    assert.match(result.stderr + result.stdout, /v0\.0\.0-does-not-exist/)
+    assert.doesNotMatch(result.stdout, /回退到 main/)
+  } finally {
+    rmSync(target, { recursive: true, force: true })
+  }
 })
 
 test('packed npm command launches the installer help', () => {
