@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
@@ -22,9 +22,44 @@ function runInstaller(target, extraArgs = []) {
 
 test('VERSION 与迁移指南文件契约', () => {
   assert.match(sourceVersion, /^\d+\.\d+\.\d+$/, 'ai-dev-system/VERSION 必须是 x.y.z')
+
+  // 成文判据（CLAUDE.md §版本管理）是「**需要用户动作的**升级必须新增迁移指南」——
+  // 不是「每个版本都必须有」。此前这里写成无条件断言，是因为历史上每次 bump 恰好都需要
+  // 用户动作；2.5.0（渐进式披露）是第一个零手动动作的 bump，把这个隐含假设顶了出来。
+  // 无条件要求会逼出比没有更糟的东西：一份「需要的动作：无」的空指南——安装器会把它
+  // 高亮全文打印给用户看，等于训练用户忽略这块高亮。
+  // 所以这条改成条件式：有指南就必须合规，没有不算违规。
   const guide = path.join(repoRoot, 'ai-dev-system', 'migrations', `${sourceVersion}.md`)
-  assert.ok(existsSync(guide), `当前版本 ${sourceVersion} 存在迁移指南则命名必须为 migrations/${sourceVersion}.md（本版本有迁移，故必须存在）`)
-  assert.match(readFileSync(guide, 'utf8'), /需要的动作/, '迁移指南必须含"需要的动作"节')
+  if (existsSync(guide)) {
+    assert.match(readFileSync(guide, 'utf8'), /需要的动作/, '迁移指南必须含"需要的动作"节')
+  }
+
+  // 放宽上面那条会丢掉一半防线，这里补回来：目录里的每一份指南都必须是合法版本号命名、
+  // 含「需要的动作」节、且在一屏内（安装器升级时会高亮全文打印，超一屏就没人读完）。
+  // 这样「写了指南但写坏了」仍然拦得住，只是不再强迫每个版本都写。
+  const dir = path.join(repoRoot, 'ai-dev-system', 'migrations')
+  for (const name of readdirSync(dir).filter((f) => f.endsWith('.md'))) {
+    assert.match(name, /^\d+\.\d+\.\d+\.md$/, `迁移指南命名必须是 <版本>.md：${name}`)
+    const body = readFileSync(path.join(dir, name), 'utf8')
+    assert.match(body, /需要的动作/, `${name} 必须含"需要的动作"节`)
+    assert.ok(body.split('\n').length <= 45, `${name} 要保持一屏内（≤45 行）`)
+  }
+
+  // VERSION MUST NOT 低于目录里最高的那份指南——指南写了却没 bump 到位，
+  // 安装器就永远不会把它打印给任何人看。
+  const cmp = (a, b) => {
+    const [x, y] = [a, b].map((v) => v.split('.').map(Number))
+    return x[0] - y[0] || x[1] - y[1] || x[2] - y[2]
+  }
+  const highest = readdirSync(dir)
+    .filter((f) => /^\d+\.\d+\.\d+\.md$/.test(f))
+    .map((f) => f.replace(/\.md$/, ''))
+    .sort(cmp)
+    .pop()
+  assert.ok(
+    cmp(sourceVersion, highest) >= 0,
+    `VERSION（${sourceVersion}）低于已有的最高迁移指南（${highest}）——那份指南永远不会被安装器打印`,
+  )
 })
 
 test('旧安装（有 skill 无 stamp）升级时高亮打印迁移指南', () => {

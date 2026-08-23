@@ -312,7 +312,11 @@ test('VERSION 不低于 2.1.0（卡片必备自此版起）并带配套迁移指
   const version = read(repoRoot, 'ai-dev-system', 'VERSION').trim()
   const [maj, min] = version.split('.').map(Number)
   assert.ok(maj > 2 || (maj === 2 && min >= 1), `卡片必备自 2.1.0 起，VERSION 不应低于它：${version}`)
-  const migration = path.join(repoRoot, 'ai-dev-system', 'migrations', `${version}.md`)
+  // 盯的是**本特性落地的那个版本**的指南（2.1.0），不是当前 VERSION。
+  // 写 `${version}.md` 会隐含要求「每个版本都有迁移指南」——那从来不是成文判据，
+  // 只是历史上恰好每次 bump 都需要用户动作。2.5.0 是第一个零手动动作的 bump，
+  // 它把这个隐含假设顶了出来。指向 2.1.0 则永不过期：卡片必备的指南永远是 2.1.0 那一份。
+  const migration = path.join(repoRoot, 'ai-dev-system', 'migrations', '2.1.0.md')
   assert.ok(existsSync(migration), `缺迁移指南：${migration}`)
   const body = readFileSync(migration, 'utf8')
   // 安装器会高亮全文打印，指南必须保持一屏内
