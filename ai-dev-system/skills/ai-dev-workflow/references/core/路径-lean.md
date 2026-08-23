@@ -1,7 +1,7 @@
 # Lean 路径自足册（一页走完）
 
 > **加载条件**：Step 0 Triage 四问全否、且分流默认倾向未把本次上调到完整流程。
-> **本册是自足的**：本册（按 §0.3 分节取用）+ `references/collab/solo.md` 或 `references/collab/team.md` 其中一份 + `assets/templates/lean-change-spec.md` 模板，就能把这次改动从建 worktree 一路走到合并进主分支。**MUST NOT 预读常驻篇、MUST NOT 读 `00-流程总纲.md`、MUST NOT 读 `步骤-1-7-设计与实现.md` 与 `步骤-8-10-测试.md`**——本册已经把这条路上会用到的判据全部装进来了。
+> **本册是自足的**：本册（按 §0.3 分节取用）+ `references/collab/solo.md` 或 `references/collab/team.md` 其中一份 + `assets/templates/lean-change-spec.md` 模板，就能把这次改动从建 worktree 一路走到合并进主分支。**MUST NOT 预读常驻篇、MUST NOT 读 `00-流程总纲.md`、MUST NOT 读 `步骤-1-7-设计与实现.md` 与 `步骤-8-10-测试.md`**（指本册加载之后；分流前按 `SKILL.md` 第 3 步取的入口、`用户沟通纪律.md` 与总纲 §Step 0 不在此列，它们是做 Triage 用的）——本册已经把这条路上会用到的判据全部装进来了。
 > **本册按节加载，不是一次读完**：每个 `## ` 节的标题下都有一行「何时读本节」——前置节在 Triage 四问全否后立即读完就能开工，触发式节到它自己的触发点才读。判据与两类节的清单见 §0.3。
 > 本文按 RFC 2119 解释 MUST / MUST NOT / SHOULD / SHOULD NOT / MAY / Implementation-defined。
 > Lean 的轻量体现在"文档只有一页、跳过 Step 1–10"，**不体现在跳过门**——四道门一道也不豁免。
@@ -20,7 +20,7 @@
 
 ### 0.2 升级路径（MUST）
 
-Lean 走到一半命中任一升级条件时，**本册当场失效，MUST 丢弃并改走完整流程**：加载 `00-流程总纲.md` 与 `步骤-1-7-设计与实现.md`，从 Step 1 重新起步。MUST NOT 把已经写了一半的一页 spec 将错就错写完，MUST NOT 用"都写到这儿了"当继续的理由。
+Lean 走到一半命中任一升级条件时，**本册当场失效，MUST 丢弃并改走完整流程**：按 `SKILL.md` 第 4 步的完整分支补齐常驻余下三份与 `00-流程总纲.md` 其余前置节，再加载 `步骤-1-7-设计与实现.md`，从 Step 1 重新起步。MUST NOT 把已经写了一半的一页 spec 将错就错写完，MUST NOT 用"都写到这儿了"当继续的理由。
 
 升级条件有两组，判据分别在 §1.1（Triage 四问）与 §1.2（默认倾向的四条"说不清"判据）。
 
