@@ -43,6 +43,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
+import { execFileSync } from 'node:child_process'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const docsRoot = path.join(repoRoot, 'docs')
@@ -73,8 +74,29 @@ function readLifecycle(abs) {
   return null
 }
 
-/** 受管目录下的全部 markdown（不递归子目录——本仓三类落点都是平铺的）。 */
+/**
+ * 受管目录下的全部 markdown（不递归子目录——本仓三类落点都是平铺的）。
+ *
+ * **只收 git 已跟踪的文件**，判据：受管的是**仓库的文档集**，而未跟踪文件不属于它——
+ * 它可能是别人的本地草稿、另一个工具的输出、或还没决定要不要入库的材料。把它们算进来，
+ * 等于让任何人在 `docs/` 下放一个临时文件就把**所有人**的闸判红，而那个人往往无权处置它。
+ * 实测撞到过：主工作树里有一份别的工具产出的未跟踪报告（无 frontmatter），
+ * 合并后验证当场变红，而正确处置是「这份文件归它的作者决定」，不是补字段或删文件。
+ *
+ * 反过来说：**`git add` 过就受管**（暂存区里的新文件同样被 `ls-files` 列出），
+ * 所以"新建文档忘了写 lifecycle"这个真正要拦的场景照样拦得住——入库那一刻就判。
+ */
 function collectManagedDocs() {
+  const tracked = new Set(
+    // `ls-files --cached` 列出的是索引里的文件——已提交的与 `git add` 过的新文件都在其中，
+    // 未跟踪的不在。这正是"受管 = 属于仓库的文档集"要的那条线。
+    execFileSync('git', ['ls-files', '--cached', '--', 'docs/'], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+    })
+      .split('\n')
+      .filter(Boolean),
+  )
   const out = []
   for (const dir of MANAGED_DIRS) {
     const absDir = path.join(docsRoot, dir)
@@ -82,7 +104,9 @@ function collectManagedDocs() {
     for (const entry of readdirSync(absDir).sort()) {
       const abs = path.join(absDir, entry)
       if (!statSync(abs).isFile() || !entry.endsWith('.md')) continue
-      out.push({ rel: relPosix(abs), abs, lifecycle: readLifecycle(abs) })
+      const rel = relPosix(abs)
+      if (!tracked.has(rel)) continue
+      out.push({ rel, abs, lifecycle: readLifecycle(abs) })
     }
   }
   return out
