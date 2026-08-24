@@ -23,7 +23,7 @@
 
 ## 进行中的计划（`docs/plan/`）
 
-- **[渐进式披露与需求追溯 Coding Plan](./plan/2026-08-23-渐进式披露与需求追溯-coding-plan.md)** — [渐进式披露与需求追溯 spec](./spec/2026-08-23-渐进式披露与需求追溯-eng-spec.md) 的任务拆解（FR-001…FR-013 / AC-001…AC-022 的核销表）。`authority_refs`：Interfaces 节冻结的加载点清单列结构、`FR-###`/`AC-###` 编号格式、忠实轴返回格式的增列方式。
+- **[渐进式披露与需求追溯 Coding Plan](./plan/2026-08-23-渐进式披露与需求追溯-coding-plan.md)** — [渐进式披露与需求追溯 spec](./spec/2026-08-23-渐进式披露与需求追溯-eng-spec.md) 的任务拆解（FR-001…FR-014 / AC-001…AC-024 的核销表）。`authority_refs`：Interfaces 节冻结的加载点清单列结构、`FR-###`/`AC-###` 编号格式、忠实轴返回格式的增列方式。
 
 其余已完成的计划见[归档索引](./index-archive.md)。
 
