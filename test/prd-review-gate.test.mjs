@@ -100,7 +100,11 @@ test('VERSION 不低于 2.2.0（复核门自此版起）并带一屏内的迁移
   const version = read(repoRoot, 'ai-dev-system', 'VERSION').trim()
   const [maj, min] = version.split('.').map(Number)
   assert.ok(maj > 2 || (maj === 2 && min >= 2), `复核门自 2.2.0 起，VERSION 不应低于它：${version}`)
-  const migration = path.join(repoRoot, 'ai-dev-system', 'migrations', `${version}.md`)
+  // 盯的是**本特性落地的那个版本**的指南（2.2.0），不是当前 VERSION。
+  // 写 `${version}.md` 会隐含要求「每个版本都有迁移指南」——那从来不是成文判据，
+  // 只是历史上恰好每次 bump 都需要用户动作。2.5.0 是第一个零手动动作的 bump，
+  // 它把这个隐含假设顶了出来。指向 2.2.0 则永不过期：PRD 复核门的指南永远是 2.2.0 那一份。
+  const migration = path.join(repoRoot, 'ai-dev-system', 'migrations', '2.2.0.md')
   assert.ok(existsSync(migration), `缺迁移指南：${migration}`)
   assert.ok(readFileSync(migration, 'utf8').split('\n').length <= 45, '迁移指南要保持一屏内（≤45 行）')
 })

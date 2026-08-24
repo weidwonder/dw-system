@@ -77,7 +77,12 @@ test('完成门那条已从"执行整套结算"改成"核对 D 轴报告"', () =
   assert.ok(/D 轴报告/.test(item), '完成门那条未指向 D 轴报告')
   // 零命中也要留凭据，这是它能与"没做"区分的唯一依据
   assert.ok(/零命中/.test(item), '完成门那条未要求零命中也有书面结论')
-  assert.ok(/四轴/.test(wt), '代码评审门那条的轴数未同改')
+  // 计数词已按 spec §4.3 / FR-007 改成指名引用：轴数只留在权威定义文件 `代码评审纪律.md`，
+  // 这里再复写一遍数字就是新的漂移源。改为锁同一个契约的两半——**指名引用到位** +
+  // **文档轴在场**：任一缺失都说明这条准出项没跟着轴表改。
+  const reviewItem = cut(wt, '- **代码评审门已通过**', '- **兼容取舍已有用户结论**')
+  assert.ok(/§四条轴/.test(reviewItem), '代码评审门那条未指名引用 `代码评审纪律.md` §四条轴')
+  assert.ok(/文档/.test(reviewItem), '代码评审门那条没列出文档轴')
 })
 
 test('文档治理 §3 的触发点已改挂到评审门，判定与落盘的执行者都写死了', () => {
@@ -180,7 +185,11 @@ test('VERSION 不低于 2.3.0（文档轴自此版起）并带一屏内的迁移
   const version = read(repoRoot, 'ai-dev-system', 'VERSION').trim()
   const [maj, min] = version.split('.').map(Number)
   assert.ok(maj > 2 || (maj === 2 && min >= 3), `文档轴自 2.3.0 起，VERSION 不应低于它：${version}`)
-  const migration = path.join(repoRoot, 'ai-dev-system', 'migrations', `${version}.md`)
+  // 盯的是**本特性落地的那个版本**的指南（2.3.0），不是当前 VERSION。
+  // 写 `${version}.md` 会隐含要求「每个版本都有迁移指南」——那从来不是成文判据，
+  // 只是历史上恰好每次 bump 都需要用户动作。2.5.0 是第一个零手动动作的 bump，
+  // 它把这个隐含假设顶了出来。指向 2.3.0 则永不过期：文档轴的指南永远是 2.3.0 那一份。
+  const migration = path.join(repoRoot, 'ai-dev-system', 'migrations', '2.3.0.md')
   assert.ok(existsSync(migration), `缺迁移指南：${migration}`)
   assert.ok(readFileSync(migration, 'utf8').split('\n').length <= 45, '迁移指南要保持一屏内（≤45 行）')
 })

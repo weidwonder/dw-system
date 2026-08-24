@@ -427,8 +427,21 @@ test('skills enforce the shared spec plan and report directories', () => {
 
   // 旧 company/mode-team.md 的目录约定已随 mode 外壳删除，落点改为常驻内核（T2）。
   const flow = read(workflowRoot, 'references', 'core', '00-流程总纲.md')
-  assert.doesNotMatch(flow, /放项目根/)
-  assert.doesNotMatch(flow, /各自仓库根目录生成/)
+  // 这里判的是**语义不是子串**：旧约定"把 spec 放项目根"MUST NOT 复活，但总纲把
+  // `文档治理.md` 的结论行收进来之后，正当地写着"MUST NOT 把 spec 或 plan 放项目根"
+  // ——同一个子串，意思正好相反。子串黑名单会把禁止条款误判成规定条款，所以逐行判：
+  // 提到这两个旧落点的行，MUST 同时带着禁止词（MUST NOT / 不得 / 禁止），否则就是复活。
+  for (const legacy of ['放项目根', '各自仓库根目录生成']) {
+    const prescribing = flow
+      .split('\n')
+      .filter((line) => line.includes(legacy))
+      .filter((line) => !/MUST NOT|不得|禁止/.test(line))
+    assert.deepEqual(
+      prescribing,
+      [],
+      `00-流程总纲.md 出现了没有禁止词的「${legacy}」——旧目录约定不得以规定形式复活：\n${prescribing.join('\n')}`,
+    )
+  }
   assert.match(flow, /docs\/spec\//)
   assert.match(flow, /docs\/plan\//)
 

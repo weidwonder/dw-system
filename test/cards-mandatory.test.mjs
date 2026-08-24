@@ -14,13 +14,16 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 import { initScaffold } from '../ai-dev-system/skills/ai-dev-workflow/scripts/ctx/src/commands.js'
+// 计数词豁免清单的唯一定义处，两条机器闸共用一份（详见该文件抬头）。
+import { EXEMPT_DIRS, EXEMPT_FILES } from './counter-word-exempt.mjs'
+import { LOADING_POINT_MIN } from './contract-numbers.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const skillsRoot = path.join(repoRoot, 'ai-dev-system', 'skills')
 const workflowRoot = path.join(skillsRoot, 'ai-dev-workflow')
 const read = (...parts) => readFileSync(path.join(...parts), 'utf8')
 
-/** 递归收集 skills/ 下的所有文本文件（markdown + js），返回 [仓库相对路径, 内容] 对。 */
+/** 递归收集 skills/ 下的所有文本文件（markdown + js），返回 [仓库相对路径（正斜杠）, 内容] 对。 */
 function collectSkillFiles() {
   const out = []
   const walk = (dir) => {
@@ -32,7 +35,10 @@ function collectSkillFiles() {
         continue
       }
       if (!/\.(md|mjs|js)$/.test(entry)) continue
-      out.push([path.relative(repoRoot, full), readFileSync(full, 'utf8')])
+      // 相对路径统一成正斜杠：Windows 上 path.relative 会给反斜杠，而下面的
+      // GUARDRAIL_AUTHORITY / GUARDRAIL_EXEMPT 都是正斜杠写法，直接比对会全部漏判
+      // （权威文件与豁免项一个都匹配不上，护栏计数全被塞进 strays，测试必红）。
+      out.push([path.relative(repoRoot, full).split(path.sep).join('/'), readFileSync(full, 'utf8')])
     }
   }
   walk(skillsRoot)
@@ -89,32 +95,103 @@ test('skills/ 下 markdown 里的相对链接都指向真实存在的文件', ()
   assert.deepEqual(broken, [], '断链：\n' + broken.join('\n'))
 })
 
-test('SKILL.md 路由第 3 步列出的常驻 core 分册全部存在，且含代码事实纪律', () => {
+// 常驻集合自 2.4.x 的渐进式披露改造起由九篇缩到六份（spec §4.1 判定结果 / FR-002）：
+// 入口 + core 四篇 + collab 一份。`文档治理.md` / `spec写作纪律.md` / `worktree开发纪律.md`
+// 三篇移出常驻，文件仍在，改由 SKILL.md 的〈加载点清单〉在触发时才取。
+// 断言分两半：常驻集合本身（下方第一个 test）与加载点清单的行数下限（第二个 test，spec §6 Invariant 3；下限值见 test/contract-numbers.mjs）。
+const RESIDENT_CORE = ['00-流程总纲.md', '代码事实纪律.md', '用户沟通纪律.md', '上下文卫生.md']
+const MOVED_OUT_OF_RESIDENT = ['文档治理.md', 'spec写作纪律.md', 'worktree开发纪律.md']
+
+test('SKILL.md 声明的常驻集合是六份，移出的三篇不再算常驻', () => {
   const skill = read(workflowRoot, 'SKILL.md')
-  assert.match(
+  assert.match(skill, /常驻只有六份/, 'SKILL.md 必须声明常驻只有六份（入口 + core 四篇 + collab 一份）')
+  assert.doesNotMatch(
     skill,
-    /常驻 core 七篇/,
-    'SKILL.md 必须声明常驻七篇（2.0.0 是六篇，代码事实纪律加入后为七篇）',
+    /常驻 core 七篇|常驻七篇|常驻九篇/,
+    '旧的"常驻 core 七篇"表述 MUST 已删除（spec §8.2 替换清单）',
   )
-  for (const name of [
-    '00-流程总纲.md',
-    '代码事实纪律.md',
-    'worktree开发纪律.md',
-    'spec写作纪律.md',
-    '文档治理.md',
-    '用户沟通纪律.md',
-    '上下文卫生.md',
-  ]) {
+  for (const name of RESIDENT_CORE) {
+    assert.ok(skill.includes(name), `常驻分册未在入口点名：${name}`)
     assert.ok(
       existsSync(path.join(workflowRoot, 'references', 'core', name)),
       `常驻分册缺失：${name}`,
     )
+  }
+  // 第六份是 collab/ 二选一，入口必须指出这件事
+  assert.match(skill, /collab\/[^\n]*二选一/, '入口必须写明 collab/ 必加载一份')
+  for (const f of ['solo.md', 'team.md']) {
+    assert.ok(existsSync(path.join(workflowRoot, 'references', 'collab', f)), `collab 分册缺失：${f}`)
+  }
+  // 移出常驻的三篇：文件仍在（按加载点取），但 MUST NOT 再被算进常驻集合
+  for (const name of MOVED_OUT_OF_RESIDENT) {
+    assert.ok(
+      existsSync(path.join(workflowRoot, 'references', 'core', name)),
+      `移出常驻 ≠ 删除文件，缺失：${name}`,
+    )
+    assert.ok(skill.includes(name), `移出常驻的分册必须出现在加载点清单里：${name}`)
   }
   // engineering-context设计.md 是条件加载，但必须存在（代码事实纪律引用它）
   assert.ok(existsSync(path.join(workflowRoot, 'references', 'core', 'engineering-context设计.md')))
   // capability/ 只剩代码图谱一篇
   const capability = readdirSync(path.join(workflowRoot, 'references', 'capability'))
   assert.deepEqual(capability.sort(), ['graph.md'], 'capability/ 应只剩 graph.md')
+})
+
+test('入口自带工作区隔离门要点：建不建、目录取哪个字段、过不了怎么办（AC-004）', () => {
+  // 这道门在 Triage 之前，那一刻 worktree开发纪律.md 还没加载，要点只能驻留入口。
+  const skill = read(workflowRoot, 'SKILL.md')
+  assert.match(skill, /全程使用独立 worktree/, '入口必须给出"必须建 worktree"')
+  assert.match(skill, /worktree-dir/, '入口必须点名目录取自哪个字段')
+  assert.match(skill, /\.\/\.worktrees\//, '入口必须给出 worktree-dir 缺省值')
+  assert.match(skill, /MUST NOT 替用户 stash/, '入口必须写明主工作树不干净时中止而不是替用户 stash/reset')
+  assert.ok(
+    Buffer.byteLength(skill, 'utf8') <= 8000,
+    `入口 MUST ≤ 8000 字节（AC-004），当前 ${Buffer.byteLength(skill, 'utf8')}`,
+  )
+})
+
+test('加载点清单不少于 spec §7 的十八个加载点（Invariant 3）', () => {
+  const skill = read(workflowRoot, 'SKILL.md')
+  const table = skill.slice(skill.indexOf('## 加载点清单'))
+  assert.ok(table.length > 0, '找不到〈加载点清单〉节')
+  const rows = table
+    .split('\n')
+    .filter(l => l.startsWith('| ') && !/^\|\s*-+/.test(l) && !l.startsWith('| 触发条件'))
+  // 门槛跟 Invariant 3 走，值在 `contract-numbers.mjs` 单点定义（此前这里与 spec/CLAUDE.md 各写一份，
+  // 实测漂成 18/14/14 三处不一致）。它是**下限不是上限**
+  // （每新判出一个触发式小节 MUST 增行）。此前这里写死 14，比不变量松了 4 行——删掉实现阶段
+  // 新增的那四行照样绿，等于那四个加载点没有任何机器防线。下限值 MUST 与 spec §7 的行数一致，
+  // spec 增行时同步上调；**MUST NOT 为了让删行通过而下调它**。
+  assert.ok(
+    rows.length >= LOADING_POINT_MIN,
+    `加载点清单只有 ${rows.length} 行，MUST NOT 少于 ${LOADING_POINT_MIN} 行（spec §7：设计阶段十四个 + 实现阶段新增四个）`,
+  )
+  // 每行四个 REQUIRED 字段齐（触发条件 / 加载对象 / 为什么此刻需要 / 适用路径）
+  for (const row of rows) {
+    const cells = row.replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim())
+    assert.equal(cells.length, 4, `加载点行的字段数不是 4：${row}`)
+    for (const c of cells) assert.ok(c.length > 0, `加载点行有空字段：${row}`)
+    assert.match(cells[3], /^(Lean|完整|两条)$/, `适用路径取值非法（Lean/完整/两条）：${row}`)
+  }
+  // 十四个触发条件的锚点词（spec §7，稳定标识是触发条件文本本身）
+  for (const anchor of [
+    '每次唤起',
+    'merge-gate` 缺省',
+    '要建 worktree',
+    'Triage 四问全否',
+    'Triage 任一为是',
+    '红回路门命中',
+    '动笔写 spec',
+    '登记替换清单',
+    '过代码评审门',
+    '进入测试阶段',
+    '覆盖度台账',
+    '索引分层',
+    '过完成与自动合并门',
+    '过载信号',
+  ]) {
+    assert.ok(table.includes(anchor), `加载点清单缺少触发条件：${anchor}`)
+  }
 })
 
 test('路由不再探测 engineering-context——它是必备资产，不参与分档', () => {
@@ -249,7 +326,11 @@ test('VERSION 不低于 2.1.0（卡片必备自此版起）并带配套迁移指
   const version = read(repoRoot, 'ai-dev-system', 'VERSION').trim()
   const [maj, min] = version.split('.').map(Number)
   assert.ok(maj > 2 || (maj === 2 && min >= 1), `卡片必备自 2.1.0 起，VERSION 不应低于它：${version}`)
-  const migration = path.join(repoRoot, 'ai-dev-system', 'migrations', `${version}.md`)
+  // 盯的是**本特性落地的那个版本**的指南（2.1.0），不是当前 VERSION。
+  // 写 `${version}.md` 会隐含要求「每个版本都有迁移指南」——那从来不是成文判据，
+  // 只是历史上恰好每次 bump 都需要用户动作。2.5.0 是第一个零手动动作的 bump，
+  // 它把这个隐含假设顶了出来。指向 2.1.0 则永不过期：卡片必备的指南永远是 2.1.0 那一份。
+  const migration = path.join(repoRoot, 'ai-dev-system', 'migrations', '2.1.0.md')
   assert.ok(existsSync(migration), `缺迁移指南：${migration}`)
   const body = readFileSync(migration, 'utf8')
   // 安装器会高亮全文打印，指南必须保持一屏内
@@ -264,7 +345,22 @@ test('VERSION 不低于 2.1.0（卡片必备自此版起）并带配套迁移指
 
 const CN_NUM = { 一: 1, 二: 2, 两: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 }
 
-test('"N 条不裁剪护栏"的计数词与总纲里实际的条数一致', () => {
+// 护栏计数词的新策略（spec §4.3 / FR-007）：**数字只允许出现在权威定义文件**（总纲），
+// 别处一律改成指名引用（"按 `00-流程总纲.md` §\"不裁剪\"护栏 执行"）。
+// 分工：`test/counter-word.test.mjs` 管"别处还有没有残留数字"（受检词表是闭集，含豁免清单）；
+// 这里只管 `counter-word` 管不到的那一半——**权威文件里写的那个数字与实际条目数是否一致**。
+// 两条缺一不可：只查取值，数字会被复制到别处；只查出现位置，权威处写错数字照样全绿。
+const GUARDRAIL_AUTHORITY = 'references/core/00-流程总纲.md'
+// 豁免清单**从 counter-word-exempt.mjs 取**，不在这里另抄一份：入口与 Lean 自足册按设计必须
+// 复述，config-snippets/ 被注入目标项目、读它的 AI 没有本 skill 的文件可跳转。此前两份各写
+// 一遍、只靠注释"保持一致"手工同步，两边写法还不同，漂了不会报任何错——同一份判据 MUST 只有
+// 一处定义。
+// 共用清单的基准是 `ai-dev-workflow/`，这里的 skillFiles 相对 repoRoot 且**含姊妹 skill
+// `ai-prd/`**，所以 MUST 补回 `ai-dev-workflow/` 前缀再匹配：直接拿裸的 `SKILL.md` 去
+// `includes`，会把 `ai-prd/SKILL.md` 一起豁免掉，静默放宽检查面。
+const GUARDRAIL_EXEMPT = [...EXEMPT_FILES, ...EXEMPT_DIRS].map((x) => `ai-dev-workflow/${x}`)
+
+test('"不裁剪护栏"的条数只在总纲里出现，且与实际条目数一致', () => {
   const outline = read(workflowRoot, 'references', 'core', '00-流程总纲.md')
   const start = outline.indexOf('"不裁剪"护栏\n')
   assert.ok(start > 0, '找不到护栏小节')
@@ -274,12 +370,26 @@ test('"N 条不裁剪护栏"的计数词与总纲里实际的条数一致', () =
   assert.ok(actual >= 5, `护栏条目数解析异常（数出 ${actual} 条），断言本身可能已失效`)
 
   const wrong = []
+  const strays = []
   for (const [file, body] of skillFiles) {
-    for (const m of body.matchAll(/([一二两三四五六七八九十])条["“]?不裁剪/g)) {
-      if (CN_NUM[m[1]] !== actual) wrong.push(`${file} ← 写着"${m[1]}条"，实际 ${actual} 条`)
+    const hits = [...body.matchAll(/([一二两三四五六七八九十])条["“「]?不裁剪/g)]
+    if (hits.length === 0) continue
+    const isAuthority = file.endsWith(GUARDRAIL_AUTHORITY)
+    const isExempt = GUARDRAIL_EXEMPT.some(x => file.includes(x))
+    for (const m of hits) {
+      if (isAuthority || isExempt) {
+        if (CN_NUM[m[1]] !== actual) wrong.push(`${file} ← 写着"${m[1]}条"，实际 ${actual} 条`)
+      } else {
+        strays.push(`${file} ← 写着"${m[1]}条不裁剪"，MUST 改成指名引用（不带数字）`)
+      }
     }
   }
-  assert.deepEqual(wrong, [], '护栏计数词与总纲不一致：\n' + wrong.join('\n'))
+  assert.deepEqual(wrong, [], '护栏条数与总纲实际条目数不一致：\n' + wrong.join('\n'))
+  assert.deepEqual(
+    strays,
+    [],
+    '护栏条数出现在权威定义文件与豁免范围之外（判据 spec §4.3）：\n' + strays.join('\n'),
+  )
 })
 
 test('"N 个固定文件名例外"的计数词与文档治理里实际登记的个数一致', () => {

@@ -1,173 +1,58 @@
 ---
 name: ai-dev-workflow
-description: "AI 辅助开发主流程。当用户要做需求落地、AI 辅助开发、澄清已有 PRD、顶层架构 Overview、技术 spec、coding plan、拆任务、测试方案，或提到'开发流程/怎么用 AI 把需求做成代码/技术设计'时使用。编码完成后的代码评审（规范/忠实/残留/文档四轴子代理评审）、清理被取代的旧逻辑、决定是否向后兼容、把真实数据固化成测试用例、补端到端用例或维护测试覆盖度台账时同样使用。从零产出一份新 PRD 时不要用本 skill，用 ai-prd（本 skill 从已有 PRD 起步，其产物即本 skill Step 1 的输入）。首次在某项目调用只问一次协作面（除你之外是否还有人一起开发），把配置写入 CLAUDE.md 与 AGENTS.md 并建起 engineering-context 骨架，之后按块内字段路由。取代码事实一律先查 engineering-context 卡片，没有卡片就读源码、读完当场把卡片补上，绝不裸 grep 找权威实现；探测到 codegraph 索引时结构检索走代码图谱。用户要求扫描/体检项目的 ai-dev 体系、检查项目里的 rules/skills/agents 是否与本流程冲突时也使用。"
+description: "AI 辅助开发主流程：从已有 PRD 起步做需求落地、Overview、技术 spec、coding plan、测试方案，或提到'开发流程/用 AI 把需求做成代码'时使用；编码后的四轴子代理评审、清旧逻辑、兼容取舍、测试资产与覆盖度台账、扫描项目 rules/skills/agents 冲突时同样使用。从零产新 PRD 用 ai-prd。"
 ---
 
-# ai-dev-workflow
+## 工作区隔离门要点
 
-把一个需求，逐层降解成"零上下文的 AI agent 也能可靠执行"的任务。内核（`references/core/`）**无条件常驻**，在它之上按需追加分册。
+- **必须建 worktree**：路由与初始化**对话**做完后、**任何**文件落盘前（含标记块），MUST 已从最新主分支建出并**全程使用独立 worktree**；Lean 不豁免，MUST NOT 中途切回主工作树落盘；多仓每仓一个，MUST NOT 共用。
+- **目录取自 `worktree-dir`**：未声明默认仓库根 `./.worktrees/`。每次创建前重新读，MUST NOT 沿用上次会话记住的路径。
+- **过不了就中止**：主工作树有未提交改动、不是 Git 仓库、或建不出 worktree，MUST 中止并用业务语言说明；MUST NOT 替用户 stash / reset / checkout / 删未知文件，MUST NOT 降级为直接改当前目录。
+- **进门之后**：先结清初始化挂账（标记块、冲突处置、缺 registry 跑 `ctx init`）；门禁全过后按 `merge-gate` **完成后自动合并主分支**。
 
-**装了本 skill 的项目一律维护 `engineering-context/` 代码事实层**（registry + cards）。它不分项目大小、不分协作面、没有开关：初始化时建骨架，之后**要用某个模块的事实就先查卡片；没有卡片就读源码，读完把卡片补上**。判据与写法在无条件常驻的 `references/core/代码事实纪律.md`。
+  来源：`worktree开发纪律.md` §工作区隔离门
 
-在这之上，只有两件事是**可变的**：
+## 路由逻辑（每次调用先做）
 
-- **协作面**——这个项目除你之外还有没有别人一起开发。读标记块的 `collaboration` 字段，问一次即固化。
-- **代码图谱**——项目有没有建本地代码知识图谱索引。**每次运行探测得出**，不问用户、不写进配置。它只是**检索加速面**（回答"找得到吗"），不改变任何流程判据；没有它就把重探索外包给子代理。
+**1. 【探测】** **项目根**下 `.codegraph/codegraph.db` 存在 → 加载 `references/capability/graph.md`。MUST 在路由阶段做完，MUST NOT 塞进流程门内部，路径 MUST NOT 按 cwd 解释。探测不到或失败按没有算，结构检索外包子代理：MUST NOT 阻断流程、MUST NOT 反复重试、MUST NOT 改问用户"有没有代码图谱"。**本步 MUST NOT 探测 engineering-context**——缺骨架隔离门内补建，缺条目按 `代码事实纪律.md` §4 补齐；MUST NOT 因"registry 是空的"判定可以直读代码，也 MUST NOT 因此告警。
 
-分册只**追加**约定，MUST NOT 削减 core 的任何一条。
+**2. 【读标记块】** 只读、只对话，**MUST NOT 落盘**。MUST 把项目根 CLAUDE.md 与 AGENTS.md **两个入口都读**（以 CLAUDE.md 为准，MUST NOT 读到一个就停），取标记块 `<!-- ai-dev-workflow:start/end -->` 内的 `collaboration` / `merge-gate` / `worktree-dir`：
 
-> **触发提示**：自动触发不总是稳定。若发现某一步没走本流程，直接在 prompt 里**点名 skill / 步骤**（如"用 ai-dev-workflow 的 Step 2 出 Overview""按 eng-spec 模板写"），比依赖关键词更可靠。
+- **2a 有 `collaboration`** → 直接用；另一入口缺失、无块或不一致时按 `references/init-初始化.md` §幂等规则 以 CLAUDE.md 为准补齐，MUST 多说一句被覆盖的是什么。
+- **2b 只有旧版 `mode`** → team → team + pr，其余 → solo + direct；MUST 一句话告知用户、允许当场改，再幂等回写两入口。MUST NOT 由旧值推出别的东西，MUST NOT 因旧值改变分流默认倾向。
+- **2c 都无块** → 初始化（`references/init-初始化.md`）：先跑 `references/环境冲突扫描.md`，只问协作面 + 一条待拍板的 merge-gate 建议，按 `assets/config-snippets/` 注入两入口。**MUST NOT 问"要不要建 engineering-context"**。
+- **2d 缺省/非法值**：`merge-gate` 缺失 → 判据见下表同名行；`worktree-dir` 缺失 → `./.worktrees/`；`collaboration` 不是 solo/team → 报错中止并列出合法值域，MUST NOT 猜测。
+- **2e 用户要"扫描/体检 ai-dev 体系"** → 跑 ↑ 2c 那份扫描，冲突逐项交用户决断。
 
-## 目录结构（本 skill 自身）
+**3. 【分流前只取三份】** **常驻只有六份**：本入口 + `core/`（=`references/core/`）的 `00-流程总纲.md`、`代码事实纪律.md`、`用户沟通纪律.md`、`上下文卫生.md` + `references/collab/` 二选一，**分两批取**：此刻 MUST 只取下表〈每次唤起（分流前）〉行那三份 + 探测到的 `graph.md`；余下三份与总纲其余各节 **MUST NOT 在此刻取**。常驻**也不整篇读**：按每节的〈何时读本节〉到点再取；分册只**追加**、MUST NOT 削减常驻。
 
-```
-references/
-  core/
-    00-流程总纲.md       【常驻·骨架】Triage 分流 + 四道门 + 步骤索引
-    路径-lean.md         【分流后】Lean 一页走完（Triage 四问全否时读这份）
-    步骤-1-7-设计与实现.md 【分流后】完整流程 Step 1–7 细节
-    步骤-8-10-测试.md     【阶段切换】完整流程 Step 8–10 细节，过完评审门再读
-    代码事实纪律.md      【常驻】先查卡片 / 没卡就读源码并当场补卡 / cite / 新鲜度
-    worktree开发纪律.md  独立 worktree 全程开发 + 完成后自动合并主分支
-    spec写作纪律.md      零上下文可动手 / RFC2119 / 无占位符
-    AI-LLM-overlay.md    含 AI/LLM 时叠加的 AI 契约清单
-    文档治理.md          spec / plan / report 的唯一输出目录与命名 + 文档生命周期与索引门控
-    文档归档与账本收敛.md 【条件】归档头注模板 + 结算示例 + 两个账本各自的收敛方式
-    engineering-context设计.md 【条件】资产层完整设计：registry 字段 / 场景蓝图 / 探针集 / 新鲜度机制
-    用户沟通纪律.md      业务语言 + 大架构确认 + 详细设计自主决策
-    bug诊断纪律.md       【条件】红回路优先：先造能变红的复现命令，再谈假设
-    代码评审纪律.md      【条件】编码后强制子代理四轴评审（含文档轴）+ 替换清单（旧逻辑登记与核销）
-    测试资产纪律.md      【条件】长链路端到端 + 真实输入固化 + 覆盖度台账
-    上下文卫生.md        聪明区决策 / 交接不硬撑 / 编码任务零上下文起步
-  collab/                【按 collaboration 字段二选一，必加载一份】
-    solo.md              无其他人类协作方：可跳步、你自己拍板兼容、子代理是唯一第二双眼睛
-    team.md              有其他人类协作方：owner 对齐、评审会、业务方拍板、PR 平台动作
-  capability/            【按运行时探测结果加载，可零篇】
-    graph.md             探测到 .codegraph/codegraph.db 时：代码图谱查现状（符号/调用链/影响面）
-  init-初始化.md         如何幂等写入 CLAUDE.md/AGENTS.md + 建 engineering-context 骨架
-  环境冲突扫描.md        初始化/体系扫描时检查项目自带指令（CLAUDE.md 正文 / skills / agents / commands）的工作方式冲突
-assets/
-  templates/           lean-change-spec / overview / eng-spec / coding-plan / test-spec / test-coverage
-  config-snippets/     注入 CLAUDE.md 与 AGENTS.md 的片段（base.md 无条件 + collab-solo/collab-team 二选一）
-  context-layer/       capability-registry / card / scene-blueprint / probe-set / glossary 模板
-scripts/ctx/           ctx CLI（Node.js，跨平台）：查代码事实
-```
+**4.** 过隔离门 → 按 §Step 0 过 Triage → 按下表两个 Triage 行定分支、**只补该支要的**。
 
-## 路由逻辑（每次调用先做这个）
+## 加载点清单（MUST 在触发时才取、只取那节；MUST NOT 提前预读，MUST NOT 凭记忆代替取用）
 
-**三步：①探测代码图谱 ②读标记块得协作字段 ③加载 core + 命中的分册。**
+| 触发条件 | 加载对象 | 为什么此刻需要 | 适用路径 |
+|---|---|---|---|
+| 每次唤起（分流前）| 本入口全文 + `core/用户沟通纪律.md` + `core/00-流程总纲.md` §Step 0 | 隔离门与第 2 步问答都在 Triage 之前，手里没别的文件 | 两条 |
+| `merge-gate` 缺省 | `core/worktree开发纪律.md` §完成与自动合并门 | 判据只在那节定义 | 两条 |
+| 要建 worktree | `core/worktree开发纪律.md` §工作区隔离门 | 入口要点只够判过不过 | 两条 |
+| Triage 四问全否 | `core/00-流程总纲.md` §默认倾向 → 未升级即 **Lean 分支**：`core/路径-lean.md` **前置节** + `collab/` 一份 + lean 模板 | 先判够不够格走 Lean；自足册含直管 Lean 的 MUST，MUST NOT 整篇预读，也 MUST NOT 再补余下三份 | Lean |
+| Triage 任一为是（或 §默认倾向 判升级）| **完整分支**：补齐常驻余下三份 + `core/00-流程总纲.md` 其余前置节，再取 `core/步骤-1-7-设计与实现.md` | 只有完整流程用得上，分流前取 = Lean 白付 | 完整 |
+| 红回路门命中（bug / 回归 / 异常行为）| `core/bug诊断纪律.md` (L§3bis) | 改代码前 MUST 先造复现回路 | 两条 |
+| `ctx` 敲不动、返回空或术语对不上 | `core/代码事实纪律.md` §2 (L§3.2) | 兜底调用与"在哪跑"的陷阱 | 两条 |
+| 要 clone 外仓取证／碰权威面要判刷不刷卡 | `core/代码事实纪律.md` §7 或 §8 (L§3.8/§3.9) | 取证顺序、补卡义务与刷卡判据 | 两条 |
+| spec 定稿前要拍板兼容取舍 | `core/00-流程总纲.md` §兼容取舍确认门 (L§6.1) | 清单、三选项、落盘口径 | 两条 |
+| 登记替换清单 | `core/代码评审纪律.md` §替换清单 (L§4.3) | spec 要登记被取代物 | 两条 |
+| 需求跨 ≥2 个边界／大 PRD 要拆切片／要定 PR 粒度 | `core/00-流程总纲.md` §按边界拆 四节 | 粒度判据只在那里 | 完整 |
+| 过代码评审门 | `core/代码评审纪律.md` §门禁 + §四条轴 + §子代理 prompt 模板 + §处置、`core/00-流程总纲.md` §代码评审门 (L§9) | 派几个子代理、文档轴恒跑、MUST 替换占位符、P0/P1 口径 | 两条 |
+| 进入测试阶段 | `core/步骤-8-10-测试.md` | 测试阶段步骤 | 完整 |
+| 有真实数据／凭证／要挂覆盖度台账 | `core/测试资产纪律.md` (L§8) | 真实输入固化与台账 | 两条 |
+| 要判文档去留、归档、索引分层 | `core/文档治理.md` (L§10bis) | 生命周期与索引门控 | 两条 |
+| 过完成与自动合并门 | `core/worktree开发纪律.md` 与 `core/00-流程总纲.md` 各的 §完成与自动合并门 (L§11) | 首次加载可能已随交接失效 | 两条 |
+| 动笔写 spec | `core/spec写作纪律.md` (L§4.2) | 零上下文可动手、RFC2119、无占位符 | 两条 |
+| 出现过载信号要交接 | `core/spec写作纪律.md` (L§4.2) | 交接文档遵循它，读者零上下文 | 两条 |
 
-```
-1. 【探测】只探测一件事：**项目根**（含 CLAUDE.md / AGENTS.md 的那一层）下的
-   .codegraph/codegraph.db 是否存在 → 存在则启用【代码图谱】，加载 capability/graph.md。
-   一次文件存在性检查，秒级；MUST 在路由阶段做完，MUST NOT 塞进任何流程门内部。
-   路径 MUST NOT 按当前工作目录解释。
-   探测不到就按没有算，结构检索改为外包子代理（core/上下文卫生.md 规则 4）。
-   探测本身失败（权限不足、IO 错误）时同样按没有算，用一句话告知原因即可：
-   MUST NOT 阻断流程、MUST NOT 反复重试、MUST NOT 改问用户"这个项目有没有代码图谱"。
-
-   【本步 MUST NOT 探测 engineering-context】——它是**必备资产**，不是可选开关，
-   因此不参与路由判断：registry 里有没有条目、卡片建了几张，都不改变本次加载什么、
-   走哪条分流。缺失时在**工作区隔离门第 4 步**补建骨架
-   （core/worktree开发纪律.md §工作区隔离门 第 4 步；建法见 init-初始化.md 第 5b 步）——
-   **那一步是无条件的，与本次是不是初始化无关**：2.1.0 之前装过的项目块内已有
-   collaboration、走的是下面的 2a，永远进不了 2c，把建骨架挂在初始化上它就永远拿不到。
-   缺条目时由 core/代码事实纪律.md §4 在干活过程中当场补齐。
-   MUST NOT 因为"registry 是空的"就判定可以直读代码，也 MUST NOT 因此告警或提示用户。
-
-2. 【读标记块】**本步只读、只对话，MUST NOT 落盘。** 下面 2a/2b/2c 说的"补齐/回写/注入"
-   都是**决定要写什么**，真正写文件排在**过完工作区隔离门、进入 worktree 之后**
-   （core/worktree开发纪律.md §工作区隔离门 第 4 步）：在门前写会把主工作树弄脏，
-   于是每个项目第一次唤起本 skill 都被自己的门拦下；而且写在主工作树的块不会出现在
-   随后新建的 worktree 里，配置悬空，下次唤起又要重来。
-   MUST 把当前项目根的 CLAUDE.md 与 AGENTS.md **两个入口都读**
-   （字段以 CLAUDE.md 为准，AGENTS.md 用于比对与补齐，MUST NOT 读到一个就停）：
-   <!-- ai-dev-workflow:start -->
-   … collaboration="solo|team" merge-gate="direct|pr" worktree-dir="./.worktrees/" …
-   <!-- ai-dev-workflow:end -->
-   下面 2a/2b 说的"块"= CLAUDE.md 里的那一块；CLAUDE.md 没有块而 AGENTS.md 有，
-   就先读 AGENTS.md 的块走 2a/2b，并按 2a 把它幂等补进 CLAUDE.md。
-
-2a. 块内【有】collaboration → 直接用，不再询问。另一文件缺失、无块、或块内**字段与本文件
-     不一致**时，按 references/init-初始化.md §幂等规则 处置：以 CLAUDE.md 的值为准幂等
-     补齐/覆盖另一入口，且 MUST 多说一句被覆盖掉的是什么
-     （软链接规则见 references/init-初始化.md §入口是软链接时）。
-
-2b. 块内【只有】旧版安装留下的 mode 字段、没有 collaboration → 按旧值推协作字段：
-     旧值为 team → collaboration="team" + merge-gate="pr"；其余旧值 → solo + direct。
-     推断结果 MUST 一句话告知用户、允许当场改，然后幂等回写两个入口——只告知一次
-     （回写后块已含显式字段，下次走 2a）。文案与规则见 init-初始化.md §从旧标记块推断协作面。
-     MUST NOT 由旧值推出任何别的东西，MUST NOT 因旧值改变分流默认倾向——那由 00-流程总纲
-     §默认倾向 无条件定义，与协作面无关。
-
-2c. 两个入口都【没有】标记块 → 进入【初始化】（references/init-初始化.md）：先自动跑
-     references/环境冲突扫描.md，再只问一个问题（协作面）+ 一条待拍板的 merge-gate 建议，
-     按 assets/config-snippets/base.md + collab-<collaboration>.md 幂等注入
-     CLAUDE.md 和 AGENTS.md（都要写，兼容 Claude Code + Codex），并建起 engineering-context
-     骨架。**MUST NOT 问用户"要不要建 engineering-context"**——它是必备资产，不是选项。
-
-2d. 字段缺省与非法值：merge-gate 缺失 → 判据（现状 > 协作面推断）**只在
-     core/worktree开发纪律.md §完成与自动合并门 定义一次**，按它执行，本处不复述。
-     worktree-dir 缺失 → ./.worktrees/；collaboration 取值不是 solo/team →
-     报错中止并列出合法值域，MUST NOT 猜测。
-
-2e. 用户显式要求"扫描/体检项目的 ai-dev 体系" → 单独执行 references/环境冲突扫描.md
-    （已有协作面时不重问协作面），冲突逐项交用户决断后按其选择处置。
-
-3. 【加载】常驻 core 七篇：00-流程总纲 / 代码事实纪律 / worktree开发纪律 / spec写作纪律 /
-   文档治理 / 用户沟通纪律 / 上下文卫生。再追加：
-     - 协作面（必加载一份）：solo → references/collab/solo.md
-                             team → references/collab/team.md
-     - 探测到代码图谱时（可零篇）：references/capability/graph.md
-     - core/engineering-context设计.md：只在要动 engineering-context 的**结构**时读
-       （设计 registry 字段 / 画场景蓝图 / 维护探针集 / 判新鲜度机制）。
-       **日常补一张卡片不用读它**——最小形态在 代码事实纪律.md §4.1。
-   【此时不要读流程分册】——分流之后才知道该读哪一份。
-
-4. 按 00-流程总纲.md 驱动：先过 worktree 工作区隔离门，再做 Triage 分流，
-   然后【按分流结果】只加载对应分册：
-     - 四问全否 → references/core/路径-lean.md（一页走完，不读另两册）
-     - 任一为是 → references/core/步骤-1-7-设计与实现.md
-                  过完代码评审门后，再加载 references/core/步骤-8-10-测试.md
-
-5. 另五篇 core 按需分阶段读，各读所需小节即可：
-     - AI-LLM-overlay.md：需求含 AI/LLM 功能、Step 4 要叠加 AI 契约时。
-       其中判定为 **Agentic 应用**（模型自主规划 / 直接调工具 / 未过闸门就改状态 /
-       记忆跨会话影响决策）时，MUST 另行加载**独立 skill `agentic-principle`**
-       做架构选型与提示词设计——两者内容互不搬运，见该 overlay §Agentic 应用。
-     - bug诊断纪律.md：任务是修 bug / 查回归 / 解释异常行为时（动手改代码前）。
-     - 代码评审纪律.md：**改产品代码的任务基本都要读，分两次**——写 spec 时读
-       §替换清单（登记），编码完成派评审子代理时读 §四条轴与 §子代理 prompt 模板。
-     - 测试资产纪律.md：进入 Step 8–10、用户提供了真实数据或凭证、bug 修复归档时。
-     - 文档归档与账本收敛.md：D 轴判定出某篇文档需转归档时、或要写
-       bug修复历史.md / 测试场景覆盖度.md 时。判据本身在 文档治理.md §3，无需为读判据而读它。
-```
+**Lean 是替代不是叠加**：〈加载对象〉带 `(L§x)` 的行，完整流程取该加载对象，Lean **改取**自足册 `core/路径-lean.md` §x、**MUST NOT 两份都读**；只有该节自己写明的"要展开/要细则"条件命中，才再取本行原篇。其余行两条路径都取本行。含 AI/LLM 按 `core/AI-LLM-overlay.md` 叠加契约，判为 Agentic 应用 MUST 加载独立 skill `agentic-principle`。
 
 ## 关键纪律
 
-**底线（任何任务、任何时刻）**——判据都在对应 reference 里，这里只作提醒：
-
-- **代码事实先查卡片，没卡就读源码并当场补卡，MUST NOT 裸 grep 找权威实体**：先 `ctx find-scenes` 取业务全景，再 `ctx discover` / `get-card` 收窄（排序铁律见 `core/代码事实纪律.md` §3），事实必须附 cite，无 cite 视为幻觉；查不到就读源码 + 补卡（§4），补卡随本次分支提交，**MUST NOT 顺延**。结构性定位在探测到代码图谱时走 `capability/graph.md`，否则外包子代理（`core/上下文卫生.md`）。
-- **不问第二次协作面**：初始化后固化在 CLAUDE.md/AGENTS.md 的 `collaboration` 字段，除非用户显式要求切换。**代码图谱既不问也不写**——每次运行探测得出。
-- **开发全程隔离并自动归并**：任何文档或代码落盘前进入、并**全程使用独立 worktree**（目录读 CLAUDE.md/AGENTS.md 标记块的 `worktree-dir` 字段，缺失时默认 `./.worktrees/`）；门禁全过后按 `merge-gate` 合并主分支，失败保留现场不绕过保护分支。→ `core/worktree开发纪律.md`
-- **用户沟通只用业务语言**：大架构由用户确认，模块内设计只问业务问题，详细程序设计自主完成。→ `core/用户沟通纪律.md`
-- **文档只写标准目录，且有退出机制**：spec→`docs/spec/`、plan→`docs/plan/`、report→`docs/report/`；新建文档带 `lifecycle` + `authority_refs`，评审门 D 轴按权威面判定去留、准出核对，索引只放现行口径。→ `core/文档治理.md`
-- **写到零上下文也能动手**：RFC2119、无占位符、事实带来源。→ `core/spec写作纪律.md`
-- **上下文卫生**：方向性决策在聪明区内完成，逼近上限就交接，重探索外包子代理。→ `core/上下文卫生.md`
-
-**按阶段触发的门（命中就必须过，Lean 也不豁免）**：
-
-| 何时 | 必须做什么 | 判据 |
-|---|---|---|
-| 改代码前（bug 类）| 先查修复历史，再造"能变红、确定性、快、可自跑"的复现命令；无回路不许提假设、不许改代码 | `core/bug诊断纪律.md` |
-| 取任何模块的代码事实时 | 先查卡片；查不到就读源码，**读完当场把卡片补上**并随本次分支提交 | `core/代码事实纪律.md` §4 |
-| 写 spec 时（含 AI/LLM）| 在基础 spec 上叠加 AI 契约 | `core/AI-LLM-overlay.md` |
-| 需求是 **Agentic 应用** | **MUST 加载独立 skill `agentic-principle`**：spec 设计、开发参考、评审增派 agent 架构轴。它的内容不并入本 skill，缺失时告知用户并把架构选型标"待补" | `core/AI-LLM-overlay.md` §Agentic 应用 |
-| spec 定稿前 | **兼容取舍交用户逐条拍板**，AI 不得默认兼容；无变更也要显式声明 | 总纲 §兼容取舍确认门 |
-| 写 spec + 编码时 | 登记**替换清单**，被取代的旧逻辑当场删，保留项须带理由与到期日 | `core/代码评审纪律.md` §替换清单 |
-| 编码完成后 | **派子代理跑四轴评审**（完整 4 个 / Lean 1 个），P0/P1 修完才过门 | `core/代码评审纪律.md` |
-| 测试阶段 | 长链路必须端到端且断言中间产物；真实输入固化复用；未覆盖场景挂账 | `core/测试资产纪律.md` |
-
-## 何时用哪个模板
-
-见 `references/core/00-流程总纲.md` §完整流程步骤索引 的"对应模板"列，模板都在 `assets/templates/` 下。
+**`engineering-context/` 必备、没有开关**（`core/代码事实纪律.md`）。`ctx` 敲不到 **MUST NOT 读成"这一层不可用"**：改用 `node <skill>/scripts/ctx/src/cli.js`，MUST NOT 裸 grep 权威实体、MUST NOT 顺延补卡。
