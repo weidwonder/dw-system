@@ -14,13 +14,15 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 import { initScaffold } from '../ai-dev-system/skills/ai-dev-workflow/scripts/ctx/src/commands.js'
+// 计数词豁免清单的唯一定义处，两条机器闸共用一份（详见该文件抬头）。
+import { EXEMPT_DIRS, EXEMPT_FILES } from './counter-word-exempt.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const skillsRoot = path.join(repoRoot, 'ai-dev-system', 'skills')
 const workflowRoot = path.join(skillsRoot, 'ai-dev-workflow')
 const read = (...parts) => readFileSync(path.join(...parts), 'utf8')
 
-/** 递归收集 skills/ 下的所有文本文件（markdown + js），返回 [仓库相对路径, 内容] 对。 */
+/** 递归收集 skills/ 下的所有文本文件（markdown + js），返回 [仓库相对路径（正斜杠）, 内容] 对。 */
 function collectSkillFiles() {
   const out = []
   const walk = (dir) => {
@@ -32,7 +34,10 @@ function collectSkillFiles() {
         continue
       }
       if (!/\.(md|mjs|js)$/.test(entry)) continue
-      out.push([path.relative(repoRoot, full), readFileSync(full, 'utf8')])
+      // 相对路径统一成正斜杠：Windows 上 path.relative 会给反斜杠，而下面的
+      // GUARDRAIL_AUTHORITY / GUARDRAIL_EXEMPT 都是正斜杠写法，直接比对会全部漏判
+      // （权威文件与豁免项一个都匹配不上，护栏计数全被塞进 strays，测试必红）。
+      out.push([path.relative(repoRoot, full).split(path.sep).join('/'), readFileSync(full, 'utf8')])
     }
   }
   walk(skillsRoot)
@@ -144,14 +149,21 @@ test('入口自带工作区隔离门要点：建不建、目录取哪个字段�
   )
 })
 
-test('加载点清单不少于 spec §7 的十四个触发条件（Invariant 3）', () => {
+test('加载点清单不少于 spec §7 的十八个加载点（Invariant 3）', () => {
   const skill = read(workflowRoot, 'SKILL.md')
   const table = skill.slice(skill.indexOf('## 加载点清单'))
   assert.ok(table.length > 0, '找不到〈加载点清单〉节')
   const rows = table
     .split('\n')
     .filter(l => l.startsWith('| ') && !/^\|\s*-+/.test(l) && !l.startsWith('| 触发条件'))
-  assert.ok(rows.length >= 14, `加载点清单只有 ${rows.length} 行，MUST NOT 少于十四行`)
+  // 门槛跟 Invariant 3 走：设计阶段十四个 + 实现阶段判出的四个 = 十八，且它是**下限不是上限**
+  // （每新判出一个触发式小节 MUST 增行）。此前这里写死 14，比不变量松了 4 行——删掉实现阶段
+  // 新增的那四行照样绿，等于那四个加载点没有任何机器防线。下限值 MUST 与 spec §7 的行数一致，
+  // spec 增行时同步上调；**MUST NOT 为了让删行通过而下调它**。
+  assert.ok(
+    rows.length >= 18,
+    `加载点清单只有 ${rows.length} 行，MUST NOT 少于十八行（spec §7：设计阶段十四个 + 实现阶段新增四个）`,
+  )
   // 每行四个 REQUIRED 字段齐（触发条件 / 加载对象 / 为什么此刻需要 / 适用路径）
   for (const row of rows) {
     const cells = row.replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim())
@@ -337,9 +349,14 @@ const CN_NUM = { 一: 1, 二: 2, 两: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7,
 // 这里只管 `counter-word` 管不到的那一半——**权威文件里写的那个数字与实际条目数是否一致**。
 // 两条缺一不可：只查取值，数字会被复制到别处；只查出现位置，权威处写错数字照样全绿。
 const GUARDRAIL_AUTHORITY = 'references/core/00-流程总纲.md'
-// 豁免与 counter-word.test.mjs 的 EXEMPT_* 保持一致：入口与 Lean 自足册按设计必须复述，
-// config-snippets/ 被注入目标项目、读它的 AI 没有本 skill 的文件可跳转。
-const GUARDRAIL_EXEMPT = ['ai-dev-workflow/SKILL.md', 'references/core/路径-lean.md', 'assets/config-snippets/']
+// 豁免清单**从 counter-word-exempt.mjs 取**，不在这里另抄一份：入口与 Lean 自足册按设计必须
+// 复述，config-snippets/ 被注入目标项目、读它的 AI 没有本 skill 的文件可跳转。此前两份各写
+// 一遍、只靠注释"保持一致"手工同步，两边写法还不同，漂了不会报任何错——同一份判据 MUST 只有
+// 一处定义。
+// 共用清单的基准是 `ai-dev-workflow/`，这里的 skillFiles 相对 repoRoot 且**含姊妹 skill
+// `ai-prd/`**，所以 MUST 补回 `ai-dev-workflow/` 前缀再匹配：直接拿裸的 `SKILL.md` 去
+// `includes`，会把 `ai-prd/SKILL.md` 一起豁免掉，静默放宽检查面。
+const GUARDRAIL_EXEMPT = [...EXEMPT_FILES, ...EXEMPT_DIRS].map((x) => `ai-dev-workflow/${x}`)
 
 test('"不裁剪护栏"的条数只在总纲里出现，且与实际条目数一致', () => {
   const outline = read(workflowRoot, 'references', 'core', '00-流程总纲.md')

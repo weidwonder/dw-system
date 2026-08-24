@@ -4,10 +4,10 @@ status: 'design-approved-pending-review'
 documentRole: 'design-spec'
 sourceOfTruth: true
 lifecycle: active
-last_confirmed: '2026-08-19'
+last_confirmed: '2026-08-23'
 authority_refs:
   - 'skill 的交付形态与目录结构：ai-dev-system/skills/<name>/{SKILL.md,references/,assets/,scripts/}'
-  - 'references/ 的分层职责：core 常驻 + 按维度追加的分册'
+  - 'references/ 的分层职责：core 与按维度追加的分册怎么划分（各分册的加载时机自 2.5.0 起改由 2026-08-23-渐进式披露与需求追溯-eng-spec.md 定义）'
   - 'skill 初始化把配置幂等写入目标项目 CLAUDE.md 与 AGENTS.md 标记块这一机制'
   - '注入标记块的条目集合本身（本文 §5 复刻了 config-snippets 的正文，条目一改这里就失准）'
   - 'Engineering Context 的构成（方案 B）：capability-registry / cards / scenes / Frozen Probe Set / 新鲜度与棘轮'
@@ -57,7 +57,7 @@ ai-dev-system/
     └── ai-dev-workflow/               # ★ 唯一的 skill（Claude Code + Codex 通用）
         ├── SKILL.md                   # 入口：探测代码图谱 → 读协作面 → 加载；首次运行 → 初始化
         ├── references/
-        │   ├── core/                  # 共享内核（tech-agnostic），无条件常驻
+        │   ├── core/                  # 共享内核（tech-agnostic）；2.5.0 起只有部分分册常驻，其余按加载点取
         │   │   ├── 00-流程总纲.md       # Triage 4 问 + 10 步 + 四道门，每步配 prompt
         │   │   ├── spec写作纪律.md       # 零上下文可动手 / RFC2119 / 无占位符
         │   │   └── AI-LLM-overlay.md     # AI 契约：prompt 版本化/输出校验/成本/eval 门
@@ -79,7 +79,7 @@ ai-dev-system/
 ```
 
 **分层职责**：
-- **core**：任何项目、任何技术栈都加载。流程骨架 + 四道门 + 写作纪律 + AI overlay，以及原先散在两个外壳里、其实对谁都成立的约定（六条"不裁剪"护栏、按边界拆 spec、PR 粒度、文档治理与评审门文档结算）。
+- **core**：与项目和技术栈无关的共享判据。流程骨架 + 门 + 写作纪律 + AI overlay，以及原先散在两个外壳里、其实对谁都成立的约定（"不裁剪"护栏、按边界拆 spec、PR 粒度、文档治理与评审门文档结算）。（本条与上面树里的"常驻"注解是 1.0.0 起的原口径 —— `core/` **整目录常驻**、护栏当时为六条。**2.5.0 起两点都已变更**：改为渐进式披露，常驻只有六份、且分两批取（入口 + `00-流程总纲.md` + `代码事实纪律.md` + `用户沟通纪律.md` + `上下文卫生.md` + `collab/` 一份），`文档治理.md` / `spec写作纪律.md` / `worktree开发纪律.md` 三篇已移出常驻、按 `SKILL.md` 的〈加载点清单〉触发时才取；护栏现为七条。现行口径见 `2026-08-23-渐进式披露与需求追溯-eng-spec.md` §4，本文不再重复。）
 - **collab/**：只放**因为有没有别人一起干而不同**的事（owner 对齐、评审会、兼容由谁拍板、PR 平台动作）。
 - **capability/**：只放**因为项目攒了什么家底而不同**的事（怎么取代码事实、分流默认倾向）。两位正交，任一可单独启用。
 
@@ -97,8 +97,13 @@ ai-dev-system/
         并在 worktree 内跑 ctx init 建 engineering-context 骨架。代码图谱与代码事实层都不问。
   2b. 只有旧版留下的 mode 字段 → 只据它推协作面（team → team+pr，其余 → solo+direct），
         一句话告知并回写；MUST NOT 由旧值推出别的任何东西。
-  3. 【加载】core 常驻七篇（含 代码事实纪律.md）+ collab/<协作面>.md（必选一份）
-       + 探测到代码图谱时加 capability/graph.md（可零篇）
+  3. 【加载】按渐进式披露分两批：分流前只取三份（SKILL.md + 用户沟通纪律.md
+       + 00-流程总纲.md §Step 0）+ 探测到代码图谱时加 capability/graph.md（可零篇）；
+       过隔离门与 Triage 之后再按分支补——Lean 走自足册 路径-lean.md + collab/<协作面>.md，
+       MUST NOT 再补余下三份常驻；完整分支才补 代码事实纪律.md + 上下文卫生.md
+       + collab/<协作面>.md + 总纲其余前置节。其余分册一律按 SKILL.md〈加载点清单〉触发时取。
+       （2.5.0 改；此前为"core 常驻七篇 + collab 一份"，判据见
+        2026-08-23-渐进式披露与需求追溯-eng-spec.md §4）
   4. 按 core/00-流程总纲.md 驱动：先过 worktree 隔离门，再 Triage 分流，走对应深度的流程
 ```
 

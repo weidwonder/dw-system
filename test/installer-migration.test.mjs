@@ -56,6 +56,11 @@ test('VERSION 与迁移指南文件契约', () => {
     .map((f) => f.replace(/\.md$/, ''))
     .sort(cmp)
     .pop()
+  // migrations/ 为空（或只剩非版本号文件）是**合法状态**——上面那条判据已经放宽成
+  // "只有需要用户动作的升级才写指南"，一路都是零手动动作的版本时目录就该是空的。
+  // 此刻 highest 为 undefined，`cmp(sourceVersion, undefined)` 会在 split 上抛 TypeError，
+  // 把一条本该通过的断言变成崩溃。没有指南就没有"永远不会被打印"的指南，直接短路。
+  if (highest === undefined) return
   assert.ok(
     cmp(sourceVersion, highest) >= 0,
     `VERSION（${sourceVersion}）低于已有的最高迁移指南（${highest}）——那份指南永远不会被安装器打印`,

@@ -2,7 +2,7 @@
 lifecycle: active
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-08-19'
+last_confirmed: '2026-08-23'
 authority_refs:
   - 'install.mjs 的命令行选项：--no-codegraph / --codegraph-location=<local|global>'
   - '安装器写入目标项目 .gitignore 标记块的条目清单'

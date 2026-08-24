@@ -4,7 +4,7 @@ status: '设计定稿，待实现'
 documentRole: 'design-spec'
 sourceOfTruth: '../../REQUIREMENTS.md 不适用（本仓库为方法论分发包）'
 lifecycle: active
-last_confirmed: '2026-08-17'
+last_confirmed: '2026-08-23'
 authority_refs:
   - 'ai-prd 与 ai-dev-workflow 的职责边界：PRD 产出在前，其产物即 workflow Step 1 的输入'
   - 'ai-prd 的目录结构与分册加载方式'

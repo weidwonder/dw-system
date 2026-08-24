@@ -10,8 +10,14 @@
 // 的实现前提：小节名 `§四条轴` **不含**子串 `四轴`，所以"指名引用小节名"这个改写目标本身
 // 不会被这条检查误伤；一旦改成分词/模糊匹配，改写后的正确形态反而会被判红，与规则互斥。
 //
-// 这条检查此刻**预期为红**（内容尚未改写），由 coding-plan Task 5 转绿；转绿后按 AC-010
-// 做一次门禁自检：往任一非豁免文件写回计数词 → RED，改回 → GREEN。
+// 门禁自检（AC-010）：往任一**非豁免**文件（如 `references/core/文档治理.md`）里写回一个受检
+// 计数词（如把某处指名引用改回"按四轴执行"）→ 本检查判红并逐处点名；改回指名引用 → 转绿。
+// 自检 MUST 用这种方式做，MUST NOT 靠放宽词表或扩大豁免清单让它绿。
+//
+// 作用域：只遍历 `ai-dev-workflow/`（下方 wfRoot）。姊妹 skill `ai-prd/` **尚未收敛**——
+// `ai-prd/references/prd复核纪律.md` 里仍有 `四轴`×2，另有 `四道门`×1、`四问`×1。这是
+// spec §1「不做什么」划定的范围，不是漏网：`ai-prd` 待后续版本另开一次收敛。MUST NOT 把
+// 本闸全绿读成"全仓计数词已收敛"。
 //
 // spec：docs/spec/2026-08-23-渐进式披露与需求追溯-eng-spec.md §4.3 / §6 Invariant 5
 import assert from 'node:assert/strict'
@@ -19,6 +25,10 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
+
+// 豁免清单（spec §4.3 的豁免 1 与豁免 3）住在共用模块里：`cards-mandatory.test.mjs` 的护栏
+// 取值闸用的是同一份，两边各抄一遍会静默漂移。逐条理由见该文件。
+import { EXEMPT_DIRS, EXEMPT_FILES } from './counter-word-exempt.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const wfRoot = path.join(repoRoot, 'ai-dev-system', 'skills', 'ai-dev-workflow')
@@ -66,15 +76,6 @@ const CHECKED_WORDS = [
     rewrite: '按 `00-流程总纲.md` §"不裁剪"护栏 指名引用（MUST NOT 保留条数）',
   },
 ]
-
-// 豁免清单（spec §4.3 的豁免 1 与豁免 3）：
-//   1. `SKILL.md` 与 Lean 自足册 `路径-lean.md` —— 它们按设计必须复述这些内容（入口在没有
-//      别的文件在手时就要判门；Lean 路径不读常驻篇），且按从属规则不可能是权威定义文件。
-//   3. `assets/config-snippets/**` 整目录 —— 内容被注入**目标项目**的 CLAUDE.md/AGENTS.md，
-//      读它的 AI 手边没有本 skill 的文件可跳转，"按某文件某小节执行"对它无法兑现；
-//      2026-08-23 兼容取舍门已拍板保留原表述（spec §8.1）。
-const EXEMPT_FILES = ['SKILL.md', 'references/core/路径-lean.md']
-const EXEMPT_DIRS = ['assets/config-snippets/']
 
 const isExempt = (rel) =>
   EXEMPT_FILES.includes(rel) || EXEMPT_DIRS.some((dir) => rel.startsWith(dir))

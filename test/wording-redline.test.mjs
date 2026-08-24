@@ -28,6 +28,9 @@
 //   - 文件在当前工作区不存在（本分支删除或移出改名）——移出的判据由加载点清单契约
 //     与自足册覆盖率检查保护，不是本闸的活；
 //   - 非 markdown 文件。
+// 还有一种整体失效：`main` 与 `origin/main` 都取不到时立不起基线，本闸纳入 0 个文件并在
+// 输出里显著打印「本闸未生效：取不到分支起点」——MUST NOT 抛错（抛错会把同一文件里两条
+// 纯函数门禁自检一起带挂），也 MUST NOT 静默全绿。
 //
 // 两条自检（本文件末尾两个 test）：一条对**计数器**植入人为降条数的样本，一条对**棘轮**
 // 植入"分支内涨上去又删回来"的样本。两条 MUST 保留——一个只会绿的门禁比没有门禁更坏。
@@ -147,17 +150,32 @@ const countCriteriaRows = (text) => {
 }
 
 // ── 取比对范围 ──────────────────────────────────────────────────────────────
-const mergeBase = (() => {
-  try {
-    return gitLines(['merge-base', 'HEAD', 'main'])[0]
-  } catch (err) {
-    throw new Error(
-      `取不到分支起点（git merge-base HEAD main 失败），本闸无法确定基线：${err.message}`,
-    )
+// 基分支按 `main` → `origin/main` 依次尝试：本仓的默认分支叫 main，但只有 fetch 过的克隆
+// 才一定有本地 `main` ref（CI 的浅克隆、只检出特性分支的机器都可能只有 `origin/main`）。
+//
+// 两条都取不到时**MUST NOT 抛错**。此前它在模块顶层抛，整份文件的 5 条测试会一起挂——
+// 其中包含两条门禁自检，而自检是纯函数、压根不需要 git。基线取不到只该让"比对"这半失效，
+// 不该连"这条闸本身还成不成立"一起失效。
+// 失效的形态是**纳入 0 个文件 + 显著打印**，与本闸自己的设计一致（见 §比对范围 那条：
+// 一个纳入 0 个文件却全绿的门禁与没有门禁等价，必须在输出里看得见）。
+const BASE_REF_CANDIDATES = ['main', 'origin/main']
+const { mergeBase, baseRef, mergeBaseError } = (() => {
+  const tried = []
+  for (const ref of BASE_REF_CANDIDATES) {
+    try {
+      const sha = gitLines(['merge-base', 'HEAD', ref])[0]
+      if (sha) return { mergeBase: sha, baseRef: ref, mergeBaseError: null }
+      tried.push(`${ref}（命令成功但没有输出）`)
+    } catch (err) {
+      tried.push(`${ref}（${err.message.split('\n')[0]}）`)
+    }
   }
+  return { mergeBase: null, baseRef: null, mergeBaseError: tried.join('；') }
 })()
 
 const changedMarkdown = (() => {
+  // 取不到分支起点 → 纳入 0 个文件（下方的显著打印会把这件事说出来），MUST NOT 静默全绿。
+  if (mergeBase === null) return []
   const set = new Set()
   const collect = (args) => {
     for (const p of gitLines(args)) if (p.endsWith('.md')) set.add(p)
@@ -172,7 +190,7 @@ const changedMarkdown = (() => {
 //
 // 采样点按时间顺序排列，第 0 个是分支起点。`git show <sha>:<path>` 在该 commit 没有这个
 // 文件时会失败，那是**预期路径**（文件还没建 / 已被移走），跳过那个采样点即可。
-const branchCommits = gitLines(['rev-list', '--reverse', `${mergeBase}..HEAD`])
+const branchCommits = mergeBase === null ? [] : gitLines(['rev-list', '--reverse', `${mergeBase}..HEAD`])
 const shortSha = (sha) => sha.slice(0, 7)
 
 // `<sha>:<path>` → 文本 的内存缓存。文件数 × commit 数会相乘，同一个键只 `git show` 一次；
@@ -258,7 +276,16 @@ const scope = (() => {
 // 才可信，一个纳入 0 个文件却全绿的门禁与没有门禁等价，必须在输出里看得见。
 test('比对范围与棘轮地板（供人核对，不做断言）', () => {
   const say = (s) => console.log(s)
-  say(`分支起点：${shortSha(mergeBase)}；分支内 commit：${branchCommits.length} 个`)
+  if (mergeBase === null) {
+    say('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+    say('!! 本闸未生效：取不到分支起点（措辞红线比对被整体跳过，纳入 0 个文件）      !!')
+    say(`!! 依次试过：${mergeBaseError}`)
+    say('!! 本次运行 MUST NOT 被读成"措辞红线已通过"——它一个文件都没比。            !!')
+    say('!! 处置：把基分支 fetch 下来（git fetch origin main）后重跑本闸。           !!')
+    say('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+    return
+  }
+  say(`分支起点：${shortSha(mergeBase)}（基分支 ${baseRef}）；分支内 commit：${branchCommits.length} 个`)
   say(`纳入比对的 markdown：${scope.checked.length} 个（地板 = 起点与分支内各 commit 的历史最大值）`)
   for (const f of scope.checked) {
     const cur = measure(f.current)
