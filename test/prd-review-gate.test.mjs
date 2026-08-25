@@ -7,6 +7,12 @@
 //
 // spec：docs/spec/2026-08-19-prd复核门-lean-change-spec.md
 //
+// 2026-08-25 调整：复核门不再"一出稿就自动跑"，前面插了一道**用户过稿门**——
+// 用户读稿、提意见、定稿之后才派子代理。三门顺序因此变成
+// 用户过稿门 → 复核门 → 落盘确认门，组稿步骤 1–8 顺延为 1–9。下面的顺序断言与
+// 步骤号断言都改成**按门名定位、编号动态取**，不再钉死数字（正是本文件顶部那条
+// "不要把组稿步骤号写进断言"的自我要求，上一版只做到一半）。
+//
 // 这些断言自己过过一次门禁自检（植入必错样本，2026-08-19）：SKILL.md 退回"两个出口"、
 // SKILL.md 漏掉标签子类、出口列删一个取值、删掉取证足迹整段 → 四个样本全部 RED；
 // 合法改写勾验时机措辞、合法改写取证足迹措辞（契约不变）→ 两个样本全部 GREEN。
@@ -42,23 +48,61 @@ test('复核纪律存在，且两轴与三个出口都写明', () => {
   assert.equal(rows, 6, `冲突轴应有 6 类冲突，实际 ${rows} 类`)
 })
 
-test('复核门排在落盘确认门之前（本次变更的核心约定）', () => {
+/** 组稿节的顶层步骤：[{ num, text }]，text 是该步首行。按门名定位用，不钉死编号。 */
+function composeSteps() {
   const flow = read(prdRoot, 'references', '00-prd生成流程.md')
   const section = flow.slice(flow.indexOf('\n## 组稿'), flow.indexOf('\n## PRD 生命周期'))
-  const review = section.search(/^4\. \*\*复核门/m)
-  const landing = section.search(/^5\. \*\*落盘确认门/m)
-  assert.ok(review > 0, '组稿第 4 步不是复核门')
-  assert.ok(landing > 0, '组稿第 5 步不是落盘确认门')
+  return [...section.matchAll(/^([0-9]+)\. (.*)$/gm)].map((m) => ({ num: Number(m[1]), text: m[2] }))
+}
+
+/** 按门名取它的步骤号；找不到返回 -1。 */
+const gateStep = (name) => {
+  const hit = composeSteps().findIndex((s) => s.text.includes(name))
+  return hit < 0 ? -1 : composeSteps()[hit].num
+}
+
+test('三道门的先后：用户过稿门 → 复核门 → 落盘确认门（本约定的核心）', () => {
+  const steps = composeSteps()
+  const at = (name) => steps.findIndex((s) => s.text.includes(name))
+  const draft = at('用户过稿门')
+  const review = at('复核门：派子代理')
+  const landing = at('落盘确认门：')
+  assert.ok(draft >= 0, '组稿里找不到用户过稿门')
+  assert.ok(review >= 0, '组稿里找不到复核门')
+  assert.ok(landing >= 0, '组稿里找不到落盘确认门')
+  assert.ok(draft < review, '用户过稿门 MUST 排在复核门之前——复核报告只对某一版稿子有效')
   assert.ok(review < landing, '复核门 MUST 排在落盘确认门之前')
 })
 
-test('五处接线都在（少一处，门就在那条路径上不存在）', () => {
+test('复核门被明令禁止在用户定稿前开跑（本次调整要挡的正是这个）', () => {
+  const body = read(prdRoot, 'references', 'prd复核纪律.md')
+  const gate = body.slice(body.indexOf('## 门禁'), body.indexOf('## 两条轴'))
+  assert.ok(/MUST NOT[^。]*派子代理/.test(gate), '§门禁 未禁止用户读稿前就派子代理')
+  assert.ok(/定稿/.test(gate), '§门禁 未把开跑条件绑到用户定稿上')
+  // 用户不表态时的默认值是"等"，不是"当他没意见"
+  assert.ok(/没意见|未表态|尚未表态/.test(gate), '§门禁 未挡住"用户没回复 = 没意见"的读法')
+})
+
+test('落盘确认门在复核零发现时退化，不要用户点第二次头', () => {
+  const flow = read(prdRoot, 'references', '00-prd生成流程.md')
+  const section = flow.slice(flow.indexOf('\n## 组稿'), flow.indexOf('\n## PRD 生命周期'))
+  const landing = section.slice(section.indexOf('落盘确认门：'))
+  assert.ok(/退化/.test(landing), '落盘确认门缺"复核零发现即退化"的规则')
+  assert.ok(/第二次头|再摆一遍|重复确认/.test(landing), '退化规则没说清它要省掉的是什么')
+  // 反向：改过稿就不许退化，且要逐条告知用户改了什么
+  assert.ok(/实质性改稿/.test(landing), '退化规则缺"实质性改稿"这个反向判据')
+  assert.ok(/改了什么|被改了什么/.test(landing), '未要求逐条列出用户定稿后稿子被改了什么')
+})
+
+test('接线都在（少一处，门就在那条路径上不存在）', () => {
   const wired = {
     'SKILL.md': ['prd复核纪律', '复核门'],
     'references/prd质量清单.md': ['prd复核纪律', '本清单不是最后一道关'],
     'references/collab/solo.md': ['prd复核纪律'],
     'references/collab/team.md': ['prd复核纪律'],
     'assets/question-bank.md': ['复核门'],
+    // 用户过稿门与复核门是同一条链上的两环，接线漏一处，门就在那条路径上不存在
+    'references/prd复核纪律.md': ['用户过稿门'],
   }
   const missing = []
   for (const [file, needles] of Object.entries(wired)) {
@@ -68,17 +112,25 @@ test('五处接线都在（少一处，门就在那条路径上不存在）', ()
   assert.deepEqual(missing, [], '复核门接线缺失：\n' + missing.join('\n'))
 })
 
-test('组稿步骤号全仓一致：编号连续，且指向落盘确认门的引用恒为第 5', () => {
-  // 编号漂移不会报错，只会让引用指向另一道门——这正是机器该盯的
-  const flow = read(prdRoot, 'references', '00-prd生成流程.md')
-  const section = flow.slice(flow.indexOf('\n## 组稿'), flow.indexOf('\n## PRD 生命周期'))
-  const nums = [...section.matchAll(/^([0-9])\. /gm)].map((m) => Number(m[1]))
-  assert.deepEqual(nums, [1, 2, 3, 4, 5, 6, 7, 8], '组稿步骤编号必须 1–8 连续不重复')
+test('组稿步骤号全仓一致：编号连续，且指向各门的引用都落在它自己那一步', () => {
+  // 编号漂移不会报错，只会让引用指向另一道门——这正是机器该盯的。
+  // 期望值从文档里动态取：插一道门就该整体顺延，钉死数字会让"文档改对了、测试反而红"。
+  const nums = composeSteps().map((s) => s.num)
+  assert.deepEqual(
+    nums,
+    nums.map((_, i) => i + 1),
+    '组稿步骤编号必须从 1 起连续不重复',
+  )
 
+  const landing = gateStep('落盘确认门：')
+  const draft = gateStep('用户过稿门')
   const wrong = []
   for (const [file, body] of prdFiles) {
-    for (const m of body.matchAll(/第 ([0-9]) 条的落盘确认门/g)) {
-      if (m[1] !== '5') wrong.push(`${file} ← 「第 ${m[1]} 条的落盘确认门」应为第 5 条`)
+    for (const m of body.matchAll(/第 ([0-9]+) 条的落盘确认门/g)) {
+      if (Number(m[1]) !== landing) wrong.push(`${file} ← 「第 ${m[1]} 条的落盘确认门」应为第 ${landing} 条`)
+    }
+    for (const m of body.matchAll(/§组稿 第 ([0-9]+) 步的用户过稿门/g)) {
+      if (Number(m[1]) !== draft) wrong.push(`${file} ← 「第 ${m[1]} 步的用户过稿门」应为第 ${draft} 步`)
     }
   }
   assert.deepEqual(wrong, [], '组稿步骤号漂移：\n' + wrong.join('\n'))
