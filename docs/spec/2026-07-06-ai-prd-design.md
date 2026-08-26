@@ -4,7 +4,7 @@ status: '设计定稿，待实现'
 documentRole: 'design-spec'
 sourceOfTruth: '../../REQUIREMENTS.md 不适用（本仓库为方法论分发包）'
 lifecycle: active
-last_confirmed: '2026-08-23'
+last_confirmed: '2026-08-26'
 authority_refs:
   - 'ai-prd 与 ai-dev-workflow 的职责边界：PRD 产出在前，其产物即 workflow Step 1 的输入'
   - 'ai-prd 的目录结构与分册加载方式'
@@ -55,6 +55,9 @@ ai-dev-system/skills/ai-prd/
       lite-issue-prd.md        轻量 Issue PRD（裁剪版）
       product-prd.md           整品 PRD（对齐 doc-governance REQUIREMENTS.md）
     question-bank.md           分章节提问库（供 elicitation 组批）
+  scripts/
+    preview.mjs                原型工具（2.7.0 新增，零第三方依赖）：init / screen / slot 建原型与改稿、
+                               check 交付前结构自检、annotations 取批注、serve 起预览服务
 ```
 
 ## 4. 核心流程：批量提问 + 4 批 elicitation
@@ -108,7 +111,7 @@ ai-dev-system/skills/ai-prd/
 
 ## 8. 落地范围
 
-- 纯 markdown skill，**无代码**、无第三方依赖。
+- markdown skill + 一个零第三方依赖的 Node 原型工具（`scripts/preview.mjs`，2.7.0 起；此前确为纯 markdown）。
 - 顺带在 `install.mjs` 复制清单里加入 `ai-prd`（与 ai-dev-workflow 一并装入目标项目）。
 - 同步更新根 `README.md` 与 `CLAUDE.md`：交付单元从"唯一 skill"改为"两个 skill（ai-dev-workflow + ai-prd）"。
 

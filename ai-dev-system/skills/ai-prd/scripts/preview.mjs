@@ -37,7 +37,13 @@ const LOOPBACK = /^(127\.0\.0\.1|\[::1\]|localhost)(:\d+)?$/
 // 那里提前截断，于是外壳被留在文件里、旧内容没被换掉，再 slot 一次就多留一屏——退出码
 // 仍是 0，check 只会莫名其妙地报"一个屏都没有"。标记是容器里的固定实现，改不了也漂不掉。
 const SLOTS = {
-  title: { probe: '<title>UI 原型</title>', wrap: (v) => `<title>${v}</title>` },
+  // title 一次写两处（`<title>` 与页头 `<h1>`），且**按形状匹配、不按出厂字面量**——
+  // 出厂串 `<title>UI 原型</title>` 在 `init` 之后就不存在了，用它当探针会让
+  // `slot --set title` 在任何真实原型上都报"找不到插槽"，而纪律又禁止手工改文件。
+  title: {
+    probe: '<title>UI 原型</title>',
+    apply: (html, v) => html.replace(TITLE_RE, `<title>${v} · 原型</title>`).replace(H1_RE, `<h1 id="proto-title">${v}</h1>`),
+  },
   subtitle: {
     probe: '<p id="proto-subtitle"></p>',
     wrap: (v) => `<p id="proto-subtitle">${v}</p>`,
@@ -110,17 +116,27 @@ const ANNO_OPEN = '<script type="application/json" id="anno-data">'
 
 /* ────────────────── 通用 ────────────────── */
 
-function fail(msg, code = 2) {
-  console.error(msg)
-  process.exit(code)
+// 终止用抛错、不用 process.exit：`process.exit()` 会在 stdout 还没冲刷完时切断进程，
+// 经管道时输出被截断而退出码仍然正常——ctx CLI 已经为这条教训付过一次代价
+// （400KB 的 --json 经管道只剩 64KB、退出码 0）。顶层 catch 负责打印与设退出码。
+class Abort extends Error {
+  constructor(msg, code) {
+    super(msg)
+    this.code = code
+  }
 }
 
+function fail(msg, code = 2) {
+  throw new Abort(msg, code)
+}
+
+// 退出码约定与 ctx CLI 一致：2 = 用法错误（参数缺失/取值非法），其余失败一律 1。
 async function readTarget(file) {
   try {
     const s = await stat(file)
     if (!s.isFile()) throw new Error('not a file')
   } catch {
-    fail(`找不到原型文件：${file}`)
+    fail(`找不到原型文件：${file}`, 1)
   }
   return readFile(file, 'utf8')
 }
@@ -157,12 +173,11 @@ function lineOf(html, index) {
 
 async function cmdInit(file, opts) {
   if (!opts.title) fail('init 需要 --title <需求名>')
-  try {
-    await stat(file)
-    fail(`目标已存在，不覆盖：${file}\n要改内容请用 slot / screen 子命令。`)
-  } catch (e) {
-    if (e && e.message && e.message.startsWith('目标已存在')) throw e
-  }
+  const exists = await stat(file).then(() => true, (e) => {
+    if (e && e.code === 'ENOENT') return false
+    throw e
+  })
+  if (exists) fail(`目标已存在，不覆盖：${file}\n要改内容请用 slot / screen 子命令。`, 1)
   await copyFile(TEMPLATE, file)
   let html = await readFile(file, 'utf8')
   html = html.replace(TITLE_RE, `<title>${esc(opts.title)} · 原型</title>`)
@@ -206,18 +221,21 @@ async function cmdScreen(file, opts) {
   if (bad.length) fail(`未知状态：${bad.join(', ')}\n可用：${STATE_KEYS.join(', ')}`)
 
   const html = await readTarget(file)
-  const m = html.match(SLOTS.screens.re)
-  if (!m) fail('找不到界面插槽（SCREENS 区被改写了？）')
+  // 区间一律走 markRange：SLOTS.screens 没有 `re`，此处曾误引用它——`html.match(undefined)`
+  // 恒返回空匹配、`html.replace(undefined, …)` 把 undefined 当字面串找不到，于是本命令
+  // **对文件零改动却打印「已加屏」并退出 0**。评审撞出，两轴各报一次。
+  const r = markRange(html, SLOTS.screens.mark)
+  if (!r) fail('找不到界面插槽（SCREENS 区被改写了？）', 1)
+  const region = html.slice(r.from, r.to)
   const block = screenSkeleton(opts.name, states, !!opts.desktop)
 
-  let next
-  if (m[0].includes('<!-- SCREENS -->')) {
-    next = html.replace(SLOTS.screens.re, SLOTS.screens.wrap(block))
-  } else {
-    // 已有屏：追加到最后一个 </section> 之后，保留既有内容与批注锚点
-    const inner = m[0].replace(/^<div class="devices" data-anno-canvas>\n?/, '').replace(/\n?    <\/div>$/, '')
-    next = html.replace(SLOTS.screens.re, SLOTS.screens.wrap(`${inner}\n\n${block}`))
-  }
+  // 已有屏时追加在后面，保留既有内容与批注锚点；空插槽时直接落第一屏。
+  const stripped = region.replace(/^\s*<div class="devices" data-anno-canvas>/, '').replace(/<\/div>\s*$/, '')
+  // 判空 MUST 在剥掉外壳**并**去掉注释之后：出厂的 `<!-- SCREENS -->` 占位注释若被
+  // 当成"已有内容"保留下来，check 会一直报「界面插槽还是空的」——屏明明已经加了。
+  const inner = stripped.replace(/<!--[\s\S]*?-->/g, '').trim() ? stripped.replace(/\s+$/, '') : ''
+  const body = inner ? `${inner}\n\n${block}` : block
+  const next = html.slice(0, r.from) + SLOTS.screens.wrap(body) + html.slice(r.to)
   await writeAtomic(file, next)
   console.log(`已加屏「${opts.name}」，状态层：${states.join(' / ')}`)
   console.log('下一步：把这一屏的内容写成片段，用 `slot --set screens` 整体写入（MUST NOT 直接编辑原型文件）。')
@@ -229,7 +247,7 @@ async function cmdSlot(file, opts) {
   const key = opts.set
   if (!key || !SLOTS[key]) fail(`slot 需要 --set <${Object.keys(SLOTS).join('|')}>`)
   let value = opts.text
-  if (opts.from) value = await readFile(path.resolve(opts.from), 'utf8').catch(() => fail(`读不到片段文件：${opts.from}`))
+  if (opts.from) value = await readFile(path.resolve(opts.from), 'utf8').catch(() => fail(`读不到片段文件：${opts.from}`, 1))
   if (value === undefined) fail('slot 需要 --from <片段文件> 或 --text <文本>')
 
   const html = await readTarget(file)
@@ -239,13 +257,16 @@ async function cmdSlot(file, opts) {
   const body = key === 'title' ? esc(value.trim()) : value.replace(/\s+$/, '')
 
   let next
-  if (slot.mark) {
+  if (slot.apply) {
+    next = slot.apply(html, body)
+    if (next === html) fail(`插槽 ${key} 没有匹配到任何位置（该区被改写了？）`, 1)
+  } else if (slot.mark) {
     const r = markRange(html, slot.mark)
-    if (!r) fail(`找不到插槽 ${key} 的标记 ${slot.mark}:BEGIN/END（该区被改写了？）`)
+    if (!r) fail(`找不到插槽 ${key} 的标记 ${slot.mark}:BEGIN/END（该区被改写了？）`, 1)
     next = html.slice(0, r.from) + slot.wrap(body) + html.slice(r.to)
   } else {
     const re = slot.re || new RegExp(slot.probe.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-    if (!re.test(html)) fail(`找不到插槽 ${key}（该区被改写了？）`)
+    if (!re.test(html)) fail(`找不到插槽 ${key}（该区被改写了？）`, 1)
     next = html.replace(re, slot.wrap(body))
   }
 
@@ -387,6 +408,11 @@ const STRUCTURE = [
   { cls: 'checkbox', need: /aria-checked=/, msg: '.checkbox MUST 带 aria-checked，且内含 <svg class="icon">；MUST NOT 用原生 <input type="checkbox">' },
   { cls: 'switch', need: /aria-checked=/, msg: '.switch MUST 带 aria-checked' },
   { cls: 'tabs-trigger', need: /aria-selected=/, msg: '.tabs-trigger MUST 带 aria-selected，且 MUST 放在 .tabs-list 内' },
+  // `not` 排除状态层：状态层的 class 是 `status empty`，与空态组件 `.empty` 撞名，
+  // 不排除的话每个带空态的屏都会被报一条根本不适用的结构错误。
+  { cls: 'empty', not: 'status', need: /class="empty-title"/, msg: '.empty 里 MUST 有 .empty-title（另可配 .empty-icon / .empty-description）' },
+  { cls: 'input-group', need: /<svg class="icon/, msg: '.input-group 里 MUST 有 <svg class="icon">，否则左内边距留白但没有图标' },
+  { cls: 'select-wrap', need: /<select class="select"/, msg: '.select-wrap 里 MUST 是 <select class="select">，箭头由外层伪元素画' },
 ]
 
 function sliceRegion(html, mark) {
@@ -415,7 +441,9 @@ function nestedStates(wrap) {
     const [, slash, tag, attrs] = m
     if (slash) { depth -= 1; if (depth < 0) break; continue }
     const cls = (attrs.match(/class="([^"]*)"/) || [])[1] || ''
-    if (/\bstatus\b/.test(cls) && depth !== 0) bad.push(cls.trim())
+    // 同 STRUCTURE 那处：`\b` 会让 `status-pill` 这类合法业务 class 命中，
+    // 于是一枚普通标签被报成「状态层放错位置」，还把人指去改它的层级。
+    if (cls.split(/\s+/).includes('status') && depth !== 0) bad.push(cls.trim())
     if (!VOID_TAGS.has(tag.toLowerCase()) && !/\/\s*$/.test(attrs)) depth += 1
   }
   return bad
@@ -509,6 +537,10 @@ async function cmdCheck(file, opts) {
     const re = new RegExp(`<[a-z0-9]+[^>]*class="(?:[^"]*\\s)?${s.cls}(?:\\s[^"]*)?"[^>]*>`, 'gi')
     let m
     while ((m = re.exec(screens))) {
+      if (s.not) {
+        const cls = (m[0].match(/class="([^"]*)"/) || [])[1] || ''
+        if (cls.split(/\s+/).includes(s.not)) continue
+      }
       const tail = screens.slice(m.index, m.index + 600)
       if (!s.need.test(tail) && !s.need.test(m[0])) {
         add('P1', `${path.basename(file)}:${lineOf(html, html.indexOf(m[0]))} ${s.msg}`)
@@ -518,8 +550,11 @@ async function cmdCheck(file, opts) {
   })
 
   // 9. class 是否有定义（设计系统 + 项目主题 + 自定义 CSS 三处）
+  // 四处都按标记取：曾误用 SLOTS.custom.re / SLOTS.theme.re（两者都没有 `re`），
+  // 于是写进 custom / theme 插槽的 class 从不算"已定义"，正确用法反被报成没定义——
+  // 而提示要求做的正是已经做过的事，把作者逼回行内样式（又撞上写死颜色那条）。
   const styleText = sliceRegion(html, 'DESIGN-SYSTEM') + sliceRegion(html, 'THEME') +
-    (html.match(SLOTS.custom.re) || [''])[0] + (html.match(SLOTS.theme.re) || [''])[0]
+    sliceRegion(html, 'CUSTOM-CSS') + sliceRegion(html, 'PROJECT-THEME')
   const defined = new Set([...styleText.matchAll(/\.([a-z][a-z0-9-]*)/g)].map((m) => m[1]))
   const used = new Set()
   for (const m of screens.matchAll(/class="([^"]+)"/g)) m[1].split(/\s+/).forEach((c) => c && used.add(c))
@@ -563,7 +598,7 @@ async function cmdCheck(file, opts) {
       })
     }
   }
-  process.exit(problems.some((p) => p.level === 'P0') ? 1 : 0)
+  process.exitCode = problems.some((p) => p.level === 'P0') ? 1 : 0
 }
 
 /* ────────────────── serve ────────────────── */
@@ -665,7 +700,7 @@ async function cmdServe(rel, opts) {
       server.listen(0, '127.0.0.1')
       return
     }
-    fail(`预览服务启动失败：${e && e.message}`)
+    fail(`预览服务启动失败：${e && e.message}`, 1)
   })
 
   server.listen(opts.port, '127.0.0.1', () => {
@@ -733,7 +768,8 @@ async function main() {
   const opts = parseArgs(process.argv.slice(2))
   if (opts.help || !opts._.length) {
     console.log(HELP)
-    process.exit(opts.help ? 0 : 2)
+    process.exitCode = opts.help ? 0 : 2
+    return
   }
   const known = ['init', 'screen', 'slot', 'annotations', 'check', 'serve']
   let cmd = 'serve'
@@ -753,4 +789,16 @@ async function main() {
   return cmdServe(target, opts)
 }
 
-main()
+// 顶层兜底：任何没被上面各层接住的异常 MUST NOT 以 Node 堆栈的形式出现——
+// 拿到堆栈的 agent 会把"工具坏了"读成"这条路走不通"，转而手工改原型文件，
+// 那正是本工具要消灭的行为。同一条教训在 ctx CLI 的 run() 里已写过一次。
+main().catch((e) => {
+  if (e instanceof Abort) {
+    console.error(e.message)
+    process.exitCode = e.code
+    return
+  }
+  console.error(`preview.mjs 执行失败：${(e && e.message) || e}`)
+  console.error('这是工具自身的问题，MUST NOT 因此改用手工编辑原型文件——请报告这条信息。')
+  process.exitCode = 1
+})

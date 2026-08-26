@@ -404,3 +404,108 @@ test('annotations 的 AI 侧条目也带屏幕名与元素文字', () => {
   assert.ok(q.label, 'AI 侧条目必须带元素上认得出的文字，否则用户看到的是一个匿名 div')
   rmSync(dir, { recursive: true, force: true })
 })
+
+// ── 评审门（2026-08-26）撞出的缺陷，逐条固化 ────────────────────────────────
+// 这一组的共同点是**命令报成功却什么都没做**，或**闸把正确写法判成错**。
+// 前者让 agent 带着错误信念继续走，后者主动教 agent 把对的改成错的——两类都比不报更贵。
+
+// P0：cmdScreen 曾引用 SLOTS.screens.re（改标记定界时已删掉该字段）。
+// `html.match(undefined)` 恒返回空匹配、`html.replace(undefined, …)` 把 undefined 当字面串
+// 找不到，于是命令对文件零改动却打印「已加屏」并退出 0。旧断言只看退出码，恒真。
+test('screen 真的把一屏写进文件，结构与状态层齐全', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-screen-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  const before = readFileSync(file, 'utf8')
+
+  assert.equal(run('screen', file, '--name', '订单列表', '--states', 'is-default,empty').code, 0)
+  const after = readFileSync(file, 'utf8')
+  assert.notEqual(after, before, 'screen 命令对文件零改动——它打印的"已加屏"是假的')
+  assert.match(after, /<section class="device-wrap">/, '缺 .device-wrap 外壳')
+  assert.match(after, /<p class="device-name">订单列表<\/p>/, '屏幕名没写进去，批注就分不清是哪一屏')
+  assert.match(after, /class="status is-default"/, '缺默认态状态层')
+  assert.match(after, /class="status empty"/, '缺 --states 指定的空态层')
+  assert.doesNotMatch(after, /<!-- SCREENS -->/, '出厂占位注释没被换掉，check 会一直报"界面插槽还是空的"')
+  assert.equal(run('check', file).code, 0, 'init + screen 之后就该无 P0——报错把人指回刚跑过的那条命令')
+
+  // 第二屏追加，不覆盖第一屏。
+  assert.equal(run('screen', file, '--name', '改期结果', '--desktop', '--states', 'is-default,error').code, 0)
+  const two = readFileSync(file, 'utf8')
+  assert.equal((two.match(/<section class="device-wrap/g) || []).length, 2, '第二屏没追加上，或把第一屏覆盖了')
+  assert.match(two, /device-wrap is-desktop/, '--desktop 没生效')
+  assert.match(two, /class="status error"/, '第二屏的 error 状态层没生成')
+
+  rmSync(dir, { recursive: true, force: true })
+})
+
+// P1：title 插槽的探针曾是容器出厂字面量 `<title>UI 原型</title>`，而 init 一定会改写它，
+// 于是 `slot --set title` 在任何真实原型上都失败——而纪律同时禁止手工编辑原型文件。
+test('slot --set title 在 init 之后仍可用，且一次写 <title> 与页头 <h1> 两处', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-title-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', '旧标题').code, 0)
+  const r = run('slot', file, '--set', 'title', '--text', '订单批量改期')
+  assert.equal(r.code, 0, `slot --set title 失败了：${r.out}`)
+  const html = readFileSync(file, 'utf8')
+  assert.match(html, /<title>订单批量改期 · 原型<\/title>/, '<title> 没改')
+  assert.match(html, /<h1 id="proto-title">订单批量改期<\/h1>/, '页头 <h1> 没改——纪律说这个插槽一次填两处')
+  rmSync(dir, { recursive: true, force: true })
+})
+
+// P1：check 的"已定义 class"集合曾用 SLOTS.custom.re / SLOTS.theme.re（都没有 re 字段），
+// 于是写进 custom / theme 插槽的 class 从不算已定义——提示要求做的正是已经做过的事。
+test('写进 custom / theme 插槽的 class 算已定义，不被报成"没有样式定义"', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-defined-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  assert.equal(run('slot', file, '--set', 'custom', '--text', '.my-hero { color: var(--primary); }').code, 0)
+  assert.equal(run('slot', file, '--set', 'theme', '--text', '.brand-strip { height: 4px; }').code, 0)
+  assert.equal(run('slot', file, '--set', 'screens', '--text',
+    '<section class="device-wrap"><p class="device-name">A</p><div class="device"><div class="screen">' +
+    '<div class="status is-default"><div class="my-hero">x</div><div class="brand-strip"></div></div>' +
+    '</div></div></section>').code, 0)
+  const report = JSON.parse(run('check', file, '--json').out)
+  const undef = report.problems.filter((p) => /没有样式定义/.test(p.msg)).map((p) => p.msg).join(' ')
+  assert.ok(!/my-hero/.test(undef), `custom 插槽里定义过的 class 被报没定义：${undef}`)
+  assert.ok(!/brand-strip/.test(undef), `theme 插槽里定义过的 class 被报没定义：${undef}`)
+  rmSync(dir, { recursive: true, force: true })
+})
+
+// P1：状态层检查曾用 `\b` 匹配，`status-pill` 这类合法业务 class 被报成"状态层放错位置"（P0）；
+// 同理 `.empty` 组件契约与状态层 class `status empty` 撞名，每个带空态的屏都会挨一条误报。
+test('状态层与组件契约不误伤同前缀 class，也不与状态层 class 撞名', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-collide-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  assert.equal(run('slot', file, '--set', 'screens', '--text',
+    '<section class="device-wrap"><p class="device-name">A</p><div class="device"><div class="screen">' +
+    '<div class="status is-default"><div class="row"><span class="status-pill">已完成</span></div></div>' +
+    '<div class="status empty"><div class="empty"><div class="empty-title">还没有订单</div></div></div>' +
+    '</div></div></section>').code, 0)
+  const report = JSON.parse(run('check', file, '--json').out)
+  assert.ok(
+    !report.problems.some((p) => p.level === 'P0' && /status-pill/.test(p.msg)),
+    'status-pill 被误判成放错位置的状态层——提示还会教人去改它的层级'
+  )
+  assert.ok(
+    !report.problems.some((p) => /empty-title/.test(p.msg)),
+    '状态层 class `status empty` 被当成空态组件 .empty，报了一条根本不适用的结构错误'
+  )
+  rmSync(dir, { recursive: true, force: true })
+})
+
+// P1：任何失败都 MUST NOT 以 Node 堆栈的形式出现——拿到堆栈的 agent 会把"工具坏了"
+// 读成"这条路走不通"，转而手工改原型文件，正是本工具要消灭的行为。
+test('失败给中文提示而不是 Node 堆栈，退出码区分用法错误与其它失败', () => {
+  const missing = run('slot', path.join(tmpdir(), 'no-such-dir-xyz', 'p.html'), '--set', 'custom', '--text', 'x')
+  assert.equal(missing.code, 1, '资源类失败应退 1（2 留给用法错误，与 ctx CLI 一致）')
+  assert.doesNotMatch(missing.out, /\n\s+at .*\(node:/, '吐出了 Node 堆栈')
+  assert.match(missing.out, /找不到原型文件/, '没给出可读的中文原因')
+
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-usage-'))
+  const file = path.join(dir, 'p.html')
+  run('init', file, '--title', 'T')
+  const badArg = run('slot', file, '--set', 'nonexistent-slot', '--text', 'x')
+  assert.equal(badArg.code, 2, '用法错误应退 2')
+  rmSync(dir, { recursive: true, force: true })
+})

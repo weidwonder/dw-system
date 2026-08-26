@@ -3,7 +3,7 @@ date: '2026-08-19'
 lifecycle: 'active'
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-08-23'
+last_confirmed: '2026-08-26'
 authority_refs:
   - 'ai-dev-system/skills/ai-dev-workflow/references/core/代码评审纪律.md#四条轴分开查分开报'
   - 'ai-dev-system/skills/ai-dev-workflow/references/core/worktree开发纪律.md#完成与自动合并门'

@@ -835,7 +835,7 @@
   <!-- ICONS:END -->
 
   <header class="prototype-meta">
-    <!-- TITLE:BEGIN 插槽：整行替换下面两行 -->
+    <!-- TITLE:BEGIN 插槽：标题用 preview.mjs slot --set title 写（一次写 <title> 与下面的 <h1>），副标题用 --set subtitle -->
     <h1 id="proto-title">UI 原型</h1>
     <p id="proto-subtitle"></p>
     <!-- TITLE:END -->
@@ -876,7 +876,7 @@
   </main>
 
   <script>
-    // 状态切换作用于全部屏幕；多屏时整块复制 .device-wrap 即可，无需改脚本。
+    // 状态切换按 .screen 的类名工作，与屏数无关；加屏走 preview.mjs screen，无需改脚本。
     const screenEls = document.querySelectorAll(".screen");
     const stateButtons = document.querySelectorAll("[data-state]");
 

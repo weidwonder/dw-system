@@ -270,7 +270,7 @@ card 事实 **MUST 以合入后的源码为准，MUST NOT 从 PRD 生成**——
 - 清单 MUST 记录每条事实"从哪知道它的"：来自卡片的填 cite，本次现读源码的填 `文件:行`。`ctx discover` 的 out-of-scope 警告 MUST 抄进来。
 - 清单落进 spec 的 §影响范围 / 不做什么——**它是 Lean 路径上替换清单唯一的出处**。
 - 写这一步时 MUST 逐条复核 §1.2 的判据 3/4；命中即**当场升级**（§0.2），MUST NOT 将错就错把这一页写完。
-- **输入里有 UI 原型时，MUST 连元素批注一起读**：针对某个控件的说明与待拍板项放在该元素的 `data-anno` / `data-anno-kind="question"` 属性里（界面上只显示一枚悬浮气泡），与屏幕上的可见内容**同属用户可见行为契约**，MUST NOT 因为界面上看不到就漏进 spec；文件末尾 `ANNOTATIONS:BEGIN … ANNOTATIONS:END` 之间是用户写的批注与全局反馈。**取这三类只有一个命令**：`node <skills 根>/ai-prd/scripts/preview.mjs annotations <原型文件>`，一次给出全部三类，每条带所在屏与元素；命令跑不起来时才降级为只读 `ANNOTATIONS:BEGIN … END` 那一段加 `grep -n "data-anno="`，**MUST NOT 通读整份 HTML**。`data-anno-kind="question"` 的每一条 MUST 在写这一页 spec 前向用户拍板，MUST NOT 自行替产品定。来源：`00-流程总纲.md` §完整流程步骤索引
+- **输入里有 UI 原型时，MUST 连元素批注一起读**：针对某个控件的说明与待拍板项放在该元素的 `data-anno` / `data-anno-kind="question"` 属性里（界面上只显示一枚悬浮气泡），与屏幕上的可见内容**同属用户可见行为契约**，MUST NOT 因为界面上看不到就漏进 spec；文件末尾 `ANNOTATIONS:BEGIN … ANNOTATIONS:END` 之间是用户写的批注与全局反馈。**取这三类只有一个命令**：`node <skills 根>/ai-prd/scripts/preview.mjs annotations <原型文件>`（`<skills 根>` = 你加载的这份 `SKILL.md` 所在目录的**父目录**——Claude Code 下是 `.claude/skills/`、Codex 下是 `.agents/skills/`，两侧内容一致，用你自己这一侧那份，**MUST NOT 写死其中一侧**），一次给出全部三类，每条带所在屏与元素；命令跑不起来时才降级为只读 `ANNOTATIONS:BEGIN … END` 那一段加 `grep -n "data-anno="`，**MUST NOT 通读整份 HTML**。`data-anno-kind="question"` 的每一条 MUST 在写这一页 spec 前向用户拍板，MUST NOT 自行替产品定。来源：`00-流程总纲.md` §完整流程步骤索引
 
 ### 4.2 写作纪律（RFC 2119 与零上下文）
 

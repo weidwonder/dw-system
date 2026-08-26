@@ -3,7 +3,7 @@ date: '2026-08-25'
 lifecycle: 'active'
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-08-25'
+last_confirmed: '2026-08-26'
 authority_refs:
   - 'ai-dev-system/skills/ai-prd/references/00-prd生成流程.md#组稿'
   - 'ai-dev-system/skills/ai-prd/references/prd复核纪律.md#门禁'

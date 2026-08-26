@@ -2,7 +2,7 @@
 lifecycle: active
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-08-25'
+last_confirmed: '2026-08-26'
 authority_refs:
   - 'ui-prototype.html 的分区标记：THEME / DESIGN-SYSTEM / ICONS / ANNO-FRAMEWORK:CSS / ANNO-FRAMEWORK:JS / SCREENS / PROJECT-THEME / ANNOTATIONS'
   - '插槽的逐字原文（preview.mjs 的 SLOTS 探针）与容器实际文本的一致性'
@@ -11,6 +11,8 @@ authority_refs:
   - '元素锚点属性：AI 侧 data-anno + data-anno-kind，用户侧 data-anno-user'
   - 'UI原型纪律.md §7 的四条判据（复制不重写 / 元素说明写成气泡 / 只读批注块 / 写回文件才读得到）'
   - 'UI原型纪律.md §8 的插槽契约：容器不含示例内容、产出原型不读容器'
+  - 'preview.mjs 的子命令契约：init / screen / slot / check / annotations / serve，以及 --drop-anchors 的语义与退出码约定（2 = 用法错误，其余 1）'
+  - '流程与门禁契约：00-prd生成流程.md §组稿 第 4/5/6/7 步的准出项（服务由 AI 起停、check 前置、question 逐条摆出、原型带批注整份落盘），以及下游 Step 1/4/8 与 Lean §4.1 的取批注义务'
 ---
 
 # Lean Change Spec（一页）— 原型批注框架（AI 悬浮气泡 + 用户可交互批注）
@@ -47,6 +49,7 @@ authority_refs:
 - FR-016 — 取批注 MUST 有**单一命令入口**（`annotations`）：一次给出用户逐元素批注、全局反馈与 AI 侧 `data-anno` 说明（含 `question` 待拍板项），每条带所在屏与元素；**真正打开原型的每个执行点**都 MUST 就地给出这条命令，MUST NOT 只在总纲/自足册里写一遍（2026-08-26 评审发现：Step 1/4/8 是下游真正打开原型的地方，此前整篇零处提到批注）。
 - FR-017 — 预览服务的生命周期 MUST 由 AI 持有：AI 后台起、AI 在派复核子代理之前停，MUST NOT 要求用户自己起服务或自己按 Ctrl+C。
 - FR-018 — 用户写的批注与 `data-anno-user` 锚点是需求的一部分，MUST 随原型整份落盘进 `docs/spec/`；`data-anno-kind="question"` 的待拍板项 MUST 在落盘确认门逐条摆给用户，MUST NOT 跟着原型静默进库。
+- FR-020 — 落盘确认门上用户要求改稿时，改动触及目标 / 非目标 / 现状结论 / 详细业务行为 / 验收项任一处，MUST 重跑受影响的那一轴、再重走一次该门的回述（2026-08-26 评审发现：这条门禁语义随本次改动一并落了地却没有对应需求，属**流程与门禁契约**变更，如实补登记而不是从改动里摘掉——它修的是复核纪律里一个真实存在的缺口）。
 - FR-019 — 框架 MUST NOT 成为某类原型风格的阻碍：组件表覆盖不到的控件样式、hover、动画、媒体查询 MUST 有一个专门插槽（`custom`）承接，且它 MUST 排在设计系统之后以便覆盖。
 
 ## 为什么
@@ -57,7 +60,7 @@ authority_refs:
 
 ## 具体改动点
 
-- `ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html` — 由「一份带示例屏的模板」改造成**容器**：新增设计系统区（`DESIGN-SYSTEM`，中性语义 token + 常用控件样式，明暗两套）、图标库区（`ICONS`，内联 SVG sprite 41 枚）、批注框架区（`ANNO-FRAMEWORK:CSS/JS`）、批注数据区（`ANNOTATIONS`）与默认视觉基线区（`THEME`）；**删除整屏示例业务内容与顶部组件速查表**，代之以六个具名插槽（`TITLE` / `SCREENS` / `NOTES` / `PROJECT-THEME` 各自的空槽位）。容器全文不再含任何 `【` 占位符。
+- `ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html` — 由「一份带示例屏的模板」改造成**容器**：新增设计系统区（`DESIGN-SYSTEM`，中性语义 token + 常用控件样式，**一套中性亮色基线**）、图标库区（`ICONS`，内联 SVG sprite 41 枚）、批注框架区（`ANNO-FRAMEWORK:CSS/JS`）、批注数据区（`ANNOTATIONS`）与默认视觉基线区（`THEME`）；**删除整屏示例业务内容与顶部组件速查表**，代之以一组具名插槽（`TITLE` / `SUBTITLE` / `SCREENS` / `NOTES` / `PROJECT-THEME` / `CUSTOM-CSS` 各自的空槽位，取值清单以 `UI原型纪律.md` §8.1 表为准）。容器全文不再含任何 `【` 占位符。
 - `ai-dev-system/skills/ai-prd/references/UI原型纪律.md` — 新增 §7（批注框架四小节）与 §8（插槽契约：六插槽原文表 / 界面区结构 / class 与图标清单 / 项目样式覆盖）；§2 增两条；§4 改写"查不到样式来源时不许伪造"；§6 自检增两条并改写占位符那条。
 - `ai-dev-system/skills/ai-prd/references/00-prd生成流程.md` — §组稿 第 2 步改为"复制容器 + 填插槽 + 不通读容器"；第 4 步用户过稿门增一条（告知用户批注入口与写回方式、收意见时读批注块并与口头意见合并）。
 - `ai-dev-system/skills/ai-prd/SKILL.md` — 路由第 5 步与 §关键纪律 各增接线。
@@ -66,10 +69,16 @@ authority_refs:
 - `ai-dev-system/skills/ai-dev-workflow/references/core/00-流程总纲.md` — 步骤表后增一条"读 UI 原型 MUST 连元素批注一起读"。
 - `ai-dev-system/skills/ai-dev-workflow/references/core/路径-lean.md` §4.1 — Lean 侧同一条要点（自足册契约要求，带来源锚点）。
 - `ai-dev-system/skills/ai-prd/scripts/preview.mjs` — 由「只起预览服务」扩成**原型工具族**：`init`（建原型并填好标题）/ `screen`（加一屏，保证设备壳与五个状态层的结构）/ `slot`（只换插槽内容，批注与锚点原样保留）/ `check`（交付前结构自检）/ `annotations`（一条命令取回三类批注）/ `serve`（预览服务，页面批注自动写回）。
-- `ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html` — 增第七处插槽 `<style id="proto-custom">`（排在设计系统之后）；修保存按钮派发、状态层回落规则、回写前的状态复位。
+- `ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html` — `<style id="proto-custom">` 插槽排在设计系统之后（因而覆盖得掉容器样式）；修保存按钮派发、状态层回落规则、回写前的状态复位。
 - `ai-dev-system/skills/ai-dev-workflow/references/core/步骤-1-7-设计与实现.md` Step 1 / Step 4 与 `步骤-8-10-测试.md` Step 8 — 各就地给出取批注的命令与"AI 侧 `data-anno` 也要读"。
-- `test/prototype-annotations.test.mjs` — 新增契约闸 15 项；2026-08-26 增补：工具插槽探针与容器一致、下游执行点逐个覆盖、`annotations` 三类齐全。
+- `test/prototype-annotations.test.mjs` — 新增契约闸（当前项数以 `node --test` 输出为准）；2026-08-26 增补：工具插槽探针与容器一致、下游执行点逐个覆盖、`annotations` 三类齐全。
 - `.gitignore` — 忽略本地安装的第三方 skill 目录（`/.agents/`、`/.claude/`、`/skills-lock.json`），避免随分发包提交。
+- `ai-dev-system/skills/ai-prd/references/prd复核纪律.md` — 原型结构摘要口径纳入 `data-anno` 与 `question` 待拍板项；§门禁 增一条「落盘确认门上用户要求改稿时，改动触及目标/非目标/现状结论/详细业务行为/验收项即 MUST 重跑受影响那一轴」（属**流程与门禁契约**变更，见 FR-020）。
+- `ai-dev-system/skills/ai-prd/assets/question-bank.md` — `[组稿]` 那条「用户还没读过 PRD」补勾验时机注（第 3 步跑质量清单时勾它必然恒真判否）。
+- `ai-dev-system/skills/ai-prd/references/prd质量清单.md` — 增静态自检项（跑 `check`、`question` 项进回述清单）；落位项由「落盘位置正确」改写成「落盘计划里已确定」。
+- `CLAUDE.md` — 新增〈原型批注框架是跨文件的契约〉整条；§架构 与目录树、可点路径清单收录 `ai-prd/scripts/`。
+- `docs/spec/2026-07-06-ai-prd-design.md` — §3 目录树补 `scripts/`、§8「纯 markdown 无代码」就地更正（D 轴判为部分失准）。
+- `test/prototype-preview.test.mjs` — 新增真进程真端口的行为闸（回写 / 拒绝非法 payload / 工具族端到端 / 五个实测缺陷 / 五个评审缺陷）。
 - `ai-dev-system/VERSION` — 2.6.0 → 2.7.0。
 
 ## 影响范围 / 不做什么
@@ -86,6 +95,7 @@ authority_refs:
 ## 兼容取舍（用户拍板，定稿前必填）
 
 - **存量原型文件没有批注框架** —— 谁在依赖：已安装本体系的项目里 `docs/spec/*-prototype-*.html` —— 决定：**不回填，纯增量**。旧文件照常打开、照常是现行界面依据；下次该界面被改动时由新原型接替，新原型自带框架。确认于 2026-08-25。
+- **丢弃某条用户批注需要一个逃生口** —— `slot` 默认在锚点丢失时拒绝写入，但"这条意见不用管了"是真实存在的需求。决定：**保留 `--drop-anchors` 显式开关，不堵死**。堵死会把人逼去手工编辑原型文件（纪律明令禁止、且会连带丢掉更多东西），比给一个要显式打出来的开关更糟；误丢的成本已由两道网压住——拒绝写入时逐条打印会失联的批注正文，`check` 再把孤儿批注报成 P0。纪律同时要求"用它之前 MUST 先跟用户说清楚"。确认于 2026-08-26。
 - **批注写回文件依赖浏览器能力** —— Chrome / Edge 用 File System Access 自动写回；Safari / Firefox 只能"下载副本后覆盖原文件"或"复制 JSON 粘回对话"。决定：**三级自适应降级，不为兼容降低主路径体验**；状态灯显式告诉用户当前批注有没有落到文件里。确认于 2026-08-25。
 
 ## 替换清单（本次淘汰了什么）
@@ -133,11 +143,17 @@ authority_refs:
 - [x] AC-033 `check` 逐条比对批注块条目与界面锚点，失联一条报一条 P0 —— 满足：FR-015、FR-018
 - [x] AC-034 结构契约按 class token 精确比对：含 `.alert-title` + `.alert-description` 的合规提示条不被判红 —— 满足：FR-015
 - [x] AC-035 片段自带外壳时被剥掉并出声，不产生嵌套 `<style>` 或双层 `.devices`；`annotations` 的 AI 侧条目带屏幕名与元素文字 —— 满足：FR-014、FR-016
+- [x] AC-036 `file://` 且未授权时首次写批注弹一次说明且只弹一次；被 http 提供（`SERVED`）时不弹 —— 满足：FR-011
+- [x] AC-037 `prd复核纪律.md` §门禁 写明落盘确认门上的改稿要重跑受影响那一轴，且只在触及目标/非目标/现状结论/详细业务行为/验收项时触发 —— 满足：FR-020
+- [x] AC-038 `screen` 命令真的把一屏写进文件（`.device-wrap` / `.device-name` / 指定状态层齐全、出厂占位注释被换掉），第二屏追加不覆盖第一屏；`init + screen` 之后 `check` 无 P0 —— 满足：FR-014
+- [x] AC-039 `slot --set title` 在 `init` 之后仍可用，且一次写 `<title>` 与页头 `<h1>` 两处 —— 满足：FR-014
+- [x] AC-040 写进 `custom` / `theme` 插槽的 class 算已定义，不被 `check` 报成"没有样式定义"；`status-pill` 不被判成放错位置的状态层，状态层 class `status empty` 不被当成空态组件 —— 满足：FR-015、FR-019
+- [x] AC-041 任何失败给中文提示而非 Node 堆栈；退出码 2 只留给用法错误，资源与状态类失败一律 1 —— 满足：FR-014
 
 ## 如何验证
 
-- [x] `node --test test/prototype-annotations.test.mjs` → 19 项全绿。
-- [x] `node --test test/*.test.mjs` → 298 项全绿（含自足册覆盖率闸、常驻预算闸、计数词闸、措辞红线闸）。
+- [x] `node --test test/prototype-annotations.test.mjs test/prototype-preview.test.mjs` → 全绿（**项数以命令输出为准，MUST NOT 在此抄一个会漂的数**）。
+- [x] `node --test test/*.test.mjs` → 全绿（含自足册覆盖率闸、常驻预算闸、计数词闸、措辞红线闸）。
 - [x] 门禁自检（植入必错样本，逐个还原验证转绿）：①容器 `ANNO-FRAMEWORK:JS:END` 改名 → 红；②`00-prd生成流程.md` 的 `MUST NOT 逐字重写模板内置的批注框架` 削弱成「建议不要」→ 红；③插槽原文 `<p id="proto-subtitle"></p>` 改名 → 红；④纪律 §8.3 列一个容器没有的 class → 红；⑤把取段命令示例写回 `ANNOTATIONS` 区注释 → 红。
 - [x] **插槽契约端到端验证**：只依据纪律 §8（不读容器）盲填出一份两屏演示原型，全部插槽命中，产物零外链、零 `【` 残留。
 - [x] **浏览器真跑（Chrome，`file://`）**：气泡悬浮、点选批注、状态切换、隐藏批注均正常；**「保存到文件」链路实测通过**——授权后批注写回文件，刷新不丢，从文件里读回的每条批注都带屏幕名、元素标签与元素可见文字。发现并修掉四个问题，见下节。
@@ -169,6 +185,20 @@ authority_refs:
 11. **"用 `slot` 就不会丢批注"是句半真的话**（P0，已修）：批注块确实原样保留，但**用户批注的锚点挂在界面元素上，而界面元素全住在 `screens` 插槽里**——任何一次改界面都会连锚点一起换掉，改一句文案就让两条批注失联。整套"改稿 MUST 走 `slot` 以免抹掉用户批注"的论证，恰恰在唯一真正需要改稿的那个插槽上不成立。现在 `slot` 丢锚点时**拒绝写入**并列出每条会失联的批注，`check` 也把孤儿批注报成 P0。**教训**：一条承诺 MUST 在它最常被援引的那个场景下成立，否则它比没有更危险——照信的人不会去验。
 12. **class 匹配用 `\b`，误伤同前缀的子元素**（P1，已修）：`alert-description` 命中了 `.alert` 的结构契约，于是一个结构完全正确的提示条被判红；而"消掉"这条告警最顺手的做法是删掉 `.alert-description`——正好违反同一张表的要求。**教训**：闸判错方向会主动教人做错事。
 13. **示例带外壳，照抄就嵌套**（P1，已修）：§8.4 的示例把 `<style id="proto-custom">` 写进了片段，照抄得到 `<style><style>`，命令报成功、`check` 一声不吭。文档三处对"片段要不要带外壳"给了互相矛盾的暗示（§8.2 不带、§8.4 带、容器注释说"整行替换下面这一行"）。**教训**：示例是最强的指令——纪律正文写十条 MUST，抵不过一个带错外壳的代码块。
+
+## 评审门结论（2026-08-26，四条轴）
+
+四条轴各派一个子代理（规范轴、残留轴用更便宜的模型；忠实轴、文档轴与主会话同级），去重后 **2 个 P0、14 个 P1、11 个 P2**，P0 与 P1 已全部处理，另修了 6 条 P2。
+
+**两个 P0**：①`screen` 子命令**从来没写过任何东西**——改成标记定界时删掉了 `SLOTS.screens.re`，而 `cmdScreen` 还在引用它，`match(undefined)` 与 `replace(undefined, …)` 合起来的结果是文件零改动、却打印"已加屏"并退出 0；旧断言只看退出码，恒真（规范轴与忠实轴各独立撞出一次）。②真相源 `CLAUDE.md` 写着 `ai-prd`「纯 markdown，无代码」，与本次新增的 `preview.mjs` 已经背离，而同一份文件另一处又写着"`preview.mjs` 是本 skill 唯一的脚本"。
+
+**最要紧的 P1**：workflow 侧五处新增行用了 `<skills 根>` 这个占位符，而它**只在 `ai-prd` 那边有定义**——零上下文的 workflow agent 在 Step 1 手里只有 workflow 的文件，拼不出这条命令的路径。取批注这条链在"拼得出路径"这一环上是断的。已在总纲、Lean 自足册、Step 1、Step 8 各就地给出定义（Step 4 指回 Step 1）。
+
+**其余已修的 P1**：`check` 认不出 `custom`/`theme` 插槽里定义的 class（同一个 `.re` 误引用，把作者逼回行内样式又撞上写死颜色那条）；状态层检查漏改 token 匹配导致 `status-pill` 被判 P0；`.empty` 组件契约与状态层 class `status empty` 撞名；`STRUCTURE` 只实现了纪律声称会抓的 8 条里的 5 条；`slot --set title` 在任何真实原型上都失败（探针是出厂字面量，`init` 一定会改写它）；无顶层异常兜底导致失败时吐 Node 堆栈；`process.exit()` 有截断管道输出的风险（ctx CLI 已为这条教训付过一次代价）；FR-011 零 AC 覆盖；CLAUDE.md 目录树与可点路径清单漏收 `ai-prd/scripts/`；契约条目的改动链路清单漏了四个落点；五项表的**权威定义**（`UI原型纪律.md` §5）没跟着三份下游模板一起改；`ai-prd-design.md` §3/§8 仍写"纯 markdown、无代码"；本 spec 的 `authority_refs` 漏登记命令契约与流程门禁契约两类权威面。
+
+**一条接受不改**：`annotations` 与 `check` 各自手写 `if (opts.json)` 而没有复用 ctx CLI 的 `out()` 封装（规范轴 P2）。两处共 12 行，抽公共 helper 的改动面大于收益，且不影响行为。
+
+**教训**：`screen` 那条最值得记——上一轮把区间判定从正则改成标记时，只改了引用它的**一处**，另外三处（`cmdScreen` 两次、`cmdCheck` 一次）继续引用一个已经不存在的字段。JS 对 `undefined` 正则的容忍（`match` 给空匹配、`replace` 当字面串）把三处静默失效全接住了，测试因为只断言退出码而全绿。**删一个字段时 MUST 全文搜它的引用，MUST NOT 只改手上正在写的那一处**；**断言"命令跑成功了"MUST NOT 用退出码代替"文件真的变了"**。
 
 ## 回滚方式
 

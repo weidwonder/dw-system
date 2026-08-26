@@ -319,3 +319,15 @@ test('三类 PRD 模板的「不在用户界面内展示」项指向气泡出口
     assert.match(row, /data-anno/, `${name} 该项必须指出元素级说明的出口`)
   }
 })
+
+// FR-011 此前是唯一一条零 AC 的需求，而它管的正是"用户写了一堆批注、文件里一条都没有
+// 却以为存好了"这个最贵的失败。行为在浏览器里，这里锁它的两条短路与触发点。
+test('首次写批注会主动说明"批注要存进文件"，且只在真需要用户动手时说', () => {
+  const fn = cut(template, 'function explainOnce()', '\n    function ')
+  assert.match(fn, /if \(SERVED\) return/, '被 http 提供时自动写回，不该弹说明')
+  assert.match(fn, /if \(handle && granted\) return/, '已授权过就不该再弹')
+  assert.match(fn, /localStorage[\s\S]*?:explained/, '弹过一次要记住，否则每次都弹')
+  assert.match(fn, /批注要存进文件/, '说明必须点破"不点就写不回文件、AI 读不到"这件事')
+  // 触发点：第一次真正写下批注的那一刻，而不是打开页面就弹。
+  assert.match(template, /explainOnce\(\);/, 'explainOnce 必须真的被调用')
+})
