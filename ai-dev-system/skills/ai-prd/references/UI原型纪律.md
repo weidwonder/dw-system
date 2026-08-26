@@ -33,7 +33,7 @@
 - **MUST NOT 引用任何外部资源**：不用 CDN 脚本或样式、不用网络字体、不用远程图片（图片改用内联 SVG 或纯 CSS 占位），字体只用系统字体栈。原型要能离线、内网、断网打开——依赖外链的原型等于交付了一个会白屏的文件。
 - **原型文件本身 MUST NOT 用 Markdown 表格、mermaid 或静态文字块替代**。（此条只约束原型文件；PRD 正文的业务流程图仍然用 mermaid，不受影响。）
 - 原型 SHOULD 覆盖 1 条核心用户路径 + 关键状态：默认、加载、空态、错误 / 无权限、成功反馈；小改动至少覆盖改动前后用户可见差异。
-- 原型 MUST 由 `assets/templates/ui-prototype.html` **整份复制**得到，只替换 §8.1 的六个插槽；容器内置的设计系统、图标库、批注框架与批注数据块 MUST 原样保留（判据在 §7.1）。
+- 原型 MUST 由 `scripts/preview.mjs` 的 `init` 命令从容器建出，之后只用 `screen` / `slot` 往具名插槽里填（判据在 §7.1、命令表在 §8.1）；容器内置的设计系统、图标库、批注框架与批注数据块 MUST 原样保留。**MUST NOT 手工复制容器再逐行替换**——那会绕开工具对结构、锚点与区间的全部保障。
 - 屏幕内只放真实用户会看到的内容、文案和控件；面向产品经理 / 评审者的解释、标注、设计理由、开放问题 MUST 放在画布外的"设计说明（不属于用户界面）"，不得绘制在用户界面里。**指向某个具体元素的说明改写成该元素上的 `data-anno` 悬浮气泡**（判据在 §7.2），不要因为说明栏说不清是哪个控件就把文字画进屏幕。
 
 ## 3. 面向用户，而不是面向文档
@@ -89,7 +89,7 @@ node <skills 根>/ai-prd/scripts/preview.mjs check <原型文件>
 - 用户界面区域内不含"设计说明 / 开放问题 / 样式依据 / 待确认"等字样——这些只允许出现在画布外的说明栏，或元素上的 `data-anno` 悬浮气泡（§7.2）。
 - 每个声明覆盖的状态都有对应的可点击切换入口。
 - 容器的固定实现区标记齐全且未被改写：`THEME`、`DESIGN-SYSTEM`、`ICONS`、`ANNO-FRAMEWORK:CSS`、`ANNO-FRAMEWORK:JS`、`ANNOTATIONS` 各自的 `BEGIN`/`END` 都在（§7.1、§8.1）。
-- 改稿时批注块内容与界面上的 `data-anno-user` 属性原样保留，用户已写的批注一条不少（§7.1）。
+- 改稿时批注块内容与界面上的 `data-anno-user` 属性原样保留，用户已写的批注一条不少（§7.1）——`check` 会逐条比对批注块里的条目与界面上的锚点，**失联一条报一条 P0**，`slot` 那条一次性警告滚过去了也漏不掉。
 - 每屏的 `.device-name` 在 `.device` 之外、`.status` 各层是 `.screen` 的直接子元素（§8.2）。
 - 有子元素结构要求的控件写法正确、图标 id 都存在、用到的 class 都有样式定义、行内样式没写死颜色（§8.3）。
 
@@ -99,11 +99,11 @@ node <skills 根>/ai-prd/scripts/preview.mjs check <原型文件>
 
 `assets/templates/ui-prototype.html` 内置一层批注框架，把"对某个界面元素的说明"和"用户对某个界面元素的意见"都收进标准载体：**AI 侧**用元素上的一个属性写说明，鼠标悬浮才展开；**用户侧**用页面顶部工具栏点选元素写意见，随时改随时存，AI 直接从文件里读回来。
 
-容器按标记分区，**能动的只有 §8.1 的七个插槽**，其余全是固定实现（下表按标记名引用，MUST NOT 用序号——序号会随容器增区而漂）：
+容器按标记分区，**能动的只有 §8.1 插槽表里那几个插槽**，其余全是固定实现（下表按标记名引用，MUST NOT 用序号——序号会随容器增区而漂）：
 
 | 区 | 标记 | 谁写 |
 |---|---|---|
-| 内容插槽 | `TITLE` / `SCREENS` / `NOTES` / `PROJECT-THEME` / `CUSTOM-CSS` | 本次要画的全部内容，一律用 `slot` 命令写（§8.1） |
+| 内容插槽 | `TITLE` / `SUBTITLE` / `SCREENS` / `NOTES` / `PROJECT-THEME` / `CUSTOM-CSS` | 本次要画的全部内容，一律用 `slot` 命令写（§8.1） |
 | 批注数据 | `ANNOTATIONS:BEGIN … END` | 只有页面工具栏写，AI 一律不碰（§7.3） |
 | 默认视觉基线 | `THEME:BEGIN … END` | 谁都不写；要覆盖走 `PROJECT-THEME`（§8.4） |
 | 设计系统 | `DESIGN-SYSTEM:BEGIN … END` | 谁都不写，固定实现（§8.3） |
@@ -115,7 +115,8 @@ node <skills 根>/ai-prd/scripts/preview.mjs check <原型文件>
 - 建原型、加屏、填改插槽 MUST 用 `scripts/preview.mjs` 的 `init` / `screen` / `slot`（命令见 §8.1）。
 - **MUST NOT 逐字重写、精简、内联改写或删除**任何固定实现区——它们重写一次白花上万 token，还会让用户已写的批注读不回来。
 - **MUST NOT 为了动手而通读容器**：填内容所需的全部信息都在 §8，容器里没有任何示例业务内容可抄（这是刻意的，判据在 §8 开头）。
-- **改稿 MUST 用 `slot`，MUST NOT 直接编辑原型文件**：用户已经在页面上批注之后，直接编辑要么得先把整份原型读进上下文（几万 token，且与上一条冲突），要么重新生成而**抹掉界面上的 `data-anno-user` 锚点**——那是用户批注与具体元素之间唯一的绑定，断了批注就失联。`slot` 只换插槽内容，批注块与锚点原样保留。
+- **改稿 MUST 用 `slot`，MUST NOT 直接编辑原型文件**：用户已经在页面上批注之后，直接编辑要么得先把整份原型读进上下文（几万 token，且与上一条冲突），要么重新生成而**抹掉界面上的 `data-anno-user` 锚点**——那是用户批注与具体元素之间唯一的绑定，断了批注就失联。`slot` 保证**批注数据块**原样不动。
+- **界面锚点要你自己带过去**：用户批注挂在界面元素上，而界面元素全住在 `screens` 插槽里，所以改这一处界面时新片段 MUST 把现有的 `data-anno-user="<id>"` 属性原样写在对应元素上。做法：先 `annotations --json` 看每条批注指的是哪个元素，再把锚点抄进新片段。丢了锚点 `slot` 会**拒绝写入**并列出会失联的每一条；确实要作废某条批注时才加 `--drop-anchors`，且 MUST 先跟用户说清楚——那是在丢弃他写下的意见。
 
 ### 7.2 元素级说明写成气泡，不画进界面
 
@@ -177,7 +178,7 @@ node <skills 根>/ai-prd/scripts/preview.mjs <原型文件>
 
 ### 8.1 用工具建原型，不要手工拼
 
-`scripts/preview.mjs` 是本 skill 唯一的脚本（**不是 ctx**，那个随 `ai-dev-workflow` 分发）。四条命令覆盖全流程，MUST 优先用它们：
+`scripts/preview.mjs` 是本 skill 唯一的脚本（**不是 ctx**，那个随 `ai-dev-workflow` 分发）。产出、自检、取批注、起预览全部走它的子命令，MUST 优先用它们：
 
 | 做什么 | 命令 |
 |---|---|
@@ -185,13 +186,15 @@ node <skills 根>/ai-prd/scripts/preview.mjs <原型文件>
 | 加一屏 | `… screen <文件> --name <屏名> [--desktop] [--states is-default,loading,empty,error,success]` |
 | 填 / 改插槽 | `… slot <文件> --set <插槽名> --from <片段文件>`（或 `--text <文本>`） |
 | 交付前自检 | `… check <文件>`（见 §6） |
+| 取回批注 | `… annotations <文件> [--json]`（见 §7.3） |
+| 起预览服务 | `… serve <文件> [--port <n>]`（见 §7.4；由你后台起、由你停） |
 
 - **建原型 MUST 用 `init`**，MUST NOT 手工 `cp` 再逐个替换——`init` 同时落好标题与副标题，少三次易错的整行替换。
 - **加屏 MUST 用 `screen`**：`.device-wrap` / `.device-name` 的位置、`.app-bar`、五个状态层的类名全部由它保证。这些正是手写时最容易错、错了又不报错的地方。
 - **改稿 MUST 用 `slot`**，MUST NOT 直接编辑原型文件：`slot` 只换插槽内容，**批注块与界面上的 `data-anno-user` 锚点原样保留**，且不需要把整份原型读进上下文。手工改稿要么得先整份读进来（几万 token），要么重新生成而抹掉用户已写的批注——两条都不可接受。
 - 界面内容较长时先写成片段文件再 `--from` 送进去，比在命令行里拼长字符串可靠。
 
-插槽共六个，`slot --set` 的取值与它们一一对应（`title` 同时写 `<title>` 与页头大标题，一次填两处）：
+下表是插槽的完整清单，`slot --set` 的取值与它们一一对应（`title` 同时写 `<title>` 与页头大标题，一次填两处）。**片段里只写外壳内部的内容**——外壳（`<div class="devices">` / `<style id="proto-custom">` 之类）由容器提供，片段再写一层就会嵌套；工具检测到重复外壳会剥掉并出声，但 MUST NOT 依赖这条兜底：
 
 | 插槽名 | 装什么 |
 |---|---|
@@ -224,6 +227,7 @@ node <skills 根>/ai-prd/scripts/preview.mjs <原型文件>
 </section>
 ```
 
+- 上面这段就是写进 `screens` 插槽的片段内容本身：**MUST NOT 再包一层 `<div class="devices">`**（外壳由容器提供）。缩进怎么写都行——替换区间由容器的 `SCREENS:BEGIN/END` 标记判定，不看缩进。
 - 各 `.status` 层 MUST 是 `.screen` 的**直接子元素**——容器靠这层关系控制显隐，放到 `.screen` 外面就永远不显示。用 `screen` 命令加屏则天然满足。
 - 状态切换**作用于全部屏幕**。某一屏没有当前状态的层时会**回落到默认态**（不会空白），所以多屏原型各屏只需写自己关心的状态，`screen --states` 按需选。
 - 设计说明栏全篇只有一个，MUST NOT 每屏配一份。
@@ -277,10 +281,9 @@ node <skills 根>/ai-prd/scripts/preview.mjs <原型文件>
 
 **项目真实样式** → `theme` 插槽，**MUST 只覆盖取值、MUST NOT 改变量名**（全部组件靠这些名字取色）：
 
-```html
-<style id="project-theme">
-  :root { --primary: #1a73e8; --primary-foreground: #ffffff; --radius: 8px; }
-</style>
+```css
+/* 片段内容——外层 <style id="project-theme"> 由容器提供，MUST NOT 自己再写一层 */
+:root { --primary: #1a73e8; --primary-foreground: #ffffff; --radius: 8px; }
 ```
 
 可覆盖：`--background` `--foreground` `--card` `--card-foreground` `--popover` `--popover-foreground` `--primary` `--primary-foreground` `--secondary` `--secondary-foreground` `--muted` `--muted-foreground` `--accent` `--accent-foreground` `--destructive` `--destructive-foreground` `--border` `--input` `--ring` `--success` `--success-foreground` `--warning` `--warning-foreground` `--radius` `--font-sans` `--font-mono`。
@@ -290,11 +293,10 @@ node <skills 根>/ai-prd/scripts/preview.mjs <原型文件>
 
 **组件表里没有的控件** → `custom` 插槽。它排在设计系统之后，覆盖得掉容器样式，且写的是真正的 `<style>`，因此 `:hover`、`::before`、`@keyframes`、`@media` 都能用：
 
-```html
-<style id="proto-custom">
-  .date-range { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-  .date-range > button:hover { background: var(--accent); border-radius: var(--radius-sm); }
-</style>
+```css
+/* 同样只写内容，外层 <style id="proto-custom"> 由容器提供 */
+.date-range { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.date-range > button:hover { background: var(--accent); border-radius: var(--radius-sm); }
 ```
 
 - 自定义控件的取色同样 MUST 用 token 变量，理由同上。

@@ -31,6 +31,11 @@ const LOOPBACK = /^(127\.0\.0\.1|\[::1\]|localhost)(:\d+)?$/
 
 /* ────────────────── 插槽契约（与容器逐字对应） ────────────────── */
 
+// 每个插槽的替换区间由容器里的 `<!-- MARK:BEGIN … -->` 与 `<!-- MARK:END -->` 界定，
+// **不按缩进、也不按标签配对**。零上下文实测撞出过：区间原本用 `[\s\S]*?\n    </div>`
+// 非贪婪匹配，片段内部只要出现一行 4 空格缩进的 `</div>`（§8.2 的骨架示例正是如此）就在
+// 那里提前截断，于是外壳被留在文件里、旧内容没被换掉，再 slot 一次就多留一屏——退出码
+// 仍是 0，check 只会莫名其妙地报"一个屏都没有"。标记是容器里的固定实现，改不了也漂不掉。
 const SLOTS = {
   title: { probe: '<title>UI 原型</title>', wrap: (v) => `<title>${v}</title>` },
   subtitle: {
@@ -40,24 +45,52 @@ const SLOTS = {
   },
   screens: {
     probe: '<div class="devices" data-anno-canvas><!-- SCREENS --></div>',
-    wrap: (v) => `<div class="devices" data-anno-canvas>\n${v}\n    </div>`,
-    re: /<div class="devices" data-anno-canvas>[\s\S]*?\n    <\/div>|<div class="devices" data-anno-canvas><!-- SCREENS --><\/div>/,
+    mark: 'SCREENS',
+    shell: ['<div class="devices" data-anno-canvas>', '</div>'],
+    wrap: (v) => `    <div class="devices" data-anno-canvas>\n${v}\n    </div>\n    `,
   },
   notes: {
     probe: '<div class="card-content notes-body" id="proto-notes"></div>',
-    wrap: (v) => `<div class="card-content notes-body" id="proto-notes">\n${v}\n        </div>`,
-    re: /<div class="card-content notes-body" id="proto-notes">[\s\S]*?<\/div>/,
+    mark: 'NOTES',
+    shell: ['<div class="card-content notes-body" id="proto-notes">', '</div>'],
+    wrap: (v) => `\n        <div class="card-content notes-body" id="proto-notes">\n${v}\n        </div>\n        `,
   },
   theme: {
     probe: '<style id="project-theme"></style>',
-    wrap: (v) => `<style id="project-theme">\n${v}\n  </style>`,
-    re: /<style id="project-theme">[\s\S]*?<\/style>/,
+    mark: 'PROJECT-THEME',
+    shell: ['<style id="project-theme">', '</style>'],
+    wrap: (v) => `\n  <style id="project-theme">\n${v}\n  </style>\n  `,
   },
   custom: {
     probe: '<style id="proto-custom"></style>',
-    wrap: (v) => `<style id="proto-custom">\n${v}\n  </style>`,
-    re: /<style id="proto-custom">[\s\S]*?<\/style>/,
+    mark: 'CUSTOM-CSS',
+    shell: ['<style id="proto-custom">', '</style>'],
+    wrap: (v) => `\n  <style id="proto-custom">\n${v}\n  </style>\n  `,
   },
+}
+
+// 标记界定的区间：[BEGIN 注释结束之后, END 注释开始之前)。返回 null 表示标记缺失。
+function markRange(html, mark) {
+  const b = html.indexOf(`<!-- ${mark}:BEGIN`)
+  if (b < 0) return null
+  const bEnd = html.indexOf('-->', b)
+  if (bEnd < 0) return null
+  const e = html.indexOf(`<!-- ${mark}:END`, bEnd)
+  if (e < 0) return null
+  return { from: bEnd + 3, to: e }
+}
+
+// 片段自带外壳时剥掉它：容器已经提供外壳，重复一层会得到 <style><style> 或双层 .devices。
+// 纪律的示例带过外壳（§8.4），所以这里宽容处理并出声，而不是判错让人猜。
+function stripShell(value, slot, key) {
+  if (!slot.shell) return value
+  const [open, close] = slot.shell
+  const t = value.trim()
+  if (t.startsWith(open) && t.endsWith(close)) {
+    console.log(`  · 片段自带了外层 ${open}…${close}，已剥掉——外壳由容器提供，片段只写内容`)
+    return t.slice(open.length, t.length - close.length)
+  }
+  return value
 }
 
 const TITLE_RE = /<title>[\s\S]*?<\/title>/
@@ -187,7 +220,7 @@ async function cmdScreen(file, opts) {
   }
   await writeAtomic(file, next)
   console.log(`已加屏「${opts.name}」，状态层：${states.join(' / ')}`)
-  console.log('往各 <div class="status …"> 里填内容即可；结构与状态类名已由本命令保证。')
+  console.log('下一步：把这一屏的内容写成片段，用 `slot --set screens` 整体写入（MUST NOT 直接编辑原型文件）。')
 }
 
 /* ────────────────── slot ────────────────── */
@@ -202,10 +235,19 @@ async function cmdSlot(file, opts) {
   const html = await readTarget(file)
   const slot = SLOTS[key]
   const before = readAnnoBlock(html)
-  const re = slot.re || new RegExp(slot.probe.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-  if (!re.test(html)) fail(`找不到插槽 ${key}（该区被改写了？）`)
+  value = stripShell(value, slot, key)
+  const body = key === 'title' ? esc(value.trim()) : value.replace(/\s+$/, '')
 
-  const next = html.replace(re, slot.wrap(key === 'title' ? esc(value.trim()) : value.replace(/\s+$/, '')))
+  let next
+  if (slot.mark) {
+    const r = markRange(html, slot.mark)
+    if (!r) fail(`找不到插槽 ${key} 的标记 ${slot.mark}:BEGIN/END（该区被改写了？）`)
+    next = html.slice(0, r.from) + slot.wrap(body) + html.slice(r.to)
+  } else {
+    const re = slot.re || new RegExp(slot.probe.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    if (!re.test(html)) fail(`找不到插槽 ${key}（该区被改写了？）`)
+    next = html.replace(re, slot.wrap(body))
+  }
 
   // 插槽写入 MUST NOT 动到批注：这正是"改稿会抹掉用户批注"那条死结的解法。
   const after = readAnnoBlock(next)
@@ -213,29 +255,80 @@ async function cmdSlot(file, opts) {
     fail('拒绝写入：本次替换会改动批注块。这是 bug，请报告。', 1)
   }
   // 只数界面区里的锚点：框架 JS 里有 data-anno-user 的字面量，全文计数会虚高
-  const countAnchors = (s) => (screensRegion(s).match(/data-anno-user="/g) || []).length
-  const keptAnchors = countAnchors(next)
-  const hadAnchors = countAnchors(html)
+  const anchorsOf = (s) => new Set([...screensRegion(s).matchAll(/data-anno-user="([^"]+)"/g)].map((m) => m[1]))
+  const had = anchorsOf(html)
+  const kept = anchorsOf(next)
+  const lost = [...had].filter((id) => !kept.has(id))
+
+  // 用户批注挂在界面元素上，而界面元素全住在 screens 插槽里——改稿会连锚点一起换掉。
+  // 这是"改稿 MUST 走 slot 就不会抹掉批注"那句承诺唯一不成立的地方，所以**默认拒绝写入**：
+  // 静默失联的表现是"批注还在文件里、但再也指不到元素"，交付时没有任何症状。
+  if (lost.length && !opts['drop-anchors']) {
+    const data = before || { items: [] }
+    const detail = lost.map((id) => {
+      const it = (data.items || []).find((x) => x.id === id)
+      return `    data-anno-user="${id}"  ${it ? `（${it.screen || '本页'} › "${it.label || ''}"：${it.text}）` : ''}`
+    })
+    fail(
+      `拒绝写入：新内容丢掉了 ${lost.length} 个用户批注锚点，这些批注会失联。\n` +
+      detail.join('\n') +
+      '\n  改稿时 MUST 把这些 data-anno-user 属性原样写进新片段里对应的元素上' +
+      '\n  （先跑 `annotations --json` 看每条批注指的是哪个元素）。' +
+      '\n  确实要丢弃这些批注时才加 --drop-anchors。',
+      1
+    )
+  }
+
   await writeAtomic(file, next)
   console.log(`已写入插槽 ${key}`)
-  if (hadAnchors && key === 'screens' && keptAnchors < hadAnchors) {
-    console.log(`  ⚠ 界面里原有 ${hadAnchors} 个批注锚点，新内容里只剩 ${keptAnchors} 个——`)
-    console.log('    被删掉的元素上的用户批注会失联（数据仍在批注块里，可在页面上查看/清理）。')
+  if (lost.length) {
+    console.log(`  ⚠ 按 --drop-anchors 丢弃了 ${lost.length} 个批注锚点：${lost.join(' ')}`)
+    console.log('    这些用户批注的数据仍在批注块里，但已指不到任何元素。')
   }
 }
 
 /* ────────────────── annotations ────────────────── */
 
+// 每一屏在全文里的区间与屏幕名——AI 侧说明要和用户批注一样说得清"这是哪一屏的哪个控件"，
+// 否则落盘确认门要"逐条摆出待拍板项"时只剩一个 `div ""`，用户无从判断。
+function screenSpans(html) {
+  const r = markRange(html, 'SCREENS')
+  if (!r) return []
+  const region = html.slice(r.from, r.to)
+  const spans = []
+  const re = /<section class="device-wrap[^"]*">[\s\S]*?<\/section>/g
+  let m
+  while ((m = re.exec(region))) {
+    const name = (m[0].match(/<p class="device-name">([\s\S]*?)<\/p>/) || [])[1]
+    spans.push({ from: r.from + m.index, to: r.from + m.index + m[0].length, name: (name || '').trim() })
+  }
+  return spans
+}
+
 function collectAiNotes(html) {
   const out = []
+  const spans = screenSpans(html)
   const re = /<([a-z0-9]+)\b([^>]*?)data-anno="([^"]*)"([^>]*)>/gi
   let m
   while ((m = re.exec(html))) {
     const attrs = m[2] + m[4]
     const kind = /data-anno-kind="question"/.test(attrs) ? 'question' : 'note'
-    const after = html.slice(m.index + m[0].length, m.index + m[0].length + 200)
-    const label = (after.split('<')[0] || '').replace(/\s+/g, ' ').trim().slice(0, 60)
-    out.push({ line: lineOf(html, m.index), tag: m[1].toLowerCase(), kind, label, text: m[3] })
+    const tail = html.slice(m.index + m[0].length, m.index + m[0].length + 400)
+    // 标签紧跟的文本 → 元素内部的第一段文本 → aria-label：三级回退，尽量给出人认得的名字
+    const label =
+      (tail.split('<')[0] || '').replace(/\s+/g, ' ').trim() ||
+      (tail.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()) ||
+      (attrs.match(/aria-label="([^"]*)"/) || [])[1] ||
+      ''
+    const span = spans.find((sp) => m.index >= sp.from && m.index < sp.to)
+    out.push({
+      line: lineOf(html, m.index),
+      screen: span ? span.name : '',
+      tag: m[1].toLowerCase(),
+      kind,
+      label: label.slice(0, 60),
+      text: m[3],
+    })
   }
   return out
 }
@@ -278,7 +371,7 @@ async function cmdAnnotations(file, opts) {
   const q = ai.filter((a) => a.kind === 'question')
   console.log(`\nAI 侧元素说明（${ai.length}，其中待拍板 ${q.length}）`)
   ai.forEach((a) => {
-    console.log(`  ${path.basename(file)}:${a.line} ${a.tag} "${a.label}"${a.kind === 'question' ? ' [待拍板]' : ''}`)
+    console.log(`  ${a.screen || '本页'} › ${a.tag} "${a.label}" @${path.basename(file)}:${a.line}${a.kind === 'question' ? ' [待拍板]' : ''}`)
     console.log(`        ${a.text}`)
   })
 }
@@ -303,8 +396,8 @@ function sliceRegion(html, mark) {
 }
 
 function screensRegion(html) {
-  const m = html.match(SLOTS.screens.re)
-  return m ? m[0] : ''
+  const r = markRange(html, 'SCREENS')
+  return r ? html.slice(r.from, r.to) : ''
 }
 
 // HTML 里所有 class 含 `status` 却不是 `.screen` 直接子元素的那些状态层。
@@ -349,7 +442,7 @@ async function cmdCheck(file, opts) {
   FIXED_REGIONS.forEach((mark) => {
     const b = html.indexOf(`<!-- ${mark}:BEGIN`)
     const e = html.indexOf(`<!-- ${mark}:END`)
-    if (b < 0 || e <= b) add('P0', `固定实现区 ${mark} 缺失或被改写`, 'MUST 由容器整份复制得到')
+    if (b < 0 || e <= b) add('P0', `固定实现区 ${mark} 缺失或被改写`, '原型 MUST 由 init 命令从容器建出，固定实现区 MUST NOT 被改写')
   })
 
   // 4. 插槽已填
@@ -362,6 +455,17 @@ async function cmdCheck(file, opts) {
 
   // 5. 批注块可解析
   if (!readAnnoBlock(html)) add('P0', '批注块解析不了', 'ANNOTATIONS 区被改写或写坏了')
+
+  // 5b. 孤儿批注：批注块里有、界面上却找不到锚点的条目 —— 用户意见已断链
+  const annoData = readAnnoBlock(html)
+  if (annoData) {
+    const anchors = new Set([...screensRegion(html).matchAll(/data-anno-user="([^"]+)"/g)].map((m) => m[1]))
+    const orphans = (annoData.items || []).filter((it) => it.id && !anchors.has(it.id))
+    orphans.forEach((it) =>
+      add('P0', `用户批注「${it.text}」已失联（锚点 data-anno-user="${it.id}" 不在界面上）`,
+        '改稿时把该 data-anno-user 属性写回对应元素；这条意见交付时看不出任何症状')
+    )
+  }
 
   // 6. 屏结构
   const screens = screensRegion(html)
@@ -399,7 +503,10 @@ async function cmdCheck(file, opts) {
 
   // 8. 结构契约
   STRUCTURE.forEach((s) => {
-    const re = new RegExp(`<[a-z0-9]+[^>]*class="[^"]*\\b${s.cls}\\b[^"]*"[^>]*>`, 'gi')
+    // class MUST 按空格分词精确比对：`\b` 会让 `alert-description` 命中 `alert`，
+    // 于是一个结构完全正确的提示条被判红，而唯一"消掉"它的办法是删掉 .alert-description
+    // ——正好违反同一张表的要求。实测撞出过。
+    const re = new RegExp(`<[a-z0-9]+[^>]*class="(?:[^"]*\\s)?${s.cls}(?:\\s[^"]*)?"[^>]*>`, 'gi')
     let m
     while ((m = re.exec(screens))) {
       const tail = screens.slice(m.index, m.index + 600)
@@ -600,6 +707,7 @@ function parseArgs(argv) {
     if (a === '--no-open') out.open = false
     else if (a === '--desktop') out.desktop = true
     else if (a === '--json') out.json = true
+    else if (a === '--drop-anchors') out['drop-anchors'] = true
     else if (a === '--help' || a === '-h') out.help = true
     else if (a === '--port') out.port = normPort(argv[++i])
     else if (a.startsWith('--port=')) out.port = normPort(a.slice(7))

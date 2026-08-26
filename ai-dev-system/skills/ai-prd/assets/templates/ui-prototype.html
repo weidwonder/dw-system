@@ -842,7 +842,7 @@
   </header>
 
   <main class="stage">
-    <!-- SCREENS:BEGIN 插槽：本次要画的界面。把下面这一行整行替换掉，其余不动。
+    <!-- SCREENS:BEGIN 插槽：本次要画的界面。用 preview.mjs slot --set screens 写入，本区内容整体被替换；外壳由本区提供，片段里 MUST NOT 再包一层 .devices。
          结构约定与可用 class 见 references/UI原型纪律.md §8——不必读本文件。 -->
     <div class="devices" data-anno-canvas><!-- SCREENS --></div>
     <!-- SCREENS:END -->
@@ -868,7 +868,7 @@
         <div class="card-header">
           <span class="card-title">设计说明（不属于用户界面）</span>
         </div>
-        <!-- NOTES:BEGIN 插槽：整行替换下面这一行 -->
+        <!-- NOTES:BEGIN 插槽：用 slot --set notes 写入；外壳由本区提供，片段只写内容 -->
         <div class="card-content notes-body" id="proto-notes"></div>
         <!-- NOTES:END -->
       </section>
