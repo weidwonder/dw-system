@@ -17,3 +17,8 @@ npm-debug.log*
 # 上游参考体系与备份 —— 仅本地参考，切勿推送
 orgin/
 orgin.bak/
+
+# 本地安装的第三方 skill 与 agent 工作目录 —— 仅本地参考，勿随本分发包提交
+/.agents/
+/.claude/
+/skills-lock.json

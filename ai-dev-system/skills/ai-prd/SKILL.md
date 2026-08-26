@@ -27,6 +27,11 @@ references/
 assets/
   templates/            change-prd（主）/ lite-issue-prd / product-prd / ui-prototype.html
   question-bank.md      分章节提问库，供组批
+scripts/
+  preview.mjs           原型工具：init/screen/slot 建原型、check 自检、annotations 取批注、
+                        serve 起预览服务（页面批注自动写回该文件）；
+                        跑法 node <skills 根>/ai-prd/scripts/preview.mjs <子命令>
+                        （本 skill 不带 ctx —— 那个随 ai-dev-workflow 分发）
 ```
 
 ## 路由逻辑（每次调用先做这个）
@@ -92,7 +97,11 @@ assets/
    【用户过稿门 · MUST】把 PRD 与（涉及 UI 时）原型交给用户读，请他提修改意见；意见逐条落稿
    或明确回"不改 + 一句话理由"，改完回本门再过，直到用户定稿。**用户定稿前 MUST NOT 派复核
    子代理**——复核报告只对某一版稿子有效，用户随后的意见会让它整份作废。原型此刻仍未落盘，
-   MUST 以预览副本给用户打开（项目外位置），MUST NOT 写进 docs/。"怎样算定稿"用的是落盘确认门
+   MUST 以预览副本给用户打开（项目外位置），MUST NOT 写进 docs/；预览服务 MUST 由你后台起、
+   也由你在派复核子代理之前停（node <skills 根>/ai-prd/scripts/preview.mjs <预览副本>，
+   批注自动写回文件、用户零操作，MUST NOT 让用户自己起停），并告诉用户可直接在原型上批注；
+   收意见时 MUST 用 preview.mjs annotations 取回批注，与口头意见合并逐条处理
+   （见 `UI原型纪律.md` §7.3/§7.4）。"怎样算定稿"用的是落盘确认门
    那三条判据（见 `00-prd生成流程.md` §组稿 第 4 条）→
    【复核门 · MUST】加载 references/prd复核纪律.md，派子代理跑双轴复核（自洽轴 / 冲突轴；
    change/product 派 2 个并行，lite-issue 派 1 个跑精简版）；P0/P1 逐条走**三个出口**之一，
@@ -127,6 +136,8 @@ assets/
 - **落盘确认门**：跑完复核门后 MUST 先把关键取舍、非目标、验收口径（涉及 UI 时另加原型覆盖范围与样式依据）**连同复核门交上来的待拍板冲突**回述给用户，并 MUST 逐条列出**用户定稿之后稿子被改了什么**（用户定的是复核前那一版），达成共识才写文件；**未确认 MUST NOT 落盘**。复核门既没有待拍板条目、也没有实质性改稿时，本门 MUST 退化为一句话告知并直接落盘，**MUST NOT 把同一份稿子再摆一遍要用户点第二次头**。"怎样算确认了"与用户不回复时的处置，判据只在 `references/00-prd生成流程.md` §组稿 第 6 条定义。
 - **全程只用业务语言**：对话、问题和 PRD 成稿不得要求用户理解程序实现；技术事实必须先翻译成业务事实。遵循 `references/业务语言纪律.md`。
 - **UI 变更必须出 HTML 高保真交互原型**：新增/调整用户可见界面时（纯文案改动豁免），**先自查项目里的设计 token / 组件库 / 同类现有页面**取样式依据，查不到才向用户要材料；产出可离线打开的单文件 HTML（零外链、零 CDN），不得用 Markdown 冒充原型文件，不得把面向 PM 的解释画在用户界面里。原型与 PRD 一并作为 `ai-dev-workflow` 的输入。遵循 `references/UI原型纪律.md`。
+
+- **原型批注框架**：原型 MUST 由 `scripts/preview.mjs` 的 `init` / `screen` / `slot` 三条命令建出，再只填 `UI原型纪律.md` §8.1 的六个具名插槽；容器自带设计系统、图标库与批注层，**MUST NOT 手工复制容器再逐行替换**，也 **MUST NOT 为动手而通读容器**——它刻意不含示例内容（范例会锚定产出），要填的信息全在 §8。对某个元素的说明写成该元素上的 `data-anno`（待拍板项加 `data-anno-kind="question"`）悬浮气泡，**MUST NOT 画进屏幕**；用户的意见由页面工具栏写进批注块。**取批注只有一个入口**：`preview.mjs annotations <原型文件>`，它一次给出用户逐元素批注（带所在屏与元素）、全局反馈与 AI 侧 `data-anno` 说明，**MUST NOT 通读整份 HTML 去找**。工具整体跑不起来时才降级为直读 `ANNOTATIONS:BEGIN … END` 那一段，MUST NOT 因此跳过批注。判据在 `references/UI原型纪律.md` §7、§8。
 
 ## 何时用哪个模板
 

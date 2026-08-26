@@ -6,6 +6,8 @@
 >
 > **产物去向**：原型与 PRD 一起作为 `ai-dev-workflow` Step 1 的输入，下游的 Overview / eng-spec / test-spec 会按它落用户可见行为。因此原型不是给评审看一眼的插图，是**要被工程读的行为契约**。
 
+> **本文小节**：[1 自查样式](#1-先自查现有样式查不到再问用户) · [2 交付形态](#2-交付-html-高保真交互页) · [3 面向用户](#3-面向用户而不是面向文档) · [4 范围控制](#4-短平快范围控制) · [4.5 被取代时](#45-原型被取代时加横幅不删文件) · [5 PRD 写法](#5-prd-中的写法) · [6 交付自检](#6-交付前自检跑-check-命令) · [7 批注框架](#7-界面批注框架容器已内置-must-not-自己造)（7.1 建/改稿 · 7.2 元素说明 · 7.3 读回批注 · 7.4 写回文件）· [8 填内容](#8-怎么往容器里填内容工具--插槽契约)（8.1 工具与插槽 · 8.2 界面结构 · 8.3 class 与 hook · 8.4 项目样式与自定义控件）
+
 ## 1. 先自查现有样式，查不到再问用户
 
 **顺序不可颠倒：能自己查到的样式事实不许问用户**（呼应 `00-prd生成流程.md` §提问三纪律 第 1 条）。
@@ -31,7 +33,8 @@
 - **MUST NOT 引用任何外部资源**：不用 CDN 脚本或样式、不用网络字体、不用远程图片（图片改用内联 SVG 或纯 CSS 占位），字体只用系统字体栈。原型要能离线、内网、断网打开——依赖外链的原型等于交付了一个会白屏的文件。
 - **原型文件本身 MUST NOT 用 Markdown 表格、mermaid 或静态文字块替代**。（此条只约束原型文件；PRD 正文的业务流程图仍然用 mermaid，不受影响。）
 - 原型 SHOULD 覆盖 1 条核心用户路径 + 关键状态：默认、加载、空态、错误 / 无权限、成功反馈；小改动至少覆盖改动前后用户可见差异。
-- 屏幕内只放真实用户会看到的内容、文案和控件；面向产品经理 / 评审者的解释、标注、设计理由、开放问题 MUST 放在画布外的"设计说明（不属于用户界面）"，不得绘制在用户界面里。
+- 原型 MUST 由 `assets/templates/ui-prototype.html` **整份复制**得到，只替换 §8.1 的六个插槽；容器内置的设计系统、图标库、批注框架与批注数据块 MUST 原样保留（判据在 §7.1）。
+- 屏幕内只放真实用户会看到的内容、文案和控件；面向产品经理 / 评审者的解释、标注、设计理由、开放问题 MUST 放在画布外的"设计说明（不属于用户界面）"，不得绘制在用户界面里。**指向某个具体元素的说明改写成该元素上的 `data-anno` 悬浮气泡**（判据在 §7.2），不要因为说明栏说不清是哪个控件就把文字画进屏幕。
 
 ## 3. 面向用户，而不是面向文档
 
@@ -43,10 +46,10 @@
 ## 4. 短平快范围控制
 
 - 默认只做**轻量原型**：2–5 个关键屏幕 / 状态，证明核心体验与边界，不做完整设计系统重建。
-- **多屏组织方式**：整块复制 `assets/templates/ui-prototype.html` 里的 `.device-wrap` 块横向并排，每屏一个块并加真实屏幕名（屏幕名元素 `.device-name` 在 `.device-wrap` 内、不在 `.device` 内，只复制 `.device` 会丢屏幕名）；右侧"设计说明"栏全篇只保留一个，不要每屏配一份。
+- **多屏组织方式**：在界面插槽里横向并排多个 `.device-wrap`，每屏一个块并加真实屏幕名（屏幕名元素 `.device-name` MUST 在 `.device` 之外，写进 `.device` 里批注就分不清是哪一屏）；右侧"设计说明"栏全篇只保留一个，不要每屏配一份。结构见 §8.2。
 - 若需求范围很大，先画主旅程和最高风险状态；次要页面进入开放问题或后续原型任务。
 - 若缺少现有 UI 样式来源且用户暂不提供，仍可交付临时原型，但 MUST 在 PRD 的 UI 原型节写明"视觉为临时假设，开发前需替换为真实样式依据"。
-- **临时假设分支同样要清占位符**：保留 `assets/templates/ui-prototype.html` 的默认 token 值时，MUST 把模板里的 `【必须替换】` 抬头与各 token 旁的 `/* 【…】 */` 注释整体删除，或改写成 `/* 临时视觉假设，开发前替换 */`。交付的原型文件不得残留 `【`——否则 §6 的"全文无 `【`"自检在这一分支上必然失败。
+- **查不到样式来源时不许伪造**：`project-theme` 插槽 MUST 整段留空（判据在 §8.4），**MUST NOT 往里填臆造的品牌色冒充既有样式**；同时 MUST 在 PRD 的 UI 原型节写明"视觉为临时假设，开发前需替换为真实样式依据"。交付的原型文件全文不得残留 `【`——容器本身不含任何占位符，残留的一定是自己写进去的（见 §6）。
 
 ## 4.5 原型被取代时：加横幅，不删文件
 
@@ -71,9 +74,228 @@
 
 「样式依据」MUST 写到可核对的具体来源（token 文件名、组件库名、现有页面路径）——这是 `业务语言纪律.md` §取证出处豁免 明列的例外，MUST NOT 因业务语言要求把它删成"沿用现有风格"。
 
-## 6. 交付前自检（无浏览器也能查）
+## 6. 交付前自检：跑 check 命令
 
-- 文件内 `http://` / `https://` 外链数为 0，无 `<script src>`、`<link href>`、`@import url(...)`、网络字体。
-- 全文无 `【`：占位符已清零（与 `prd写作纪律.md` 的无占位符成稿一致）。**保留模板默认 token 值的临时假设分支不豁免本条**：按 §4 把 `【】` 注释删除或改写成 `/* 临时视觉假设，开发前替换 */`。
-- 用户界面区域内不含"设计说明 / 开放问题 / 样式依据 / 待确认"等字样——这些只允许出现在画布外的说明栏。
+**交付前 MUST 跑一次**（无浏览器也能查，退出码非 0 即未过）：
+
+```
+node <skills 根>/ai-prd/scripts/preview.mjs check <原型文件>
+```
+
+它查下面这些，**MUST NOT 用人工逐条目测替代**——其中控件结构契约、图标引用、未定义 class 三类，人眼几乎查不出来，而写错了页面不报错、只是版式塌掉：
+
+- 文件内 `http://` / `https://` 外链数为 0，无 `<script src>`、`<link href>`、`@import url(...)`、`xmlns`、网络字体。
+- 全文无 `【`：占位符已清零（与 `prd写作纪律.md` 的无占位符成稿一致）。**容器本身不含任何占位符**，残留的 `【` 一定来自自己填进插槽的内容，MUST 逐个换成接近真实的业务文案，**MUST NOT 靠整段删掉来消 `【`**。
+- 用户界面区域内不含"设计说明 / 开放问题 / 样式依据 / 待确认"等字样——这些只允许出现在画布外的说明栏，或元素上的 `data-anno` 悬浮气泡（§7.2）。
 - 每个声明覆盖的状态都有对应的可点击切换入口。
+- 容器的固定实现区标记齐全且未被改写：`THEME`、`DESIGN-SYSTEM`、`ICONS`、`ANNO-FRAMEWORK:CSS`、`ANNO-FRAMEWORK:JS`、`ANNOTATIONS` 各自的 `BEGIN`/`END` 都在（§7.1、§8.1）。
+- 改稿时批注块内容与界面上的 `data-anno-user` 属性原样保留，用户已写的批注一条不少（§7.1）。
+- 每屏的 `.device-name` 在 `.device` 之外、`.status` 各层是 `.screen` 的直接子元素（§8.2）。
+- 有子元素结构要求的控件写法正确、图标 id 都存在、用到的 class 都有样式定义、行内样式没写死颜色（§8.3）。
+
+`check` 报 P0 就 MUST 修完再交付；P1 逐条看过再决定；P2 是提示。**它查不到的仍要自己把关**：文案是不是真实业务语言、覆盖路径对不对、气泡里的说明有没有画进屏幕。
+
+## 7. 界面批注框架（模板已内置，MUST NOT 自己造）
+
+`assets/templates/ui-prototype.html` 内置一层批注框架，把"对某个界面元素的说明"和"用户对某个界面元素的意见"都收进标准载体：**AI 侧**用元素上的一个属性写说明，鼠标悬浮才展开；**用户侧**用页面顶部工具栏点选元素写意见，随时改随时存，AI 直接从文件里读回来。
+
+容器按标记分区，**能动的只有 §8.1 的七个插槽**，其余全是固定实现（下表按标记名引用，MUST NOT 用序号——序号会随容器增区而漂）：
+
+| 区 | 标记 | 谁写 |
+|---|---|---|
+| 内容插槽 | `TITLE` / `SCREENS` / `NOTES` / `PROJECT-THEME` / `CUSTOM-CSS` | 本次要画的全部内容，一律用 `slot` 命令写（§8.1） |
+| 批注数据 | `ANNOTATIONS:BEGIN … END` | 只有页面工具栏写，AI 一律不碰（§7.3） |
+| 默认视觉基线 | `THEME:BEGIN … END` | 谁都不写；要覆盖走 `PROJECT-THEME`（§8.4） |
+| 设计系统 | `DESIGN-SYSTEM:BEGIN … END` | 谁都不写，固定实现（§8.3） |
+| 图标库 | `ICONS:BEGIN … END` | 谁都不写，固定实现（§8.3） |
+| 批注框架 | `ANNO-FRAMEWORK:CSS` / `ANNO-FRAMEWORK:JS` | 谁都不写，固定实现 |
+
+### 7.1 产出与改稿都走工具
+
+- 建原型、加屏、填改插槽 MUST 用 `scripts/preview.mjs` 的 `init` / `screen` / `slot`（命令见 §8.1）。
+- **MUST NOT 逐字重写、精简、内联改写或删除**任何固定实现区——它们重写一次白花上万 token，还会让用户已写的批注读不回来。
+- **MUST NOT 为了动手而通读容器**：填内容所需的全部信息都在 §8，容器里没有任何示例业务内容可抄（这是刻意的，判据在 §8 开头）。
+- **改稿 MUST 用 `slot`，MUST NOT 直接编辑原型文件**：用户已经在页面上批注之后，直接编辑要么得先把整份原型读进上下文（几万 token，且与上一条冲突），要么重新生成而**抹掉界面上的 `data-anno-user` 锚点**——那是用户批注与具体元素之间唯一的绑定，断了批注就失联。`slot` 只换插槽内容，批注块与锚点原样保留。
+
+### 7.2 元素级说明写成气泡，不画进界面
+
+这是 §2 末条「面向 PM 的解释、标注、设计理由 MUST 放画布外」的**出口**：以前只能整段挤进右侧说明栏，说不清指的是哪个控件，于是常被顺手写进屏幕里。
+
+- 针对**某个具体元素**的说明 MUST 写成该元素上的 `data-anno="说明文字"`；其中要用户拍板的写 `data-anno-kind="question"`（气泡转琥珀色）。框架自动在该元素右上角挂一枚小气泡，**悬浮才展开**，不占界面版面。
+- 只与整份原型有关、不指向任何单个元素的内容（样式依据、覆盖范围、整体开放问题）仍留在画布外的设计说明栏。
+- 有了这个出口，**MUST NOT 再把说明文字、设计理由、待确认项以任何形式画进屏幕内容里**——屏幕内出现这类文字一律判违规，见 §6 自检第 3 条。
+
+### 7.3 用户批注怎么读回来
+
+- 用户在页面顶部工具栏点「＋ 加注释」后光标变成品红气泡，点选任意界面元素即可写意见；「全局反馈」写针对整份原型的意见；两者都能随时改、随时删。
+- 取反馈 MUST 用命令，**MUST NOT 为此通读整份 HTML**（原型里约七成是每份都逐字相同的固定实现，读它纯属浪费）：
+
+  ```
+  node <skills 根>/ai-prd/scripts/preview.mjs annotations <原型文件>        # 人类可读
+  node <skills 根>/ai-prd/scripts/preview.mjs annotations <原型文件> --json # 结构化
+  ```
+
+  它一次给出三样东西：**用户元素批注**（带屏幕名、元素标签、元素可见文字、**所在行号**）、**用户全局反馈**、以及 **AI 侧写在 `data-anno` 里的说明**（含哪些是 `question` 待拍板项）。跑不起来时兜底：`sed -n '/ANNOTATIONS:BEGIN/,/ANNOTATIONS:END/p' <原型文件>` 取用户批注那半（**这条是 bash-only，Windows 上没有**，所以它是兜底不是首选）。
+
+- `items[]` 是元素批注，每条带 `screen`（哪一屏，多屏原型据此区分）、`label`（元素上的可见文字）、`path`（结构路径，辅助线索）、`id`；`id` 与界面里的 `data-anno-user="<id>"` 一一对应，要定位元素就 grep 这个属性。`global[]` 是整体意见。
+- 批注 MUST 与用户在对话里提的意见**同等对待**：逐条落稿，或明确回"不改 + 一句话理由"，MUST NOT 默默忽略（同 `00-prd生成流程.md` §组稿 第 4 步用户过稿门）。
+- **AI 侧 `data-anno` 里的说明与用户批注同等重要**：它们是屏幕上看不见、但属于用户可见行为契约的一部分（下游按它落 spec）。`annotations` 命令会一并列出，**MUST NOT 因为界面上看不到就漏掉**；其中 `data-anno-kind="question"` 的是**待用户拍板项**，MUST 在落盘确认门逐条摆给用户，MUST NOT 让它们跟着原型静默进库。
+- **AI MUST NOT 手工编辑批注块**：唯一写入方是页面工具栏，手改会与用户浏览器里的本地副本打架。已处理的批注由用户自己在页面上删除。
+
+### 7.4 批注要写回文件才读得到（交原型时 MUST 说的一句话）
+
+浏览器不允许网页未经用户手势授权就写本地文件——这是浏览器的硬约束，页面即使知道自己的路径也拿不到写句柄。所以**默认 MUST 用预览服务打开原型**，让回写这件事对用户完全透明：
+
+**首选：用预览服务打开（全自动，用户零操作）**
+
+```
+node <skills 根>/ai-prd/scripts/preview.mjs <原型文件>
+```
+
+它把这一个文件用本机 http 提供出去并自动打开浏览器，页面里的批注**直接写回该文件**，不需要任何授权点击。服务只绑回环地址、只认这一个文件、只接受形如原型文档的写入、拒绝跨站写入，原子写盘。
+
+**生命周期由 AI 持有，MUST NOT 甩给用户**：
+
+- MUST 由 AI **在后台启动**它，只把打印出来的 `http://127.0.0.1:<端口>/` 交给用户，并告诉他"这个地址在过稿期间有效，读完说一声我就关掉"。**MUST NOT 让用户自己去终端跑命令、也 MUST NOT 要求用户按 Ctrl+C**——他多半没有那个终端。
+- 用户定稿、准备进复核门时 MUST 由 AI 停掉本次的预览服务（执行点在 `00-prd生成流程.md` §组稿 第 5 步）；**MUST NOT 把它当成常驻设施留着**。
+- 服务在跑时工具栏右侧显示「批注自动写回文件，无需操作」，**没有任何按钮要用户点**。
+
+**降级：用户直接双击 html（`file://`）打开时**
+
+- 工具栏右侧按钮：Chrome / Edge 上是「保存到文件」——点一次、在弹窗里**选中这份原型文件本身**并允许保存，之后每次改动自动写回、不用再点；Safari / Firefox 上是「下载副本」——MUST 告诉用户下载后覆盖原文件；两条都走不通时用「复制 JSON」把批注粘回对话。
+- 状态灯就在按钮右边：**绿 = 已在文件里**（AI 读得到）、**橙 = 有改动还没写回**、**灰 = 只在本机浏览器里**（AI 读不到）。
+- 用户第一次写批注时容器会自己弹一次说明（讲清"为什么还要点一下保存"），但**MUST NOT 把这条当成已经交代过**：交原型时仍 MUST 用自己的话说一遍，那次弹窗用户可能顺手关掉。
+- **MUST NOT 因为降级路径存在就默认走它**：让用户为一件他不该关心的事点两次弹窗，是把浏览器的限制转嫁给了用户。
+- 用户说"我批注完了"而批注块仍是空的时，**MUST NOT 直接判定"用户没提意见"**就往下走：用预览服务打开时 MUST 先看服务端有没有打印过写回记录（没有就是用户没写，或页面根本没连上）；`file://` 打开时 MUST 问他状态灯什么颜色、有没有点过「保存到文件」。
+
+
+## 8. 怎么往容器里填内容（工具 + 插槽契约）
+
+`assets/templates/ui-prototype.html` 是**容器，不是范例**：它自带设计系统、图标库、批注层与状态切换，但**不含任何示例业务内容**。这是刻意的——容器里放一屏示例，产出的原型就会照着示例的业务场景、布局和控件选择走，而不是照本次需求走。
+
+因此：**产出原型 MUST NOT 通读容器**。容器内部的规格由工具负责，不由本篇复述、更不由你去翻源码。
+
+### 8.1 用工具建原型，不要手工拼
+
+`scripts/preview.mjs` 是本 skill 唯一的脚本（**不是 ctx**，那个随 `ai-dev-workflow` 分发）。四条命令覆盖全流程，MUST 优先用它们：
+
+| 做什么 | 命令 |
+|---|---|
+| 建一份原型 | `node <skills 根>/ai-prd/scripts/preview.mjs init <文件> --title <需求名> --subtitle <一句话>` |
+| 加一屏 | `… screen <文件> --name <屏名> [--desktop] [--states is-default,loading,empty,error,success]` |
+| 填 / 改插槽 | `… slot <文件> --set <插槽名> --from <片段文件>`（或 `--text <文本>`） |
+| 交付前自检 | `… check <文件>`（见 §6） |
+
+- **建原型 MUST 用 `init`**，MUST NOT 手工 `cp` 再逐个替换——`init` 同时落好标题与副标题，少三次易错的整行替换。
+- **加屏 MUST 用 `screen`**：`.device-wrap` / `.device-name` 的位置、`.app-bar`、五个状态层的类名全部由它保证。这些正是手写时最容易错、错了又不报错的地方。
+- **改稿 MUST 用 `slot`**，MUST NOT 直接编辑原型文件：`slot` 只换插槽内容，**批注块与界面上的 `data-anno-user` 锚点原样保留**，且不需要把整份原型读进上下文。手工改稿要么得先整份读进来（几万 token），要么重新生成而抹掉用户已写的批注——两条都不可接受。
+- 界面内容较长时先写成片段文件再 `--from` 送进去，比在命令行里拼长字符串可靠。
+
+插槽共六个，`slot --set` 的取值与它们一一对应（`title` 同时写 `<title>` 与页头大标题，一次填两处）：
+
+| 插槽名 | 装什么 |
+|---|---|
+| `title` | 文档标题（`init --title` 已经填好） |
+| `subtitle` | 页头一句话：样式依据 + 覆盖路径 |
+| `screens` | 全部界面（结构见 §8.2；用 `screen` 命令加屏后往各状态层里填） |
+| `notes` | 画布外的设计说明：样式依据 / 覆盖范围 / 开放问题三段 |
+| `theme` | 项目真实样式 token 覆盖（§8.4） |
+| `custom` | 组件表里没有的控件样式、hover、动画、媒体查询（§8.4） |
+
+`MUST NOT 改动插槽之外的任何一行`——`THEME` / `DESIGN-SYSTEM` / `ICONS` / `ANNO-FRAMEWORK` / `ANNOTATIONS` 各区都是固定实现，改写一次就会让批注读不回来、样式失效，而且不会有任何报错。
+
+### 8.2 界面区的结构
+
+一屏的骨架由 `screen` 命令生成，形如：
+
+```html
+<section class="device-wrap">          <!-- 桌面端界面加 is-desktop -->
+  <p class="device-name">真实屏幕名</p>  <!-- MUST 在 .device 外：批注按它区分是哪一屏 -->
+  <div class="device">
+    <div class="app-bar">…顶栏…</div>
+    <div class="screen">
+      <div class="status is-default">…正常态…</div>
+      <div class="status loading">…</div>
+      <div class="status empty">…</div>
+      <div class="status error">…</div>
+      <div class="status success">…</div>
+    </div>
+  </div>
+</section>
+```
+
+- 各 `.status` 层 MUST 是 `.screen` 的**直接子元素**——容器靠这层关系控制显隐，放到 `.screen` 外面就永远不显示。用 `screen` 命令加屏则天然满足。
+- 状态切换**作用于全部屏幕**。某一屏没有当前状态的层时会**回落到默认态**（不会空白），所以多屏原型各屏只需写自己关心的状态，`screen --states` 按需选。
+- 设计说明栏全篇只有一个，MUST NOT 每屏配一份。
+
+### 8.3 可用的 class 与交互 hook
+
+容器自带一套中性组件样式与图标，纯 CSS + 内联 SVG、零依赖。它管的只是**这份原型怎么画**，**MUST NOT 被读成"要求项目采用某个 UI 框架或组件库"**——项目用什么技术栈由工程侧决定；PRD 里也 MUST NOT 因为容器长这样就写进任何框架名。
+
+| 用途 | class |
+|---|---|
+| 排版 | `.stack` `.stack-sm` `.row` `.row-between` `.grow` `.muted` `.text-sm` `.text-xs` `.font-medium` `.font-semibold` `.truncate` `.mono` |
+| 按钮 | `.btn` `.btn-secondary` `.btn-outline` `.btn-ghost` `.btn-destructive` `.btn-link` `.btn-sm` `.btn-lg` `.btn-icon` `.btn-block` |
+| 表单 | `.field` `.label` `.input` `.textarea` `.select-wrap` `.select` `.input-group` `.field-hint` `.field-error` `.checkbox` `.switch` |
+| 容器 | `.card` `.card-compact` `.card-flush` `.card-header` `.card-title` `.card-description` `.card-content` `.card-footer` |
+| 数据 | `.table` `.list` `.list-item` `.kv` `.kv-row` `.avatar` `.avatar-sm` `.separator` |
+| 状态 | `.badge` `.badge-secondary` `.badge-outline` `.badge-destructive` `.badge-success` `.badge-warning`；`.alert` `.alert-destructive` `.alert-success` `.alert-warning` `.alert-info` `.alert-title` `.alert-description`；`.empty` `.empty-icon` `.empty-title` `.empty-description`；`.skeleton`；`.progress` `.progress-bar` |
+| 导航 | `.tabs-list` `.tabs-trigger` `.nav` `.nav-item` |
+| 页面 | `.app-bar` `.app-title` `.screen` `.device` `.device-wrap` `.device-name` `.devices` |
+| 浮层 | `.toast`；`.dialog` `.dialog-header` `.dialog-title` `.dialog-body` `.dialog-footer`；`.kbd` |
+| 图标 | `<svg class="icon"><use href="#i-search"/></svg>`，尺寸用 `.icon-sm` / `.icon-lg` |
+
+图标 id：`i-check` `i-x` `i-plus` `i-minus` `i-search` `i-chevron-right` `i-chevron-down` `i-chevron-left` `i-arrow-right` `i-arrow-left` `i-menu` `i-more` `i-bell` `i-user` `i-users` `i-home` `i-file` `i-inbox` `i-trash` `i-edit` `i-settings` `i-filter` `i-download` `i-upload` `i-eye` `i-lock` `i-star` `i-calendar` `i-clock` `i-info` `i-alert` `i-alert-triangle` `i-check-circle` `i-x-circle` `i-loader` `i-message` `i-sun` `i-moon` `i-external` `i-save` `i-copy`
+
+**有子元素结构要求的控件**（写错了页面不报错、只是版式塌掉，`check` 会抓）：
+
+| class | 结构 |
+|---|---|
+| `.kv` | `<dl class="kv"><div class="kv-row"><dt>名</dt><dd>值</dd></div></dl>`，MUST 用 `dt`/`dd` |
+| `.alert` | 图标、`.alert-title`、`.alert-description` MUST 都是 `.alert` 的**直接子元素**（它是 grid 布局） |
+| `.checkbox` | `<button class="checkbox" aria-checked="false"><svg class="icon"><use href="#i-check"/></svg></button>`，MUST NOT 用原生 `<input type="checkbox">` |
+| `.switch` | `<button class="switch" aria-checked="false"></button>` |
+| `.tabs-list` | `.tabs-trigger` MUST 在 `.tabs-list` 内，且各带 `aria-selected` |
+| `.empty` | `.empty-icon` / `.empty-title` / `.empty-description` 都是 `.empty` 的直接子元素 |
+| `.input-group` | `<div class="input-group"><svg class="icon">…</svg><input class="input" /></div>`，图标在前 |
+| `.select-wrap` | `<div class="select-wrap"><select class="select">…</select><svg class="icon"><use href="#i-chevron-down"/></svg></div>` |
+
+**交互 hook**（容器已绑好行为，写上就能点，MUST NOT 自己写脚本重造）：
+
+| 属性 | 加在哪 | 点下去会怎样 |
+|---|---|---|
+| `data-submit` | 主行动按钮 | 演示"提交 → 处理中 → 成功"，用来体现业务结果 |
+| `role="tablist"` + 子元素 `role="tab"` `aria-selected` | 页签容器与各页签 | 点谁谁选中 |
+| `aria-checked` | `.switch` / `.checkbox` | 点击切换开关态 |
+
+- 表里有的控件 MUST 直接用，**MUST NOT 另写一套行内样式重造**。
+- 尺寸类的行内样式（`height` / `width` / `grid-template-columns` 等）不在此限——`.skeleton` 这类本就需要按位置给尺寸。
+- **MUST NOT 在行内样式里写死颜色**：写死的颜色绕过 `project-theme` 覆盖，换项目主题时不会跟着变。取色一律用 `var(--primary)` / `var(--border)` / `var(--muted-foreground)` 这类 token。
+- 图标 MUST NOT 写行内宽高（尺寸由 class 定）。需要库里没有的图标时 MUST 写内联 `<svg>` 元素（HTML 里的内联 SVG 不需要 `xmlns`），**MUST NOT 用 `background-image: url("data:image/svg+xml,…")`**——那种写法里的 `xmlns="http://…"` 会让零外链自检判红。
+
+### 8.4 项目样式与自定义控件
+
+**项目真实样式** → `theme` 插槽，**MUST 只覆盖取值、MUST NOT 改变量名**（全部组件靠这些名字取色）：
+
+```html
+<style id="project-theme">
+  :root { --primary: #1a73e8; --primary-foreground: #ffffff; --radius: 8px; }
+</style>
+```
+
+可覆盖：`--background` `--foreground` `--card` `--card-foreground` `--popover` `--popover-foreground` `--primary` `--primary-foreground` `--secondary` `--secondary-foreground` `--muted` `--muted-foreground` `--accent` `--accent-foreground` `--destructive` `--destructive-foreground` `--border` `--input` `--ring` `--success` `--success-foreground` `--warning` `--warning-foreground` `--radius` `--font-sans` `--font-mono`。
+
+- 查不到样式来源时本插槽 MUST 整段留空（判据同 §4），**MUST NOT 填臆造的品牌色冒充既有样式**。
+- 容器只有**一套中性亮色基线**，**MUST NOT 假设产品有暗色模式**，也 MUST NOT 为暗色另做一套屏幕。产品本身就是暗色的，直接在本插槽里把 token 覆盖成暗色取值即可，**MUST NOT 在原型里另加主题切换装置**。
+
+**组件表里没有的控件** → `custom` 插槽。它排在设计系统之后，覆盖得掉容器样式，且写的是真正的 `<style>`，因此 `:hover`、`::before`、`@keyframes`、`@media` 都能用：
+
+```html
+<style id="proto-custom">
+  .date-range { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .date-range > button:hover { background: var(--accent); border-radius: var(--radius-sm); }
+</style>
+```
+
+- 自定义控件的取色同样 MUST 用 token 变量，理由同上。
+- 类名 MUST NOT 与容器已有的 class 重名，否则会盖掉组件样式；`check` 会报出没有样式定义的 class，但重名它看不出来，起名时自己避开 §8.3 那张表。
