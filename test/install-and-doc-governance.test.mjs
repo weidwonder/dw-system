@@ -533,6 +533,7 @@ test('ai-prd questions and deliverables use business language only', () => {
     path.join(prdRoot, 'assets', 'templates', 'change-prd.md'),
     path.join(prdRoot, 'assets', 'templates', 'lite-issue-prd.md'),
     path.join(prdRoot, 'assets', 'templates', 'product-prd.md'),
+    path.join(prdRoot, 'assets', 'templates', 'requirements-module.md'),
   ]
   const forbidden = /模块\s*\/\s*服务|接口|数据结构|字段|状态机|行为\/调度|字段\/结构|埋点|Technical Success|Non-functional Requirements/
   for (const file of userFacingFiles) {

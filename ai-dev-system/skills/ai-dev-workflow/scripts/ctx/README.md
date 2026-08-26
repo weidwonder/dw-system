@@ -209,7 +209,7 @@ node src/cli.js search-semantic "背单词" --as-of 2026-07-20 --stale-days 90  
 
 | 类型名 | 中文题名 | 输入 | 期望 | 通过标准 |
 |---|---|---|---|---|
-| `requirement-reachable` | 需求真相源可达 | `docs/REQUIREMENTS.md` 或 `README.md#需求`（`路径` 或 `路径#锚点`）| `≤2 跳` | 从入口文档沿 markdown 链接 BFS ≤N 跳到达 |
+| `requirement-reachable` | 需求真相源可达 | `docs/REQUIREMENTS.md` 主文档或 `README.md#需求`（`路径` 或 `路径#锚点`）；子模块只需从主文档可达，不单独填题 | `≤2 跳` | 从入口文档沿 markdown 链接 BFS ≤N 跳到达 |
 | `architecture-reachable` | 架构真相源可达 | 同上，指向架构真相源 | `≤2 跳` | 同上 |
 | `implementation-usable` | 实现真相源可用 | 架构节 `README.md#架构与边界` | `usable` | 模块路径无条件校验 + 探测到的每一位都要成立，见下 |
 | `rationale-traceable` | 设计理由可追 | 索引路径（默认 `docs/index.md`）| `全部非空` | 索引**现行区**各 spec 的 frontmatter `authority_refs` 均非空 |
