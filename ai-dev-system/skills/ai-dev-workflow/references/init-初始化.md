@@ -102,7 +102,7 @@
 
 6. **报告三层真相源缺口**（报告，不阻断）：把第 3 步查出的缺口一句话说清——缺哪层、补它的**最小形态**是什么（判据与最小形态表见 `core/文档治理.md` §三层真相源：需求 = README 一节或 `docs/index.md`；架构 = README 里一节"架构与边界"，短到 10 行也算；实现 = 代码本身 + 子代理外包探索），然后**继续流程**。
 
-   - MUST NOT 替用户创建 `REQUIREMENTS.md` / `ARCHITECTURE.md` / `docs/index.md`，MUST NOT 为了归档而临时造一个索引（`core/文档治理.md`）。
+   - MUST NOT 替用户创建 `REQUIREMENTS.md` / `ARCHITECTURE.md` / `docs/index.md` / `docs/TODO.md`（后者是「还没做的事」的唯一出口，第一次有够格条目时才建，判据见 `core/文档治理.md` §TODO 出口），MUST NOT 为了归档而临时造一个索引（`core/文档治理.md`）。
    - MUST NOT 把"补齐三层真相源"设成开始开发的前置条件——旧项目补齐需要时间，卡住只会让用户绕开整个流程。
    - 无缺口时一句话带过，不展开。
 

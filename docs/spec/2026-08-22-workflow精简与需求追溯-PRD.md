@@ -413,7 +413,7 @@ flowchart TD
 
 ## 本 PRD 的收尾动作
 
-实现验收通过后按 `00-prd生成流程.md` §PRD 生命周期 结算。**本仓库没有整品 PRD**（`docs/REQUIREMENTS.md` 不存在，真相源是根 `CLAUDE.md` 与 `docs/index.md`），因此"归并回整品 PRD"落到：把本次改变的口径归并进根 `CLAUDE.md` 的相应章节（§架构、§改动时注意 的跨文件契约条目）。随后本 PRD 原地转归档——frontmatter 标 `lifecycle: merged` + `archived: <日期>`、正文首行加"已归并"头注、从 `docs/index.md` 移入 `docs/index-archive.md`，三个动作同一次提交做完。
+实现验收通过后按 `00-prd生成流程.md` §PRD 生命周期 结算。**本 PRD 落地时本仓库尚无整品 PRD**（当时真相源是根 `CLAUDE.md` 与 `docs/index.md`），因此"归并回整品 PRD"落到：把本次改变的口径归并进根 `CLAUDE.md` 的相应章节（§架构、§改动时注意 的跨文件契约条目）。**2.8.0 起本仓库已有 `docs/REQUIREMENTS.md`**，此后的需求按 `文档治理.md` §6 的落点映射表归并，不再走这条当时的替代路径。随后本 PRD 原地转归档——frontmatter 标 `lifecycle: merged` + `archived: <日期>`、正文首行加"已归并"头注、从 `docs/index.md` 移入 `docs/index-archive.md`，三个动作同一次提交做完。
 
 ## 改动说明（changelog）
 

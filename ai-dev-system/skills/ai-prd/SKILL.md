@@ -25,7 +25,7 @@ references/
     solo.md             无其他人类协作方：你自己拍板，无评审会，开放问题成稿前自己逐条闭环
     team.md             有其他人类协作方：业务方拍业务口径与非目标，评审结论回写 PRD
 assets/
-  templates/            change-prd（主）/ lite-issue-prd / product-prd / ui-prototype.html
+  templates/            change-prd（主）/ lite-issue-prd / product-prd / requirements-module / todo / ui-prototype.html
   question-bank.md      分章节提问库，供组批
 scripts/
   preview.mjs           原型工具：init/screen/slot 建原型、check 自检、annotations 取批注、
@@ -71,7 +71,7 @@ scripts/
    - 小改动或单点 Issue，且 Triage 4 项全否 → assets/templates/lite-issue-prd.md
      （Triage 任一为是 → 升级到 change-prd.md；四问见 00-prd生成流程.md §分流）
    - brownfield 变更 / 新功能 → assets/templates/change-prd.md（默认）
-   - 整品 / 从 0 定义产品 → assets/templates/product-prd.md（整品 PRD 作为唯一真相源落 `docs/` 根，见组稿）
+   - 整品 / 从 0 定义产品 → assets/templates/product-prd.md（整品 PRD 作为唯一真相源落 `docs/` 根，见组稿；拆子模块用 assets/templates/requirements-module.md，尚未实现的内容去 assets/templates/todo.md）
    - UI 判定（就在此处初判，批 A/B 的回复到手后复判）：需求会新增/调整用户可见页面、组件、
      入口、状态、信息层级或交互路径 → 立即加载 references/UI原型纪律.md，并把"现有界面样式依据"
      并入批 B 一起问（不要拖到组稿才补问样式依据）。初判拿不准时默认按"涉及 UI"处理，
@@ -127,6 +127,7 @@ scripts/
 - **每问尽量附推荐答案**：有材料/代码依据必附（推荐 + 一句理由，业务语言），依据不足给典型候选，完全无依据的开放题显式说"无推荐"——禁止编造推荐；决策权仍在用户，未回复不算确认。
 - **需求高度模糊先盘问后批量**：方向未定时进盘问模式（小批深挖、挑战含糊保证、逼出隐含假设），收敛出一句话结论与非目标后立即回批量流程。见 `references/00-prd生成流程.md` §盘问模式。
 - **非目标必须硬**：没有非目标的 PRD 不准成稿。
+- **「以后想做」不进 PRD，进 `docs/TODO.md`**（与走哪个模板无关）：非目标写的是**当前边界**（本次及可预见的将来都不做）；**这次不做、以后想做的 MUST 写进 `docs/TODO.md` 的〈想做的功能〉**（模板 `assets/templates/todo.md`），**MUST NOT 塞进非目标**——那会把「还没做」记成「故意不做」，且随本 PRD 归档一起消失。够格判据（只收会改变用户可感知行为、会新增或去掉一个功能、会动模块边界的条目）与章节四类闭集见 `<skills 根>/ai-dev-workflow/references/core/文档治理.md` §TODO 出口。
 - **边界必须显式**：brownfield 场景必须写"不改的线上逻辑"。
 - **验收可判定**：禁止"提升体验"这类不可勾验表述，用 RFC2119。
 - **真相方向**：现状以代码为准——卡片命中时用 `ctx discover`/`get-card` 取事实并附 cite，卡片没覆盖时读源码核实、条目带 `文件:行` 并在现状节照抄规定的标注原文；**无 card 依据的 cite 视为幻觉，MUST NOT 编造**；**不得把意图/愿景写成现状**，**MUST NOT 从 PRD 生成 card 事实**——PRD 只做 scope 约束与业务语境补充，补卡由 `ai-dev-workflow` 回到源码做（呼应 `<skills 根>/ai-dev-workflow/references/core/代码事实纪律.md` §9；`<skills 根>` = 本 SKILL.md 所在目录的父目录，Claude Code 下 `.claude/skills/`、Codex 下 `.agents/skills/`）。

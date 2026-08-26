@@ -31,7 +31,7 @@
 
 | 检查项 | 类型名（填进"类型"列） | 输入 | 期望 | 通过标准 |
 |---|---|---|---|---|
-| 需求真相源可达 | `requirement-reachable` | 需求真相源路径（`docs/REQUIREMENTS.md` 或 `README.md#需求`）| `≤2 跳` | 从入口文档沿链接 ≤2 跳到达 |
+| 需求真相源可达 | `requirement-reachable` | 需求真相源路径（`docs/REQUIREMENTS.md` 主文档，或 `README.md#需求`；子模块 `docs/requirements/` 从主文档一跳可达即可，MUST NOT 逐个填成探针）| `≤2 跳` | 从入口文档沿链接 ≤2 跳到达 |
 | 架构真相源可达 | `architecture-reachable` | 架构真相源路径（`docs/ARCHITECTURE.md` 或 `README.md#架构与边界`）| `≤2 跳` | 同上 |
 | 实现真相源可用 | `implementation-usable` | 架构节（`README.md#架构与边界`）| `usable` | 模块路径无条件校验 + 探测到代码图谱时它也要成立（代码事实层只加 note），见下 |
 | 设计理由可追 | `rationale-traceable` | 索引路径（默认 `docs/index.md`）| `全部非空` | 索引**现行区**各 spec 的 `authority_refs` 均非空。**只统计路径里含 `spec/` 的 `.md`**——`plan/`、`report/` 与外链不计入；spec 放在别的目录（如 `docs/设计/`）会直接判 `NO-SPEC-LINK` |
