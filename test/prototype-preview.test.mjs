@@ -349,13 +349,9 @@ test('slot 丢掉用户批注锚点时拒绝写入，并说清丢的是哪几条
   assert.match(rejected.out, /这里要能选时间段/, '拒绝信息必须带上那条批注的正文，否则看不出丢的是什么')
   assert.ok(readFileSync(file, 'utf8').includes('data-anno-user="a1"'), '拒绝写入时文件必须原样未动')
 
-  // 显式放行是允许的，但放行之后 check 必须把失联的那条报成 P0。
-  assert.equal(run('slot', file, '--set', 'screens', '--text', noAnchor, '--drop-anchors').code, 0)
-  const report = JSON.parse(run('check', file, '--json').out)
-  assert.ok(
-    report.problems.some((p) => p.level === 'P0' && /失联/.test(p.msg)),
-    'check 没报出孤儿批注——slot 那条警告是一次性的，滚过去就再也看不见了'
-  )
+  const rejectedDeprecated = run('slot', file, '--set', 'screens', '--text', noAnchor, '--drop-anchors')
+  assert.equal(rejectedDeprecated.code, 2)
+  assert.match(rejectedDeprecated.out, /--agreed/)
 
   rmSync(dir, { recursive: true, force: true })
 })

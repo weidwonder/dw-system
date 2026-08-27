@@ -257,6 +257,9 @@ async function cmdScreen(file, opts) {
 /* ────────────────── slot ────────────────── */
 
 async function cmdSlot(file, opts) {
+  if (opts['drop-anchors']) {
+    fail('`--drop-anchors` 已废除。请改用 `--agreed --agreed-plan <逐条处置>`。', 2)
+  }
   const key = opts.set
   if (!key || !SLOTS[key]) fail(`slot 需要 --set <${Object.keys(SLOTS).join('|')}>`)
   let value = opts.text
@@ -284,42 +287,90 @@ async function cmdSlot(file, opts) {
     next = html.replace(re, slot.wrap(payload))
   }
 
-  // 插槽写入 MUST NOT 动到批注：这正是"改稿会抹掉用户批注"那条死结的解法。
-  const after = readAnnoBlock(next)
-  if (before && (!after || JSON.stringify(before) !== JSON.stringify(after))) {
-    fail('拒绝写入：本次替换会改动批注块。这是 bug，请报告。', 1)
-  }
   // 只数界面区里的锚点：框架 JS 里有 data-anno-user 的字面量，全文计数会虚高
   const anchorsOf = (s) => new Set([...screensRegion(s).matchAll(/data-anno-user="([^"]+)"/g)].map((m) => m[1]))
   const had = anchorsOf(html)
   const kept = anchorsOf(next)
   const lost = [...had].filter((id) => !kept.has(id))
 
-  // 用户批注挂在界面元素上，而界面元素全住在 screens 插槽里——改稿会连锚点一起换掉。
-  // 这是"改稿 MUST 走 slot 就不会抹掉批注"那句承诺唯一不成立的地方，所以**默认拒绝写入**：
-  // 静默失联的表现是"批注还在文件里、但再也指不到元素"，交付时没有任何症状。
-  if (lost.length && !opts['drop-anchors']) {
-    const data = before || { items: [] }
-    const detail = lost.map((id) => {
-      const it = (data.items || []).find((x) => x.id === id)
-      return `    data-anno-user="${id}"  ${it ? `（${it.screen || '本页'} › "${it.label || ''}"：${it.text}）` : ''}`
-    })
-    fail(
-      `拒绝写入：新内容丢掉了 ${lost.length} 个用户批注锚点，这些批注会失联。\n` +
-      detail.join('\n') +
-      '\n  改稿时 MUST 把这些 data-anno-user 属性原样写进新片段里对应的元素上' +
-      '\n  （先跑 `annotations --json` 看每条批注指的是哪个元素）。' +
-      '\n  确实要丢弃这些批注时才加 --drop-anchors。',
-      1
-    )
+  const plan = await parseAgreedPlan(opts['agreed-plan'])
+  if (opts.agreed && !plan) fail('`--agreed` 必须同时给出 `--agreed-plan`，逐条写明 done|void|move。', 2)
+  const data = before || { items: [], replies: [] }
+  const detailOf = (id) => {
+    const it = (data.items || []).find((x) => x.id === id)
+    return it ? `${it.screen || '本页'} › "${it.label || ''}"：${it.text}` : '(批注数据里没有这一条)'
+  }
+  const noteIdsOf = (s) => new Set([...screensRegion(s).matchAll(/data-anno-id="([^"]+)"/g)].map((m) => m[1]))
+  const hadNotes = noteIdsOf(html)
+  const keptNotes = noteIdsOf(next)
+  const lostNotes = [...hadNotes].filter((id) => !keptNotes.has(id))
+  const declaredMove = plan ? Object.keys(plan).filter((id) => plan[id] === 'move') : []
+  const affected = [...new Set([...lost, ...declaredMove])]
+  if (lost.length && !opts.agreed) {
+    fail(`拒绝写入：新内容会动到 ${lost.length} 条带用户批注的元素。\n` +
+      lost.map((id) => `    ${id}  ${detailOf(id)}`).join('\n') +
+      '\n  MUST 先逐条约定，再带 --agreed --agreed-plan=<id>=<done|void|move> 重跑。', 1)
+  }
+  let released = []
+  let changedData = data
+  if (affected.length && opts.agreed) {
+    const missing = affected.filter((id) => !plan[id])
+    if (missing.length) fail(`放行方案漏了 ${missing.length} 条，MUST 逐条给出处置：\n` + missing.map((id) => `    ${id}  ${detailOf(id)}`).join('\n'), 2)
+    const moveNoAnchor = affected.filter((id) => plan[id] === 'move' && lost.includes(id))
+    if (moveNoAnchor.length) fail(`这几条约定为「挪到新元素」，但新片段里找不到它们的锚点：\n` + moveNoAnchor.map((id) => `    data-anno-user="${id}"  ${detailOf(id)}`).join('\n'), 1)
+    released = affected.map((id) => ({ id, act: plan[id], detail: detailOf(id) }))
+    const drop = new Set(released.filter((r) => r.act !== 'move').map((r) => r.id))
+    changedData = { ...data, items: (data.items || []).filter((x) => !drop.has(x.id)) }
+  }
+  if (lostNotes.length) {
+    const dropped = (data.replies || []).filter((r) => lostNotes.includes(r.noteId))
+    console.log(`  ⚠ 新内容丢掉了 ${lostNotes.length} 条 AI 说明`)
+    if (dropped.length) console.log(`  ⚠ 连带丢弃 ${dropped.length} 条回复：${dropped.map((r) => r.id).join(' ')}`)
+    changedData = { ...changedData, replies: (changedData.replies || []).filter((r) => !lostNotes.includes(r.noteId)) }
+  }
+  if (before) {
+    const dropIds = new Set(released.filter((r) => r.act !== 'move').map((r) => r.id))
+    const expected = { ...before, items: (before.items || []).filter((x) => !dropIds.has(x.id)), replies: (before.replies || []).filter((r) => !lostNotes.includes(r.noteId)) }
+    const after = readAnnoBlock(next)
+    if (!after || JSON.stringify({ ...expected, updatedAt: '' }) !== JSON.stringify({ ...after, updatedAt: '' })) {
+      if (released.length || lostNotes.length) next = replaceAnnoBlock(next, changedData)
+      else fail('拒绝写入：本次替换会改动批注块（放行清单与连带回复之外的改动）。这是 bug，请报告。', 1)
+    }
   }
 
   await writeAtomic(file, next)
   console.log(`已写入插槽 ${key}`)
-  if (lost.length) {
-    console.log(`  ⚠ 按 --drop-anchors 丢弃了 ${lost.length} 个批注锚点：${lost.join(' ')}`)
-    console.log('    这些用户批注的数据仍在批注块里，但已指不到任何元素。')
+  if (released.length) {
+    console.log('  放行清单（已与用户逐条约定）：')
+    released.forEach((r) => console.log(`    ${r.id}  ${{ done: '已落实', void: '作废', move: '挪到新元素' }[r.act]}  ${r.detail}`))
   }
+}
+
+const AGREED_ACTIONS = ['done', 'void', 'move']
+async function parseAgreedPlan(raw) {
+  if (raw === undefined) return null
+  let text = raw
+  if (!raw.includes('=')) text = await readFile(path.resolve(raw), 'utf8').catch(() => fail(`读不到放行方案文件：${raw}`, 1))
+  const plan = {}
+  text.split(/[\n,]/).forEach((line) => {
+    const s = line.trim()
+    if (!s || s.startsWith('#')) return
+    const i = s.indexOf('=')
+    if (i < 0) fail(`放行方案格式错误：「${s}」`, 2)
+    const id = s.slice(0, i).trim(); const act = s.slice(i + 1).trim()
+    if (!AGREED_ACTIONS.includes(act)) fail(`未知处置「${act}」（批注 ${id}）。合法取值只有：done / void / move`, 2)
+    plan[id] = act
+  })
+  return plan
+}
+
+function replaceAnnoBlock(html, data) {
+  const s = html.indexOf(ANNO_OPEN)
+  if (s < 0) fail('找不到批注块，无法放行', 1)
+  const from = html.indexOf('>', s) + 1
+  const to = html.indexOf(CLOSE_SCRIPT, from)
+  const text = JSON.stringify({ ...data, updatedAt: new Date().toISOString() }, null, 2)
+  return html.slice(0, from) + '\n' + text.replace(/<\//g, '<\\/') + '\n  ' + html.slice(to)
 }
 
 /* ────────────────── annotations ────────────────── */
@@ -823,6 +874,7 @@ function parseArgs(argv) {
     else if (a === '--desktop') out.desktop = true
     else if (a === '--anno-right') out['anno-right'] = true
     else if (a === '--json') out.json = true
+    else if (a === '--agreed') out.agreed = true
     else if (a === '--drop-anchors') out['drop-anchors'] = true
     else if (a === '--help' || a === '-h') out.help = true
     else if (a === '--port') out.port = normPort(argv[++i])
