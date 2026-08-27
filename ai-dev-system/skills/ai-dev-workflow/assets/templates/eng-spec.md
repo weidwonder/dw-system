@@ -11,7 +11,7 @@ authority_refs:            # 本文冻结的权威面；准出时与本次触碰
 # 【repo】_技术 Spec — 【功能名】
 
 > 单仓库的详细技术规范。遵循 `references/core/spec写作纪律.md`：零上下文可动手、RFC2119、无占位符。
-> 输出：`docs/spec/<repo>-<feature>-eng-spec.md`。
+> 输出：`docs/spec/YYYY-MM-DD-<repo>-<feature>-eng-spec.md`。
 > 含 AI/LLM 功能时，在下列相应章节**叠加** `references/core/AI-LLM-overlay.md` 的 AI 契约。
 > 本文档属于工程内部详细设计，由 AI 与工程侧自主完成并自检，不要求业务用户确认。业务开放问题必须改写成业务语言后再提问。
 > **路径分工**：spec 里出现的文件路径/代码引用是**现状事实的锚点**（带来源：卡片里的事实用 ctx 输出的 cite，本次现读源码得到的事实用 `文件:行`），不是实现指令；"改哪个文件、写什么代码"的实现落点归 coding plan（Step 6）承载——避免 spec 因实现细节漂移而过时。

@@ -546,20 +546,46 @@
     .prototype-meta p { color: var(--muted-foreground); font-size: 13px; }
 
     .stage {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 340px;
-      gap: 24px;
+      display: block;
       max-width: 1560px;
       margin: 0 auto;
       padding: 20px 24px 48px;
-      align-items: start;
     }
 
     /* 多屏：.devices 内横向并排若干 .device-wrap，每屏一个（屏幕名在 .device-wrap 内） */
     .devices { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
 
-    .device-wrap { width: 420px; max-width: 100%; }
+    .device-wrap { width: 420px; max-width: 100%; display: flex; flex-direction: column; gap: 12px; }
+    .device-wrap.is-anno-right { width: auto; max-width: 100%; flex-direction: row; align-items: center; flex-wrap: wrap; }
+    .device-wrap.is-anno-right > .device { flex: 0 0 auto; }
+    .device-wrap.is-anno-right > .screen-notes { flex: 1 1 260px; min-width: 260px; }
     .device-wrap.is-desktop { width: 860px; }
+
+    .screen-notes {
+      align-self: center;
+      width: 100%;
+      max-width: 420px;
+      padding: 10px 12px;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-md);
+      background: var(--muted);
+      color: var(--muted-foreground);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .screen-notes__title {
+      margin-bottom: 6px;
+      color: var(--muted-foreground);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .screen-notes__body { color: var(--foreground); }
+    .screen-notes__body:empty { display: none; }
+    .screen-notes__acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .screen-notes__acts:empty { display: none; }
 
     .device-name {
       display: flex;
@@ -595,10 +621,6 @@
 
     .screen { display: flex; flex-direction: column; gap: 16px; padding: 16px; }
 
-    .aside-stack { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 76px; }
-
-    .state-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
-
     .notes-body { display: grid; gap: 12px; font-size: 13px; line-height: 1.65; color: var(--muted-foreground); }
     .notes-body strong { display: block; margin-bottom: 2px; color: var(--foreground); font-weight: 500; }
 
@@ -616,10 +638,6 @@
     .screen.state-error:has(> .status.error) > .status.is-default,
     .screen.state-success:has(> .status.success) > .status.is-default { display: none; }
 
-    @media (max-width: 1080px) {
-      .stage { grid-template-columns: 1fr; }
-      .aside-stack { position: static; }
-    }
   </style>
   <!-- DESIGN-SYSTEM:END -->
 
@@ -650,6 +668,27 @@
     .anno-bar__title { display: flex; align-items: center; gap: 7px; margin-right: 2px; font-weight: 600; }
     .anno-bar__spacer { flex: 1 1 auto; }
     .anno-count { color: var(--muted-foreground); font-size: 12px; }
+
+    /* 设计说明面板：挂在工具栏下方，默认收起 */
+    .anno-notes-panel {
+      position: sticky;
+      top: 46px;
+      z-index: 890;
+      border-bottom: 1px solid var(--border);
+      background: color-mix(in oklab, var(--background) 96%, transparent);
+      backdrop-filter: blur(14px);
+    }
+
+    .anno-notes-panel[hidden] { display: none !important; }
+
+    .anno-notes-panel__inner {
+      max-width: 1560px;
+      margin: 0 auto;
+      padding: 14px 24px 16px;
+      font-family: var(--font-sans);
+    }
+
+    .anno-bar [data-act="notes"] { border-color: var(--primary); color: var(--primary); }
 
     .anno-state { display: flex; align-items: center; gap: 6px; color: var(--muted-foreground); font-size: 12px; white-space: nowrap; }
 
@@ -782,6 +821,8 @@
 
     .anno-cursor .icon { width: 11px; height: 11px; stroke-width: 2.5; }
 
+    .anno-note__text { margin: 0 0 10px; padding: 8px 10px; border-left: 2px solid var(--primary); background: var(--muted); border-radius: var(--radius-sm); word-break: break-word; }
+
     @media print { .anno-bar, .anno-pop, .anno-cursor { display: none !important; } }
   </style>
   <!-- ANNO-FRAMEWORK:CSS:END -->
@@ -841,67 +882,41 @@
     <!-- TITLE:END -->
   </header>
 
+  <div class="anno-notes-panel" id="proto-notes-panel" hidden>
+    <div class="anno-notes-panel__inner">
+      <!-- NOTES:BEGIN 插槽：用 slot --set notes 写入；外壳由本区提供，片段只写内容 -->
+      <div class="card-content notes-body" id="proto-notes"></div>
+      <!-- NOTES:END -->
+    </div>
+  </div>
+
   <main class="stage">
     <!-- SCREENS:BEGIN 插槽：本次要画的界面。用 preview.mjs slot --set screens 写入，本区内容整体被替换；外壳由本区提供，片段里 MUST NOT 再包一层 .devices。
          结构约定与可用 class 见 references/UI原型纪律.md §8——不必读本文件。 -->
     <div class="devices" data-anno-canvas><!-- SCREENS --></div>
     <!-- SCREENS:END -->
 
-    <aside class="aside-stack">
-      <section class="card card-compact" aria-label="原型状态切换">
-        <div class="card-header">
-          <span class="card-title">状态切换</span>
-          <span class="card-description">点一下看每个关键状态下用户看到什么。</span>
-        </div>
-        <div class="card-content">
-          <div class="state-buttons">
-            <button type="button" class="btn btn-outline btn-sm" data-state="" aria-pressed="true">默认</button>
-            <button type="button" class="btn btn-outline btn-sm" data-state="state-loading" aria-pressed="false">加载</button>
-            <button type="button" class="btn btn-outline btn-sm" data-state="state-empty" aria-pressed="false">空态</button>
-            <button type="button" class="btn btn-outline btn-sm" data-state="state-error" aria-pressed="false">错误</button>
-            <button type="button" class="btn btn-outline btn-sm" data-state="state-success" aria-pressed="false">成功</button>
-          </div>
-        </div>
-      </section>
-
-      <section class="card card-compact">
-        <div class="card-header">
-          <span class="card-title">设计说明（不属于用户界面）</span>
-        </div>
-        <!-- NOTES:BEGIN 插槽：用 slot --set notes 写入；外壳由本区提供，片段只写内容 -->
-        <div class="card-content notes-body" id="proto-notes"></div>
-        <!-- NOTES:END -->
-      </section>
-    </aside>
   </main>
 
+  <!-- SCREEN-SCRIPT:BEGIN 原型级交互 · 固定实现 · 整段原样保留，MUST NOT 修改或删除
+       注解区按钮的行为写进下方 CUSTOM-JS 插槽；改状态用这里导出的 window.setScreenState。 -->
   <script>
-    // 状态切换按 .screen 的类名工作，与屏数无关；加屏走 preview.mjs screen，无需改脚本。
-    const screenEls = document.querySelectorAll(".screen");
-    const stateButtons = document.querySelectorAll("[data-state]");
-
-    // 只增删 state-* 类，保留 .screen 上的布局/变体类。
-    function setState(nextState) {
-      screenEls.forEach((el) => {
-        Array.from(el.classList)
-          .filter((cls) => cls.indexOf("state-") === 0)
-          .forEach((cls) => el.classList.remove(cls));
-        if (nextState) el.classList.add(nextState);
-      });
-      stateButtons.forEach((button) => {
-        button.setAttribute("aria-pressed", String(button.dataset.state === nextState));
-      });
+    function setScreenState(screenEl, nextState) {
+      Array.prototype.slice.call(screenEl.classList)
+        .filter(function (c) { return c.indexOf("state-") === 0; })
+        .forEach(function (c) { screenEl.classList.remove(c); });
+      if (nextState) screenEl.classList.add(nextState);
     }
 
-    stateButtons.forEach((button) => {
-      button.addEventListener("click", () => setState(button.dataset.state));
-    });
+    window.setScreenState = setScreenState;
 
     // 主行动按钮：演示"提交 → 处理中 → 成功"的业务反馈
     document.querySelectorAll("[data-submit]").forEach((submit) => {
       submit.addEventListener("click", () => {
-        setState("state-loading");
-        window.setTimeout(() => setState("state-success"), 650);
+        const screenEl = submit.closest(".screen");
+        if (!screenEl) return;
+        setScreenState(screenEl, "state-loading");
+        window.setTimeout(() => setScreenState(screenEl, "state-success"), 650);
       });
     });
 
@@ -930,8 +945,13 @@
       });
     });
   </script>
+  <!-- SCREEN-SCRIPT:END -->
 
-  <!-- ANNOTATIONS:BEGIN 用户批注数据 · 页面工具栏是唯一写入方
+  <!-- CUSTOM-JS:BEGIN 插槽：注解区按钮的点击行为写这里，用 slot --set script 写入。 -->
+  <script id="proto-script"></script>
+  <!-- CUSTOM-JS:END -->
+
+  <!-- ANNOTATIONS:BEGIN 用户批注数据 · 写入方只有两个：页面工具栏，以及 slot 的显式放行路径
        items[].id 与界面里的 data-anno-user="<id>" 一一对应，可据此定位被批注的元素。
        改稿时 MUST 整段保留本块与界面上的 data-anno-user 属性；MUST NOT 手工编辑本块内容。
        取批注的读法见 references/UI原型纪律.md §7.3——本注释刻意不写那条命令：
@@ -941,7 +961,8 @@
   "schema": "prd-annotations@1",
   "updatedAt": "",
   "global": [],
-  "items": []
+  "items": [],
+  "replies": []
 }
   </script>
   <!-- ANNOTATIONS:END -->
@@ -968,11 +989,12 @@
     var picking = false;
     var timer = 0;
     var servedOk = true;   // 预览服务是否还在（写回失败即转 false）
+    var docVersion = null;
 
     /* ---------- 数据 ---------- */
 
     function blank() {
-      return { schema: "prd-annotations@1", updatedAt: "", global: [], items: [] };
+      return { schema: "prd-annotations@1", updatedAt: "", global: [], items: [], replies: [] };
     }
 
     function parse(text) {
@@ -981,6 +1003,7 @@
         if (!d || typeof d !== "object") return null;
         d.global = Array.isArray(d.global) ? d.global : [];
         d.items = Array.isArray(d.items) ? d.items : [];
+        d.replies = Array.isArray(d.replies) ? d.replies : [];
         d.updatedAt = d.updatedAt || "";
         d.schema = d.schema || "prd-annotations@1";
         return d;
@@ -1069,6 +1092,8 @@
         el.removeAttribute("data-anno-runtime");
         el.removeAttribute("data-anno-runtime0");
       });
+      var notesPanel = clone.querySelector("#proto-notes-panel");
+      if (notesPanel) notesPanel.setAttribute("hidden", "");
       clone.removeAttribute("data-anno-picking");
       clone.removeAttribute("data-anno-hidden");
       return "<!doctype html>\n" + clone.outerHTML + "\n";
@@ -1095,9 +1120,13 @@
       if (SERVED) {
         return fetch("save", {
           method: "POST",
-          headers: { "Content-Type": "text/html; charset=utf-8" },
+          headers: { "Content-Type": "text/html; charset=utf-8", "If-Match": docVersion || "" },
           body: serialize()
-        }).then(function (r) { return r.ok; }).catch(function () { return false; });
+        }).then(function (r) {
+          if (r.status === 409) return r.json().then(function (d) { return adoptLatest(d.html, d.version); });
+          if (!r.ok) return false;
+          return r.json().then(function (d) { docVersion = d.version || docVersion; return true; }, function () { return true; });
+        }).catch(function () { return false; });
       }
       if (!handle) return Promise.resolve(false);
       return handle.createWritable()
@@ -1105,6 +1134,62 @@
         .then(function () { return true; })
         .catch(function () { return false; });
     }
+
+    function serializeWith(data, html) {
+      var text = JSON.stringify(data, null, 2).replace(/<\//g, "<\\/");
+      var s = html.indexOf('<script type="application/json" id="anno-data">');
+      if (s < 0) return html;
+      var from = html.indexOf(">", s) + 1;
+      var to = html.indexOf("</scr" + "ipt>", from);
+      return to < 0 ? html : html.slice(0, from) + "\n" + text + "\n  " + html.slice(to);
+    }
+
+    // 版本号一律用服务端给的那个（409 响应体里的 version）。
+    // MUST NOT 在这里自己重算：服务端算的是磁盘文件的字节，页面能拿到的只有 HTTP
+    // 返回的字符串，两者要逐字节一致才对得上——那是一条没有任何东西守着的隐性契约，
+    // 而服务端明明已经算好了。少一处重复实现，也少一个对 crypto.subtle 的依赖。
+    function adoptLatest(latestHtml, latestVersion) {
+      var doc = new DOMParser().parseFromString(latestHtml, "text/html");
+      var slot = doc.getElementById("anno-data");
+      var disk = (slot && parse(slot.textContent)) || blank();
+      function mergeById(diskList, mineList) {
+        var by = {};
+        (diskList || []).forEach(function (x) { by[x.id] = x; });
+        (mineList || []).forEach(function (x) { by[x.id] = x; });
+        return Object.keys(by).map(function (k) { return by[k]; });
+      }
+      var merged = {
+        schema: disk.schema || "prd-annotations@1",
+        global: mergeById(disk.global, store.global),
+        items: mergeById(disk.items, store.items),
+        replies: mergeById(disk.replies, store.replies),
+        updatedAt: new Date().toISOString()
+      };
+      try { window.localStorage.setItem(KEY, JSON.stringify(merged)); } catch (e) { /* 隐私模式 */ }
+      store = merged;
+      docVersion = latestVersion || docVersion;
+      return fetch("save", {
+        method: "POST",
+        headers: { "Content-Type": "text/html; charset=utf-8", "If-Match": docVersion || "" },
+        body: serializeWith(merged, latestHtml)
+      }).then(function (response) {
+        if (!response.ok) return false;
+        return response.json().then(function (data) {
+          if (!data || !data.version) return false;
+          docVersion = data.version;
+          window.location.reload();
+          return true;
+        }, function () { return false; });
+      }, function () { return false; });
+    }
+
+    window.addEventListener("beforeunload", function () {
+      if (!dirty || !SERVED) return;
+      try {
+        var blob = new Blob([serialize()], { type: "text/html; charset=utf-8" });
+        navigator.sendBeacon("save?v=" + encodeURIComponent(docVersion || ""), blob);
+      } catch (e) { /* 忽略 */ }
+    });
 
     function autosave() {
       if (!SERVED && (!handle || !granted)) { paint(); return; }
@@ -1189,8 +1274,9 @@
       '<button type="button" class="btn btn-outline btn-sm" data-act="pick" aria-pressed="false">' + ico("i-plus") + "加注释</button>" +
       '<button type="button" class="btn btn-outline btn-sm" data-act="global">' + ico("i-message") + "全局反馈</button>" +
       '<button type="button" class="btn btn-ghost btn-sm" data-act="toggle" aria-pressed="false">' + ico("i-eye") + "隐藏批注</button>" +
-      '<span class="anno-bar__spacer"></span>' +
       '<span class="anno-count"></span>' +
+      '<span class="anno-bar__spacer"></span>' +
+      '<button type="button" class="btn btn-outline btn-sm" data-act="notes" aria-pressed="false"><svg class="icon"><use href="#i-file"/></svg>设计说明</button>' +
       '<button type="button" class="btn btn-sm" data-act="save"></button>' +
       '<button type="button" class="btn btn-ghost btn-sm" data-act="copy">' + ico("i-copy") + "复制 JSON</button>" +
       '<span class="anno-state"><span class="anno-state__dot"></span><span class="anno-state__text"></span></span>';
@@ -1221,13 +1307,16 @@
         "元素批注 " + live + (lost ? "（另有 " + lost + " 条已失联）" : "") + " · 全局 " + store.global.length;
 
       var save = bar.querySelector('[data-act="save"]');
+      var copy = bar.querySelector('[data-act="copy"]');
       var state = bar.querySelector(".anno-state");
       var text = bar.querySelector(".anno-state__text");
       state.className = "anno-state";
       save.hidden = false;
+      copy.hidden = SERVED && servedOk;
       if (SERVED) {
         // 预览服务模式：批注直接写回原文件，用户什么都不用点
         save.hidden = servedOk && !dirty;
+        save.className = "btn btn-outline btn-sm";
         save.innerHTML = ico("i-save") + "重试写回";
         save.title = "预览服务暂时写不进文件时，点一下重试";
         if (servedOk && !dirty) {
@@ -1240,20 +1329,24 @@
           text.textContent = "预览服务没响应——批注暂存本机，恢复后会补写";
         }
       } else if (!CAN_FS) {
+        save.className = "btn btn-sm";
         save.innerHTML = ico("i-download") + "下载副本";
         save.title = "本浏览器不能直接写文件：下载后覆盖原文件，AI 才读得到这些批注";
         text.textContent = "批注还没进文件——下载后覆盖原文件";
       } else if (handle && granted && !dirty) {
+        save.className = "btn btn-sm";
         save.innerHTML = ico("i-check") + "已保存到文件";
         save.title = "每次增删改都会自动写回 " + FILE + "，不用再点";
         state.className = "anno-state anno-state--saved";
         text.textContent = "批注已在文件里，AI 读得到";
       } else if (handle && dirty) {
+        save.className = "btn btn-sm";
         save.innerHTML = ico("i-save") + "保存到文件";
         save.title = "有改动还没写回文件，点一下补写";
         state.className = "anno-state anno-state--dirty";
         text.textContent = "有改动还没写回文件";
       } else {
+        save.className = "btn btn-sm";
         save.innerHTML = ico("i-save") + "保存到文件";
         save.title = "点一下，在弹窗里选中这个原型文件本身；之后每次批注都会自动写回它";
         text.textContent = "批注只在本机浏览器里，AI 读不到";
@@ -1296,6 +1389,12 @@
         if (SERVED) retry();
         else connect();
       }
+      else if (act === "notes") {
+        var panel = document.getElementById("proto-notes-panel");
+        if (!panel) return;
+        panel.hidden = !panel.hidden;
+        btn.setAttribute("aria-pressed", String(!panel.hidden));
+      }
       else if (act === "copy") copyJson();
     });
 
@@ -1330,10 +1429,12 @@
       Array.prototype.forEach.call(document.querySelectorAll("[data-anno]"), function (el) {
         var text = el.getAttribute("data-anno");
         if (!text) return;
-        var kind = el.getAttribute("data-anno-kind") === "question" ? "ask" : "note";
-        var pin = mkPin(kind, "", text);
-        pin.setAttribute("data-anno-text", text);
-        attach(el, pin);
+            var kind = el.getAttribute("data-anno-kind") === "question" ? "ask" : "note";
+            var pin = mkPin(kind, "", text);
+            pin.setAttribute("data-anno-text", text);
+            var nid = el.getAttribute("data-anno-id");
+            if (nid) pin.setAttribute("data-anno-note-id", nid);
+            attach(el, pin);
       });
 
       store.items.forEach(function (it, i) {
@@ -1379,8 +1480,19 @@
       var pin = e.target.closest(".anno-pin");
       if (pin) {
         var ref = pin.getAttribute("data-anno-ref");
-        if (ref) { e.preventDefault(); e.stopPropagation(); openEditor(ref, pin); }
-        else { tip.textContent = pin.getAttribute("data-anno-text") || ""; place(tip, pin); }
+            if (ref) { e.preventDefault(); e.stopPropagation(); openEditor(ref, pin); }
+            else {
+              var host = pin.closest("[data-anno-host]");
+              var want = pin.getAttribute("data-anno-text") || "";
+              var noteEl = null;
+              if (host) {
+                var cands = Array.prototype.slice.call(host.querySelectorAll("[data-anno]"));
+                if (host.hasAttribute("data-anno")) cands.unshift(host);
+                noteEl = cands.filter(function (n) { return n.getAttribute("data-anno") === want; })[0] || null;
+              }
+              if (noteEl) { e.preventDefault(); e.stopPropagation(); openNote(noteEl, pin); }
+              else { tip.textContent = want; place(tip, pin); }
+            }
         return;
       }
       if (!e.target.closest(".anno-pop") && !e.target.closest(".anno-bar")) pop.hidden = true;
@@ -1426,6 +1538,80 @@
         persist();
       };
       place(pop, anchor);
+      ta.focus();
+    }
+
+    function nextAnnoId() {
+      var used = [];
+      Array.prototype.forEach.call(document.querySelectorAll("[data-anno-id]"), function (el) {
+        used.push({ id: el.getAttribute("data-anno-id") });
+      });
+      return nextId(used, "a");
+    }
+
+    function openNote(el, pin) {
+      var noteText = el.getAttribute("data-anno") || "";
+      var isQuestion = el.getAttribute("data-anno-kind") === "question";
+      var nid = el.getAttribute("data-anno-id");
+      var mine = nid ? store.replies.filter(function (r) { return r.noteId === nid; }) : [];
+      var rows = mine.map(function (r) {
+        return '<li><p>' + esc(r.text) + '</p><span class="row">' +
+          '<button type="button" class="btn btn-ghost btn-icon btn-sm" data-redit="' + esc(r.id) + '" aria-label="修改">' + ico("i-edit") + '</button>' +
+          '<button type="button" class="btn btn-ghost btn-icon btn-sm" data-rdel="' + esc(r.id) + '" aria-label="删除">' + ico("i-x") + '</button></span></li>';
+      }).join("");
+      pop.innerHTML =
+        '<div class="anno-pop__head">' + esc(screenOf(el) || "本页") + " · " + esc(labelOf(el) || el.tagName.toLowerCase()) + (isQuestion ? " · 待你拍板" : "") + "</div>" +
+        '<p class="anno-note__text">' + esc(noteText) + "</p>" +
+        (rows ? '<ul class="anno-list">' + rows + "</ul>" : "") +
+        '<textarea data-role="text" placeholder="' + (isQuestion ? "写下你的答复" : "对这条说明的意见") + '"></textarea>' +
+        '<div class="anno-pop__row"><button type="button" class="btn btn-outline btn-sm" data-role="close">关闭</button>' +
+        '<button type="button" class="btn btn-sm" data-role="reply">' + ico("i-message") + "回复</button></div>";
+      var ta = pop.querySelector('[data-role="text"]');
+      var editing = null;
+      pop.querySelector('[data-role="reply"]').onclick = function () {
+        var v = ta.value.trim();
+        pop.hidden = true;
+        if (!v) return;
+        if (editing) {
+          store.replies.forEach(function (r) {
+            if (r.id === editing) { r.text = v; r.at = new Date().toISOString(); }
+          });
+          persist();
+          return;
+        }
+        if (!nid) {
+          nid = nextAnnoId();
+          el.setAttribute("data-anno-id", nid);
+          pin.setAttribute("data-anno-note-id", nid);
+        }
+        store.replies.push({
+          id: nextId(store.replies, "r"), noteId: nid, noteText: noteText,
+          noteKind: isQuestion ? "question" : "note", screen: screenOf(el),
+          label: labelOf(el), tag: el.tagName.toLowerCase(), text: v,
+          at: new Date().toISOString()
+        });
+        persist();
+      };
+      pop.querySelector('[data-role="close"]').onclick = function () { pop.hidden = true; };
+      Array.prototype.forEach.call(pop.querySelectorAll("[data-rdel]"), function (b) {
+        b.onclick = function () {
+          store.replies = store.replies.filter(function (r) { return r.id !== b.getAttribute("data-rdel"); });
+          pop.hidden = true;
+          persist();
+        };
+      });
+      Array.prototype.forEach.call(pop.querySelectorAll("[data-redit]"), function (b) {
+        b.onclick = function () {
+          var rid = b.getAttribute("data-redit");
+          var cur = store.replies.filter(function (r) { return r.id === rid; })[0];
+          if (!cur) return;
+          editing = rid;
+          ta.value = cur.text;
+          pop.querySelector('[data-role="reply"]').innerHTML = ico("i-check") + "保存修改";
+          ta.focus();
+        };
+      });
+      place(pop, pin);
       ta.focus();
     }
 
@@ -1599,8 +1785,12 @@
 
     /* ---------- 启动 ---------- */
 
-
     render();
+    if (SERVED) {
+      fetch("", { method: "HEAD" }).then(function (r) {
+        docVersion = r.headers.get("x-proto-version");
+      }).catch(function () { /* 忽略 */ });
+    }
     if (CAN_FS) {
       idb("get").then(function (h) {
         if (!h) return;

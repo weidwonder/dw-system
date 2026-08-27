@@ -96,7 +96,10 @@ test('预览服务：批注 POST 回来后真的写进磁盘上的原型文件',
     assert.deepEqual(await health.json(), { ok: true })
 
     // GET / 拿到的就是文件当前内容
-    const served = await (await fetch(base)).text()
+    const servedRes = await fetch(base)
+    const served = await servedRes.text()
+    const servedVersion = servedRes.headers.get('x-proto-version')
+    assert.ok(servedVersion)
     assert.ok(served.startsWith('<!doctype html>'), 'GET / 应返回原型文件本身')
 
     const before = statSync(file).size
@@ -118,11 +121,13 @@ test('预览服务：批注 POST 回来后真的写进磁盘上的原型文件',
     }
     const res = await fetch(base + 'save', {
       method: 'POST',
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+      headers: { 'Content-Type': 'text/html; charset=utf-8', 'If-Match': servedVersion },
       body: withAnnotations(served, payload),
     })
     assert.equal(res.status, 200)
-    assert.deepEqual(await res.json(), { ok: true })
+    const saved = await res.json()
+    assert.equal(saved.ok, true)
+    assert.ok(saved.version)
 
     const disk = readFileSync(file, 'utf8')
     assert.notEqual(statSync(file).size, before, '磁盘文件应被改写')
@@ -344,13 +349,9 @@ test('slot 丢掉用户批注锚点时拒绝写入，并说清丢的是哪几条
   assert.match(rejected.out, /这里要能选时间段/, '拒绝信息必须带上那条批注的正文，否则看不出丢的是什么')
   assert.ok(readFileSync(file, 'utf8').includes('data-anno-user="a1"'), '拒绝写入时文件必须原样未动')
 
-  // 显式放行是允许的，但放行之后 check 必须把失联的那条报成 P0。
-  assert.equal(run('slot', file, '--set', 'screens', '--text', noAnchor, '--drop-anchors').code, 0)
-  const report = JSON.parse(run('check', file, '--json').out)
-  assert.ok(
-    report.problems.some((p) => p.level === 'P0' && /失联/.test(p.msg)),
-    'check 没报出孤儿批注——slot 那条警告是一次性的，滚过去就再也看不见了'
-  )
+  const rejectedDeprecated = run('slot', file, '--set', 'screens', '--text', noAnchor, '--drop-anchors')
+  assert.equal(rejectedDeprecated.code, 2)
+  assert.match(rejectedDeprecated.out, /--agreed/)
 
   rmSync(dir, { recursive: true, force: true })
 })
@@ -438,6 +439,258 @@ test('screen 真的把一屏写进文件，结构与状态层齐全', () => {
   rmSync(dir, { recursive: true, force: true })
 })
 
+test('screen 加屏时连注解区外壳一起给出，默认挂下方', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-anno-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  assert.equal(run('screen', file, '--name', '工单列表').code, 0)
+  const html = readFileSync(file, 'utf8')
+  assert.match(html, /<div class="screen-notes">/)
+  assert.match(html, /class="screen-notes__title">这一屏的注解 · 不属于用户界面</)
+  assert.match(html, /<div class="screen-notes__body">/)
+  assert.match(html, /<div class="screen-notes__acts">/)
+  const wrap = html.match(/<section class="device-wrap[^"]*">[\s\S]*?<\/section>/)[0]
+  assert.ok(wrap.indexOf('</div>\n        <div class="screen-notes">') > wrap.indexOf('<div class="device">'))
+  assert.doesNotMatch(wrap, /class="device-wrap is-anno-right"/)
+  rmSync(dir, { recursive: true, force: true })
+})
+
+test('screen --anno-right 让注解区挂右侧', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-anno-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  assert.equal(run('screen', file, '--name', '详情', '--anno-right').code, 0)
+  const html = readFileSync(file, 'utf8')
+  assert.match(html, /<section class="device-wrap is-anno-right">/)
+  rmSync(dir, { recursive: true, force: true })
+})
+
+test('屏注解区仍是画布内的元素，用户能在它上面写批注', () => {
+  const html = readFileSync(templatePath, 'utf8')
+  const js = html.slice(html.indexOf('ANNO-FRAMEWORK:JS:BEGIN'), html.indexOf('ANNO-FRAMEWORK:JS:END'))
+  assert.doesNotMatch(js, /screen-notes[^\n]*(return|continue)/, '拾取模式 MUST NOT 排除注解区')
+  assert.match(js, /closest\(["']\.device-wrap["']\)/)
+})
+
+test('check 对没写注解的屏报 P2 提示且不拦交付', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-anno-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  assert.equal(run('screen', file, '--name', '工单列表').code, 0)
+  const r = run('check', file, '--json')
+  const out = JSON.parse(r.out)
+  const hit = out.problems.filter((p) => /没写注解/.test(p.msg))
+  assert.equal(hit.length, 1)
+  assert.equal(hit[0].level, 'P2')
+  assert.equal(out.ok, true)
+  rmSync(dir, { recursive: true, force: true })
+})
+
+test('画布右侧不再有常驻列，NOTES 插槽仍在', async () => {
+  const html = readFileSync(templatePath, 'utf8')
+  assert.doesNotMatch(html, /class="aside-stack"/)
+  assert.doesNotMatch(html, /grid-template-columns:\s*minmax\(0, 1fr\) 340px/)
+  assert.match(html, /<!-- NOTES:BEGIN/)
+  assert.match(html, /id="proto-notes"/)
+})
+
+test('说明入口与展开的面板都不随页面滚动', () => {
+  const html = readFileSync(templatePath, 'utf8')
+  const css = html.slice(html.indexOf('ANNO-FRAMEWORK:CSS:BEGIN'), html.indexOf('ANNO-FRAMEWORK:CSS:END'))
+  const panel = css.slice(css.indexOf('.anno-notes-panel'))
+  assert.match(panel.slice(0, 400), /position:\s*(sticky|fixed)/)
+})
+
+test('设计说明面板展开状态不会写进源文件', () => {
+  const html = readFileSync(templatePath, 'utf8')
+  const serialize = html.slice(html.indexOf('function serialize()'), html.indexOf('function idb('))
+  assert.match(serialize, /querySelector\("#proto-notes-panel"\)/)
+  assert.match(serialize, /notesPanel\.setAttribute\("hidden",\s*""\)/)
+})
+
+test('设计说明入口在工具栏右段第一枚、写回按钮左侧，文字只有四个字', () => {
+  const html = readFileSync(templatePath, 'utf8')
+  const bar = html.slice(html.indexOf('bar.innerHTML'), html.indexOf('document.body.insertBefore'))
+  const iNotes = bar.indexOf('data-act="notes"')
+  const iSave = bar.indexOf('data-act="save"')
+  const iSpacer = bar.indexOf('anno-bar__spacer')
+  const iCount = bar.indexOf('anno-count')
+  assert.ok(iSpacer < iNotes && iNotes < iSave, '设计说明 MUST 在 spacer 之后、写回按钮之前')
+  assert.ok(iCount < iSpacer, '批注计数 MUST 在左段')
+  assert.match(bar, /data-act="notes"[^>]*>[^<]*<svg[\s\S]{0,200}?设计说明/)
+  assert.doesNotMatch(bar, /设计说明（/)
+})
+
+test('slot --set notes 写入路径不变', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-anno-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  assert.equal(run('slot', file, '--set', 'notes', '--text', '<strong>样式依据</strong>沿用中性亮色基线').code, 0)
+  const html = readFileSync(file, 'utf8')
+  assert.match(html, /样式依据/)
+  rmSync(dir, { recursive: true, force: true })
+})
+
+test('页面的旧版本写不掉磁盘上的新版本', async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-ver-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  assert.equal(run('screen', file, '--name', 'S').code, 0)
+  const { child, base } = await startServer(file)
+  try {
+    const got = await fetch(base)
+    const ver = got.headers.get('x-proto-version')
+    assert.ok(ver, 'GET MUST 下发 X-Proto-Version')
+    const stale = await got.text()
+    assert.equal(run('slot', file, '--set', 'subtitle', '--text', '改过一轮').code, 0)
+    const res = await fetch(base + 'save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/html; charset=utf-8', 'If-Match': ver },
+      body: stale,
+    })
+    assert.equal(res.status, 409)
+    const body = await res.json()
+    assert.equal(body.error, 'stale')
+    assert.match(body.html, /改过一轮/)
+    assert.match(readFileSync(file, 'utf8'), /改过一轮/)
+  } finally {
+    await stopServer(child)
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('缺 If-Match 且缺 ?v= 时按冲突处理，不当强制覆盖', async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-ver-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  const before = readFileSync(file, 'utf8')
+  const { child, base } = await startServer(file)
+  try {
+    const res = await fetch(base + 'save', { method: 'POST', headers: { 'Content-Type': 'text/html; charset=utf-8' }, body: before })
+    assert.equal(res.status, 409)
+    assert.equal((await res.json()).error, 'stale')
+    assert.equal(readFileSync(file, 'utf8'), before)
+  } finally {
+    await stopServer(child)
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('sendBeacon 那条路：?v= 与 If-Match 等价', async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-ver-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  const { child, base } = await startServer(file)
+  try {
+    const got = await fetch(base)
+    const ver = got.headers.get('x-proto-version')
+    const html = await got.text()
+    const changed = html.replace('<p id="proto-subtitle"></p>', '<p id="proto-subtitle">beacon 写回</p>')
+    const res = await fetch(base + `save?v=${encodeURIComponent(ver)}`, {
+      method: 'POST', headers: { 'Content-Type': 'text/html; charset=utf-8' }, body: changed,
+    })
+    assert.equal(res.status, 200)
+    assert.match(readFileSync(file, 'utf8'), /beacon 写回/)
+  } finally {
+    await stopServer(child)
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('版本串是内容哈希：同毫秒内同大小的两次写入版本仍变', async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-hash-'))
+  const file = path.join(dir, 'p.html')
+  writeFileSync(file, 'A'.repeat(64), 'utf8')
+  const { child, base } = await startServer(file)
+  try {
+    const v1 = (await fetch(base)).headers.get('x-proto-version')
+    writeFileSync(file, 'B'.repeat(64), 'utf8')
+    const v2 = (await fetch(base)).headers.get('x-proto-version')
+    assert.notEqual(v1, v2)
+  } finally {
+    await stopServer(child)
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('并发两个写回时后到的那个基于前一个的结果判定', async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-race-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  const { child, base } = await startServer(file)
+  try {
+    const got = await fetch(base)
+    const ver = got.headers.get('x-proto-version')
+    const html = await got.text()
+    const a = html.replace('<p id="proto-subtitle"></p>', '<p id="proto-subtitle">并发 A</p>')
+    const b = html.replace('<p id="proto-subtitle"></p>', '<p id="proto-subtitle">并发 B</p>')
+    const responses = await Promise.all([a, b].map((body) => fetch(base + 'save', {
+      method: 'POST', headers: { 'Content-Type': 'text/html; charset=utf-8', 'If-Match': ver }, body,
+    })))
+    assert.deepEqual(responses.map((r) => r.status).sort(), [200, 409])
+  } finally {
+    await stopServer(child)
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('画布上没有第二处能切状态的地方', () => {
+  const html = readFileSync(templatePath, 'utf8')
+  assert.doesNotMatch(html, /aria-label="原型状态切换"/)
+  assert.doesNotMatch(html, /class="state-buttons"/)
+})
+
+test('容器只导出状态表达函数，不导出任何认识按钮的函数', () => {
+  const html = readFileSync(templatePath, 'utf8')
+  assert.match(html, /window\.setScreenState\s*=/)
+  assert.doesNotMatch(html, /protoSetState/)
+  assert.doesNotMatch(html, /window\.\w+\s*=\s*function\s*\([^)]*actName/)
+  const seg = html.slice(html.indexOf('data-submit'))
+  assert.match(seg.slice(0, 400), /closest\(["']\.screen["']\)/)
+})
+
+test('SCREEN-SCRIPT 是固定实现区，CUSTOM-JS 是插槽', () => {
+  const html = readFileSync(templatePath, 'utf8')
+  assert.match(html, /<!-- SCREEN-SCRIPT:BEGIN/)
+  assert.match(html, /<!-- CUSTOM-JS:BEGIN/)
+})
+
+test('slot --set script 写进 CUSTOM-JS 区并转义脚本结束标签', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-anno-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  assert.equal(run('screen', file, '--name', 'S').code, 0)
+  const behavior = 'document.querySelector(\'[data-act="s1-empty"]\').addEventListener("click", function (e) {' +
+    ' window.setScreenState(e.currentTarget.closest(".device-wrap").querySelector(".screen"), "state-empty"); });\n' +
+    '// </script> must remain in the script body'
+  assert.equal(run('slot', file, '--set', 'script', '--text', behavior).code, 0)
+  const html = readFileSync(file, 'utf8')
+  const from = html.indexOf('CUSTOM-JS:BEGIN')
+  const to = html.indexOf('CUSTOM-JS:END')
+  const region = html.slice(from, to)
+  assert.ok(region.includes('s1-empty'))
+  assert.ok(region.includes('<\\/script>'))
+  rmSync(dir, { recursive: true, force: true })
+})
+
+test('check 报出注解区里没有对应行为的按钮', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-anno-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  assert.equal(run('screen', file, '--name', 'S').code, 0)
+  assert.equal(run('slot', file, '--set', 'screens', '--text',
+    '<section class="device-wrap"><p class="device-name">S</p><div class="device"><div class="screen">' +
+    '<div class="status is-default"></div></div></div><div class="screen-notes">' +
+    '<p class="screen-notes__title">这一屏的注解 · 不属于用户界面</p><div class="screen-notes__body">x</div>' +
+    '<div class="screen-notes__acts"><button type="button" class="btn btn-outline btn-sm" data-act="s1-empty">空态</button></div></div></section>').code, 0)
+  const out = JSON.parse(run('check', file, '--json').out)
+  const hit = out.problems.filter((p) => /s1-empty/.test(p.msg) && /没有对应/.test(p.msg))
+  assert.equal(hit.length, 1)
+  assert.equal(hit[0].level, 'P2')
+  assert.equal(out.ok, true)
+  rmSync(dir, { recursive: true, force: true })
+})
+
 // P1：title 插槽的探针曾是容器出厂字面量 `<title>UI 原型</title>`，而 init 一定会改写它，
 // 于是 `slot --set title` 在任何真实原型上都失败——而纪律同时禁止手工编辑原型文件。
 test('slot --set title 在 init 之后仍可用，且一次写 <title> 与页头 <h1> 两处', () => {
@@ -508,4 +761,114 @@ test('失败给中文提示而不是 Node 堆栈，退出码区分用法错误�
   const badArg = run('slot', file, '--set', 'nonexistent-slot', '--text', 'x')
   assert.equal(badArg.code, 2, '用法错误应退 2')
   rmSync(dir, { recursive: true, force: true })
+})
+
+test('check 只在屏内容、屏注解、元素说明、设计说明中提示稿间对比措辞', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-diff-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  assert.equal(run('screen', file, '--name', 'S').code, 0)
+  assert.equal(run('slot', file, '--set', 'notes', '--text', '相比上一轮把筛选挪到了顶部').code, 0)
+  const out = JSON.parse(run('check', file, '--json').out)
+  const hit = out.problems.filter((p) => /稿间对比/.test(p.msg))
+  assert.equal(hit.length, 1)
+  assert.equal(hit[0].level, 'P2')
+  assert.equal(out.ok, true)
+  rmSync(dir, { recursive: true, force: true })
+})
+
+test('agreed move 在锚点随新片段带回时成功并保留批注条目', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-move-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  const oldFrag = '<section class="device-wrap"><p class="device-name">S</p><div class="device"><div class="screen"><div class="status is-default"><button data-anno-user="u1">旧</button></div></div></div><div class="screen-notes"><p class="screen-notes__title">注解</p><div class="screen-notes__body"></div><div class="screen-notes__acts"></div></div></section>'
+  assert.equal(run('slot', file, '--set', 'screens', '--text', oldFrag).code, 0)
+  let html = readFileSync(file, 'utf8')
+  html = withAnnotations(html, { schema: 'prd-annotations@1', updatedAt: '', global: [], items: [{ id: 'u1', text: '意见', screen: 'S', label: '旧' }], replies: [] })
+  writeFileSync(file, html)
+  const moved = oldFrag.replace('>旧</button>', ' class="moved">新</button>')
+  const r = run('slot', file, '--set', 'screens', '--text', moved, '--agreed', '--agreed-plan=u1=move')
+  assert.equal(r.code, 0)
+  assert.match(r.out, /放行清单/)
+  assert.match(r.out, /u1.*挪到新元素/)
+  assert.match(readFileSync(file, 'utf8'), /data-anno-user="u1"/)
+  rmSync(dir, { recursive: true, force: true })
+})
+
+// 批注块的定位一律限定在 ANNOTATIONS 标记区间内，且片段里不许出现它的开标签。
+// 这条闸来自一次实测：放行路径上，插槽片段里混进一个同样带 id="anno-data" 的块，
+// 于是 indexOf 认前不认后——放行数据被写进片段里那个假块，真批注块原封不动（要清掉
+// 的批注还在），而命令照常打印「放行清单」并退出 0，全程零报错。交付时看不出任何症状。
+test('片段里混进批注块开标签时拒绝写入，真批注块不被动到', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-fakeblock-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  assert.equal(run('screen', file, '--name', 'S').code, 0)
+
+  const shell =
+    '<div class="screen-notes"><p class="screen-notes__title">这一屏的注解 · 不属于用户界面</p>' +
+    '<div class="screen-notes__body">x</div><div class="screen-notes__acts"></div></div>'
+  const withAnchor =
+    '<section class="device-wrap"><p class="device-name">S</p><div class="device"><div class="screen">' +
+    '<div class="status is-default"><button class="btn" data-anno-user="u1">甲</button></div>' +
+    '</div></div>' + shell + '</section>'
+  assert.equal(run('slot', file, '--set', 'screens', '--text', withAnchor).code, 0)
+  writeFileSync(file, withAnnotations(readFileSync(file, 'utf8'), {
+    schema: 'prd-annotations@1',
+    updatedAt: '2026-08-27T00:00:00.000Z',
+    global: [],
+    items: [{ id: 'u1', screen: 'S', tag: 'button', label: '甲', text: '甲的意见' }],
+    replies: [],
+  }), 'utf8')
+
+  const fake =
+    '<section class="device-wrap"><p class="device-name">S</p><div class="device"><div class="screen">' +
+    '<div class="status is-default">' + SLOT_OPEN + '{"schema":"FAKE"}' + SLOT_CLOSE + '<b>没了</b></div>' +
+    '</div></div>' + shell + '</section>'
+  const r = run('slot', file, '--set', 'screens', '--text', fake, '--agreed', '--agreed-plan=u1=done')
+  assert.notEqual(r.code, 0, '片段里出现批注块开标签时 MUST 拒绝写入')
+  assert.match(r.out, /批注块的开标签/)
+  const after = readAnnotations(readFileSync(file, 'utf8'))
+  assert.deepEqual(after.items.map((x) => x.id), ['u1'], '写入被拒，真批注块 MUST 原封不动')
+})
+
+// 与上一条相对：正常放行路径必须真的把已约定的条目从真批注块里清掉。
+test('正常放行把已约定的条目从真批注块里清掉', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-release-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  assert.equal(run('screen', file, '--name', 'S').code, 0)
+  const shell =
+    '<div class="screen-notes"><p class="screen-notes__title">这一屏的注解 · 不属于用户界面</p>' +
+    '<div class="screen-notes__body">x</div><div class="screen-notes__acts"></div></div>'
+  const withAnchor =
+    '<section class="device-wrap"><p class="device-name">S</p><div class="device"><div class="screen">' +
+    '<div class="status is-default"><button class="btn" data-anno-user="u1">甲</button></div>' +
+    '</div></div>' + shell + '</section>'
+  assert.equal(run('slot', file, '--set', 'screens', '--text', withAnchor).code, 0)
+  writeFileSync(file, withAnnotations(readFileSync(file, 'utf8'), {
+    schema: 'prd-annotations@1',
+    updatedAt: '2026-08-27T00:00:00.000Z',
+    global: [],
+    items: [{ id: 'u1', screen: 'S', tag: 'button', label: '甲', text: '甲的意见' }],
+    replies: [],
+  }), 'utf8')
+  const gone =
+    '<section class="device-wrap"><p class="device-name">S</p><div class="device"><div class="screen">' +
+    '<div class="status is-default"><b>甲没了</b></div></div></div>' + shell + '</section>'
+  const r = run('slot', file, '--set', 'screens', '--text', gone, '--agreed', '--agreed-plan=u1=done')
+  assert.equal(r.code, 0)
+  assert.match(r.out, /放行清单/)
+  assert.deepEqual(readAnnotations(readFileSync(file, 'utf8')).items, [], '放行 MUST 真的清掉那条')
+})
+
+test('文档按次产出范式带日期前缀', () => {
+  const docs = [
+    'ai-dev-system/skills/ai-dev-workflow/references/core/文档治理.md',
+    'ai-dev-system/skills/ai-prd/references/00-prd生成流程.md',
+  ]
+  docs.forEach((rel) => {
+    const body = readFileSync(path.join(repoRoot, rel), 'utf8')
+    assert.doesNotMatch(body, /docs\/(spec|plan|report)\/(?:<name>|<feature>|<repo>|<change-name>|<project-name>)/)
+  })
 })

@@ -10,7 +10,7 @@ authority_refs:            # 本文断言依赖的权威面（被测接口契约
 # 【repo】_测试方案 — 【功能名】
 
 > 只专注当前代码仓库涉及的部分（功能代码已开发完成）。配合 PRD / Overview / spec / coding plan。
-> 输出：`docs/spec/<repo>-<feature>-test-spec.md`。
+> 输出：`docs/spec/YYYY-MM-DD-<repo>-<feature>-test-spec.md`。
 > **风险驱动，不是模板枚举**：不要机械按"正向/异常/边界/权限"铺用例；先识别高风险点，再设计测试。方案要**可实施**——给到 API 调用模型和数据构造方案，能直接落成测试代码，而不是只写"业务场景+测试意图"。
 
 ## 纪律（贯穿全文）

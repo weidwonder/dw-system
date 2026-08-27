@@ -18,6 +18,7 @@
 //
 // 零第三方依赖；路径一律走 node:path，跨平台。
 import { createServer } from 'node:http'
+import { createHash } from 'node:crypto'
 import { readFile, writeFile, rename, stat, copyFile } from 'node:fs/promises'
 import { spawn } from 'node:child_process'
 import path from 'node:path'
@@ -72,6 +73,12 @@ const SLOTS = {
     mark: 'CUSTOM-CSS',
     shell: ['<style id="proto-custom">', '</style>'],
     wrap: (v) => `\n  <style id="proto-custom">\n${v}\n  </style>\n  `,
+  },
+  script: {
+    mark: 'CUSTOM-JS',
+    shell: ['<script id="proto-script">', '</scr' + 'ipt>'],
+    esc: (v) => v.replace(/<\/script/gi, '<\\/script'),
+    wrap: (v) => `\n  <script id="proto-script">\n${v}\n  </scr` + `ipt>\n  `,
   },
 }
 
@@ -152,12 +159,27 @@ function esc(s) {
   return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
 }
 
-function readAnnoBlock(html) {
-  const s = html.indexOf(ANNO_OPEN)
+// 批注块的定位一律限定在 ANNOTATIONS 标记区间内。MUST NOT 用 indexOf 找全文第一个
+// `<script id="anno-data">`：插槽内容里出现同样的字样时，谁在前面就认谁——实测撞出过
+// 放行数据被写进插槽里那个假块、真块原封不动（要清掉的批注还在），而命令照常打印
+// 放行清单并退出 0，全程零报错。
+function annoBlockRange(html) {
+  const region = markRange(html, 'ANNOTATIONS')
+  const base = region ? region.from : 0
+  const scope = region ? html.slice(region.from, region.to) : html
+  const s = scope.indexOf(ANNO_OPEN)
   if (s < 0) return null
-  const from = html.indexOf('>', s) + 1
-  const to = html.indexOf(CLOSE_SCRIPT, from)
+  const from = scope.indexOf('>', s) + 1
+  const to = scope.indexOf(CLOSE_SCRIPT, from)
   if (to < 0) return null
+  return { from: base + from, to: base + to }
+}
+
+function readAnnoBlock(html) {
+  const r = annoBlockRange(html)
+  if (!r) return null
+  const from = r.from
+  const to = r.to
   try {
     return JSON.parse(html.slice(from, to))
   } catch {
@@ -192,14 +214,15 @@ async function cmdInit(file, opts) {
 
 // 生成一屏的结构骨架。骨架只给结构与状态层，不含任何业务内容——
 // 容器里放示例会锚定产出，这条是 2.7.0 立下的判据，工具同样受它约束。
-function screenSkeleton(name, states, desktop) {
+function screenSkeleton(name, states, desktop, annoRight) {
   const layers = states
     .map((k) => {
       const cls = k === 'is-default' ? 'status is-default' : `status ${k}`
       return `          <div class="${cls}">\n            <!-- ${STATE_LABEL[k]} -->\n          </div>`
     })
     .join('\n')
-  return `      <section class="device-wrap${desktop ? ' is-desktop' : ''}">
+  const wrapCls = `device-wrap${desktop ? ' is-desktop' : ''}${annoRight ? ' is-anno-right' : ''}`
+  return `      <section class="${wrapCls}">
         <p class="device-name">${esc(name)}</p>
         <div class="device">
           <div class="app-bar">
@@ -208,6 +231,11 @@ function screenSkeleton(name, states, desktop) {
           <div class="screen">
 ${layers}
           </div>
+        </div>
+        <div class="screen-notes">
+          <p class="screen-notes__title">这一屏的注解 · 不属于用户界面</p>
+          <div class="screen-notes__body"></div>
+          <div class="screen-notes__acts"></div>
         </div>
       </section>`
 }
@@ -227,7 +255,7 @@ async function cmdScreen(file, opts) {
   const r = markRange(html, SLOTS.screens.mark)
   if (!r) fail('找不到界面插槽（SCREENS 区被改写了？）', 1)
   const region = html.slice(r.from, r.to)
-  const block = screenSkeleton(opts.name, states, !!opts.desktop)
+  const block = screenSkeleton(opts.name, states, !!opts.desktop, !!opts['anno-right'])
 
   // 已有屏时追加在后面，保留既有内容与批注锚点；空插槽时直接落第一屏。
   const stripped = region.replace(/^\s*<div class="devices" data-anno-canvas>/, '').replace(/<\/div>\s*$/, '')
@@ -237,13 +265,16 @@ async function cmdScreen(file, opts) {
   const body = inner ? `${inner}\n\n${block}` : block
   const next = html.slice(0, r.from) + SLOTS.screens.wrap(body) + html.slice(r.to)
   await writeAtomic(file, next)
-  console.log(`已加屏「${opts.name}」，状态层：${states.join(' / ')}`)
+  console.log(`已加屏「${opts.name}」，状态层：${states.join(' / ')}，注解区挂${opts['anno-right'] ? '右侧' : '下方'}`)
   console.log('下一步：把这一屏的内容写成片段，用 `slot --set screens` 整体写入（MUST NOT 直接编辑原型文件）。')
 }
 
 /* ────────────────── slot ────────────────── */
 
 async function cmdSlot(file, opts) {
+  if (opts['drop-anchors']) {
+    fail('`--drop-anchors` 已废除。请改用 `--agreed --agreed-plan <逐条处置>`。', 2)
+  }
   const key = opts.set
   if (!key || !SLOTS[key]) fail(`slot 需要 --set <${Object.keys(SLOTS).join('|')}>`)
   let value = opts.text
@@ -252,60 +283,123 @@ async function cmdSlot(file, opts) {
 
   const html = await readTarget(file)
   const slot = SLOTS[key]
+  // 插槽内容里出现批注块的开标签，会让"哪个才是真批注块"变成看谁在前面。
+  // 批注块只有一处，且只由页面工具栏与放行路径写 —— 片段里出现它一定是拼错了。
+  if (typeof value === 'string' && value.includes(ANNO_OPEN)) {
+    fail(`拒绝写入：片段里出现了批注块的开标签（${ANNO_OPEN}）。\n` +
+      '  批注块全篇只有一处，住在 ANNOTATIONS 区，只由页面工具栏与显式放行路径写入。\n' +
+      '  片段里 MUST NOT 包含它——把这段去掉再写。', 2)
+  }
   const before = readAnnoBlock(html)
   value = stripShell(value, slot, key)
   const body = key === 'title' ? esc(value.trim()) : value.replace(/\s+$/, '')
+  const payload = slot.esc ? slot.esc(body) : body
 
   let next
   if (slot.apply) {
-    next = slot.apply(html, body)
+    next = slot.apply(html, payload)
     if (next === html) fail(`插槽 ${key} 没有匹配到任何位置（该区被改写了？）`, 1)
   } else if (slot.mark) {
     const r = markRange(html, slot.mark)
     if (!r) fail(`找不到插槽 ${key} 的标记 ${slot.mark}:BEGIN/END（该区被改写了？）`, 1)
-    next = html.slice(0, r.from) + slot.wrap(body) + html.slice(r.to)
+    next = html.slice(0, r.from) + slot.wrap(payload) + html.slice(r.to)
   } else {
     const re = slot.re || new RegExp(slot.probe.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
     if (!re.test(html)) fail(`找不到插槽 ${key}（该区被改写了？）`, 1)
-    next = html.replace(re, slot.wrap(body))
+    next = html.replace(re, slot.wrap(payload))
   }
 
-  // 插槽写入 MUST NOT 动到批注：这正是"改稿会抹掉用户批注"那条死结的解法。
-  const after = readAnnoBlock(next)
-  if (before && (!after || JSON.stringify(before) !== JSON.stringify(after))) {
-    fail('拒绝写入：本次替换会改动批注块。这是 bug，请报告。', 1)
-  }
   // 只数界面区里的锚点：框架 JS 里有 data-anno-user 的字面量，全文计数会虚高
   const anchorsOf = (s) => new Set([...screensRegion(s).matchAll(/data-anno-user="([^"]+)"/g)].map((m) => m[1]))
   const had = anchorsOf(html)
   const kept = anchorsOf(next)
   const lost = [...had].filter((id) => !kept.has(id))
 
-  // 用户批注挂在界面元素上，而界面元素全住在 screens 插槽里——改稿会连锚点一起换掉。
-  // 这是"改稿 MUST 走 slot 就不会抹掉批注"那句承诺唯一不成立的地方，所以**默认拒绝写入**：
-  // 静默失联的表现是"批注还在文件里、但再也指不到元素"，交付时没有任何症状。
-  if (lost.length && !opts['drop-anchors']) {
-    const data = before || { items: [] }
-    const detail = lost.map((id) => {
-      const it = (data.items || []).find((x) => x.id === id)
-      return `    data-anno-user="${id}"  ${it ? `（${it.screen || '本页'} › "${it.label || ''}"：${it.text}）` : ''}`
-    })
-    fail(
-      `拒绝写入：新内容丢掉了 ${lost.length} 个用户批注锚点，这些批注会失联。\n` +
-      detail.join('\n') +
-      '\n  改稿时 MUST 把这些 data-anno-user 属性原样写进新片段里对应的元素上' +
-      '\n  （先跑 `annotations --json` 看每条批注指的是哪个元素）。' +
-      '\n  确实要丢弃这些批注时才加 --drop-anchors。',
-      1
-    )
+  const plan = await parseAgreedPlan(opts['agreed-plan'])
+  if (opts.agreed && !plan) fail('`--agreed` 必须同时给出 `--agreed-plan`，逐条写明 done|void|move。', 2)
+  const data = before || { items: [], replies: [] }
+  const detailOf = (id) => {
+    const it = (data.items || []).find((x) => x.id === id)
+    return it ? `${it.screen || '本页'} › "${it.label || ''}"：${it.text}` : '(批注数据里没有这一条)'
+  }
+  const noteIdsOf = (s) => new Set([...screensRegion(s).matchAll(/data-anno-id="([^"]+)"/g)].map((m) => m[1]))
+  const hadNotes = noteIdsOf(html)
+  const keptNotes = noteIdsOf(next)
+  const lostNotes = [...hadNotes].filter((id) => !keptNotes.has(id))
+  const declaredMove = plan ? Object.keys(plan).filter((id) => plan[id] === 'move') : []
+  const affected = [...new Set([...lost, ...declaredMove])]
+  if (lost.length && !opts.agreed) {
+    fail(`拒绝写入：新内容会动到 ${lost.length} 条带用户批注的元素。\n` +
+      lost.map((id) => `    ${id}  ${detailOf(id)}`).join('\n') +
+      '\n  MUST 先逐条约定，再带 --agreed --agreed-plan=<id>=<done|void|move> 重跑。', 1)
+  }
+  let released = []
+  let changedData = data
+  if (affected.length && opts.agreed) {
+    const missing = affected.filter((id) => !plan[id])
+    if (missing.length) fail(`放行方案漏了 ${missing.length} 条，MUST 逐条给出处置：\n` + missing.map((id) => `    ${id}  ${detailOf(id)}`).join('\n'), 2)
+    const moveNoAnchor = affected.filter((id) => plan[id] === 'move' && lost.includes(id))
+    if (moveNoAnchor.length) fail(`这几条约定为「挪到新元素」，但新片段里找不到它们的锚点：\n` + moveNoAnchor.map((id) => `    data-anno-user="${id}"  ${detailOf(id)}`).join('\n'), 1)
+    released = affected.map((id) => ({ id, act: plan[id], detail: detailOf(id) }))
+    const drop = new Set(released.filter((r) => r.act !== 'move').map((r) => r.id))
+    changedData = { ...data, items: (data.items || []).filter((x) => !drop.has(x.id)) }
+  }
+  if (lostNotes.length) {
+    const dropped = (data.replies || []).filter((r) => lostNotes.includes(r.noteId))
+    console.log(`  ⚠ 新内容丢掉了 ${lostNotes.length} 条 AI 说明`)
+    if (dropped.length) console.log(`  ⚠ 连带丢弃 ${dropped.length} 条回复：${dropped.map((r) => r.id).join(' ')}`)
+    changedData = { ...changedData, replies: (changedData.replies || []).filter((r) => !lostNotes.includes(r.noteId)) }
+  }
+  // 第一步：执行本次允许的两类删除（已约定 done/void 的批注、被删说明连带的回复）。
+  if (before && (released.length || lostNotes.length)) {
+    next = replaceAnnoBlock(next, changedData)
+  }
+  // 第二步：无条件校验。批注块 MUST 恰好等于"允许的删除之后"的样子，别的差异一律判 bug。
+  // 这两步 MUST NOT 合并成"不相等就覆盖成我算出来的样子"——那样校验对象就没了，
+  // 而放行路径恰恰是最需要它的那条路。
+  if (before) {
+    const dropIds = new Set(released.filter((r) => r.act !== 'move').map((r) => r.id))
+    const expected = { ...before, items: (before.items || []).filter((x) => !dropIds.has(x.id)) }
+    if (before.replies) expected.replies = before.replies.filter((r) => !lostNotes.includes(r.noteId))
+    const after = readAnnoBlock(next)
+    if (!after || JSON.stringify({ ...expected, updatedAt: '' }) !== JSON.stringify({ ...after, updatedAt: '' })) {
+      fail('拒绝写入：本次替换会改动批注块（放行清单与连带回复之外的改动）。这是 bug，请报告。', 1)
+    }
   }
 
   await writeAtomic(file, next)
   console.log(`已写入插槽 ${key}`)
-  if (lost.length) {
-    console.log(`  ⚠ 按 --drop-anchors 丢弃了 ${lost.length} 个批注锚点：${lost.join(' ')}`)
-    console.log('    这些用户批注的数据仍在批注块里，但已指不到任何元素。')
+  if (released.length) {
+    console.log('  放行清单（已与用户逐条约定）：')
+    released.forEach((r) => console.log(`    ${r.id}  ${{ done: '已落实', void: '作废', move: '挪到新元素' }[r.act]}  ${r.detail}`))
   }
+}
+
+const AGREED_ACTIONS = ['done', 'void', 'move']
+async function parseAgreedPlan(raw) {
+  if (raw === undefined) return null
+  let text = raw
+  if (!raw.includes('=')) text = await readFile(path.resolve(raw), 'utf8').catch(() => fail(`读不到放行方案文件：${raw}`, 1))
+  const plan = {}
+  text.split(/[\n,]/).forEach((line) => {
+    const s = line.trim()
+    if (!s || s.startsWith('#')) return
+    const i = s.indexOf('=')
+    if (i < 0) fail(`放行方案格式错误：「${s}」`, 2)
+    const id = s.slice(0, i).trim(); const act = s.slice(i + 1).trim()
+    if (!AGREED_ACTIONS.includes(act)) fail(`未知处置「${act}」（批注 ${id}）。合法取值只有：done / void / move`, 2)
+    plan[id] = act
+  })
+  return plan
+}
+
+function replaceAnnoBlock(html, data) {
+  const r = annoBlockRange(html)
+  if (!r) fail('找不到批注块，无法放行', 1)
+  const from = r.from
+  const to = r.to
+  const text = JSON.stringify({ ...data, updatedAt: new Date().toISOString() }, null, 2)
+  return html.slice(0, from) + '\n' + text.replace(/<\//g, '<\\/') + '\n  ' + html.slice(to)
 }
 
 /* ────────────────── annotations ────────────────── */
@@ -342,11 +436,13 @@ function collectAiNotes(html) {
       (attrs.match(/aria-label="([^"]*)"/) || [])[1] ||
       ''
     const span = spans.find((sp) => m.index >= sp.from && m.index < sp.to)
+    const id = (attrs.match(/data-anno-id="([^"]*)"/) || [])[1] || ''
     out.push({
       line: lineOf(html, m.index),
       screen: span ? span.name : '',
       tag: m[1].toLowerCase(),
       kind,
+      id,
       label: label.slice(0, 60),
       text: m[3],
     })
@@ -369,13 +465,15 @@ async function cmdAnnotations(file, opts) {
   const lines = anchorLines(html)
   const items = (data.items || []).map((it) => ({ ...it, line: lines[it.id] || null }))
   const ai = collectAiNotes(html)
+  const known = new Set(ai.map((a) => a.id).filter(Boolean))
+  const replies = (data.replies || []).map((r) => ({ ...r, orphan: !known.has(r.noteId) }))
 
   if (opts.json) {
     console.log(JSON.stringify({
       schema: data.schema || 'prd-annotations@1',
       file: path.resolve(file),
       updatedAt: data.updatedAt || '',
-      user: { items, global: data.global || [] },
+      user: { items, global: data.global || [], replies },
       ai,
     }, null, 2))
     return
@@ -395,11 +493,19 @@ async function cmdAnnotations(file, opts) {
     console.log(`  ${a.screen || '本页'} › ${a.tag} "${a.label}" @${path.basename(file)}:${a.line}${a.kind === 'question' ? ' [待拍板]' : ''}`)
     console.log(`        ${a.text}`)
   })
+  console.log(`\n用户对说明的回复（${replies.length}）`)
+  replies.forEach((r) => {
+    const q = r.noteKind === 'question' ? ' [待拍板]' : ''
+    const where = r.orphan ? '（这条说明已不在页面上）' : ''
+    console.log(`  [${r.id}] ${r.screen || '本页'} › ${r.tag || '?'} "${r.label || ''}"${q}${where}`)
+    console.log(`        回的是：${r.noteText}`)
+    console.log(`        回复：${r.text}`)
+  })
 }
 
 /* ────────────────── check ────────────────── */
 
-const FIXED_REGIONS = ['THEME', 'DESIGN-SYSTEM', 'ICONS', 'ANNO-FRAMEWORK:CSS', 'ANNO-FRAMEWORK:JS', 'ANNOTATIONS']
+const FIXED_REGIONS = ['THEME', 'DESIGN-SYSTEM', 'ICONS', 'SCREEN-SCRIPT', 'ANNO-FRAMEWORK:CSS', 'ANNO-FRAMEWORK:JS', 'ANNOTATIONS']
 
 // 控件的子元素结构契约：容器 CSS 靠这些形态才生效，写错了页面不报错、只是版式塌掉。
 const STRUCTURE = [
@@ -505,6 +611,14 @@ async function cmdCheck(file, opts) {
     if (!name) add('P0', `第 ${i + 1} 屏缺 .device-name`, '屏幕名 MUST 在 .device 之外，批注按它区分是哪一屏')
     if (!/<div class="device">/.test(w)) add('P0', `第 ${i + 1} 屏缺 .device`)
     if (!/<div class="screen">/.test(w)) add('P0', `第 ${i + 1} 屏缺 .screen`)
+    if (!/<div class="screen-notes">/.test(w)) {
+      add('P1', `第 ${i + 1} 屏缺 .screen-notes 注解区`, '注解区由 screen 命令生成；手工拼屏才会缺它')
+    } else {
+      const body = (w.match(/<div class="screen-notes__body">([\s\S]*?)<\/div>/) || [])[1] || ''
+      if (!body.replace(/<[^>]*>/g, '').trim()) {
+        add('P2', `第 ${i + 1} 屏没写注解`, '有的屏确实没什么可说，这条只是提示')
+      }
+    }
     const dn = w.indexOf('device-name')
     const dv = w.indexOf('<div class="device">')
     if (dn > 0 && dv > 0 && dn > dv) add('P0', `第 ${i + 1} 屏的 .device-name 写进了 .device 里`, '它 MUST 在 .device 之外')
@@ -518,6 +632,17 @@ async function cmdCheck(file, opts) {
       add('P0', `第 ${i + 1} 屏的「${cls}」状态层不是 .screen 的直接子元素`,
         '容器按 .screen > .status 控制显隐，包一层这个状态就永远不显示（页面不会报错）')
     )
+  })
+
+  const scriptRegion = sliceRegion(html, 'CUSTOM-JS')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/(^|[^:])\/\/[^\n]*/g, '$1 ')
+  const actNames = [...screens.matchAll(/<button[^>]*data-act="([^"]+)"/g)].map((m) => m[1])
+  actNames.forEach((name) => {
+    if (!scriptRegion.includes(name)) {
+      add('P2', `注解区按钮「${name}」没有对应的点击行为`,
+        '外观由容器给，行为写进 script 插槽：preview.mjs slot --set script')
+    }
   })
   // 7. 状态层一致性：某个状态只在部分屏上有 → 切到那个状态时其余屏会回落到默认态
   wraps.forEach((w, i) => {
@@ -555,7 +680,9 @@ async function cmdCheck(file, opts) {
   // 而提示要求做的正是已经做过的事，把作者逼回行内样式（又撞上写死颜色那条）。
   const styleText = sliceRegion(html, 'DESIGN-SYSTEM') + sliceRegion(html, 'THEME') +
     sliceRegion(html, 'CUSTOM-CSS') + sliceRegion(html, 'PROJECT-THEME')
-  const defined = new Set([...styleText.matchAll(/\.([a-z][a-z0-9-]*)/g)].map((m) => m[1]))
+  // 字符类里的 `_` 是必须的：屏注解区用 .screen-notes__title 这类 BEM 命名，
+  // 不认下划线就会把它们全报成「没有样式定义的 class」——而样式明明就在上面。
+  const defined = new Set([...styleText.matchAll(/\.([a-z][a-z0-9_-]*)/g)].map((m) => m[1]))
   const used = new Set()
   for (const m of screens.matchAll(/class="([^"]+)"/g)) m[1].split(/\s+/).forEach((c) => c && used.add(c))
   const unknown = [...used].filter((c) => !defined.has(c))
@@ -580,6 +707,13 @@ async function cmdCheck(file, opts) {
     } catch (e) {
       add('P0', `内联脚本 #${i + 1} 语法错误：${e.message}`)
     }
+  })
+
+  const DIFF_WORDS = ['相比上一轮', '相比上一版', '原方案', '本轮把', '上一稿', '改为原来的', '与上一版相比']
+  const screenProse = screensRegion(html)
+  const proseRegions = screenProse + sliceRegion(html, 'NOTES')
+  DIFF_WORDS.forEach((w) => {
+    if (proseRegions.includes(w)) add('P2', `稿间对比措辞「${w}」`, '未定稿前的改稿只写最新设计；业务文案里正好有这个词就忽略本条')
   })
 
   if (opts.json) {
@@ -636,6 +770,16 @@ async function cmdServe(rel, opts) {
   const file = path.resolve(rel)
   await readTarget(file)
   let saves = 0
+  async function versionOf(target) {
+    const buf = await readFile(target)
+    return createHash('sha256').update(buf).digest('hex').slice(0, 16)
+  }
+  let writeChain = Promise.resolve()
+  function serializeWrite(fn) {
+    const next = writeChain.then(fn, fn)
+    writeChain = next.catch(() => {})
+    return next
+  }
 
   const server = createServer(async (req, res) => {
     const host = req.headers.host || ''
@@ -662,10 +806,16 @@ async function cmdServe(rel, opts) {
       return
     }
 
-    if (req.method === 'GET' && (url === '/' || url === '/index.html')) {
+    if ((req.method === 'GET' || req.method === 'HEAD') && (url === '/' || url === '/index.html')) {
       try {
         const html = await readFile(file, 'utf8')
-        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }).end(html)
+        const headers = {
+          'content-type': 'text/html; charset=utf-8',
+          'cache-control': 'no-store',
+          'x-proto-version': await versionOf(file),
+        }
+        if (req.method === 'HEAD') res.writeHead(200, headers).end()
+        else res.writeHead(200, headers).end(html)
       } catch (e) {
         res.writeHead(500).end(String(e && e.message))
       }
@@ -680,10 +830,24 @@ async function cmdServe(rel, opts) {
             .end('{"ok":false,"error":"payload is not a prototype document"}')
           return
         }
-        await writeAtomic(file, body)
+        const query = (req.url || '').split('?')[1] || ''
+        const want = req.headers['if-match'] || new URLSearchParams(query).get('v') || ''
+        const outcome = await serializeWrite(async () => {
+          const now = await versionOf(file)
+          if (!want || want !== now) return { stale: true, now, latest: await readFile(file, 'utf8') }
+          await writeAtomic(file, body)
+          return { stale: false, version: await versionOf(file) }
+        })
+        if (outcome.stale) {
+          res.writeHead(409, { 'content-type': 'application/json; charset=utf-8' })
+            .end(JSON.stringify({ ok: false, error: 'stale', version: outcome.now, html: outcome.latest }))
+          process.stdout.write(`  ⚠ 拒绝一次过期写回（页面版本 ${want || '未带'}，磁盘 ${outcome.now}）\n`)
+          return
+        }
         saves += 1
         process.stdout.write(`  ✓ 第 ${saves} 次写回 ${path.basename(file)}（${body.length} 字节）\n`)
-        res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' }).end('{"ok":true}')
+        res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' })
+          .end(JSON.stringify({ ok: true, version: outcome.version }))
       } catch (e) {
         res.writeHead(500, { 'content-type': 'application/json; charset=utf-8' })
           .end(JSON.stringify({ ok: false, error: String(e && e.message) }))
@@ -725,10 +889,14 @@ async function cmdServe(rel, opts) {
 const HELP = `原型工具（ai-prd）
 
   init   <文件> --title <名> [--subtitle <一句话>]      从容器建一份原型
-  screen <文件> --name <屏名> [--desktop] [--states …]  加一屏（结构与状态层由本命令保证）
+  screen <文件> --name <屏名> [--desktop] [--anno-right] [--states …]
+         加一屏（结构、状态层与屏注解区由本命令保证）
+         --anno-right：注解区挂这一屏右侧；不给即挂下方
   slot   <文件> --set <名> (--from <片段> | --text <文本>)
-         插槽名：title | subtitle | screens | notes | theme | custom
+         插槽名：title | subtitle | screens | notes | theme | custom | script
+         script 装注解区按钮的点击行为，与原型同文件，MUST NOT 引外部脚本
          改稿走它：只换插槽内容，批注块与 data-anno-user 锚点原样保留
+         动到带用户批注的元素时：先逐条约定，再带 --agreed --agreed-plan=<id>=<done|void|move> 放行
   annotations <文件> [--json]                           取用户批注 + AI 侧说明（带行号）
   check  <文件> [--json]                                交付前自检（P0 存在则退出码 1）
   serve  <文件> [--port <n>] [--no-open]                起预览服务，页面批注自动写回该文件
@@ -741,7 +909,9 @@ function parseArgs(argv) {
     const a = argv[i]
     if (a === '--no-open') out.open = false
     else if (a === '--desktop') out.desktop = true
+    else if (a === '--anno-right') out['anno-right'] = true
     else if (a === '--json') out.json = true
+    else if (a === '--agreed') out.agreed = true
     else if (a === '--drop-anchors') out['drop-anchors'] = true
     else if (a === '--help' || a === '-h') out.help = true
     else if (a === '--port') out.port = normPort(argv[++i])

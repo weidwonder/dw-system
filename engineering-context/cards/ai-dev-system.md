@@ -1,0 +1,69 @@
+# Codebase Card — ai-dev-system
+
+> 本仓库是 AI 辅助开发方法论的分发包（两个 skill + 零依赖 CLI），不是应用。
+> 事实以合入后的源码为准。每条对外接口带 `文件:行`。
+
+## 原型容器（ui-prototype.html）
+
+- **职责**：`ai-prd` 产出的 UI 原型的唯一容器——自带默认视觉基线、设计系统、图标库、批注框架与按屏状态切换；由 `preview.mjs init` 复制建出，产出方只填具名插槽。
+- **对外接口**
+  - 分区标记（`<!-- MARK:BEGIN … END -->`，`check` 按 `FIXED_REGIONS` 校验齐全）：`THEME`、`PROJECT-THEME`、`DESIGN-SYSTEM`、`CUSTOM-CSS`、`ANNO-FRAMEWORK:CSS`、`ICONS`、`TITLE`、`NOTES`、`SCREENS`、`SCREEN-SCRIPT`、`CUSTOM-JS`、`ANNOTATIONS`、`ANNO-FRAMEWORK:JS` — `ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html:14,57,62,644,649,831,879,887,894,901,950,954,970`
+  - 画布单列布局 `.stage { display: block }`（不再有右侧常驻栏）— `:548-552`
+  - 屏注解区 `.device-wrap > .screen-notes`（`__title` / `__body` / `__acts` 三个子位），挂在设备壳之外；`.device-wrap.is-anno-right` 改挂右侧 — `:561-588`
+  - 设计说明面板 `#proto-notes-panel`（默认 `hidden`，工具栏 `[data-act="notes"]` 展开），`NOTES` 插槽与 `#proto-notes` 仍在其中 — `:885-893`
+  - `SCREEN-SCRIPT` 固定区导出**唯一**全局 `window.setScreenState(screenEl, nextState)` —— 只认屏元素与目标态，**不认按钮**（按钮行为归 `CUSTOM-JS` 插槽）— `:901-911`
+  - 批注数据块 `<script type="application/json" id="anno-data">`，schema 仍是 `prd-annotations@1`，字段 `global[]` / `items[]` / **`replies[]`**（`replies[].noteId` ↔ AI 说明的 `data-anno-id`）— `:954-968`
+  - 批注框架 JS：`serialize()` 剥运行时状态（只认三种表达：`.screen` 上的 `state-*` 类、`[data-state]` 的 `aria-pressed`、`[data-anno-runtime]` 自报），并把 `#proto-notes-panel` 复位为 `hidden` — `:1076-1118`；`write()` 带 `If-Match` 版本头，`adoptLatest(latestHtml, latestVersion)` 按 id 合并磁盘与内存两侧 — `:1119-1170`；`openNote()` 承载对 AI 说明的增删改回复 — `:1552-1620`；工具栏 `bar.innerHTML` 按序为 标题/加注释/全局反馈/隐藏批注/**计数**/spacer/**设计说明**/save/复制 JSON/状态灯 — `:1272-1282`；`paint()` 令 `复制 JSON` 在 `SERVED && servedOk` 时隐藏、save 按钮在同条件且无脏数据时隐藏 — `:1303-1345`
+  - 批注气泡渲染：`data-anno` → note 气泡、`data-anno-kind="question"` → ask 气泡（琥珀）、`items[]` → user 气泡 — `:1432` 一带
+- **陷阱项**
+  - 用非上述三种方式改 DOM 状态，`serialize()` 还原不掉，写回时状态被烘进文件且零报错。
+  - `serialize()` 若漏了 `#proto-notes-panel` 的复位，用户展开设计说明后的写回会把"展开"烘进文件。
+  - 批注块注释里刻意不写取批注命令（命令含本区结束标记字样，写进去会让按标记取段的读法提前截断）— `:954-958`
+  - `window.setScreenState` **MUST NOT** 扩成认按钮名的形态——那会把按钮语义写进容器，越过 PRD 非目标 3。
+- **确认时间**：2026-08-27
+
+## 原型工具（preview.mjs）
+
+- **职责**：`ai-prd` 唯一脚本，六条子命令覆盖原型全流程（建/加屏/填插槽/取批注/自检/预览服务）。零第三方依赖，跨平台。
+- **对外接口**
+  - `SLOTS` **七个**具名插槽 `title | subtitle | screens | notes | theme | custom | script`，区间一律由 `markRange()` 按 `MARK:BEGIN/END` 界定 — `ai-dev-system/skills/ai-prd/scripts/preview.mjs:40-160` 一带
+  - `annoBlockRange()` 定位批注块**限定在 `ANNOTATIONS` 标记区间内**取，不做全文 `indexOf` — `:166-180` 一带
+  - `screenSkeleton(name, states, desktop, annoRight)` 生成 `.device-wrap > .device-name + .device + .screen-notes`，`--anno-right` 加 `is-anno-right` — `:217-242`
+  - `cmdSlot` 的放行契约：`--agreed` + `--agreed-plan`（闭集 `done|void|move`），受影响集 = 丢锚点项 ∪ 显式声明的 `move` 项；`--drop-anchors` 已废除，传入报错退出码 2 — `:274-300` 一带
+  - `cmdSlot` 写入后的等值不变式**无条件执行**（先删后验，不因"没有放行"跳过），不等即 `拒绝写入：本次替换会改动批注块…这是 bug` — `:353-367`
+  - `cmdAnnotations` 输出**三类 + 回复**：用户元素批注 / 全局反馈 / AI 侧说明（标待拍板）/ 用户对说明的回复（带被回复说明原文）— `:461-505`
+  - `cmdCheck` 十二类检查（编号不变，屏注解区、按屏状态入口、注解区按钮行为三项并进第 6/7/8 类）— `:558-760` 一带
+  - `cmdServe` 版本化写回：`versionOf()` 取内容 SHA-256，GET/HEAD 回 `X-Proto-Version`，`POST /save` 认 `If-Match` 头或 `?v=` 查询参数（二者等价，后者供 `sendBeacon`），版本不符回 **409 + `{version, html}`**；`serializeWrite()` 用 Promise 链关掉 TOCTOU 窗口 — `:769-850` 一带
+  - `FIXED_REGIONS` 含 `SCREEN-SCRIPT`，**不含** `CUSTOM-JS`（后者是插槽，产出方要写）— `:508`
+  - `HELP` 文案含七个插槽名、`--anno-right` 与放行参数 — `:889` 一带
+- **陷阱项**
+  - `SLOTS.screens` / `notes` / `theme` / `custom` / `script` **没有 `re` 字段**，误引用 `slot.re` 会静默失效（`match(undefined)` 给空匹配、`replace(undefined,…)` 当字面串）——历史上撞出过 `screen` 命令零改动却退出 0。
+  - 判空 MUST 在剥外壳**并**去注释之后，否则出厂 `<!-- SCREENS -->` 占位注释被当成已有内容。
+  - 终止用抛 `Abort` 不用 `process.exit()`（管道下输出会被截断而退出码正常）。
+  - 批注块定位 MUST 限定在 `ANNOTATIONS` 区间内：全文 `indexOf` 时，片段里夹带一个假 `id="anno-data"` 块会让放行数据写进假块、真块原样不动，命令照常打印放行清单并退出 0（实测撞出过，文件里留下三个批注块）。
+  - `script` 插槽写入 MUST 转义 `</script`，否则内容提前闭合脚本标签。
+- **确认时间**：2026-08-27
+
+## 文档治理与命名（ai-dev-workflow）
+
+- **职责**：定义本体系产出文档的目录、命名、生命周期字段与索引门控。
+- **对外接口**
+  - §默认命名 的文件名范式，**每条都以 `YYYY-MM-DD-` 开头**；末尾逃生口收窄为"日期前缀与目录不可改变" — `ai-dev-system/skills/ai-dev-workflow/references/core/文档治理.md` §默认命名
+  - §文档生命周期与索引门控：`lifecycle` / `last_confirmed` / `authority_refs`
+  - §TODO 出口
+  - 机器闸 `test/doc-index.test.mjs` 的 `collectDocs(rootDir)`（导出的纯函数，`walk()` 递归子目录）校验前缀与索引收录
+- **陷阱项**：字段名是 `lifecycle` 不是 `status`；前缀规则的例外是**常青档与两份索引**（`REQUIREMENTS.md` / `ARCHITECTURE.md` / `TODO.md` / `index.md` / `index-archive.md` 与 `docs/requirements/` 下的一级子模块），清单在 §默认命名。
+- **确认时间**：2026-08-27
+
+## UI 原型纪律（ai-prd）
+
+- **职责**：原型的产出、结构、自检、批注框架与写回路径的权威判据。
+- **对外接口**
+  - §2 原型命名 `docs/spec/YYYY-MM-DD-<name>-prototype.html`（日期在前）
+  - §5 PRD「UI 原型」五项表（三类模板同一套项）
+  - §6 交付前自检清单（「**未经约定**失联的一条报一条 P0」、「每个声明覆盖的状态都在该屏注解区里有对应切换按钮且按钮有行为」）
+  - §7 批注框架三区表与写入方声明；§7.5 设计说明、§7.6 屏注解区、§7.7 放行契约
+  - §8.1 命令表、§8.2 屏结构、§8.3 class 与 hook、§8.4 项目样式
+- **陷阱项**：批注数据块的写入方现在有**两个**——页面工具栏，以及 §7.7 显式放行路径上的 `slot`；**AI 手工编辑本块仍然禁止**。三层归属是闭集，MUST NOT 自造第四层。
+- **确认时间**：2026-08-27
+

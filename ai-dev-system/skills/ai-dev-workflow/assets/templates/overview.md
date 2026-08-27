@@ -11,7 +11,7 @@ authority_refs:            # 本文冻结的跨仓契约与能力边界
 # 【ProjectName】_00_Overview_顶层架构
 
 > 顶层架构 / 技术 PRD。介于产品 PRD 与详细 spec 之间：圈定改哪些仓库、边界在哪，**不涉及实现细节**。读者 30 分钟内应能答：这活要做什么/不做什么？我要打开哪些仓库、各自改多大？我的改动怎么和别人的集成？
-> 输出：`docs/spec/<project-name>-overview.md`。
+> 输出：`docs/spec/YYYY-MM-DD-<project-name>-overview.md`。
 > 纪律：粗颗粒度（写到具体类/方法/SQL 就越界了，移到子 spec）；每条"做什么"配一条"不做什么"；冻结契约不冻结代码；能推迟的推迟到开放问题或子文档。
 
 ## 0. 用户确认摘要（业务语言）
