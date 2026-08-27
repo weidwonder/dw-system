@@ -96,7 +96,10 @@ test('预览服务：批注 POST 回来后真的写进磁盘上的原型文件',
     assert.deepEqual(await health.json(), { ok: true })
 
     // GET / 拿到的就是文件当前内容
-    const served = await (await fetch(base)).text()
+    const servedRes = await fetch(base)
+    const served = await servedRes.text()
+    const servedVersion = servedRes.headers.get('x-proto-version')
+    assert.ok(servedVersion)
     assert.ok(served.startsWith('<!doctype html>'), 'GET / 应返回原型文件本身')
 
     const before = statSync(file).size
@@ -118,11 +121,13 @@ test('预览服务：批注 POST 回来后真的写进磁盘上的原型文件',
     }
     const res = await fetch(base + 'save', {
       method: 'POST',
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+      headers: { 'Content-Type': 'text/html; charset=utf-8', 'If-Match': servedVersion },
       body: withAnnotations(served, payload),
     })
     assert.equal(res.status, 200)
-    assert.deepEqual(await res.json(), { ok: true })
+    const saved = await res.json()
+    assert.equal(saved.ok, true)
+    assert.ok(saved.version)
 
     const disk = readFileSync(file, 'utf8')
     assert.notEqual(statSync(file).size, before, '磁盘文件应被改写')
@@ -500,6 +505,13 @@ test('说明入口与展开的面板都不随页面滚动', () => {
   assert.match(panel.slice(0, 400), /position:\s*(sticky|fixed)/)
 })
 
+test('设计说明面板展开状态不会写进源文件', () => {
+  const html = readFileSync(templatePath, 'utf8')
+  const serialize = html.slice(html.indexOf('function serialize()'), html.indexOf('function idb('))
+  assert.match(serialize, /querySelector\("#proto-notes-panel"\)/)
+  assert.match(serialize, /notesPanel\.setAttribute\("hidden",\s*""\)/)
+})
+
 test('设计说明入口在工具栏右段第一枚、写回按钮左侧，文字只有四个字', () => {
   const html = readFileSync(templatePath, 'utf8')
   const bar = html.slice(html.indexOf('bar.innerHTML'), html.indexOf('document.body.insertBefore'))
@@ -521,6 +533,109 @@ test('slot --set notes 写入路径不变', () => {
   const html = readFileSync(file, 'utf8')
   assert.match(html, /样式依据/)
   rmSync(dir, { recursive: true, force: true })
+})
+
+test('页面的旧版本写不掉磁盘上的新版本', async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-ver-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  assert.equal(run('screen', file, '--name', 'S').code, 0)
+  const { child, base } = await startServer(file)
+  try {
+    const got = await fetch(base)
+    const ver = got.headers.get('x-proto-version')
+    assert.ok(ver, 'GET MUST 下发 X-Proto-Version')
+    const stale = await got.text()
+    assert.equal(run('slot', file, '--set', 'subtitle', '--text', '改过一轮').code, 0)
+    const res = await fetch(base + 'save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/html; charset=utf-8', 'If-Match': ver },
+      body: stale,
+    })
+    assert.equal(res.status, 409)
+    const body = await res.json()
+    assert.equal(body.error, 'stale')
+    assert.match(body.html, /改过一轮/)
+    assert.match(readFileSync(file, 'utf8'), /改过一轮/)
+  } finally {
+    await stopServer(child)
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('缺 If-Match 且缺 ?v= 时按冲突处理，不当强制覆盖', async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-ver-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  const before = readFileSync(file, 'utf8')
+  const { child, base } = await startServer(file)
+  try {
+    const res = await fetch(base + 'save', { method: 'POST', headers: { 'Content-Type': 'text/html; charset=utf-8' }, body: before })
+    assert.equal(res.status, 409)
+    assert.equal((await res.json()).error, 'stale')
+    assert.equal(readFileSync(file, 'utf8'), before)
+  } finally {
+    await stopServer(child)
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('sendBeacon 那条路：?v= 与 If-Match 等价', async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-ver-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  const { child, base } = await startServer(file)
+  try {
+    const got = await fetch(base)
+    const ver = got.headers.get('x-proto-version')
+    const html = await got.text()
+    const changed = html.replace('<p id="proto-subtitle"></p>', '<p id="proto-subtitle">beacon 写回</p>')
+    const res = await fetch(base + `save?v=${encodeURIComponent(ver)}`, {
+      method: 'POST', headers: { 'Content-Type': 'text/html; charset=utf-8' }, body: changed,
+    })
+    assert.equal(res.status, 200)
+    assert.match(readFileSync(file, 'utf8'), /beacon 写回/)
+  } finally {
+    await stopServer(child)
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('版本串是内容哈希：同毫秒内同大小的两次写入版本仍变', async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-hash-'))
+  const file = path.join(dir, 'p.html')
+  writeFileSync(file, 'A'.repeat(64), 'utf8')
+  const { child, base } = await startServer(file)
+  try {
+    const v1 = (await fetch(base)).headers.get('x-proto-version')
+    writeFileSync(file, 'B'.repeat(64), 'utf8')
+    const v2 = (await fetch(base)).headers.get('x-proto-version')
+    assert.notEqual(v1, v2)
+  } finally {
+    await stopServer(child)
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('并发两个写回时后到的那个基于前一个的结果判定', async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-race-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  const { child, base } = await startServer(file)
+  try {
+    const got = await fetch(base)
+    const ver = got.headers.get('x-proto-version')
+    const html = await got.text()
+    const a = html.replace('<p id="proto-subtitle"></p>', '<p id="proto-subtitle">并发 A</p>')
+    const b = html.replace('<p id="proto-subtitle"></p>', '<p id="proto-subtitle">并发 B</p>')
+    const responses = await Promise.all([a, b].map((body) => fetch(base + 'save', {
+      method: 'POST', headers: { 'Content-Type': 'text/html; charset=utf-8', 'If-Match': ver }, body,
+    })))
+    assert.deepEqual(responses.map((r) => r.status).sort(), [200, 409])
+  } finally {
+    await stopServer(child)
+    rmSync(dir, { recursive: true, force: true })
+  }
 })
 
 test('画布上没有第二处能切状态的地方', () => {

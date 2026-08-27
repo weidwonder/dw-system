@@ -784,7 +784,8 @@ ${layers}
       }
   ```
 
-  > **`diskVersionOf` / `serializeWith` 两个辅助 MUST 一并实现**：前者算磁盘那版全文的哈希（与服务端同一算法：SHA-256 前 16 位；浏览器侧用 `crypto.subtle.digest`，它是异步的，因此 `adoptLatest` 整体走 Promise）；后者把 `merged` 写进 `latestHtml` 的批注块位置并返回完整文档（复用既有 `persist()` 里那段 `<\/` 转义）。
+  > **版本号 MUST 用服务端在 409 体里给的 `version`，MUST NOT 在页面自己重算**：服务端算的是磁盘文件的字节，页面只拿得到 HTTP 返回的字符串，两者要逐字节一致才对得上——那是一条没有任何东西守着的隐性契约，而服务端明明已经算好了。少一处重复实现，也少一个对 `crypto.subtle` 的依赖（它在非安全上下文不可用）。
+  > **`serializeWith` MUST 一并实现**：把 `merged` 写进 `latestHtml` 的批注块位置并返回完整文档（复用既有 `persist()` 里那段 `<\/` 转义）。
   > **不要图省事只 `reload()`**：那样合并结果只存在 `localStorage` 里，一旦 `localStorage` 不可用（隐私模式、站点数据被清），用户这一次写的批注就凭空消失。
 
   3f. 卸载期写回（FR-011 的"手动刷新"部分）——**MUST 真写，不能只依赖缓存**：

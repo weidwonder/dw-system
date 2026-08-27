@@ -18,6 +18,7 @@
 //
 // 零第三方依赖；路径一律走 node:path，跨平台。
 import { createServer } from 'node:http'
+import { createHash } from 'node:crypto'
 import { readFile, writeFile, rename, stat, copyFile } from 'node:fs/promises'
 import { spawn } from 'node:child_process'
 import path from 'node:path'
@@ -670,6 +671,16 @@ async function cmdServe(rel, opts) {
   const file = path.resolve(rel)
   await readTarget(file)
   let saves = 0
+  async function versionOf(target) {
+    const buf = await readFile(target)
+    return createHash('sha256').update(buf).digest('hex').slice(0, 16)
+  }
+  let writeChain = Promise.resolve()
+  function serializeWrite(fn) {
+    const next = writeChain.then(fn, fn)
+    writeChain = next.catch(() => {})
+    return next
+  }
 
   const server = createServer(async (req, res) => {
     const host = req.headers.host || ''
@@ -696,10 +707,16 @@ async function cmdServe(rel, opts) {
       return
     }
 
-    if (req.method === 'GET' && (url === '/' || url === '/index.html')) {
+    if ((req.method === 'GET' || req.method === 'HEAD') && (url === '/' || url === '/index.html')) {
       try {
         const html = await readFile(file, 'utf8')
-        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }).end(html)
+        const headers = {
+          'content-type': 'text/html; charset=utf-8',
+          'cache-control': 'no-store',
+          'x-proto-version': await versionOf(file),
+        }
+        if (req.method === 'HEAD') res.writeHead(200, headers).end()
+        else res.writeHead(200, headers).end(html)
       } catch (e) {
         res.writeHead(500).end(String(e && e.message))
       }
@@ -714,10 +731,24 @@ async function cmdServe(rel, opts) {
             .end('{"ok":false,"error":"payload is not a prototype document"}')
           return
         }
-        await writeAtomic(file, body)
+        const query = (req.url || '').split('?')[1] || ''
+        const want = req.headers['if-match'] || new URLSearchParams(query).get('v') || ''
+        const outcome = await serializeWrite(async () => {
+          const now = await versionOf(file)
+          if (!want || want !== now) return { stale: true, now, latest: await readFile(file, 'utf8') }
+          await writeAtomic(file, body)
+          return { stale: false, version: await versionOf(file) }
+        })
+        if (outcome.stale) {
+          res.writeHead(409, { 'content-type': 'application/json; charset=utf-8' })
+            .end(JSON.stringify({ ok: false, error: 'stale', version: outcome.now, html: outcome.latest }))
+          process.stdout.write(`  ⚠ 拒绝一次过期写回（页面版本 ${want || '未带'}，磁盘 ${outcome.now}）\n`)
+          return
+        }
         saves += 1
         process.stdout.write(`  ✓ 第 ${saves} 次写回 ${path.basename(file)}（${body.length} 字节）\n`)
-        res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' }).end('{"ok":true}')
+        res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' })
+          .end(JSON.stringify({ ok: true, version: outcome.version }))
       } catch (e) {
         res.writeHead(500, { 'content-type': 'application/json; charset=utf-8' })
           .end(JSON.stringify({ ok: false, error: String(e && e.message) }))

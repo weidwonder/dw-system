@@ -986,6 +986,7 @@
     var picking = false;
     var timer = 0;
     var servedOk = true;   // 预览服务是否还在（写回失败即转 false）
+    var docVersion = null;
 
     /* ---------- 数据 ---------- */
 
@@ -1087,6 +1088,8 @@
         el.removeAttribute("data-anno-runtime");
         el.removeAttribute("data-anno-runtime0");
       });
+      var notesPanel = clone.querySelector("#proto-notes-panel");
+      if (notesPanel) notesPanel.setAttribute("hidden", "");
       clone.removeAttribute("data-anno-picking");
       clone.removeAttribute("data-anno-hidden");
       return "<!doctype html>\n" + clone.outerHTML + "\n";
@@ -1113,9 +1116,13 @@
       if (SERVED) {
         return fetch("save", {
           method: "POST",
-          headers: { "Content-Type": "text/html; charset=utf-8" },
+          headers: { "Content-Type": "text/html; charset=utf-8", "If-Match": docVersion || "" },
           body: serialize()
-        }).then(function (r) { return r.ok; }).catch(function () { return false; });
+        }).then(function (r) {
+          if (r.status === 409) return r.json().then(function (d) { return adoptLatest(d.html, d.version); });
+          if (!r.ok) return false;
+          return r.json().then(function (d) { docVersion = d.version || docVersion; return true; }, function () { return true; });
+        }).catch(function () { return false; });
       }
       if (!handle) return Promise.resolve(false);
       return handle.createWritable()
@@ -1123,6 +1130,62 @@
         .then(function () { return true; })
         .catch(function () { return false; });
     }
+
+    function serializeWith(data, html) {
+      var text = JSON.stringify(data, null, 2).replace(/<\//g, "<\\/");
+      var s = html.indexOf('<script type="application/json" id="anno-data">');
+      if (s < 0) return html;
+      var from = html.indexOf(">", s) + 1;
+      var to = html.indexOf("</scr" + "ipt>", from);
+      return to < 0 ? html : html.slice(0, from) + "\n" + text + "\n  " + html.slice(to);
+    }
+
+    // 版本号一律用服务端给的那个（409 响应体里的 version）。
+    // MUST NOT 在这里自己重算：服务端算的是磁盘文件的字节，页面能拿到的只有 HTTP
+    // 返回的字符串，两者要逐字节一致才对得上——那是一条没有任何东西守着的隐性契约，
+    // 而服务端明明已经算好了。少一处重复实现，也少一个对 crypto.subtle 的依赖。
+    function adoptLatest(latestHtml, latestVersion) {
+      var doc = new DOMParser().parseFromString(latestHtml, "text/html");
+      var slot = doc.getElementById("anno-data");
+      var disk = (slot && parse(slot.textContent)) || blank();
+      function mergeById(diskList, mineList) {
+        var by = {};
+        (diskList || []).forEach(function (x) { by[x.id] = x; });
+        (mineList || []).forEach(function (x) { by[x.id] = x; });
+        return Object.keys(by).map(function (k) { return by[k]; });
+      }
+      var merged = {
+        schema: disk.schema || "prd-annotations@1",
+        global: mergeById(disk.global, store.global),
+        items: mergeById(disk.items, store.items),
+        replies: mergeById(disk.replies, store.replies),
+        updatedAt: new Date().toISOString()
+      };
+      try { window.localStorage.setItem(KEY, JSON.stringify(merged)); } catch (e) { /* 隐私模式 */ }
+      store = merged;
+      docVersion = latestVersion || docVersion;
+      return fetch("save", {
+        method: "POST",
+        headers: { "Content-Type": "text/html; charset=utf-8", "If-Match": docVersion || "" },
+        body: serializeWith(merged, latestHtml)
+      }).then(function (response) {
+        if (!response.ok) return false;
+        return response.json().then(function (data) {
+          if (!data || !data.version) return false;
+          docVersion = data.version;
+          window.location.reload();
+          return true;
+        }, function () { return false; });
+      }, function () { return false; });
+    }
+
+    window.addEventListener("beforeunload", function () {
+      if (!dirty || !SERVED) return;
+      try {
+        var blob = new Blob([serialize()], { type: "text/html; charset=utf-8" });
+        navigator.sendBeacon("save?v=" + encodeURIComponent(docVersion || ""), blob);
+      } catch (e) { /* 忽略 */ }
+    });
 
     function autosave() {
       if (!SERVED && (!handle || !granted)) { paint(); return; }
@@ -1631,8 +1694,12 @@
 
     /* ---------- 启动 ---------- */
 
-
     render();
+    if (SERVED) {
+      fetch("", { method: "HEAD" }).then(function (r) {
+        docVersion = r.headers.get("x-proto-version");
+      }).catch(function () { /* 忽略 */ });
+    }
     if (CAN_FS) {
       idb("get").then(function (h) {
         if (!h) return;
