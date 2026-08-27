@@ -4,7 +4,7 @@ superseded_by: ''
 archived: ''
 last_confirmed: '2026-08-27'
 authority_refs:
-  - 'window.protoSetState(actName, nextState) 的签名与语义'
+  - 'window.setScreenState(screenEl, nextState) 的签名与语义：纯状态表达，不认识按钮'
   - 'preview.mjs slot 的 --agreed / --agreed-plan 参数契约'
   - 'preview.mjs serve 的 X-Proto-Version / If-Match 头契约'
   - '批注数据 replies[] 的字段集合'
@@ -25,7 +25,9 @@ authority_refs:
 
 **贯穿全程的三条硬规矩**（每个 Task 都适用）：
 
-1. 容器内新增的任何 JS **MUST 用 ES5 写法**（`var` / `function` / `Array.prototype.forEach.call`），与既有框架一致——容器要能被任意浏览器直接打开。
+1. 容器内新增的 JS **MUST 与既有代码同风格**：变量用 `var`、函数用 `function` 表达式（既有框架区通篇如此），可以用 `closest()` / `NodeList.prototype.forEach` / `classList` 这些现代 DOM API。
+   **MUST NOT 把这条写成"必须 ES5"**——容器本来就不是 ES5：`ui-prototype.html:877-932` 那段用了 `const` 与箭头函数，CSS 里用了 `:has()`、`color-mix()`、`backdrop-filter`，目标本就是现代浏览器。写成 ES5 会逼着把既有代码一并改写，那是本次范围外的重写。
+   迁移 `:877-932` 进 `SCREEN-SCRIPT` 区时**照原样搬**，只改本 plan 明写要改的那两处（删总闸、主行动按钮收敛到本屏），MUST NOT 顺手改写它的语法风格。
 2. 容器内新增的任何样式 **MUST 用 `var(--…)` token**，MUST NOT 写死颜色（`check` 第 11 条会判红）。
 3. 每个 Task 结束 MUST 跑 `node --test test/*.test.mjs`；**判据不变的断言跑红时 MUST 修实现，MUST NOT 放宽断言**（spec FR-030）。
 
@@ -39,7 +41,7 @@ authority_refs:
 
 **Files:**
 - Modify: `ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html`（`DESIGN-SYSTEM` 区内，`.aside-stack` 规则附近 `:598`）
-- Modify: `ai-dev-system/skills/ai-prd/scripts/preview.mjs`（`screenSkeleton` `:198-213`、`cmdScreen` `:215-241`、`cmdCheck` 屏结构段 `:499-530`、`parseArgs` `:745-760`）
+- Modify: `ai-dev-system/skills/ai-prd/scripts/preview.mjs`（`screenSkeleton` `:195-213`、`cmdScreen` `:215-241`、`cmdCheck` 屏结构段 `:499-530`、`parseArgs` `:738-756`）
 - Test: `test/prototype-preview.test.mjs`
 
 **Interfaces:**
@@ -71,6 +73,16 @@ authority_refs:
     await run(['screen', file, '--name', '详情', '--anno-right'])
     const html = await readFile(file, 'utf8')
     assert.match(html, /<section class="device-wrap is-anno-right">/)
+  })
+
+  test('屏注解区仍是画布内的元素，用户能在它上面写批注', () => {
+    // PRD〈特殊场景〉：允许，按现行方式记录。拾取模式的作用域是 [data-anno-canvas]，
+    // 而 .screen-notes 住在 .device-wrap 里、也就在画布内 —— 这条验的是它没被排除掉。
+    const html = readFileSync(templatePath, 'utf8')
+    const js = html.slice(html.indexOf('ANNO-FRAMEWORK:JS:BEGIN'), html.indexOf('ANNO-FRAMEWORK:JS:END'))
+    assert.doesNotMatch(js, /screen-notes[^\n]*(return|continue)/, '拾取模式 MUST NOT 排除注解区')
+    // 且 screenOf() 仍能认出它属于哪一屏（靠 .device-wrap 内的 .device-name）
+    assert.match(js, /closest\(["']\.device-wrap["']\)/)
   })
 
   test('check 对没写注解的屏报 P2 提示且不拦交付', async () => {
@@ -126,7 +138,7 @@ authority_refs:
     .screen-notes__acts:empty { display: none; }
   ```
 
-  > `.device-wrap` 原本只有 `width: 420px; max-width: 100%;`（`:563`）——**MUST 保留那两行**，本段只追加 `display/flex-direction/gap`。挂右侧时 `.device-wrap` 要放得下屏 + 注解区，宽度改由 `.is-anno-right` 单独放开：追加 `.device-wrap.is-anno-right { width: auto; max-width: 100%; }`。屏与注解区并排放不下时 `flex-wrap: wrap` 自动换行到屏下方（AC-003）。
+  > `.device-wrap` 原本只有 `width: 420px; max-width: 100%;`（`:562`）——**MUST 保留那两行**，本段只追加 `display/flex-direction/gap`。挂右侧时 `.device-wrap` 要放得下屏 + 注解区，宽度改由 `.is-anno-right` 单独放开：追加 `.device-wrap.is-anno-right { width: auto; max-width: 100%; }`。屏与注解区并排放不下时 `flex-wrap: wrap` 自动换行到屏下方（AC-003）。
 
   3b. `preview.mjs` 的 `screenSkeleton(name, states, desktop)` 增第四参 `annoRight`，返回值末尾在 `</div>`（`.device` 收尾）之后、`</section>` 之前插入注解区，并把 `device-wrap` 的 class 拼上：
 
@@ -191,13 +203,13 @@ ${layers}
 **满足:** FR-003, FR-004, FR-005, FR-020, FR-019（其中"注解区按钮没有对应行为"这一类）
 
 **Files:**
-- Modify: `ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html`（删 `:849-866`；改 `:876-932` 并包进 `SCREEN-SCRIPT` 标记；`CUSTOM-CSS:END` 之后加 `CUSTOM-JS` 区）
+- Modify: `ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html`（删 `:849-866`；改 `:877-932` 并包进 `SCREEN-SCRIPT` 标记；`CUSTOM-CSS:END` 之后加 `CUSTOM-JS` 区）
 - Modify: `ai-dev-system/skills/ai-prd/scripts/preview.mjs`（`SLOTS` 增 `script`；`FIXED_REGIONS` 增 `SCREEN-SCRIPT`；`cmdCheck` 增按钮行为检查）
 - Test: `test/prototype-preview.test.mjs`、`test/prototype-annotations.test.mjs`
 
 **Interfaces:**
 - Consumes: Task 1 的 `.screen-notes__acts [data-act]`
-- Produces: `window.protoSetState(actName, nextState)`；插槽名 `script` → 标记 `CUSTOM-JS`；固定区标记 `SCREEN-SCRIPT`
+- Produces: `window.setScreenState(screenEl, nextState)`（纯状态表达函数，**不认识按钮**）；插槽名 `script` → 标记 `CUSTOM-JS`；固定区标记 `SCREEN-SCRIPT`
 
 - [ ] **Step 1: 写失败测试**
 
@@ -208,9 +220,12 @@ ${layers}
     assert.doesNotMatch(html, /class="state-buttons"/)
   })
 
-  test('容器导出按屏切换入口，且只作用于该屏', async () => {
-    const html = await readFile(TEMPLATE, 'utf8')
-    assert.match(html, /window\.protoSetState\s*=/)
+  test('容器只导出状态表达函数，不导出任何认识按钮的函数', () => {
+    const html = readFileSync(templatePath, 'utf8')
+    assert.match(html, /window\.setScreenState\s*=/)
+    // PRD 非目标 3：容器不定义任何点击语义。含按钮语义的导出一律不许有
+    assert.doesNotMatch(html, /protoSetState/)
+    assert.doesNotMatch(html, /window\.\w+\s*=\s*function\s*\([^)]*actName/)
     // 主行动按钮演示 MUST 收敛到 closest('.screen')
     const seg = html.slice(html.indexOf('data-submit'))
     assert.match(seg.slice(0, 400), /closest\(["']\.screen["']\)/)
@@ -229,7 +244,9 @@ ${layers}
     const file = join(dir, 'p.html')
     await run(['init', file, '--title', 'T'])
     await run(['screen', file, '--name', 'S'])
-    await run(['slot', file, '--set', 'script', '--text', 'window.protoSetState("s1-empty","state-empty");'])
+    const behavior = 'document.querySelector(\'[data-act="s1-empty"]\').addEventListener("click", function (e) {' +
+      ' window.setScreenState(e.currentTarget.closest(".device-wrap").querySelector(".screen"), "state-empty"); });'
+    await run(['slot', file, '--set', 'script', '--text', behavior])
     const html = await readFile(file, 'utf8')
     const from = html.indexOf('CUSTOM-JS:BEGIN')
     const to = html.indexOf('CUSTOM-JS:END')
@@ -258,13 +275,13 @@ ${layers}
 - [ ] **Step 2: 跑测试确认失败** — Run: `node --test test/prototype-preview.test.mjs` Expected: FAIL
 - [ ] **Step 3: 写最小实现**
 
-  3a. **删** `ui-prototype.html:849-866` 整个 `<section class="card card-compact" aria-label="原型状态切换">` 块（`aside-stack` 的其余部分留到 Task 3 处理）。
+  3a. **删** `ui-prototype.html:851-865` 整个 `<section class="card card-compact" aria-label="原型状态切换">` 块（`aside-stack` 的其余部分留到 Task 3 处理）。
 
-  3b. 把 `:876-932` 那段裸 `<script>` 用标记包起来，并改写其中两处：
+  3b. 把 `:877-932` 那段裸 `<script>` 用标记包起来，并改写其中两处：
 
   ```html
   <!-- SCREEN-SCRIPT:BEGIN 原型级交互 · 固定实现 · 整段原样保留，MUST NOT 修改或删除
-       注解区按钮的行为写进下方 CUSTOM-JS 插槽，用这里导出的 window.protoSetState。 -->
+       注解区按钮的行为写进下方 CUSTOM-JS 插槽；改状态用这里导出的 window.setScreenState。 -->
   <script>
     // 状态切换按屏工作：每屏各切各的，画布上没有切全部屏的入口。
     function setScreenState(screenEl, nextState) {
@@ -274,20 +291,11 @@ ${layers}
       if (nextState) screenEl.classList.add(nextState);
     }
 
-    // 供 CUSTOM-JS 区调用：按注解区按钮的 data-act 找到它所在那一屏并切状态。
-    // 用它而不是自己改 DOM——容器写回文件时只还原得掉三种状态表达，
-    // 别的写法会把当时的状态烘进文件，此后每次打开都停在错误状态且零报错。
-    window.protoSetState = function (actName, nextState) {
-      var btn = document.querySelector('.screen-notes__acts [data-act="' + actName + '"]');
-      if (!btn) return;
-      var wrap = btn.closest(".device-wrap");
-      var screenEl = wrap && wrap.querySelector(".screen");
-      if (!screenEl) return;
-      setScreenState(screenEl, nextState);
-      Array.prototype.forEach.call(wrap.querySelectorAll('.screen-notes__acts [data-act]'), function (b) {
-        b.setAttribute("aria-pressed", String(b === btn));
-      });
-    };
+    // 供 CUSTOM-JS 区调用的**状态表达函数**。它不认识按钮：绑哪个按钮、点了切到哪个
+    // 状态、要不要设按下态，全部由产出方自己写（PRD 非目标 3：容器不定义任何点击语义）。
+    // 导出它是因为容器写回文件时只还原得掉三种状态表达，产出方自己写 style/display
+    // 那一类，写回时还原不掉、状态会被烘进文件，此后每次打开都停在错误状态且零报错。
+    window.setScreenState = setScreenState;
 
     // 主行动按钮：演示"提交 → 处理中 → 成功"，只作用于它所在那一屏
     document.querySelectorAll("[data-submit]").forEach(function (submit) {
@@ -305,7 +313,7 @@ ${layers}
   <!-- SCREEN-SCRIPT:END -->
   ```
 
-  > **`[data-state]` 的 `aria-pressed` 还原逻辑（`serialize()` `:1068-1070`）MUST 保留**：注解区按钮用的是 `data-act` 不是 `data-state`，但产出方仍可能用 `data-state`，那条还原是三种表达之一。
+  > **`[data-state]` 的 `aria-pressed` 还原逻辑（`serialize()` `:1066-1068`）MUST 保留**：注解区按钮用的是 `data-act` 不是 `data-state`，但产出方仍可能用 `data-state`，那条还原是三种表达之一。
 
   3c. 在 `CUSTOM-CSS:END` 之后、`ANNO-FRAMEWORK:CSS:BEGIN` 之前**不能放脚本**（那里还在 `<head>`）。`CUSTOM-JS` 区 MUST 放在 `SCREEN-SCRIPT:END` **之后**——产出方才覆盖得掉容器的默认行为：
 
@@ -321,13 +329,26 @@ ${layers}
 
   ```js
     script: {
-      probe: '<script id="proto-script"></script>',
       mark: 'CUSTOM-JS',
       shell: ['<script id="proto-script">', '</scr' + 'ipt>'],
+      // 写入前把结束标签转义：脚本正文或注释里出现完整的 `</script` 会让 HTML 解析在那里
+      // 提前闭合，浏览器执行一段残缺脚本，而 check 只会对被截断的片段报语法错——
+      // 那时报错指向的位置与真正的原因隔着十万八千里。批注块的 persist() 早就在做同一件事。
+      esc: (v) => v.replace(/<\/script/gi, '<\\/script'),
       wrap: (v) => `\n  <script id="proto-script">\n${v}\n  </scr` + `ipt>\n  `,
     },
   ```
 
+  `cmdSlot` 在算 `body` 那一步应用它（**MUST 在 `stripShell` 之后、写入之前**）：
+
+  ```js
+    const body = key === 'title' ? esc(value.trim()) : value.replace(/\s+$/, '')
+    const payload = slot.esc ? slot.esc(body) : body      // ← 新增这一行，其余不动
+  ```
+
+  随后所有用到 `body` 的分支改用 `payload`。
+
+  > **`probe` 字段不要给它**：`cmdSlot` 只要看到 `slot.mark` 就走 `markRange` 分支（`preview.mjs:264-266`），`probe` 仅在既无 `apply` 又无 `mark` 时才作为回退匹配用（`:268-270`）。给一个永远不会被读的字段是死字段，下一个人会以为它参与校验。
   > 字面量里 MUST NOT 出现完整的脚本结束标签——`preview.mjs` 自身不是 HTML，但 `CLOSE_SCRIPT` 那条既有约定（`:113`）说明这里刻意拆开写；沿用同一写法保持一致。
 
   3e. `FIXED_REGIONS`（`:445`）增 `'SCREEN-SCRIPT'`：
@@ -342,7 +363,11 @@ ${layers}
 
   ```js
     // 注解区里的按钮点了没反应属于静默失败：交付时看不出症状，只有用户点了才发现。
+    // 匹配前 MUST 剥掉注释——把按钮名写在注释里（"// TODO: 给 s1-empty 加行为"）
+    // 却没真绑，是最容易骗过这条检查的写法，而它恰好是这条检查要抓的那种人。
     const scriptRegion = sliceRegion(html, 'CUSTOM-JS')
+      .replace(/\/\*[\s\S]*?\*\//g, ' ')
+      .replace(/(^|[^:])\/\/[^\n]*/g, '$1 ')
     const actNames = [...screens.matchAll(/<button[^>]*data-act="([^"]+)"/g)].map((m) => m[1])
     actNames.forEach((name) => {
       if (!scriptRegion.includes(name)) {
@@ -374,7 +399,7 @@ ${layers}
 **满足:** FR-007, FR-008, FR-009
 
 **Files:**
-- Modify: `ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html`（`.stage` `:548-556`、`.aside-stack` `:598`、`@media` `:618-621`、`aside` 整段 `:847-874`、`ANNO-FRAMEWORK:CSS` 追加、`bar.innerHTML` `:1189-1199`、`paint()` `:1214-1260`、工具栏点击分发 `:1283-1298`）
+- Modify: `ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html`（`.stage` `:548-556`、`.aside-stack` `:598`、`@media` `:619-622`、`aside` 整段 `:850-874`、`ANNO-FRAMEWORK:CSS` 追加、`bar.innerHTML` `:1187-1196`、`paint()` `:1212-1258`、工具栏点击分发 `:1283-1298`）
 - Test: `test/prototype-preview.test.mjs`
 
 **Interfaces:**
@@ -389,6 +414,14 @@ ${layers}
     assert.doesNotMatch(html, /grid-template-columns:\s*minmax\(0, 1fr\) 340px/)
     assert.match(html, /<!-- NOTES:BEGIN/)
     assert.match(html, /id="proto-notes"/)
+  })
+
+  test('说明入口与展开的面板都不随页面滚动', () => {
+    const html = readFileSync(templatePath, 'utf8')
+    // 工具栏本身已是 sticky top:0；面板 MUST 也固定，不能跟着内容滚走（用户批注 g2）
+    const css = html.slice(html.indexOf('ANNO-FRAMEWORK:CSS:BEGIN'), html.indexOf('ANNO-FRAMEWORK:CSS:END'))
+    const panel = css.slice(css.indexOf('.anno-notes-panel'))
+    assert.match(panel.slice(0, 400), /position:\s*(sticky|fixed)/)
   })
 
   test('设计说明入口在工具栏右段第一枚、写回按钮左侧，文字只有四个字', async () => {
@@ -442,7 +475,7 @@ ${layers}
   </div>
   ```
 
-  > `.notes-body` 与 `#proto-notes` 的 class/id **MUST 原样保留**——`SLOTS.notes.probe` 与 `check` 第 4 条都逐字认它们（`preview.mjs:61-66`、`:481-482`）。
+  > `.notes-body` 与 `#proto-notes` 的 class/id **MUST 原样保留**——`SLOTS.notes.probe` 与 `check` 第 4 条都逐字认它们（`preview.mjs:58-63`、`:478-479`）。
 
   3c. `ANNO-FRAMEWORK:CSS` 区追加：
 
@@ -531,101 +564,154 @@ ${layers}
 **满足:** FR-010, FR-011
 
 **Files:**
-- Modify: `ai-dev-system/skills/ai-prd/scripts/preview.mjs`（`cmdServe` `:634-720`）
-- Modify: `ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html`（`write()` `:1094-1107`、`autosave()` `:1109-1123`、新增卸载期写回）
+- Modify: `ai-dev-system/skills/ai-prd/scripts/preview.mjs`（`cmdServe` `:635-722`）
+- Modify: `ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html`（`write()` `:1092-1105`、`autosave()` `:1107-1121`、新增卸载期写回）
 - Test: `test/prototype-preview.test.mjs`
 
 **Interfaces:**
-- Produces: `GET /` 响应头 `X-Proto-Version`；`POST /save` 请求头 `If-Match`；409 响应体 `{ok:false,error:"stale",html:"<最新全文>"}`
+- Produces: `GET`/`HEAD /` 响应头 `X-Proto-Version`；`POST /save` 的 `If-Match` 头**或**等价的 `?v=` 查询参数；409 响应体 `{ok:false,error:"stale",html:"<最新全文>"}`
 
-- [ ] **Step 1: 写失败测试**
+- [ ] **Step 1: 写失败测试** — **MUST 用本文件现有的 helper**：`mkdtempSync` / `path.join` / 同步 `run(...args)`（返回 `{code, out}`）/ `startServer(file)`（返回 `{child, base, port}`）/ `stopServer(child)`。**MUST NOT 自造 `spawnServe`、异步 `run`、`mkdtemp` 这类不存在的 helper**。
 
   ```js
   test('页面的旧版本写不掉磁盘上的新版本', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'proto-serve-'))
-    const file = join(dir, 'p.html')
-    await run(['init', file, '--title', 'T'])
-    await run(['screen', file, '--name', 'S'])
-    const srv = spawnServe(file)                       // 既有测试里已有的起服务助手
-    const base = await srv.url()
-    const got = await fetch(base)
-    const ver = got.headers.get('x-proto-version')
-    assert.ok(ver, 'GET MUST 下发 X-Proto-Version')
-    const stale = await got.text()
+    const dir = mkdtempSync(path.join(tmpdir(), 'proto-ver-'))
+    const file = path.join(dir, 'p.html')
+    assert.equal(run('init', file, '--title', 'T').code, 0)
+    assert.equal(run('screen', file, '--name', 'S').code, 0)
+    const { child, base } = await startServer(file)
+    try {
+      const got = await fetch(base)
+      const ver = got.headers.get('x-proto-version')
+      assert.ok(ver, 'GET MUST 下发 X-Proto-Version')
+      const stale = await got.text()
 
-    // 产出方在这期间改了稿
-    await run(['slot', file, '--set', 'subtitle', '--text', '改过一轮'])
+      // 产出方在这期间改了稿
+      assert.equal(run('slot', file, '--set', 'subtitle', '--text', '改过一轮').code, 0)
 
-    // 页面拿旧版本写回 → MUST 被拒
-    const res = await fetch(base + 'save', {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/html; charset=utf-8', 'If-Match': ver },
-      body: stale,
-    })
-    assert.equal(res.status, 409)
-    const body = await res.json()
-    assert.equal(body.error, 'stale')
-    assert.match(body.html, /改过一轮/)               // 回的是磁盘最新全文
-    assert.match(await readFile(file, 'utf8'), /改过一轮/)  // 磁盘没被覆盖
-    await srv.stop()
+      // 页面拿旧版本写回 → MUST 被拒，且回最新全文
+      const res = await fetch(base + 'save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/html; charset=utf-8', 'If-Match': ver },
+        body: stale,
+      })
+      assert.equal(res.status, 409)
+      const body = await res.json()
+      assert.equal(body.error, 'stale')
+      assert.match(body.html, /改过一轮/)
+      assert.match(readFileSync(file, 'utf8'), /改过一轮/)   // 磁盘没被覆盖
+    } finally {
+      await stopServer(child)
+    }
   })
 
-  test('缺 If-Match 一律按冲突处理，不当强制覆盖', async () => {
-    // …同上，POST 不带 If-Match → 409
+  test('缺 If-Match 且缺 ?v= 时按冲突处理，不当强制覆盖', async () => {
+    // …POST 既不带 If-Match 也不带 ?v= → 409，文件不变
   })
 
-  test('版本一致时正常写回并回新版本号', async () => {
-    // …GET 取 ver → POST 带 If-Match: ver → 200 且 body.version !== ver
+  test('sendBeacon 那条路：?v= 与 If-Match 等价', async () => {
+    // …GET 取 ver → POST 到 `save?v=${ver}`、不带 If-Match → 200 且文件已更新
+  })
+
+  test('版本串是内容哈希：同毫秒内同大小的两次写入版本仍变', async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'proto-hash-'))
+    const file = path.join(dir, 'p.html')
+    writeFileSync(file, 'A'.repeat(64), 'utf8')
+    const { child, base } = await startServer(file)
+    try {
+      const v1 = (await fetch(base)).headers.get('x-proto-version')
+      writeFileSync(file, 'B'.repeat(64), 'utf8')     // 同大小、可能同毫秒
+      const v2 = (await fetch(base)).headers.get('x-proto-version')
+      assert.notEqual(v1, v2, '内容变了版本就 MUST 变——mtime+size 在这里会给出同一个值')
+    } finally {
+      await stopServer(child)
+    }
+  })
+
+  test('并发两个写回时后到的那个基于前一个的结果判定', async () => {
+    // …同时发两个带同一 If-Match 的 POST：MUST 一个 200 一个 409，
+    // MUST NOT 两个都 200（那说明比对与写入之间有 TOCTOU 窗口）
   })
   ```
 
-- [ ] **Step 2: 跑测试确认失败** — Run: `node --test test/prototype-preview.test.mjs` Expected: FAIL（无 409 分支）
+- [ ] **Step 2: 跑测试确认失败** — Run: `node --test test/prototype-preview.test.mjs` Expected: FAIL（无版本头、无 409 分支）
 - [ ] **Step 3: 写最小实现**
 
-  3a. `cmdServe` 顶部加版本计算（零依赖，`stat` 已在用）：
+  3a. `preview.mjs` 顶部 `import { createHash } from 'node:crypto'`，`cmdServe` 内加：
 
   ```js
-  // 版本串只需满足两条：内容变则必变、同一内容重复读则不变。
+  // 版本串 MUST 是内容哈希。曾打算用 mtimeMs + size，但同一毫秒内两次写入且字节数
+  // 相同时它不变 —— 旧页面就能覆盖新稿，而这正是本次要堵的那个失败本身。
   async function versionOf(file) {
-    const s = await stat(file)
-    return `${Math.round(s.mtimeMs)}-${s.size}`
+    const buf = await readFile(file)
+    return createHash('sha256').update(buf).digest('hex').slice(0, 16)
   }
   ```
 
-  3b. `GET /` 分支下发版本头：
+  3b. `GET` / `HEAD /` 下发版本头（**HEAD 与 GET 走同一分支**，HEAD 不发 body）：
 
   ```js
-        const html = await readFile(file, 'utf8')
-        res.writeHead(200, {
-          'content-type': 'text/html; charset=utf-8',
-          'cache-control': 'no-store',
-          'x-proto-version': await versionOf(file),
-        }).end(html)
+      if ((req.method === 'GET' || req.method === 'HEAD') && (url === '/' || url === '/index.html')) {
+        try {
+          const html = await readFile(file, 'utf8')
+          const head = {
+            'content-type': 'text/html; charset=utf-8',
+            'cache-control': 'no-store',
+            'x-proto-version': await versionOf(file),
+          }
+          if (req.method === 'HEAD') { res.writeHead(200, head).end(); return }
+          res.writeHead(200, head).end(html)
+        } catch (e) {
+          res.writeHead(500).end(String(e && e.message))
+        }
+        return
+      }
   ```
 
-  3c. `POST /save` 分支在既有的 payload 校验**之后**、`writeAtomic` **之前**插入版本校验：
+  > 已核实这不削弱既有防护：Host 校验在路由分支**之前**执行（`preview.mjs:641-645`），跨站写校验只对 POST 执行（`:646-657`），HEAD 不写文件。
+
+  3c. **写入串行化 + 版本校验**。`cmdServe` 内加一条 Promise 队列，把"读当前版本 → 比对 → 写入"整段串成临界区：
 
   ```js
-          const want = req.headers['if-match']
-          const now = await versionOf(file)
-          // 缺 If-Match 一律按冲突处理：把"没带版本"当强制覆盖，等于给静默覆盖留后门。
-          if (!want || want !== now) {
-            const latest = await readFile(file, 'utf8')
+  // 比对与写入之间存在 TOCTOU 窗口：另一个写者挤进来，它的改动会被这次写入吞掉，
+  // 版本校验就形同虚设。用一条 Promise 链把每次 /save 串起来。
+  let writeChain = Promise.resolve()
+  function serialize(fn) {
+    const next = writeChain.then(fn, fn)
+    writeChain = next.catch(() => {})
+    return next
+  }
+  ```
+
+  `POST /save` 分支在既有的 payload 校验**之后**改成：
+
+  ```js
+          // 卸载期（beforeunload）发不出自定义请求头，所以 ?v= 与 If-Match 同义。
+          // 两者都不给一律按冲突处理 —— 把"没带版本"当强制覆盖等于给静默覆盖留后门。
+          const q = (req.url || '').split('?')[1] || ''
+          const want = req.headers['if-match'] || new URLSearchParams(q).get('v') || ''
+          const outcome = await serialize(async () => {
+            const now = await versionOf(file)
+            if (!want || want !== now) return { stale: true, now, latest: await readFile(file, 'utf8') }
+            await writeAtomic(file, body)
+            return { stale: false, version: await versionOf(file) }
+          })
+          if (outcome.stale) {
             res.writeHead(409, { 'content-type': 'application/json; charset=utf-8' })
-              .end(JSON.stringify({ ok: false, error: 'stale', html: latest }))
-            process.stdout.write(`  ⚠ 拒绝一次过期写回（页面版本 ${want || '未带'}，磁盘 ${now}）——页面会取回最新稿后重写\n`)
+              .end(JSON.stringify({ ok: false, error: 'stale', html: outcome.latest }))
+            process.stdout.write(`  ⚠ 拒绝一次过期写回（页面版本 ${want || '未带'}，磁盘 ${outcome.now}）——页面会取回最新稿后重写\n`)
             return
           }
-          await writeAtomic(file, body)
           saves += 1
+          process.stdout.write(`  ✓ 第 ${saves} 次写回 ${path.basename(file)}（${body.length} 字节）\n`)
           res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' })
-            .end(JSON.stringify({ ok: true, version: await versionOf(file) }))
+            .end(JSON.stringify({ ok: true, version: outcome.version }))
   ```
 
-  3d. 容器 `write()` 带上版本并处理 409：
+  3d. 容器 `write()` 带版本并处理 409：
 
   ```js
-      var docVersion = null;   // 与 store 同级的模块变量，初值由启动时的 fetch 取
+      var docVersion = null;   // 与 store 同级的模块变量，启动时用 HEAD 取
 
       function write() {
         if (SERVED) {
@@ -647,37 +733,76 @@ ${layers}
             }, function () { return true; });
           }).catch(function () { return false; });
         }
-        …既有 File System Access 分支不变…
+        // …既有 File System Access 分支不变…
       }
+  ```
 
+  3e. `adoptLatest()` —— **这一段是本任务最容易写错的地方**：
+
+  ```js
       // 磁盘上有更新的稿子：以它为基线，把本机还没写回的批注合并上去，再写一次。
-      // MUST NOT 丢弃磁盘那版里已有而本机没有的条目——那是别处写进去的用户意见。
       function adoptLatest(latestHtml) {
         var doc = new DOMParser().parseFromString(latestHtml, "text/html");
         var slot = doc.getElementById("anno-data");
         var disk = (slot && parse(slot.textContent)) || blank();
-        var byId = {};
-        disk.items.forEach(function (it) { byId[it.id] = it; });
-        store.items.forEach(function (it) { byId[it.id] = it; });     // 本机为准
-        disk.items = Object.keys(byId).map(function (k) { return byId[k]; });
-        var gid = {};
-        disk.global.forEach(function (g) { gid[g.id] = g; });
-        store.global.forEach(function (g) { gid[g.id] = g; });
-        disk.global = Object.keys(gid).map(function (k) { return gid[k]; });
-        var rid = {};
-        (disk.replies || []).forEach(function (r) { rid[r.id] = r; });
-        (store.replies || []).forEach(function (r) { rid[r.id] = r; });
-        disk.replies = Object.keys(rid).map(function (k) { return rid[k]; });
-        try { window.localStorage.setItem(KEY, JSON.stringify(disk)); } catch (e) { /* 忽略 */ }
-        // 换稿：整页重载，批注已在 localStorage 里，load() 会按 updatedAt 择新取回
-        window.location.reload();
-        return true;
+
+        // 三类各自按 id 合并，本机为准；MUST NOT 丢弃磁盘那版里已有而本机没有的条目
+        // —— 那是别处（另一个标签页、另一次会话）写进去的用户意见。
+        function mergeById(diskList, mineList) {
+          var by = {};
+          (diskList || []).forEach(function (x) { by[x.id] = x; });
+          (mineList || []).forEach(function (x) { by[x.id] = x; });
+          return Object.keys(by).map(function (k) { return by[k]; });
+        }
+        var merged = {
+          schema: disk.schema || "prd-annotations@1",
+          global: mergeById(disk.global, store.global),
+          items: mergeById(disk.items, store.items),
+          replies: mergeById(disk.replies, store.replies),
+          // ⚠ MUST 用当前时间，MUST NOT 沿用磁盘那版的 updatedAt：
+          // reload 之后 load() 按 updatedAt 择新，沿用磁盘值会让它判定"文件里那份更新"，
+          // 于是刚合并进来的本机批注被整份丢掉 —— 症状是"用户写的意见默默消失、零报错"。
+          updatedAt: new Date().toISOString()
+        };
+        try { window.localStorage.setItem(KEY, JSON.stringify(merged)); } catch (e) { /* 隐私模式 */ }
+
+        // localStorage 不可用时不能只靠 reload —— 那样合并结果没有任何落点。
+        // 先把合并结果直接写回文件（带磁盘那版的版本号，此刻它就是最新的），再重载。
+        store = merged;
+        var head = latestHtml.length;   // 占位：真实版本号由下面这次写回的响应给出
+        return fetch("save", {
+          method: "POST",
+          headers: { "Content-Type": "text/html; charset=utf-8", "If-Match": diskVersionOf(latestHtml) },
+          body: serializeWith(merged, latestHtml)
+        }).then(function () {
+          window.location.reload();
+          return true;
+        }, function () {
+          window.location.reload();
+          return true;
+        });
       }
   ```
 
-  > **为什么整页重载而不是原地打补丁**：磁盘那版可能改了界面结构（正是产出方刚做的事），原地替换 DOM 要处理气泡、锚点、状态层的重挂，成本高且容易漏。重载后 `load()` 的既有"按 `updatedAt` 择新"逻辑（`:993-1002`）会把本机批注取回来——这条路已经被现有代码走通过。
+  > **`diskVersionOf` / `serializeWith` 两个辅助 MUST 一并实现**：前者算磁盘那版全文的哈希（与服务端同一算法：SHA-256 前 16 位；浏览器侧用 `crypto.subtle.digest`，它是异步的，因此 `adoptLatest` 整体走 Promise）；后者把 `merged` 写进 `latestHtml` 的批注块位置并返回完整文档（复用既有 `persist()` 里那段 `<\/` 转义）。
+  > **不要图省事只 `reload()`**：那样合并结果只存在 `localStorage` 里，一旦 `localStorage` 不可用（隐私模式、站点数据被清），用户这一次写的批注就凭空消失。
 
-  3e. 启动时取版本：`render()` 之后加
+  3f. 卸载期写回（FR-011 的"手动刷新"部分）——**MUST 真写，不能只依赖缓存**：
+
+  ```js
+      window.addEventListener("beforeunload", function () {
+        if (!dirty || !SERVED) return;
+        // 卸载期发不出自定义请求头，所以版本走查询参数 —— 服务端认它与 If-Match 同义。
+        try {
+          var blob = new Blob([serialize()], { type: "text/html; charset=utf-8" });
+          navigator.sendBeacon("save?v=" + encodeURIComponent(docVersion || ""), blob);
+        } catch (e) { /* 发不出去也没关系：批注还在 localStorage 里，下次打开取回 */ }
+      });
+  ```
+
+  > **缓存是兜底不是主路径**：beacon 被浏览器丢弃、或撞上版本冲突（服务端返 409、beacon 收不到响应）时，批注仍在 `localStorage`，`load()` 按 `updatedAt` 择新会在下次打开时取回（`ui-prototype.html:991-1000`）。但 MUST NOT 因为有兜底就不发 beacon——那等于让用户每次刷新都丢一次写回机会。
+
+  3g. 启动时取版本：`render()` 之后加
 
   ```js
       if (SERVED) {
@@ -687,26 +812,8 @@ ${layers}
       }
   ```
 
-  > `cmdServe` MUST 让 `HEAD /` 走与 `GET /` 相同的分支（`req.method === 'GET' || req.method === 'HEAD'`），HEAD 时不发 body。
-
-  3f. 卸载期先写回（FR-011 的"手动刷新"部分）：
-
-  ```js
-      window.addEventListener("beforeunload", function () {
-        if (!dirty) return;
-        if (SERVED && navigator.sendBeacon) {
-          // sendBeacon 发不了自定义头，服务端会按缺 If-Match 判冲突并拒绝——
-          // 这正是我们要的：宁可这一次没写进去（批注仍在 localStorage 里，下次打开取回），
-          // 也 MUST NOT 让一份没带版本的旧稿覆盖磁盘。
-          return;
-        }
-      });
-  ```
-
-  > **本步的实现取舍 MUST 照此**：`beforeunload` 里发不出带头的请求，而"不带头就放行"会重新打开静默覆盖的口子。因此卸载期**不写回**，改为依赖既有的 `localStorage` 缓存 + `load()` 择新——用户下次打开这份原型（无论刷新还是重开）批注都在。spec §3.4 把这条列为 Implementation-defined，此处定为这一种。
-
 - [ ] **Step 4: 跑测试确认通过** — Run: `node --test test/prototype-preview.test.mjs` Expected: PASS
-- [ ] **Step 5: commit** — `git commit -m "fix(ai-prd): 预览服务写回加版本校验 —— 页面旧版本不再覆盖磁盘新稿"`
+- [ ] **Step 5: commit** — `git commit -m "fix(ai-prd): 预览服务写回加内容哈希版本校验与串行写入"`
 
 ---
 
@@ -724,7 +831,7 @@ ${layers}
 **满足:** FR-012
 
 **Files:**
-- Modify: `ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html`（`blank()` `:975-977`、`parse()` `:979-993`、`render()` `:1327-1349`、点击分发 `:1381-1393`、新增 `openNote()`、`ANNO-FRAMEWORK:CSS` 追加）
+- Modify: `ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html`（`blank()` `:974-976`、`parse()` `:978-991`、`render()` `:1325-1347`、点击分发 `:1379-1391`、新增 `openNote()`、`ANNO-FRAMEWORK:CSS` 追加）
 - Test: `test/prototype-annotations.test.mjs`
 
 **Interfaces:**
@@ -775,8 +882,8 @@ ${layers}
           if (!text) return;
           var kind = el.getAttribute("data-anno-kind") === "question" ? "ask" : "note";
           var pin = mkPin(kind, "", text);
-          pin.setAttribute("data-anno-text", text);
-          // 已有 id 一律沿用；没有的等到用户真要回复时再补（见 openNote）
+          pin.setAttribute("data-anno-text", text);   // openNote 靠它精确认出是哪一条
+          // 已有 id 一律沿用；没有的等到用户真要提交回复时再补（见 openNote）
           var nid = el.getAttribute("data-anno-id");
           if (nid) pin.setAttribute("data-anno-note-id", nid);
           attach(el, pin);
@@ -805,17 +912,18 @@ ${layers}
       function openNote(el, pin) {
         var noteText = el.getAttribute("data-anno") || "";
         var isQuestion = el.getAttribute("data-anno-kind") === "question";
+        // ⚠ 这里 MUST NOT 补写 data-anno-id：只是打开看一眼就在文件里留下一个稳定 ID，
+        // 与「用户第一次回复这条说明时才补」的约定不符，也会让只读浏览产生 diff。
+        // 补写延后到真的提交一条回复的那一刻（见下方 data-role="reply" 的 onclick）。
         var nid = el.getAttribute("data-anno-id");
-        if (!nid) {
-          nid = nextAnnoId();
-          el.setAttribute("data-anno-id", nid);
-          pin.setAttribute("data-anno-note-id", nid);
-        }
-        var mine = store.replies.filter(function (r) { return r.noteId === nid; });
+        var mine = nid ? store.replies.filter(function (r) { return r.noteId === nid; }) : [];
         var rows = mine.map(function (r) {
-          return "<li><p>" + esc(r.text) +
-            '</p><button type="button" class="btn btn-ghost btn-icon btn-sm" data-rdel="' + esc(r.id) +
-            '" aria-label="删除">' + ico("i-x") + "</button></li>";
+          return '<li><p data-rtext="' + esc(r.id) + '">' + esc(r.text) +
+            '</p><span class="row">' +
+            '<button type="button" class="btn btn-ghost btn-icon btn-sm" data-redit="' + esc(r.id) +
+            '" aria-label="修改">' + ico("i-message") + "</button>" +
+            '<button type="button" class="btn btn-ghost btn-icon btn-sm" data-rdel="' + esc(r.id) +
+            '" aria-label="删除">' + ico("i-x") + "</button></span></li>";
         }).join("");
         pop.innerHTML =
           '<div class="anno-pop__head">' + esc(screenOf(el) || "本页") + " · " +
@@ -826,10 +934,24 @@ ${layers}
           '<div class="anno-pop__row"><button type="button" class="btn btn-outline btn-sm" data-role="close">关闭</button>' +
           '<button type="button" class="btn btn-sm" data-role="reply">' + ico("i-message") + "回复</button></div>";
         var ta = pop.querySelector('[data-role="text"]');
+        var editing = null;                       // 正在改的那条回复的 id
         pop.querySelector('[data-role="reply"]').onclick = function () {
           var v = ta.value.trim();
           pop.hidden = true;
           if (!v) return;
+          if (editing) {                          // 改一条已有的回复
+            store.replies.forEach(function (r) {
+              if (r.id === editing) { r.text = v; r.at = new Date().toISOString(); }
+            });
+            persist();
+            return;
+          }
+          // 到这一刻才补写稳定锚点：用户确实要回复这条说明了
+          if (!nid) {
+            nid = nextAnnoId();
+            el.setAttribute("data-anno-id", nid);
+            pin.setAttribute("data-anno-note-id", nid);
+          }
           store.replies.push({
             id: nextId(store.replies, "r"),
             noteId: nid,
@@ -851,12 +973,24 @@ ${layers}
             persist();
           };
         });
+        // 改：把原文回填进输入框，再点「回复」即写回同一条（PRD §五「随时改、随时删」）
+        Array.prototype.forEach.call(pop.querySelectorAll("[data-redit]"), function (b) {
+          b.onclick = function () {
+            var rid = b.getAttribute("data-redit");
+            var cur = store.replies.filter(function (r) { return r.id === rid; })[0];
+            if (!cur) return;
+            editing = rid;
+            ta.value = cur.text;
+            pop.querySelector('[data-role="reply"]').innerHTML = ico("i-check") + "保存修改";
+            ta.focus();
+          };
+        });
         place(pop, pin);
         ta.focus();
       }
   ```
 
-  3d. 点击分发：note/ask 气泡由"只显示 tip"改为打开说明面板。原 `:1381-1387`：
+  3d. 点击分发：note/ask 气泡由"只显示 tip"改为打开说明面板。原 `:1379-1385`：
 
   ```js
         var pin = e.target.closest(".anno-pin");
@@ -864,9 +998,18 @@ ${layers}
           var ref = pin.getAttribute("data-anno-ref");
           if (ref) { e.preventDefault(); e.stopPropagation(); openEditor(ref, pin); return; }
           // AI 说明气泡：点开可读全文并追加回复（待拍板的那种尤其如此——它本来就在等答复）
+          // hostOf() 会把 void 元素的气泡挂到父元素上，所以 data-anno 可能在 host 自己
+          // 身上、也可能在它的某个子元素上；同一个 host 还可能挂着好几条说明。
+          // 因此 MUST 按 data-anno-text 逐字比对精确取那一条，取不到就不开——
+          // 只取 querySelector 的第一条会让用户回复到另一条说明上，而且毫无提示。
           var host = pin.closest("[data-anno-host]");
-          var noteEl = host && host.querySelector("[data-anno]") ;
-          if (!noteEl && host && host.hasAttribute("data-anno")) noteEl = host;
+          var want = pin.getAttribute("data-anno-text") || "";
+          var noteEl = null;
+          if (host) {
+            var cands = Array.prototype.slice.call(host.querySelectorAll("[data-anno]"));
+            if (host.hasAttribute("data-anno")) cands.unshift(host);
+            noteEl = cands.filter(function (n) { return n.getAttribute("data-anno") === want; })[0] || null;
+          }
           if (noteEl) { e.preventDefault(); e.stopPropagation(); openNote(noteEl, pin); return; }
           tip.textContent = pin.getAttribute("data-anno-text") || "";
           place(tip, pin);
@@ -903,7 +1046,7 @@ ${layers}
 **满足:** FR-013
 
 **Files:**
-- Modify: `ai-dev-system/skills/ai-prd/scripts/preview.mjs`（`collectAiNotes` `:328-356`、`cmdAnnotations` `:366-396`）
+- Modify: `ai-dev-system/skills/ai-prd/scripts/preview.mjs`（`collectAiNotes` `:328-356`、`cmdAnnotations` `:365-398`）
 - Test: `test/prototype-annotations.test.mjs`
 
 **Interfaces:**
@@ -990,7 +1133,7 @@ ${layers}
 **满足:** FR-015, FR-016, FR-017, FR-018
 
 **Files:**
-- Modify: `ai-dev-system/skills/ai-prd/scripts/preview.mjs`（`cmdSlot` `:243-310`、`parseArgs` `:745-760`、`HELP` `:723-738`）
+- Modify: `ai-dev-system/skills/ai-prd/scripts/preview.mjs`（`cmdSlot` `:246-309`、`parseArgs` `:738-756`、`HELP` `:725-736`）
 - Test: `test/prototype-preview.test.mjs`
 
 **Interfaces:**
@@ -1023,6 +1166,18 @@ ${layers}
     // 交付自检不再报它指不到元素
     const c = JSON.parse((await run(['check', file, '--json'])).stdout)
     assert.equal(c.problems.filter((p) => /u1/.test(p.msg)).length, 0)
+  })
+
+  test('move 项带回了锚点 → 放行成功并记进放行清单（三个取值都要有可达的成功路径）', () => {
+    // 新片段把 data-anno-user="u1" 写到另一个元素上：锚点仍在，但挪了位置。
+    // 这条 MUST 能走通 —— 只按"锚点丢了"取受影响集会让 move 永远走不到成功路径。
+    const r = run('slot', file, '--set', 'screens', '--text', fragWithAnchorMoved,
+      '--agreed', '--agreed-plan=u1=move')
+    assert.equal(r.code, 0)
+    assert.match(r.out, /放行清单/)
+    assert.match(r.out, /u1.*挪到新元素/)
+    const data = readAnnotations(readFileSync(file, 'utf8'))
+    assert.ok(data.items.some((x) => x.id === 'u1'), 'move 不删条目，只是换了挂载元素')
   })
 
   test('move 项的锚点没写到新片段上时拒绝放行', async () => {
@@ -1097,9 +1252,14 @@ ${layers}
   }
   ```
 
-  3d. `cmdSlot` 的锚点校验段整体改写（替换 `:288-303`）：
+  3d. `cmdSlot` 的锚点校验段整体改写（替换 `:285-300`）：
 
   ```js
+    // 受影响的条目 MUST 取两个来源的并集：
+    //   ① lost —— 新片段里没有该锚点的（已落实 / 作废 / 忘了带过去）
+    //   ② moved —— 锚点还在，但产出方在方案里显式声明为 move 的（挪到了别的元素上）
+    // 只取 ① 会让 move 成为死值：带回锚点就不在 ① 里、触发不了放行；不带回就必然被
+    // move 的锚点校验拒绝 —— 两条路都走不通，三个取值里有一个永远无法成功。
     const plan = await parseAgreedPlan(opts['agreed-plan'])
     if (opts.agreed && !plan) {
       fail('`--agreed` 表示"已与用户逐条约定过"，MUST 同时给出每条的处置方案：\n' +
@@ -1124,20 +1284,25 @@ ${layers}
       )
     }
 
+    // 声明为 move 但锚点仍在新片段里的那些：它们不在 lost 里，但同样要走放行与留痕
+    const declaredMove = plan ? Object.keys(plan).filter((id) => plan[id] === 'move') : []
+    const affected = [...new Set([...lost, ...declaredMove])]
+
     let released = []
-    if (lost.length && opts.agreed) {
-      const missing = lost.filter((id) => !plan[id])
+    if (affected.length && opts.agreed) {
+      const missing = affected.filter((id) => !plan[id])
       if (missing.length) {
         fail(`放行方案漏了 ${missing.length} 条，MUST 逐条给出处置：\n` +
           missing.map((id) => `    ${id}  ${detailOf(id)}`).join('\n'), 2)
       }
-      const notMoved = lost.filter((id) => plan[id] === 'move')
-      if (notMoved.length) {
+      // move 的成功条件是「锚点确实出现在新片段里」——即它不在 lost 里
+      const moveNoAnchor = affected.filter((id) => plan[id] === 'move' && lost.includes(id))
+      if (moveNoAnchor.length) {
         fail(`这几条约定为「挪到新元素」，但新片段里找不到它们的锚点：\n` +
-          notMoved.map((id) => `    data-anno-user="${id}"  ${detailOf(id)}`).join('\n') +
+          moveNoAnchor.map((id) => `    data-anno-user="${id}"  ${detailOf(id)}`).join('\n') +
           '\n  MUST 把该属性写到改后的那个元素上，工具确认锚点在位才放行。', 1)
       }
-      released = lost.map((id) => ({ id, act: plan[id], detail: detailOf(id) }))
+      released = affected.map((id) => ({ id, act: plan[id], detail: detailOf(id) }))
       // 已落实 / 作废：由工具清掉，产出方 MUST NOT 自己去编辑批注数据
       const drop = new Set(released.filter((r) => r.act !== 'move').map((r) => r.id))
       if (drop.size) {
@@ -1164,19 +1329,31 @@ ${layers}
   }
   ```
 
-  3f. 等值不变式（`:284-287`）开口子——**只在放行路径上、只对已约定清掉的条目**：
+  3f. 等值不变式（`:281-284`）开口子——**只在放行路径上、只对本次明确允许的两类删除**。
+
+  **顺序 MUST 是"先把两类允许的删除都算进 `expected`，再做一次比对"**，MUST NOT 写成"先比对、再删回复"：那样 3g 的改动整个绕过校验，而 plan 却声称"除 done/void 外差异都判 bug"——声明与实现相反，比没有校验更糟。
 
   ```js
-    const after = readAnnoBlock(next)
-    const expected = released.length
-      ? { ...(before || {}), items: (before.items || []).filter((x) => !new Set(released.filter((r) => r.act !== 'move').map((r) => r.id)).has(x.id)) }
+    // 允许的删除只有两类，都在这里一次算清：
+    //   ① 已约定 done / void 的用户批注（3d 放行路径）
+    //   ② 被删掉的 AI 说明所连带的回复（3g，说明不在了回复无处可依）
+    const dropIds = new Set(released.filter((r) => r.act !== 'move').map((r) => r.id))
+    const dropReplyNotes = new Set(lostNotes)          // lostNotes 见 3g，MUST 在本步之前算出
+    const expected = (before && (dropIds.size || dropReplyNotes.size))
+      ? {
+          ...before,
+          items: (before.items || []).filter((x) => !dropIds.has(x.id)),
+          replies: (before.replies || []).filter((r) => !dropReplyNotes.has(r.noteId)),
+        }
       : before
+    const after = readAnnoBlock(next)
     if (expected && (!after || JSON.stringify({ ...expected, updatedAt: '' }) !== JSON.stringify({ ...after, updatedAt: '' }))) {
-      fail('拒绝写入：本次替换会改动批注块（放行清单之外的改动）。这是 bug，请报告。', 1)
+      fail('拒绝写入：本次替换会改动批注块（放行清单与连带回复之外的改动）。这是 bug，请报告。', 1)
     }
   ```
 
-  > **口子的边界 MUST 就这么窄**：`expected` 只把已约定 `done`/`void` 的条目扣掉，别的任何差异照旧判 bug。`updatedAt` 因放行而变，比对时两边都置空。
+  > **口子的边界 MUST 就这么窄**：`expected` 只扣掉上面那两类，别的任何差异照旧判 bug。`updatedAt` 因写入而变，比对时两边都置空。
+  > **因此 3g 的 `lostNotes` 与回复删除 MUST 在本步之前完成**——下面 3g 的代码块位置随之前移。
 
   3g. AI 说明锚点的丢失提示（提示不拦）+ 回复连带删除：
 
@@ -1202,7 +1379,7 @@ ${layers}
     }
   ```
 
-  > 这段 MUST 放在 3f 的等值校验**之后**——否则等值校验会把它当成"放行清单之外的改动"判成 bug。
+  > 这段 MUST 排在 3f 的等值校验**之前**（它算出的 `lostNotes` 是 3f `expected` 的输入之一）。**MUST NOT 排在 3f 之后**——那样它对批注块的改动完全绕过校验，而 plan 却声称"除两类允许的删除外差异都判 bug"，声明与实现相反。
 
   3h. 写入后打印放行清单：
 
@@ -1215,7 +1392,7 @@ ${layers}
     }
   ```
 
-  3i. `HELP` 同步（`:723-738`）：插槽名加 `script`；`slot` 那两行改为
+  3i. `HELP` 同步（`:725-736`）：插槽名加 `script`；`slot` 那两行改为
 
   ```
     slot   <文件> --set <名> (--from <片段> | --text <文本>)
@@ -1321,7 +1498,7 @@ ${layers}
 **新增四节**（写在 §7 内，编号接着现有的 §7.4）：
 
 - **§7.5 注释的三层归属**——照 spec §0 流程图与 PRD §二 的三层表原样落一张表（说的是什么 / 唯一去处 / 呈现方式），并写明「三层是闭集，MUST NOT 发明第四个位置」「三层都在用户界面之外，把说明写进屏幕内容里仍然一律违规」。
-- **§7.6 屏注解区**——它是什么 / 在哪（默认下方、`--anno-right` 挂右侧）/ 装什么（固定小标题 + 整屏注释 + 切换按钮）/ 屏名不搬进来 / 按钮行为写进 `script` 插槽 / **改状态 MUST 用容器认得的三种表达之一**（给出 `window.protoSetState` 的用法与"用别的方式会被烘进文件且零报错"的理由）/ 屏注解区不进批注出口。
+- **§7.6 屏注解区**——它是什么 / 在哪（默认下方、`--anno-right` 挂右侧）/ 装什么（固定小标题 + 整屏注释 + 切换按钮）/ 屏名不搬进来 / 按钮行为写进 `script` 插槽 / **改状态 MUST 用容器认得的三种表达之一**（给出 `window.setScreenState` 的用法与"用别的方式会被烘进文件且零报错"的理由；**同时写明容器只给状态表达、不给点击语义**，绑定与按下态由产出方自己写）/ 屏注解区不进批注出口。
 - **§7.7 改稿动到带用户批注的元素时**——MUST 先列清单、与用户逐条约定（已落实 / 作废 / 挪到新元素）、约定后带 `--agreed --agreed-plan` 放行；MUST NOT 自行判断某条批注"已经不重要了"；已落实/作废由工具清掉，产出方 MUST NOT 自己编辑批注数据；挪走项 MUST 把锚点写到改后的元素上。**另加一条**：AI 说明与挂在其上的回复**不走**这道约定——说明被删，回复跟着删，出声但不阻断，但改界面时 MUST 把现有的 `data-anno-id` 一并抄进新片段。
 - **§7.8 预览服务开着时改稿**——改完稿 MUST 让用户刷新页面再继续读，MUST NOT 默认"用户看到的就是最新那版"；页面写回撞版本冲突时会自动取回最新稿，用户批注不丢。
 
@@ -1507,6 +1684,28 @@ ${layers}
 
 ---
 
+### Task 15：准出归并（PRD〈收尾动作〉）
+
+**Slice:** 全部门禁通过 → 把本次落地的口径归并回需求真相源 → 变更 PRD 转 merged 并移进归档索引 ｜ **依赖：** Task 1–14 全部完成、代码评审门已过
+
+**满足:** FR-031
+
+**Files:**
+- Modify: `docs/REQUIREMENTS.md`
+- Modify: `docs/spec/2026-08-26-原型注解分层与文档日期前缀-PRD.md`（frontmatter + 归档头注）
+- Modify: `docs/index.md`、`docs/index-archive.md`
+- Modify: `docs/TODO.md`（挂那条待观察项）
+
+- [ ] **Step 1: 取判据** — 读 `references/core/文档治理.md` §6（**归并落点按口径类型分派的映射表**）与 §需求真相源写什么、怎么分层。**MUST NOT 凭印象归并**。
+- [ ] **Step 2: 按映射表分派** — 本次落地的口径逐条对照映射表决定去哪一层：原型注解三层归属、屏注解区、可写位置七处、改稿放行契约、预览写回契约、文档日期前缀。
+  > **「功能清单没变化」MUST NOT 被读成「无需归并」**：本次改的多是**已交付功能的行为规则**（改稿从"一律拦住"变"约定后放行"、命名从无前缀变有前缀），功能清单可能一行不动，但规则变了——漏了它，那些规则会跟着变更 PRD 一起进归档区，**且没有任何机器闸能发现**（`ctx probe` 只验可达性，D 轴要比对的正文压根不存在）。
+- [ ] **Step 3: 挂待观察项** — 往 `docs/TODO.md` 加一条：`2026-08-27 ｜ ai-prd ｜ 下次真跑一遍完整产 PRD 流程时回看：产出的原型里"写进屏幕内容的说明文字"是否为零、每屏该说的话是否都在自己的注解区里`（PRD〈运营度量〉那条，spec §6.1 已说明它不构成本次验收）。
+- [ ] **Step 4: 变更 PRD 结算** — frontmatter 改 `lifecycle: merged`、填 `archived: 2026-08-27`，正文顶部加归档头注（写法见 `references/core/文档归档与账本收敛.md`），并把它从 `docs/index.md` 移进 `docs/index-archive.md`。**本期的 overview / eng-spec / coding-plan 三份同样按各自的 `lifecycle` 判定**（plan 通常转 `merged`）。
+- [ ] **Step 5: 跑闸** — Run: `node --test test/doc-index.test.mjs test/requirements-layering.test.mjs` Expected: PASS
+- [ ] **Step 6: commit** — `git commit -m "docs: 准出归并 —— 口径回真相源，变更 PRD 转 merged"`
+
+---
+
 ### Checkpoint：Task 9–14 之后（准出前）
 
 - [ ] `node --test test/*.test.mjs` 全绿
@@ -1526,6 +1725,8 @@ ${layers}
 | `beforeunload` 发不出带头请求 → 要么丢批注要么开覆盖后门 | M | Task 4 Step 3f 定为**卸载期不写回**，依赖既有 `localStorage` + `load()` 择新；spec 已把它列为 Implementation-defined 并在此定案 |
 | 「三类批注」靠字面搜"三类"找齐 → 漏 6 处 | **H** | Task 13 Step 1 给了按内容枚举的检索式，并写明权威定义处写的是"三样东西" |
 | `doc-index` 改递归后没有实例，改完照样全绿 | **H** | Task 12 Step 1 强制**构造用例**，并要求把被测函数抽成可导入的纯函数 |
+| `adoptLatest()` 沿用磁盘 `updatedAt` → reload 后本机批注被整份丢弃 | **H** | Task 4 Step 3e 明确要求用当前时间，并在 `localStorage` 之外再写回一次文件；AC-012/AC-043 有断言 |
+| 3g 排在 3f 之后 → 对批注块的改动绕过等值校验 | **H** | Task 7 Step 3f 把两类允许的删除一次算进 `expected`，并明写 3g MUST 前移 |
 | 文档改写时把判据一起压掉 | M | Task 9 Step 3 强制跑 `wording-redline`（MUST/MUST NOT 条数只准增不准减）|
 | 顺手改了不该改的判据（非目标 5）| M | 交给评审门忠实轴的「越界」类型逐条核对 + 下方替换清单核销 |
 
@@ -1543,18 +1744,20 @@ ${layers}
 | `.stage` 两列 + `@media` 两行 | Task 3 | 待测 | ⏳ |
 | 说明栏标题「设计说明（不属于用户界面）」 | Task 3 | 待测 | ⏳ |
 | `UI原型纪律.md` 九处失准表述（9.2/9.5/9.6/9.7/9.8/9.9/9.10/9.11/9.12）| Task 9 | 待测 | ⏳ |
-| `ui-prototype.html:936`、`preview.mjs:731` 的「唯一写入方」 | Task 9 / Task 7 | 待测 | ⏳ |
+| `ui-prototype.html:937`、`preview.mjs:734` 的「唯一写入方」 | Task 9 / Task 7 | 待测 | ⏳ |
 | `文档治理.md:245` 逃生口（**改写不删**）| Task 10 | 待测 | ⏳ |
 | `CLAUDE.md` 的「MUST NOT 用 `--drop-anchors` 绕过去」 | Task 13 | 待测 | ⏳ |
 | `docs/report/agentic-principle-gap-report.md` 文件名 | Task 12 | 待测 | ⏳ |
+| `window.protoSetState`（含按钮语义的导出，复核判为越界，方案期即删）| Task 2 | 0（从未落地）| ✅ |
 
 > **核销标准**：删除类 = 实测引用数 0；改写类 = 旧表述全仓检索不到。核销在代码评审门的残留轴逐条核对。
 
 ## 完成与自动合并
 
 - [ ] **代码评审门通过**：按 `references/core/代码评审纪律.md` §四条轴 逐轴（规范/忠实/残留/文档）的子代理报告齐全，P0/P1 已清零
-- [ ] **需求覆盖核销**：FR-001→T1；FR-002→T1；FR-003→T2；FR-004→T2；FR-005→T2；FR-006→T9；FR-007→T3；FR-008→T3；FR-009→T3；FR-010→T4；FR-011→T4；FR-012→T5；FR-013→T6；FR-014→T9；FR-015→T7；FR-016→T7；FR-017→T7；FR-018→T7；FR-019→T1/T2/T8；FR-020→T2；FR-021→T9；FR-022→T10；FR-023→T9；FR-024→T11；FR-025→T10；FR-026→T10；FR-027→T12；FR-028→T12；FR-029→T13；FR-030→T14。**30 条全部有归属，无零引用；每个 Task 的 `满足:` 都指得到真实编号，无镀金。**
+- [ ] **需求覆盖核销**：FR-001→T1；FR-002→T1；FR-003→T2；FR-004→T2；FR-005→T2；FR-006→T9；FR-007→T3；FR-008→T3；FR-009→T3；FR-010→T4；FR-011→T4；FR-012→T5；FR-013→T6；FR-014→T9；FR-015→T7；FR-016→T7；FR-017→T7；FR-018→T7；FR-019→T1/T2/T8；FR-020→T2；FR-021→T9；FR-022→T10；FR-023→T9；FR-024→T11；FR-025→T10；FR-026→T10；FR-027→T12；FR-028→T12；FR-029→T13；FR-030→T14；FR-031→T15。**31 条全部有归属，无零引用；每个 Task 的 `满足:` 都指得到真实编号，无镀金。**
 - [ ] 替换清单逐条核销
+- [ ] **准出归并已做**（Task 15）：口径已按 `文档治理.md` §6 映射表归并进 `docs/REQUIREMENTS.md`，变更 PRD 已转 `merged` + 归档头注 + 移进 `docs/index-archive.md`
 - [ ] 需求范围、文档、代码和测试全部完成
 - [ ] 任务分支已吸收最新 `main` 并重新验证
 - [ ] worktree 状态干净，全部改动已提交
