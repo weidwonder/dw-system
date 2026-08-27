@@ -223,12 +223,12 @@ authority_refs:
 | AC-005 | eng-spec 模板有 §13 过稿记录；lean-change-spec 模板有过稿记录行；两处都写明三选一结论 | FR-006 |
 | AC-006 | 该小节含"改动触碰 §1.1 / §11 / §8.1 时回兼容取舍确认门"的 MUST | FR-007 |
 | AC-007 | `路径-lean.md` 有 §6.3 spec 过稿门，且 §1.3 门全景含该门；Lean 步骤号仍是 1–10，没有新增 | FR-008 |
-| AC-008 | `node --test test/counter-word.test.mjs` 全绿，且受检词表里是 `五道门`；全仓 `grep -rn "四道门" ai-dev-system/` 只在 `ai-prd` 之外零命中 | FR-009, FR-015 |
+| AC-008 | `node --test test/counter-word.test.mjs` 全绿，且受检词表里是 `五道门`；`grep -rn "四道门" ai-dev-system/skills/` 零命中。**范围 MUST 限定在 skill 判据文件**——`ai-dev-system/migrations/` 下的历史指南、`test/` 与 `CLAUDE.md` 里说明新旧两值的病史注释都 MUST NOT 改写，把它们算进来会得到一个不可能满足的验收项 | FR-009, FR-015 |
 | AC-009 | `用户沟通纪律.md` §3 与 §发送前检查 各有一条本门的边界说明，明确它不是 §3 的例外 | FR-010 |
 | AC-010 | `collab/solo.md` 的挂起例外清单含本门；`collab/team.md` 写明拍板人是业务方且只摆业务可判定项；`base.md` 与 `collab-solo.md` 同步 | FR-011 |
 | AC-011 | `SKILL.md` 加载点清单含指向 §spec 过稿门 的一行；`wc -c` ≤ 8000；`node --test test/wording-redline.test.mjs` 全绿 | FR-012 |
 | AC-012 | `node --test test/gate-sync.test.mjs` 存在且全绿；把任一贯穿门从 `路径-lean.md` §1.3 删掉后它判红 | FR-013 |
-| AC-013 | 全仓搜索字符串 `路径-lean.md` 第 5 步 零命中 | FR-014 |
+| AC-013 | `grep -rn "路径-lean.md\` 第 5 步" ai-dev-system/skills/` 零命中。**范围同 AC-008 限定在 skill 判据文件**：本 spec 的 FR-014 与替换清单、coding plan 的步骤、代码事实卡片的陷阱项都要描述这次修正本身，写成"全仓零命中"是一个自相矛盾、永远判不过的验收项 | FR-014 |
 | AC-014 | `ai-dev-system/VERSION` 为 `2.10.0`，且 `ai-dev-system/migrations/2.10.0.md` **不存在** | FR-016 |
 | AC-015 | `docs/TODO.md` 不再含本条待办；`docs/index.md` 收录本 spec；本仓库根 `CLAUDE.md` 的门相关表述已同步 | FR-017 |
 | AC-017 | `test/contract-numbers.mjs` 的 `ENTRY_MAX_BYTES` 为 12000；`CLAUDE.md` 里三处入口上限表述同步为 12,000；`docs/spec/` 与 `docs/plan/` 下的历史 8,000 一字未改 | FR-018 |
