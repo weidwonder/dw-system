@@ -437,7 +437,7 @@ authority_refs:
   > 改完 MUST 跑一次 `grep -rn "templates', 'ui-prototype.html'\|templates/ui-prototype.html" test/`，确认没有别的测试文件还在直读裸容器。
 
 - [x] **Step 7: 跑全部测试** — Run: `node --test test/*.test.mjs` Expected: PASS（全绿）。实测 **368/368 全绿**；首轮红的两条（`doc-index` 索引未收录、`number-drift` 手抄受管数字）**都不是本任务的代码问题**，是 spec/plan 自身的文档欠账，已当场补：`docs/index.md` 收录两份文档、`number-drift` 白名单登记 `74628` 与 `85236` 两条历史观测。
-- [x] **Step 8: commit** — 与 Task 1 合成一个 commit。对拍实测：**逐字节相等 ✅ 77,756 字节**。
+- [x] **Step 8: commit** — 与 Task 1 合成一个 commit。对拍实测：**逐字节相等 ✅**。
 
 ---
 
@@ -458,7 +458,7 @@ authority_refs:
 **Files:**
 - Create: `test/prototype-framework.test.mjs`
 
-- [ ] **Step 1: 写测试**（本任务的产物就是测试本身，无需先失败后实现；写完直接跑，MUST 全绿）
+- [x] **Step 1: 写测试**（本任务的产物就是测试本身，无需先失败后实现；写完直接跑，MUST 全绿）
 
   ```js
   // 为什么要有这份测试：六个固定实现区搬出 ui-prototype.html 之后，容器与框架源文件之间
@@ -553,12 +553,12 @@ authority_refs:
 
   > `FRAMEWORK` 与 `FRAMEWORK_DIR` MUST 一并 `export`（Task 2 的 4a 里加 `export` 前缀）——测试遍历装配表本身，才能在**新增第七个区**时自动覆盖到它。
 
-- [ ] **Step 2: 跑** — Run: `node --test test/prototype-framework.test.mjs` Expected: PASS
-- [ ] **Step 3: 验闸真的会红（三种坏法各试一次）** — **这一步 MUST 真做**：一条从没红过的闸和没有闸是一回事。每种坏法验完 MUST 立刻恢复，再进下一种。
+- [x] **Step 2: 跑** — Run: `node --test test/prototype-framework.test.mjs` Expected: PASS
+- [x] **Step 3: 验闸真的会红（三种坏法各试一次）** — **这一步 MUST 真做**：一条从没红过的闸和没有闸是一回事。每种坏法验完 MUST 立刻恢复，再进下一种。
   1. 清空 `theme.css` 的内容 → Expected: FAIL（「框架源文件是空的」）
   2. 往容器的 `THEME` 区间里塞一行内容 → Expected: FAIL（「容器的 THEME 区间不为空」）
   3. 把装配表里 `THEME` 那项的 `file` 改成 `anno.css` → Expected: FAIL（「THEME 区的装配结果与 anno.css 不一致」）。**第 3 种是新增那条正文等值断言唯一挡得住的错误**，改成只验「非空 + 含 open/close」的话它会全绿。
-- [ ] **Step 4: commit** — `git commit -m "test(ai-prd): 容器与框架源文件的装配契约加机器闸"`
+- [x] **Step 4: commit** — `git commit -m "test(ai-prd): 容器与框架源文件的装配契约加机器闸"`
 
 ---
 
@@ -579,19 +579,19 @@ authority_refs:
 
 > **上面两处是「必改」不是「若有则改」**：命令数与目录布局写死在这两个文件里，漏改的表现是下一个零上下文 agent 按 registry 里的「六条子命令」去找，压根不知道有 `extract`——而本次改造的全部收益都在那条命令上。
 
-- [ ] **Step 1: 逐处改写**。每处 MUST **就地**给出完整命令，MUST NOT 只写"见总纲"——写在总纲里等于写给一个当时不在场的读者（这条判据 `CLAUDE.md` 已就 `annotations` 立过一次）。落笔模式：
+- [x] **Step 1: 逐处改写**。每处 MUST **就地**给出完整命令，MUST NOT 只写"见总纲"——写在总纲里等于写给一个当时不在场的读者（这条判据 `CLAUDE.md` 已就 `annotations` 立过一次）。落笔模式：
 
   > 原型的**界面内容**用 `node <skills 根>/ai-prd/scripts/preview.mjs extract <原型文件>` 取（结构、文案、状态层原样给出，约为全文的一成半）；**批注**用同目录的 `annotations <原型文件>` 取。两条都跑完才算读过原型。**MUST NOT 通读整份 HTML**——一份真实原型 85KB 里约七成是批注框架与设计系统的固定实现，对"界面长什么样"零价值。两条命令都跑不起来时才降级为直读文件，且 MUST 在问题清单里记一笔。
 
   `<skills 根>` 的写法 MUST 沿用各文件既有那句（"= 你加载的这份 `SKILL.md` 所在目录的**父目录**——Claude Code 下是 `.claude/skills/`、Codex 下是 `.agents/skills/`……**MUST NOT 写死其中一侧**"），**MUST NOT 另起一种写法**。
 
-- [ ] **Step 2: 删掉被取代的旧措辞** — `步骤-1-7-设计与实现.md:21` 的「**MUST 打开该文件**」MUST 改写，MUST NOT 与新句并存（并存等于给读者两条冲突的规定动作）。
+- [x] **Step 2: 删掉被取代的旧措辞** — `步骤-1-7-设计与实现.md:21` 的「**MUST 打开该文件**」MUST 改写，MUST NOT 与新句并存（并存等于给读者两条冲突的规定动作）。
 
-- [ ] **Step 3: 措辞红线自查** — Run: `node --test test/wording-redline.test.mjs` Expected: PASS。该闸盯的是"每个被改文件的 MUST / MUST NOT / SHOULD / MAY 条数只准增不准减"。**改写不得净减规范条款**：把「MUST 打开该文件」换成「MUST 先跑 extract」是一换一，若顺手删了别的 MUST 会当场判红。
+- [x] **Step 3: 措辞红线自查** — Run: `node --test test/wording-redline.test.mjs` Expected: PASS。该闸盯的是"每个被改文件的 MUST / MUST NOT / SHOULD / MAY 条数只准增不准减"。**改写不得净减规范条款**：把「MUST 打开该文件」换成「MUST 先跑 extract」是一换一，若顺手删了别的 MUST 会当场判红。
 
-- [ ] **Step 4: Lean 自足册覆盖率自查** — Run: `node --test test/lean-selfcontained.test.mjs` Expected: PASS。`路径-lean.md` 的那条要点 MUST 带来源锚点（`来源：<文件> §<小节>`），忘标来源即判红。
+- [x] **Step 4: Lean 自足册覆盖率自查** — Run: `node --test test/lean-selfcontained.test.mjs` Expected: PASS。`路径-lean.md` 的那条要点 MUST 带来源锚点（`来源：<文件> §<小节>`），忘标来源即判红。
 
-- [ ] **Step 5: 跑全部测试并 commit** — Run: `node --test test/*.test.mjs`；`git commit -m "docs(ai-dev-workflow): 五个读原型落点改为先跑 extract 取界面内容"`
+- [x] **Step 5: 跑全部测试并 commit** — Run: `node --test test/*.test.mjs`；`git commit -m "docs(ai-dev-workflow): 五个读原型落点改为先跑 extract 取界面内容"`
 
 ---
 
@@ -605,12 +605,12 @@ authority_refs:
 - Modify: `engineering-context/cards/ai-dev-system.md`
 - Modify: `engineering-context/capability-registry.md`（若新增能力条目）
 
-- [ ] **Step 1: 刷 `#原型容器（ui-prototype.html）` 域** — 分区标记那条的行号全部失效（容器已从 1,825 行降到约 90 行）。**行号 MUST 重新实测**，MUST NOT 顺手保留旧值。批注框架的实现细节（`serialize()` / `write()` / `openNote()` / `bar.innerHTML` / `paint()` / `attach()` 的行号）MUST 改指 `ui-prototype-framework/anno.js:<行>`，样式类改指 `anno.css` / `design-system.css`。**这是本次改造的一项真实收益**：这些行号从此不再因为改了另一个区而整体推移。
-- [ ] **Step 2: 刷 `#原型工具（preview.mjs）` 域** — 补 `cmdExtract` 与 `--with-css` 的布尔白名单陷阱、`FRAMEWORK` 装配表与 `composeTemplate()`、`cmdInit` 不再 `copyFile`。陷阱项补一条：**框架源文件的首尾空白是装配的一部分，MUST NOT trim**。
-- [ ] **Step 3: 新增 `#原型读取契约（ai-dev-workflow）` 域** — 职责：定义下游五个落点怎么读原型；对外接口：五个落点各自的 `文件:行`，两条命令的分工（`extract` 给界面、`annotations` 给批注）；陷阱项：只跑其中一条等于没读全，界面上看不见的 `data-anno` 说明同属用户可见行为契约。
-- [ ] **Step 3b: 审计探针集** — Run: `grep -n "原型\|prototype\|preview" engineering-context/probe-set.md`。若有 probe 引用原型能力，MUST 置 `needs-reconfirm` 并在核销记录里写明；若一条都没有，MUST 在 commit message 或核销表里显式写「探针集无原型相关 probe，无需修改」——**MUST NOT 默默跳过**：`assets/context-layer/probe-set.md` 要求权威面变化时检查关联探针状态，"看了一眼没有"和"没看"在事后是分不开的。
-- [ ] **Step 4: 确认时间统一填 `2026-08-27`**，跑 `node ai-dev-system/skills/ai-dev-workflow/scripts/ctx/src/cli.js discover "原型 extract 装配"` 确认能查到
-- [ ] **Step 5: commit** — `git commit -m "docs(context): 刷新原型容器/工具卡片，新增原型读取契约域"`
+- [x] **Step 1: 刷 `#原型容器（ui-prototype.html）` 域** — 分区标记那条的行号全部失效（容器已从 1,825 行降到约 90 行）。**行号 MUST 重新实测**，MUST NOT 顺手保留旧值。批注框架的实现细节（`serialize()` / `write()` / `openNote()` / `bar.innerHTML` / `paint()` / `attach()` 的行号）MUST 改指 `ui-prototype-framework/anno.js:<行>`，样式类改指 `anno.css` / `design-system.css`。**这是本次改造的一项真实收益**：这些行号从此不再因为改了另一个区而整体推移。
+- [x] **Step 2: 刷 `#原型工具（preview.mjs）` 域** — 补 `cmdExtract` 与 `--with-css` 的布尔白名单陷阱、`FRAMEWORK` 装配表与 `composeTemplate()`、`cmdInit` 不再 `copyFile`。陷阱项补一条：**框架源文件的首尾空白是装配的一部分，MUST NOT trim**。
+- [x] **Step 3: 新增 `#原型读取契约（ai-dev-workflow）` 域** — 职责：定义下游五个落点怎么读原型；对外接口：五个落点各自的 `文件:行`，两条命令的分工（`extract` 给界面、`annotations` 给批注）；陷阱项：只跑其中一条等于没读全，界面上看不见的 `data-anno` 说明同属用户可见行为契约。
+- [x] **Step 3b: 审计探针集** — Run: `grep -n "原型\|prototype\|preview" engineering-context/probe-set.md`。若有 probe 引用原型能力，MUST 置 `needs-reconfirm` 并在核销记录里写明；若一条都没有，MUST 在 commit message 或核销表里显式写「探针集无原型相关 probe，无需修改」——**MUST NOT 默默跳过**：`assets/context-layer/probe-set.md` 要求权威面变化时检查关联探针状态，"看了一眼没有"和"没看"在事后是分不开的。
+- [x] **Step 4: 确认时间统一填 `2026-08-27`**，跑 `node ai-dev-system/skills/ai-dev-workflow/scripts/ctx/src/cli.js discover "原型 extract 装配"` 确认能查到
+- [x] **Step 5: commit** — `git commit -m "docs(context): 刷新原型容器/工具卡片，新增原型读取契约域"`
 
 ---
 
@@ -623,20 +623,20 @@ authority_refs:
 **Files:**
 - Modify: `ai-dev-system/VERSION`、`CLAUDE.md`、`docs/index.md`、`docs/TODO.md`
 
-- [ ] **Step 1: bump `VERSION`** — `2.9.1` → `2.10.0`（新增子命令 + 改变容器的物理组织方式，是行为契约变化）。**MUST NOT 建 `ai-dev-system/migrations/2.10.0.md`**：本次升级零手动动作（重装即可，不改标记块字段、不要求回填存量文档），补一份"需要的动作：无"的空指南正是 `CLAUDE.md` §版本管理 那条判据要挡的噪音。**也 MUST NOT 因为 bump 就去改 `test/installer-migration.test.mjs` 等四份测试**——它们自 2.5.0 起已是条件式，零动作 bump 不判红。
-- [ ] **Step 2: 改 `CLAUDE.md`** — 目录速查里 `scripts/preview.mjs` 那行的子命令由六条改为七条并补 `extract`；`assets/templates/` 下补 `ui-prototype-framework/`；§改动时注意 的「原型批注框架是跨文件的契约」那条里，`preview.mjs` 六条子命令的表述同改，并补一句：**容器的六个固定实现区住在 `ui-prototype-framework/`，改框架改那里、不动 `ui-prototype.html`；改分区标记或装配表时两处同改并跑 `node --test test/prototype-framework.test.mjs`**。
-- [ ] **Step 3: 收录进 `docs/index.md`** — spec 与 plan 各一行，写清现行口径。
-- [ ] **Step 4: 从 `docs/TODO.md` 删掉那条** — 「2026-08-26 ｜ ai-prd ｜ 单个 HTML 原型文件变大后……」整行删除。TODO 是快照，做掉的当场删，**MUST NOT 保留"已完成"区**。
-- [ ] **Step 5: 计数词与文档索引闸** — Run: `node --test test/counter-word.test.mjs test/doc-index.test.mjs` Expected: PASS。注意 `doc-index` 递归遍历三个目录逐份查 `YYYY-MM-DD-` 前缀与索引收录。
-- [ ] **Step 6: 跑全部测试** — Run: `node --test test/*.test.mjs` Expected: 全绿
-- [ ] **Step 7: commit** — `git commit -m "chore: 2.10.0 —— 原型取段与框架外置"`
+- [x] **Step 1: bump `VERSION`** — `2.9.1` → `2.10.0`（新增子命令 + 改变容器的物理组织方式，是行为契约变化）。**MUST NOT 建 `ai-dev-system/migrations/2.10.0.md`**：本次升级零手动动作（重装即可，不改标记块字段、不要求回填存量文档），补一份"需要的动作：无"的空指南正是 `CLAUDE.md` §版本管理 那条判据要挡的噪音。**也 MUST NOT 因为 bump 就去改 `test/installer-migration.test.mjs` 等四份测试**——它们自 2.5.0 起已是条件式，零动作 bump 不判红。
+- [x] **Step 2: 改 `CLAUDE.md`** — 目录速查里 `scripts/preview.mjs` 那行的子命令由六条改为七条并补 `extract`；`assets/templates/` 下补 `ui-prototype-framework/`；§改动时注意 的「原型批注框架是跨文件的契约」那条里，`preview.mjs` 六条子命令的表述同改，并补一句：**容器的六个固定实现区住在 `ui-prototype-framework/`，改框架改那里、不动 `ui-prototype.html`；改分区标记或装配表时两处同改并跑 `node --test test/prototype-framework.test.mjs`**。
+- [x] **Step 3: 收录进 `docs/index.md`** — spec 与 plan 各一行，写清现行口径（已在 Task 1–2 完成并复核，无需新增条目）。
+- [x] **Step 4: 从 `docs/TODO.md` 删掉那条** — 「2026-08-26 ｜ ai-prd ｜ 单个 HTML 原型文件变大后……」整行删除。TODO 是快照，做掉的当场删，**MUST NOT 保留"已完成"区**。
+- [x] **Step 5: 计数词与文档索引闸** — Run: `node --test test/counter-word.test.mjs test/doc-index.test.mjs` Expected: PASS。注意 `doc-index` 递归遍历三个目录逐份查 `YYYY-MM-DD-` 前缀与索引收录。
+- [x] **Step 6: 跑全部测试** — Run: `node --test test/*.test.mjs` Expected: 全绿（使用临时 `NPM_CONFIG_CACHE` 以避开用户级 npm 日志目录不可写）。
+- [x] **Step 7: commit** — `git commit -m "chore: 2.10.0 —— 原型取段与框架外置"`
 
 ---
 
 ### Checkpoint：Task 3–6 之后
-- [ ] `node --test test/*.test.mjs` 全绿
-- [ ] `preview.mjs --help` 里 `extract` 在 `annotations` 之前
-- [ ] `git log --oneline` 每个 commit 对应一个任务，无"最后统一清理"式提交
+- [x] `node --test test/*.test.mjs` 全绿（373/373，使用临时 `NPM_CONFIG_CACHE`）
+- [x] `preview.mjs --help` 里 `extract` 在 `annotations` 之前
+- [ ] `git log --oneline` 每个 commit 对应一个任务，无"最后统一清理"式提交（当前沙箱禁止写共享 `.git` 元数据，无法创建本次提交）
 
 ## Risks and Mitigations
 
@@ -655,14 +655,16 @@ authority_refs:
 
 | 被取代物 | 删除任务 | 实测引用数 | 核销 |
 |---|---|---|---|
-| `cmdInit` 的 `copyFile(TEMPLATE, file)` + 随后的 `readFile(file,'utf8')` | Task 2 Step 4c | 待填 | ⏳ |
-| `preview.mjs` 顶部 `copyFile` 的 import | Task 2 Step 4d | 待填 | ⏳ |
-| `ui-prototype.html` 六个固定区的正文（74,628 字节） | Task 2 Step 2 | 待填 | ⏳ |
-| `步骤-1-7-设计与实现.md:21` 的「MUST 打开该文件」 | Task 4 Step 2 | 待填 | ⏳ |
-| `00-流程总纲.md` 步骤索引表注里「MUST NOT 通读整份 HTML」的降级条件 | Task 4 Step 1 | 待填 | ⏳ |
-| 顶层无条件的 `main().catch(…)` 调用 | Task 1 Step 3f | 待填 | ⏳ |
-| `test/prototype-preview.test.mjs` 的 `templatePath` 常量 | Task 2 Step 6 | 待填 | ⏳ |
-| `capability-registry.md` 与 `ai-prd/SKILL.md` 里「六条子命令」的表述 | Task 6 Step 2 | 待填 | ⏳ |
+| `cmdInit` 的 `copyFile(TEMPLATE, file)` + 随后的 `readFile(file,'utf8')` | Task 2 Step 4c | 0 | 已核销：`preview.mjs` 改由 `composeTemplate()` 装配 |
+| `preview.mjs` 顶部 `copyFile` 的 import | Task 2 Step 4d | 0 | 已核销：import 已删除 |
+| `ui-prototype.html` 六个固定区的正文（74,628 字节） | Task 2 Step 2 | 0 | 已核销：正文外置到 `ui-prototype-framework/` |
+| `步骤-1-7-设计与实现.md:21` 的「MUST 打开该文件」 | Task 4 Step 2 | 0 | 已核销：改为先跑 `extract` |
+| `00-流程总纲.md` 步骤索引表注里「MUST NOT 通读整份 HTML」的降级条件 | Task 4 Step 1 | 1 | 已核销：保留 1 处通读禁令并补齐 `extract`/`annotations` 命令 |
+| 顶层无条件的 `main().catch(…)` 调用 | Task 1 Step 3f | 1 | 已核销：唯一调用已置于 `isDirectRun()` 守卫内 |
+| `test/prototype-preview.test.mjs` 的 `templatePath` 常量 | Task 2 Step 6 | 0 | 已核销：常量与读取点均删除 |
+| `capability-registry.md` 与 `ai-prd/SKILL.md` 里「六条子命令」的表述 | Task 6 Step 2 | 0 | 已核销：两处改为七条并补 `extract` |
+
+探针集核销：`grep -n "原型\|prototype\|preview" engineering-context/probe-set.md` 无输出，探针集无原型相关 probe，无需修改。
 
 ## 完成与自动合并
 

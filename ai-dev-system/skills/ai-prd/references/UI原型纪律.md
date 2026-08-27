@@ -219,6 +219,7 @@ btn.addEventListener("click", (e) => {
 | 加一屏 | `… screen <文件> --name <屏名> [--desktop] [--anno-right] [--states is-default,loading,empty,error,success]` |
 | 填 / 改插槽 | `… slot <文件> --set <插槽名> --from <片段文件>`（或 `--text <文本>`） |
 | 交付前自检 | `… check <文件>`（见 §6） |
+| 取界面内容 | `… extract <文件> [--with-css]`（结构、文案、状态层；批注另用 `annotations`） |
 | 取回批注 | `… annotations <文件> [--json]`（见 §7.3） |
 | 起预览服务 | `… serve <文件> [--port <n>]`（见 §7.4；由你后台起、由你停） |
 
