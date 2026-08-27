@@ -703,13 +703,19 @@
     .anno-state--saved .anno-state__dot { background: var(--success); }
     .anno-state--dirty .anno-state__dot { background: var(--warning); }
 
-    /* 批注气泡：挂在被批注元素右上角，纯 CSS 绘制，无图片、无外部资源 */
-    [data-anno-host] { position: relative; }
+    /* 批注气泡：挂在被批注元素右上角内侧，纯 CSS 绘制，无图片、无外部资源 */
+    /* data-anno-host 恒加（点图钉时靠它 closest 回宿主），但只有取值为 "rel" 才提升定位：
+       attach() 按 computed position 判定，本来是 static 的才给 "rel"。绝对/相对/固定定位的元素
+       取值为空串，因此不会被本行改写掉自己的定位。 */
+    [data-anno-host="rel"] { position: relative; }
 
     .anno-pin {
       position: absolute;
-      top: -6px;
-      z-index: 60;
+      /* 贴元素内侧而非外侧：外侧偏移会被任何 overflow: auto|hidden 的祖先裁掉，图钉整枚看不见。 */
+      top: 2px;
+      /* 高于原型自定义内容，低于批注框架自身的 .anno-notes-panel(890) / .anno-bar(900)
+         / .anno-pop(1000) / .anno-cursor(1100)，因此不会反过来遮住框架自己的 UI。 */
+      z-index: 880;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1416,9 +1422,20 @@
 
     function attach(el, pin) {
       var host = hostOf(el);
-      host.setAttribute("data-anno-host", "");
+      // 属性恒加（点图钉时靠它 closest 回宿主），但只有本来是 static 的才取值 "rel" 提升为
+      // relative——图钉是 absolute 的，需要一个定位祖先。元素自己已是 absolute / relative /
+      // fixed / sticky 时 MUST NOT 提升：[data-anno-host="rel"] { position: relative } 与作者的
+      // 单 class 规则同权重且排在后面，提升了就会把绝对定位元素打回文档流、当场错位。
+      // 同一元素挂多枚图钉时只在第一枚判定：此刻 host 可能已被上一枚提升成 relative，
+      // 再判一次就会读到提升后的值、误判成"本来就不是 static"而把提升撤掉。
+      if (host.getAttribute("data-anno-host") === null) {
+        var pos = "static";
+        try { pos = window.getComputedStyle(host).position || "static"; } catch (err) { pos = "static"; }
+        host.setAttribute("data-anno-host", pos === "static" ? "rel" : "");
+      }
       var n = host.querySelectorAll(":scope > .anno-pin").length;
-      pin.style.right = (-6 + n * 21) + "px";
+      // 贴内侧，理由同 .anno-pin 的 top：外侧偏移会被 overflow 祖先裁掉。
+      pin.style.right = (2 + n * 21) + "px";
       host.appendChild(pin);
     }
 
