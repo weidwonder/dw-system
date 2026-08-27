@@ -861,3 +861,14 @@ test('正常放行把已约定的条目从真批注块里清掉', () => {
   assert.match(r.out, /放行清单/)
   assert.deepEqual(readAnnotations(readFileSync(file, 'utf8')).items, [], '放行 MUST 真的清掉那条')
 })
+
+test('文档按次产出范式带日期前缀', () => {
+  const docs = [
+    'ai-dev-system/skills/ai-dev-workflow/references/core/文档治理.md',
+    'ai-dev-system/skills/ai-prd/references/00-prd生成流程.md',
+  ]
+  docs.forEach((rel) => {
+    const body = readFileSync(path.join(repoRoot, rel), 'utf8')
+    assert.doesNotMatch(body, /docs\/(spec|plan|report)\/(?:<name>|<feature>|<repo>|<change-name>|<project-name>)/)
+  })
+})

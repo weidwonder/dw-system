@@ -363,3 +363,10 @@ test('annotations 输出用户对说明的回复，包含快照字段与孤儿�
   assert.match(fn, /orphan/)
   assert.match(fn, /用户对说明的回复/)
 })
+
+test('批注出口明确包含用户对说明的回复第四类', () => {
+  const tool = read(prdRoot, 'scripts', 'preview.mjs')
+  const fn = cut(tool, 'async function cmdAnnotations', '\n/* ────────────────── check')
+  assert.match(fn, /用户对说明的回复/)
+  assert.match(fn, /user:\s*\{[\s\S]*replies/)
+})
