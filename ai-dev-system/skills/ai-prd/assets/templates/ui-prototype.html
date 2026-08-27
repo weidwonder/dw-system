@@ -546,13 +546,10 @@
     .prototype-meta p { color: var(--muted-foreground); font-size: 13px; }
 
     .stage {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 340px;
-      gap: 24px;
+      display: block;
       max-width: 1560px;
       margin: 0 auto;
       padding: 20px 24px 48px;
-      align-items: start;
     }
 
     /* 多屏：.devices 内横向并排若干 .device-wrap，每屏一个（屏幕名在 .device-wrap 内） */
@@ -624,10 +621,6 @@
 
     .screen { display: flex; flex-direction: column; gap: 16px; padding: 16px; }
 
-    .aside-stack { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 76px; }
-
-    .state-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
-
     .notes-body { display: grid; gap: 12px; font-size: 13px; line-height: 1.65; color: var(--muted-foreground); }
     .notes-body strong { display: block; margin-bottom: 2px; color: var(--foreground); font-weight: 500; }
 
@@ -645,10 +638,6 @@
     .screen.state-error:has(> .status.error) > .status.is-default,
     .screen.state-success:has(> .status.success) > .status.is-default { display: none; }
 
-    @media (max-width: 1080px) {
-      .stage { grid-template-columns: 1fr; }
-      .aside-stack { position: static; }
-    }
   </style>
   <!-- DESIGN-SYSTEM:END -->
 
@@ -679,6 +668,27 @@
     .anno-bar__title { display: flex; align-items: center; gap: 7px; margin-right: 2px; font-weight: 600; }
     .anno-bar__spacer { flex: 1 1 auto; }
     .anno-count { color: var(--muted-foreground); font-size: 12px; }
+
+    /* 设计说明面板：挂在工具栏下方，默认收起 */
+    .anno-notes-panel {
+      position: sticky;
+      top: 46px;
+      z-index: 890;
+      border-bottom: 1px solid var(--border);
+      background: color-mix(in oklab, var(--background) 96%, transparent);
+      backdrop-filter: blur(14px);
+    }
+
+    .anno-notes-panel[hidden] { display: none !important; }
+
+    .anno-notes-panel__inner {
+      max-width: 1560px;
+      margin: 0 auto;
+      padding: 14px 24px 16px;
+      font-family: var(--font-sans);
+    }
+
+    .anno-bar [data-act="notes"] { border-color: var(--primary); color: var(--primary); }
 
     .anno-state { display: flex; align-items: center; gap: 6px; color: var(--muted-foreground); font-size: 12px; white-space: nowrap; }
 
@@ -870,22 +880,20 @@
     <!-- TITLE:END -->
   </header>
 
+  <div class="anno-notes-panel" id="proto-notes-panel" hidden>
+    <div class="anno-notes-panel__inner">
+      <!-- NOTES:BEGIN 插槽：用 slot --set notes 写入；外壳由本区提供，片段只写内容 -->
+      <div class="card-content notes-body" id="proto-notes"></div>
+      <!-- NOTES:END -->
+    </div>
+  </div>
+
   <main class="stage">
     <!-- SCREENS:BEGIN 插槽：本次要画的界面。用 preview.mjs slot --set screens 写入，本区内容整体被替换；外壳由本区提供，片段里 MUST NOT 再包一层 .devices。
          结构约定与可用 class 见 references/UI原型纪律.md §8——不必读本文件。 -->
     <div class="devices" data-anno-canvas><!-- SCREENS --></div>
     <!-- SCREENS:END -->
 
-    <aside class="aside-stack">
-      <section class="card card-compact">
-        <div class="card-header">
-          <span class="card-title">设计说明（不属于用户界面）</span>
-        </div>
-        <!-- NOTES:BEGIN 插槽：用 slot --set notes 写入；外壳由本区提供，片段只写内容 -->
-        <div class="card-content notes-body" id="proto-notes"></div>
-        <!-- NOTES:END -->
-      </section>
-    </aside>
   </main>
 
   <!-- SCREEN-SCRIPT:BEGIN 原型级交互 · 固定实现 · 整段原样保留，MUST NOT 修改或删除
@@ -1199,8 +1207,9 @@
       '<button type="button" class="btn btn-outline btn-sm" data-act="pick" aria-pressed="false">' + ico("i-plus") + "加注释</button>" +
       '<button type="button" class="btn btn-outline btn-sm" data-act="global">' + ico("i-message") + "全局反馈</button>" +
       '<button type="button" class="btn btn-ghost btn-sm" data-act="toggle" aria-pressed="false">' + ico("i-eye") + "隐藏批注</button>" +
-      '<span class="anno-bar__spacer"></span>' +
       '<span class="anno-count"></span>' +
+      '<span class="anno-bar__spacer"></span>' +
+      '<button type="button" class="btn btn-outline btn-sm" data-act="notes" aria-pressed="false"><svg class="icon"><use href="#i-file"/></svg>设计说明</button>' +
       '<button type="button" class="btn btn-sm" data-act="save"></button>' +
       '<button type="button" class="btn btn-ghost btn-sm" data-act="copy">' + ico("i-copy") + "复制 JSON</button>" +
       '<span class="anno-state"><span class="anno-state__dot"></span><span class="anno-state__text"></span></span>';
@@ -1231,13 +1240,16 @@
         "元素批注 " + live + (lost ? "（另有 " + lost + " 条已失联）" : "") + " · 全局 " + store.global.length;
 
       var save = bar.querySelector('[data-act="save"]');
+      var copy = bar.querySelector('[data-act="copy"]');
       var state = bar.querySelector(".anno-state");
       var text = bar.querySelector(".anno-state__text");
       state.className = "anno-state";
       save.hidden = false;
+      copy.hidden = SERVED && servedOk;
       if (SERVED) {
         // 预览服务模式：批注直接写回原文件，用户什么都不用点
         save.hidden = servedOk && !dirty;
+        save.className = "btn btn-outline btn-sm";
         save.innerHTML = ico("i-save") + "重试写回";
         save.title = "预览服务暂时写不进文件时，点一下重试";
         if (servedOk && !dirty) {
@@ -1250,20 +1262,24 @@
           text.textContent = "预览服务没响应——批注暂存本机，恢复后会补写";
         }
       } else if (!CAN_FS) {
+        save.className = "btn btn-sm";
         save.innerHTML = ico("i-download") + "下载副本";
         save.title = "本浏览器不能直接写文件：下载后覆盖原文件，AI 才读得到这些批注";
         text.textContent = "批注还没进文件——下载后覆盖原文件";
       } else if (handle && granted && !dirty) {
+        save.className = "btn btn-sm";
         save.innerHTML = ico("i-check") + "已保存到文件";
         save.title = "每次增删改都会自动写回 " + FILE + "，不用再点";
         state.className = "anno-state anno-state--saved";
         text.textContent = "批注已在文件里，AI 读得到";
       } else if (handle && dirty) {
+        save.className = "btn btn-sm";
         save.innerHTML = ico("i-save") + "保存到文件";
         save.title = "有改动还没写回文件，点一下补写";
         state.className = "anno-state anno-state--dirty";
         text.textContent = "有改动还没写回文件";
       } else {
+        save.className = "btn btn-sm";
         save.innerHTML = ico("i-save") + "保存到文件";
         save.title = "点一下，在弹窗里选中这个原型文件本身；之后每次批注都会自动写回它";
         text.textContent = "批注只在本机浏览器里，AI 读不到";
@@ -1305,6 +1321,12 @@
       } else if (act === "save") {
         if (SERVED) retry();
         else connect();
+      }
+      else if (act === "notes") {
+        var panel = document.getElementById("proto-notes-panel");
+        if (!panel) return;
+        panel.hidden = !panel.hidden;
+        btn.setAttribute("aria-pressed", String(!panel.hidden));
       }
       else if (act === "copy") copyJson();
     });

@@ -485,6 +485,44 @@ test('check 对没写注解的屏报 P2 提示且不拦交付', () => {
   rmSync(dir, { recursive: true, force: true })
 })
 
+test('画布右侧不再有常驻列，NOTES 插槽仍在', async () => {
+  const html = readFileSync(templatePath, 'utf8')
+  assert.doesNotMatch(html, /class="aside-stack"/)
+  assert.doesNotMatch(html, /grid-template-columns:\s*minmax\(0, 1fr\) 340px/)
+  assert.match(html, /<!-- NOTES:BEGIN/)
+  assert.match(html, /id="proto-notes"/)
+})
+
+test('说明入口与展开的面板都不随页面滚动', () => {
+  const html = readFileSync(templatePath, 'utf8')
+  const css = html.slice(html.indexOf('ANNO-FRAMEWORK:CSS:BEGIN'), html.indexOf('ANNO-FRAMEWORK:CSS:END'))
+  const panel = css.slice(css.indexOf('.anno-notes-panel'))
+  assert.match(panel.slice(0, 400), /position:\s*(sticky|fixed)/)
+})
+
+test('设计说明入口在工具栏右段第一枚、写回按钮左侧，文字只有四个字', () => {
+  const html = readFileSync(templatePath, 'utf8')
+  const bar = html.slice(html.indexOf('bar.innerHTML'), html.indexOf('document.body.insertBefore'))
+  const iNotes = bar.indexOf('data-act="notes"')
+  const iSave = bar.indexOf('data-act="save"')
+  const iSpacer = bar.indexOf('anno-bar__spacer')
+  const iCount = bar.indexOf('anno-count')
+  assert.ok(iSpacer < iNotes && iNotes < iSave, '设计说明 MUST 在 spacer 之后、写回按钮之前')
+  assert.ok(iCount < iSpacer, '批注计数 MUST 在左段')
+  assert.match(bar, /data-act="notes"[^>]*>[^<]*<svg[\s\S]{0,200}?设计说明/)
+  assert.doesNotMatch(bar, /设计说明（/)
+})
+
+test('slot --set notes 写入路径不变', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-anno-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  assert.equal(run('slot', file, '--set', 'notes', '--text', '<strong>样式依据</strong>沿用中性亮色基线').code, 0)
+  const html = readFileSync(file, 'utf8')
+  assert.match(html, /样式依据/)
+  rmSync(dir, { recursive: true, force: true })
+})
+
 test('画布上没有第二处能切状态的地方', () => {
   const html = readFileSync(templatePath, 'utf8')
   assert.doesNotMatch(html, /aria-label="原型状态切换"/)
