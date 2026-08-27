@@ -19,8 +19,21 @@
  */
 export const LOADING_POINT_MIN = 18
 
-/** 入口 `SKILL.md` 的字节上限（AC-004）。压不下去 MUST 扩大拆分范围，MUST NOT 上调。 */
-export const ENTRY_MAX_BYTES = 8000
+/**
+ * 入口 `SKILL.md` 的字节上限（AC-004）。
+ *
+ * 2026-08-27 由 8000 上调到 12000（`docs/spec/2026-08-27-ai-dev-workflow-spec过稿门-eng-spec.md`
+ * FR-018，用户在 spec 过稿门拍板）。判据：本仓的判据文本是中文，**UTF-8 下一个汉字占 3 字节**，
+ * 8000 字节只有约 2600 汉字——装不下入口的三样必载内容（路由三步 + 工作区隔离门要点 +
+ * 只增不减的加载点清单）。上调前入口实测 7,980，余量 20 字节，新增一行加载点必然判红。
+ *
+ * 新纪律（取代旧的「MUST NOT 上调」）：上调 MUST 由用户拍板，并**同步全部活引用点**
+ * （`test/` 下的断言与 `CLAUDE.md` 的契约条目，由 `contract-sync.test.mjs` 盯着）；
+ * MUST NOT 为了让某一次改动过闸而顺手上调。`docs/spec/`、`docs/plan/` 下已完成文档里的
+ * 旧值是**历史记账**，MUST NOT 跟着改写。
+ * 压不下去时的首选仍是扩大拆分范围，上调是次选。
+ */
+export const ENTRY_MAX_BYTES = 12000
 
 /** 常驻前置量门槛（AC-003）。权威计算在 `resident-budget.test.mjs`，本值只作它的门槛常量。 */
 export const RESIDENT_BUDGET = 50000
