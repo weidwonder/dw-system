@@ -1,7 +1,7 @@
 ---
-lifecycle: active
+lifecycle: merged
 superseded_by: ''
-archived: ''
+archived: '2026-08-27'
 last_confirmed: '2026-08-27'
 authority_refs:
   - 'preview.mjs 的 cmdExtract / composeTemplate / FRAMEWORK 装配表签名'
