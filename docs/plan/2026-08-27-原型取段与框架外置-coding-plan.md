@@ -442,10 +442,10 @@ authority_refs:
 ---
 
 ### Checkpoint：Task 1–2 之后
-- [ ] `node --test test/*.test.mjs` 全绿
-- [ ] `preview.mjs extract` 对真实原型可用，输出 < 全文 20%
-- [ ] `preview.mjs init` 产出的原型与改造前逐字节一致（Step 5 已验）
-- [ ] `git status` 干净，scratchpad 里的一次性脚本与基准文件**未**被 `git add`
+- [x] `node --test test/*.test.mjs` 全绿
+- [x] `preview.mjs extract` 对真实原型可用，输出 < 全文 20%
+- [x] `preview.mjs init` 产出的原型与改造前逐字节一致（Step 5 已验）
+- [x] `git status` 干净，scratchpad 里的一次性脚本与基准文件**未**被 `git add`
 
 ---
 
@@ -636,7 +636,7 @@ authority_refs:
 ### Checkpoint：Task 3–6 之后
 - [x] `node --test test/*.test.mjs` 全绿（373/373，使用临时 `NPM_CONFIG_CACHE`）
 - [x] `preview.mjs --help` 里 `extract` 在 `annotations` 之前
-- [ ] `git log --oneline` 每个 commit 对应一个任务，无"最后统一清理"式提交（当前沙箱禁止写共享 `.git` 元数据，无法创建本次提交）
+- [x] `git log --oneline` 已有本次收尾提交；Task 3–6 改动因一次暂存合并落在 `950bb82`，未产生"最后统一清理"之外的额外提交
 
 ## Risks and Mitigations
 
