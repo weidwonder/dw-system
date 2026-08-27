@@ -438,6 +438,53 @@ test('screen 真的把一屏写进文件，结构与状态层齐全', () => {
   rmSync(dir, { recursive: true, force: true })
 })
 
+test('screen 加屏时连注解区外壳一起给出，默认挂下方', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-anno-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  assert.equal(run('screen', file, '--name', '工单列表').code, 0)
+  const html = readFileSync(file, 'utf8')
+  assert.match(html, /<div class="screen-notes">/)
+  assert.match(html, /class="screen-notes__title">这一屏的注解 · 不属于用户界面</)
+  assert.match(html, /<div class="screen-notes__body">/)
+  assert.match(html, /<div class="screen-notes__acts">/)
+  const wrap = html.match(/<section class="device-wrap[^"]*">[\s\S]*?<\/section>/)[0]
+  assert.ok(wrap.indexOf('</div>\n        <div class="screen-notes">') > wrap.indexOf('<div class="device">'))
+  assert.doesNotMatch(wrap, /class="device-wrap is-anno-right"/)
+  rmSync(dir, { recursive: true, force: true })
+})
+
+test('screen --anno-right 让注解区挂右侧', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-anno-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  assert.equal(run('screen', file, '--name', '详情', '--anno-right').code, 0)
+  const html = readFileSync(file, 'utf8')
+  assert.match(html, /<section class="device-wrap is-anno-right">/)
+  rmSync(dir, { recursive: true, force: true })
+})
+
+test('屏注解区仍是画布内的元素，用户能在它上面写批注', () => {
+  const html = readFileSync(templatePath, 'utf8')
+  const js = html.slice(html.indexOf('ANNO-FRAMEWORK:JS:BEGIN'), html.indexOf('ANNO-FRAMEWORK:JS:END'))
+  assert.doesNotMatch(js, /screen-notes[^\n]*(return|continue)/, '拾取模式 MUST NOT 排除注解区')
+  assert.match(js, /closest\(["']\.device-wrap["']\)/)
+})
+
+test('check 对没写注解的屏报 P2 提示且不拦交付', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-anno-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  assert.equal(run('screen', file, '--name', '工单列表').code, 0)
+  const r = run('check', file, '--json')
+  const out = JSON.parse(r.out)
+  const hit = out.problems.filter((p) => /没写注解/.test(p.msg))
+  assert.equal(hit.length, 1)
+  assert.equal(hit[0].level, 'P2')
+  assert.equal(out.ok, true)
+  rmSync(dir, { recursive: true, force: true })
+})
+
 // P1：title 插槽的探针曾是容器出厂字面量 `<title>UI 原型</title>`，而 init 一定会改写它，
 // 于是 `slot --set title` 在任何真实原型上都失败——而纪律同时禁止手工编辑原型文件。
 test('slot --set title 在 init 之后仍可用，且一次写 <title> 与页头 <h1> 两处', () => {

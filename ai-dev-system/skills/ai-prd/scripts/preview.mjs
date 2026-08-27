@@ -192,14 +192,15 @@ async function cmdInit(file, opts) {
 
 // 生成一屏的结构骨架。骨架只给结构与状态层，不含任何业务内容——
 // 容器里放示例会锚定产出，这条是 2.7.0 立下的判据，工具同样受它约束。
-function screenSkeleton(name, states, desktop) {
+function screenSkeleton(name, states, desktop, annoRight) {
   const layers = states
     .map((k) => {
       const cls = k === 'is-default' ? 'status is-default' : `status ${k}`
       return `          <div class="${cls}">\n            <!-- ${STATE_LABEL[k]} -->\n          </div>`
     })
     .join('\n')
-  return `      <section class="device-wrap${desktop ? ' is-desktop' : ''}">
+  const wrapCls = `device-wrap${desktop ? ' is-desktop' : ''}${annoRight ? ' is-anno-right' : ''}`
+  return `      <section class="${wrapCls}">
         <p class="device-name">${esc(name)}</p>
         <div class="device">
           <div class="app-bar">
@@ -208,6 +209,11 @@ function screenSkeleton(name, states, desktop) {
           <div class="screen">
 ${layers}
           </div>
+        </div>
+        <div class="screen-notes">
+          <p class="screen-notes__title">这一屏的注解 · 不属于用户界面</p>
+          <div class="screen-notes__body"></div>
+          <div class="screen-notes__acts"></div>
         </div>
       </section>`
 }
@@ -227,7 +233,7 @@ async function cmdScreen(file, opts) {
   const r = markRange(html, SLOTS.screens.mark)
   if (!r) fail('找不到界面插槽（SCREENS 区被改写了？）', 1)
   const region = html.slice(r.from, r.to)
-  const block = screenSkeleton(opts.name, states, !!opts.desktop)
+  const block = screenSkeleton(opts.name, states, !!opts.desktop, !!opts['anno-right'])
 
   // 已有屏时追加在后面，保留既有内容与批注锚点；空插槽时直接落第一屏。
   const stripped = region.replace(/^\s*<div class="devices" data-anno-canvas>/, '').replace(/<\/div>\s*$/, '')
@@ -237,7 +243,7 @@ async function cmdScreen(file, opts) {
   const body = inner ? `${inner}\n\n${block}` : block
   const next = html.slice(0, r.from) + SLOTS.screens.wrap(body) + html.slice(r.to)
   await writeAtomic(file, next)
-  console.log(`已加屏「${opts.name}」，状态层：${states.join(' / ')}`)
+  console.log(`已加屏「${opts.name}」，状态层：${states.join(' / ') }，注解区挂${opts['anno-right'] ? '右侧' : '下方'}`)
   console.log('下一步：把这一屏的内容写成片段，用 `slot --set screens` 整体写入（MUST NOT 直接编辑原型文件）。')
 }
 
@@ -505,6 +511,14 @@ async function cmdCheck(file, opts) {
     if (!name) add('P0', `第 ${i + 1} 屏缺 .device-name`, '屏幕名 MUST 在 .device 之外，批注按它区分是哪一屏')
     if (!/<div class="device">/.test(w)) add('P0', `第 ${i + 1} 屏缺 .device`)
     if (!/<div class="screen">/.test(w)) add('P0', `第 ${i + 1} 屏缺 .screen`)
+    if (!/<div class="screen-notes">/.test(w)) {
+      add('P1', `第 ${i + 1} 屏缺 .screen-notes 注解区`, '注解区由 screen 命令生成；手工拼屏才会缺它')
+    } else {
+      const body = (w.match(/<div class="screen-notes__body">([\s\S]*?)<\/div>/) || [])[1] || ''
+      if (!body.replace(/<[^>]*>/g, '').trim()) {
+        add('P2', `第 ${i + 1} 屏没写注解`, '有的屏确实没什么可说，这条只是提示')
+      }
+    }
     const dn = w.indexOf('device-name')
     const dv = w.indexOf('<div class="device">')
     if (dn > 0 && dv > 0 && dn > dv) add('P0', `第 ${i + 1} 屏的 .device-name 写进了 .device 里`, '它 MUST 在 .device 之外')
@@ -741,6 +755,7 @@ function parseArgs(argv) {
     const a = argv[i]
     if (a === '--no-open') out.open = false
     else if (a === '--desktop') out.desktop = true
+    else if (a === '--anno-right') out['anno-right'] = true
     else if (a === '--json') out.json = true
     else if (a === '--drop-anchors') out['drop-anchors'] = true
     else if (a === '--help' || a === '-h') out.help = true
