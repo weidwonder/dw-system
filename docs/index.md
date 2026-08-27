@@ -44,7 +44,7 @@
 
 ## 进行中的报告（`docs/report/`）
 
-- **[agentic-principle 缺口报告](./report/agentic-principle-gap-report.md)** — 待 `agentic_principle` 维护者评估，未结案。
+- **[agentic-principle 缺口报告](./report/2026-08-02-agentic-principle-gap-report.md)** — 待 `agentic_principle` 维护者评估，未结案。
 - **[渐进式披露真跑验收](./report/2026-08-23-渐进式披露真跑验收.md)** — 2.5.0 改造后三种典型 Lean 与完整流程的实测加载量（观测指标，非门槛），以及真跑撞出的三个缺口——三个都不是机器闸能发现的，撞出时 260 项测试全绿。`authority_refs`：各条路径的实测加载量、真跑发现的缺口及修正指向。
 
 ## 归档

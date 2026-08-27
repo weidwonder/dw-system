@@ -39,7 +39,7 @@
 // 删掉某篇的 `lifecycle:` 行 → 报「字段缺失」而不是「归类错误」；把索引里的链接改成不存在的
 // 路径 → 报断链。三条都改回去 → 转绿。自检 MUST 用这种方式做，MUST NOT 靠放宽匹配让它绿。
 import assert from 'node:assert/strict'
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
@@ -86,6 +86,19 @@ function readLifecycle(abs) {
  * 反过来说：**`git add` 过就受管**（暂存区里的新文件同样被 `ls-files` 列出），
  * 所以"新建文档忘了写 lifecycle"这个真正要拦的场景照样拦得住——入库那一刻就判。
  */
+export function collectDocs(rootDir) {
+  const out = []
+  function walk(dir) {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const abs = path.join(dir, entry.name)
+      if (entry.isDirectory()) walk(abs)
+      else if (entry.isFile() && entry.name.endsWith('.md')) out.push(abs)
+    }
+  }
+  walk(rootDir)
+  return out
+}
+
 function collectManagedDocs() {
   const tracked = new Set(
     // `ls-files --cached` 列出的是索引里的文件——已提交的与 `git add` 过的新文件都在其中，
@@ -101,9 +114,8 @@ function collectManagedDocs() {
   for (const dir of MANAGED_DIRS) {
     const absDir = path.join(docsRoot, dir)
     if (!existsSync(absDir)) continue
-    for (const entry of readdirSync(absDir).sort()) {
-      const abs = path.join(absDir, entry)
-      if (!statSync(abs).isFile() || !entry.endsWith('.md')) continue
+    for (const abs of collectDocs(absDir).sort()) {
+      const entry = path.basename(abs)
       const rel = relPosix(abs)
       if (!tracked.has(rel)) continue
       out.push({ rel, abs, lifecycle: readLifecycle(abs) })
@@ -246,4 +258,16 @@ test('两个索引里的链接都指向真实存在的文件（断链检查）',
       + problems.map((p, i) => `    [${i + 1}] ${p}`).join('\n')
       + '\n  处置：文档改名或移动后 MUST 同步两个索引；归档只降权不移动，出现断链一般说明文件被真删了。',
   )
+})
+
+test('索引检查递归到子目录', () => {
+  const dir = path.join(repoRoot, '.tmp-doc-index-test')
+  mkdirSync(path.join(dir, 'spec', '2026-08-27-某次大产出'), { recursive: true })
+  writeFileSync(path.join(dir, 'spec', '2026-08-27-某次大产出', 'part-a.md'), '# 无 frontmatter\n')
+  try {
+    const found = collectDocs(path.join(dir, 'spec'))
+    assert.ok(found.some((p) => p.endsWith('part-a.md')), '递归没生效，子目录里的文档整体逃出了检查')
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
 })
