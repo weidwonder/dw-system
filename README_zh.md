@@ -113,7 +113,7 @@ node /path/to/ai-dev-system/install.mjs . --source-dir=/path/to/ai-dev-system
 3. 复制同一批 skill → `<项目>/.agents/skills/`，完成 Codex 项目级安装；
 4. 合并（不覆盖）Claude Code 的 `enabledPlugins`，在本项目把冲突插件设为 `false`；
 5. 安装时让用户选择 Codex 冲突技能处理方式：默认写入项目 `AGENTS.md` 约束自动触发，也可明确选择通过 Codex CLI 全局卸载；若任一入口已有 workflow 标记块，同时补齐 `CLAUDE.md` 与 `AGENTS.md`；
-6. 把 skill 自带的 `ctx` CLI 链接成**全局 `ctx` 命令**（在 `<项目>/.claude/skills/ai-dev-workflow/scripts/ctx` 下 `npm link`），并实跑 `ctx --help` 验证真的可用。链接失败（无写权限、npm 全局 bin 不在 PATH、已有同名 `ctx`）只降级为警告，并打印 `node <skill>/scripts/ctx/src/cli.js <命令>` 兜底调用方式——CLI 本体已随 skill 落盘，**命令找不到不等于 ctx 不可用**。`--no-ctx-link` 可跳过；
+6. 把 skill 自带的 `ctx` CLI 链接成**全局 `ctx` 命令**（在 `<项目>/.claude/skills/ai-dev-workflow/scripts/ctx` 下 `npm link`），并实跑 `ctx --help` 验证真的可用。链接失败（无写权限、npm 全局 bin 不在 PATH、PATH 上已有**别人的**同名 `ctx`）只降级为警告，并打印 `node <skill>/scripts/ctx/src/cli.js <命令>` 兜底调用方式。Windows 上换项目重装时 `npm link` 会因全局命令目录里还留着上次那个 `ctx` 而报 `EEXIST`：安装器会先确认那个文件确实是本体系留下的，确认了才 `npm link --force` 覆盖成本次这份；判不出归属就一个字节都不动，只打印文件路径与删除方式——CLI 本体已随 skill 落盘，**命令找不到不等于 ctx 不可用**。`--no-ctx-link` 可跳过；
 7. 保持 [codegraph](https://github.com/colbymchenry/codegraph)（本地代码知识图谱 CLI）为最新——没装就 `npm install -g @colbymchenry/codegraph`，有新版就 `codegraph upgrade`——随后接线到 agent（默认 `--location=local`，只影响本项目），并在 `.codegraph/` 不存在时用 `codegraph init` 给本仓库建索引。这一段任何失败只降级为警告；`--no-codegraph` 可整段跳过。Codex CLI 没有项目级 MCP 配置，项目级接线会跳过它，安装器会打印手动全局接线命令。
 
 | 插件 | 为什么与本流程冲突 |

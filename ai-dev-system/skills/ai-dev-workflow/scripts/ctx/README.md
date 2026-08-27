@@ -9,7 +9,7 @@
 ## 安装 / 运行
 
 安装器（`install.mjs`）在装完 skill 后会自动执行下面的 `npm link`，所以通常直接 `ctx <命令>` 就能用。
-链接失败（全局目录无写权限、npm 全局 bin 不在 PATH、已有同名 `ctx` 命令）时安装器只警告不中断——
+链接失败（全局目录无写权限、npm 全局 bin 不在 PATH、PATH 上已有**别人的**同名 `ctx` 命令）时安装器只警告不中断——
 **此时 ctx 依然可用**，用下面的直接运行方式即可，功能完全相同。
 
 ```bash
@@ -52,6 +52,7 @@ npm rm -g ctx
 - 全程用 `node:path`（`path.join` / `path.resolve`），不硬编码 `/`。
 - 无 bash-only 语法；所有逻辑在 Node 内完成。
 - Windows：`npm link` / 安装时 npm 会依据 `package.json` 的 `bin` 生成 `ctx.cmd` shim，可直接调用。
+- Windows 换项目重装时 `npm link` 会报 `EEXIST`：全局命令目录（`%APPDATA%\npm`）里还留着上次安装写下的 `ctx`，而那里的 shim 是普通文件不是符号链接，npm 判不出是不是自己写的就拒绝覆盖（unix 侧直接替换自己的符号链接，撞不出这条）。安装器会先确认那个文件是不是本体系留下的，确认了才 `npm link --force` 覆盖；判不出归属时不覆盖，按它打印的路径自行删除（或先跑 `npm rm -g ctx`）再重跑安装器即可。
 - 读写统一 UTF-8。测试用 `os.tmpdir()`，不假设 `/tmp`。
 - `--test` 用 Node 内置 `node:test`，无需第三方测试库。
 
