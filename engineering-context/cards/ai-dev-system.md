@@ -15,7 +15,7 @@
   - 批注数据块 `<script type="application/json" id="anno-data">`，schema 仍是 `prd-annotations@1`，字段 `global[]` / `items[]` / **`replies[]`**（`replies[].noteId` ↔ AI 说明的 `data-anno-id`）— `:954-968`
   - 批注框架 JS：`serialize()` 剥运行时状态（只认三种表达：`.screen` 上的 `state-*` 类、`[data-state]` 的 `aria-pressed`、`[data-anno-runtime]` 自报），并把 `#proto-notes-panel` 复位为 `hidden` — `:1076-1118`；`write()` 带 `If-Match` 版本头，`adoptLatest(latestHtml, latestVersion)` 按 id 合并磁盘与内存两侧 — `:1119-1170`；`openNote()` 承载对 AI 说明的增删改回复 — `:1552-1620`；工具栏 `bar.innerHTML` 按序为 标题/加注释/全局反馈/隐藏批注/**计数**/spacer/**设计说明**/save/复制 JSON/状态灯 — `:1272-1282`；`paint()` 令 `复制 JSON` 在 `SERVED && servedOk` 时隐藏、save 按钮在同条件且无脏数据时隐藏 — `:1303-1345`
   - 批注气泡渲染：`data-anno` → note 气泡、`data-anno-kind="question"` → ask 气泡（琥珀）、`items[]` → user 气泡 — `:1432` 一带
-  - 图钉的定位与层级契约：`attach()` 恒给宿主加 `data-anno-host`（点图钉靠它 `closest` 回宿主），**只有 computed position 为 `static` 的宿主取值 `rel`** 才被 `[data-anno-host="rel"] { position: relative }` 提升；图钉贴宿主**内侧**（`top: 2px`、`right: 2 + n*21`）、`z-index: 880` — `:707-722,1417-1440`
+  - 图钉的定位与层级契约：`attach()` 恒给宿主加 `data-anno-host`（点图钉靠它 `closest` 回宿主），**只有 computed position 为 `static` 的宿主取值 `rel`** 才被 `[data-anno-host="rel"] { position: relative }` 提升；图钉贴宿主**内侧**（`top: 2px`、`right: 2 + n*21`）、`z-index: 880` — `:706-735,1423-1440`
 - **陷阱项**
   - 用非上述三种方式改 DOM 状态，`serialize()` 还原不掉，写回时状态被烘进文件且零报错。
   - `serialize()` 若漏了 `#proto-notes-panel` 的复位，用户展开设计说明后的写回会把"展开"烘进文件。

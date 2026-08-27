@@ -448,9 +448,21 @@ test('图钉的层级高于原型内容、低于批注框架自身的每一层',
     assert.ok(pin < zIndexOf(sel), `.anno-pin(${pin}) MUST 低于 ${sel}(${zIndexOf(sel)})，否则会遮住框架自己的 UI`)
   })
 
-  // 纪律要同时告诉作者这条上限，否则他在 custom 插槽里写个更高的值就又把图钉盖住了。
-  assert.ok(
-    discipline.includes(String(pin)),
-    `UI原型纪律 MUST 写明自定义样式的 z-index 上限（${pin}），否则作者无从避让`,
-  )
+  // 这个取值被复制到纪律、卡片与需求真相源三处：纪律要告诉作者这条上限（否则他在 custom
+  // 插槽里写个更高的值就又把图钉盖住了），卡片与真相源是下一个零上下文 agent 的入口。
+  // 三处各记一个数就会漂，所以按容器的实际取值逐处比对。
+  ;[
+    ['UI原型纪律 §8.4', discipline],
+    ['engineering-context/cards/ai-dev-system.md', read(repoRoot, 'engineering-context', 'cards', 'ai-dev-system.md')],
+    ['docs/REQUIREMENTS.md', read(repoRoot, 'docs', 'REQUIREMENTS.md')],
+  ].forEach(([where, body]) => {
+    // 只查 body.includes(pin) 太弱——文件别处出现过这个数就恒真，写上限那句写错了照样绿。
+    // 所以抓「上限」二字近旁的数字逐个比对。
+    const written = [...body.matchAll(/上限[^\d\n]{0,12}(\d{2,})|(\d{2,})[^\d\n]{0,12}上限/g)]
+      .map((m) => Number(m[1] ?? m[2]))
+    assert.ok(written.length > 0, `${where} MUST 写明自定义样式的 z-index 上限（${pin}），否则作者无从避让`)
+    written.forEach((n) => {
+      assert.equal(n, pin, `${where} 写的 z-index 上限 ${n} 与容器实际取值 ${pin} 不一致——同一个量 MUST NOT 各记一个数`)
+    })
+  })
 })

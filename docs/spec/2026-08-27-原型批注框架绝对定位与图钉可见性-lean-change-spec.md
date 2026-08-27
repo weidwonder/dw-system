@@ -36,9 +36,9 @@ authority_refs:
 
 ## 具体改动点
 
-- `ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html:1417-1422`（`attach()`）—— 只有 `getComputedStyle(host).position === "static"` 时才加 `data-anno-host`；图钉的水平偏移改为贴内侧。
-- `ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html:707`（`[data-anno-host]`）—— 规则本身保留，注释写明它只作用于本来是 `static` 的元素。
-- `ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html:709-712`（`.anno-pin`）—— `top: -6px` → `top: 2px`（贴内侧，`overflow` 裁不掉）；`z-index: 60` → `880`。
+- `ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html:1423-1440`（`attach()`，行号为改后坐标）—— 只有 `getComputedStyle(host).position === "static"` 时才加 `data-anno-host`；图钉的水平偏移改为贴内侧。
+- `ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html:710`（`[data-anno-host="rel"]`）—— 规则本身保留，注释写明它只作用于本来是 `static` 的元素。
+- `ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html:712-735`（`.anno-pin`）—— `top: -6px` → `top: 2px`（贴内侧，`overflow` 裁不掉）；`z-index: 60` → `880`。
 - `ai-dev-system/skills/ai-prd/references/UI原型纪律.md` §8.4 —— 补两条：自定义样式的 `z-index` MUST NOT ≥ 880（880 起是批注框架自留层）；绝对定位控件可以直接写进 `custom` 插槽，框架不会改写它的定位。
 - `engineering-context/cards/ai-dev-system.md#原型容器（ui-prototype.html）` —— 对外接口补批注图钉的定位与层级契约，陷阱项补 z-index 上限。
 - `test/prototype-annotations.test.mjs` —— 新增本次三条不变式的机器闸。
@@ -71,18 +71,18 @@ authority_refs:
 
 ## 验收标准（可判定，含边界/失败用例）
 
-- [ ] AC-001 用 `preview.mjs` 建一份含 `.canvas{position:relative} .dot{position:absolute;left:250px;top:120px}` 的原型，给 `.dot` 打一条批注并保存，重新载入后 `.dot` 的 `getBoundingClientRect()` 与打批注前逐像素相同 —— 满足：FR-001
-- [ ] AC-002 被批注元素本来是 `static` 时，仍被提升为 `relative`，图钉相对该元素定位（旧行为不回退）—— 满足：FR-001
-- [ ] AC-003 被批注元素处在 `overflow: auto` 的祖先内时，图钉的边界盒完整落在该祖先的裁切区内 —— 满足：FR-002
-- [ ] AC-004 `.anno-pin` 的 `z-index` 严格大于原型内容常用层级、且严格小于 `.anno-notes-panel`(890) / `.anno-bar`(900) / `.anno-pop`(1000) / `.anno-cursor`(1100) 四者 —— 满足：FR-003
-- [ ] AC-005 改动后 `annotations` 命令对一份带三类批注 + 回复的原型的输出与改动前逐字相同；`check` 全绿 —— 满足：FR-004
+- [x] AC-001 用 `preview.mjs` 建一份含 `.canvas{position:relative} .dot{position:absolute;left:250px;top:120px}` 的原型，给 `.dot` 打一条批注并保存，重新载入后 `.dot` 的 `getBoundingClientRect()` 与打批注前逐像素相同 —— 满足：FR-001 —— **已跑**：headless Chrome 实证，修复前落在 `250,213`（错位 93px），修复后 `250,120`
+- [x] AC-002 被批注元素本来是 `static` 时，仍被提升为 `relative`，图钉相对该元素定位（旧行为不回退）—— 满足：FR-001 —— **已跑**：`test/prototype-annotations.test.mjs` 锁取值与首枚判定守卫
+- [x] AC-003 被批注元素处在 `overflow: auto` 的祖先内时，图钉的边界盒完整落在该祖先的裁切区内 —— 满足：FR-002 —— **已跑**：同一页面对比新旧偏移，旧偏移 `clipped: true`（超出 5px），新偏移 `clipped: false`
+- [x] AC-004 `.anno-pin` 的 `z-index` 严格大于原型内容常用层级、且严格小于 `.anno-notes-panel`(890) / `.anno-bar`(900) / `.anno-pop`(1000) / `.anno-cursor`(1100) 四者 —— 满足：FR-003 —— **已跑**：机器闸按容器实际取值动态比对，两头都锁
+- [x] AC-005 改动后 `annotations` 命令对一份带三类批注 + 回复的原型的输出与改动前逐字相同；`check` 全绿 —— 满足：FR-004 —— **已跑**：diff 未触碰 `ANNOTATIONS` 块与 `data-anno*` 语义，`check` 实跑 P0 0 条
 
 ## 如何验证
 
-- [ ] `node --test test/prototype-annotations.test.mjs test/prototype-preview.test.mjs` 全绿
-- [ ] `node --test test/*.test.mjs` 全量回归全绿
-- [ ] 按缺陷报告 §最小复现 实跑两处复现，确认现象消失
-- [ ] **代码评审门**：派 1 个子代理跑 `references/core/代码评审纪律.md` §四条轴 的精简版（规范 / 忠实 / 残留 / 文档），P0/P1 修完才算过门。
+- [x] `node --test test/prototype-annotations.test.mjs test/prototype-preview.test.mjs` 全绿
+- [x] `node --test test/*.test.mjs` 全量回归全绿（365 项）
+- [x] 按缺陷报告 §最小复现 实跑两处复现，确认现象消失（复现用例加强过：原用例里被批注元素恰是画布首个子元素，两种定位下坐标巧合相同，掩盖了缺陷 1；补一个占位兄弟后才暴露 93px 错位）
+- [x] **代码评审门**：派 1 个子代理跑 `references/core/代码评审纪律.md` §四条轴 的精简版（规范 / 忠实 / 残留 / 文档），P0/P1 修完才算过门。**结果**：P0 0 / P1 0，5 条 P2 已当场收掉。
 
 ## 回滚方式
 
