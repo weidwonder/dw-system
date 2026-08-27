@@ -333,3 +333,23 @@ test('首次写批注会主动说明"批注要存进文件"，且只在真需要
   // 触发点：第一次真正写下批注的那一刻，而不是打开页面就弹。
   assert.match(template, /explainOnce\(\);/, 'explainOnce 必须真的被调用')
 })
+
+test('批注数据结构容纳 replies 且旧数据缺省为空数组', () => {
+  assert.match(template, /replies\s*:/)
+  const seg = cut(template, 'function blank()', 'function load()')
+  assert.match(seg, /replies:\s*\[\]/)
+  const parseSeg = cut(template, 'function parse(', 'function load()')
+  assert.match(parseSeg, /d\.replies\s*=\s*Array\.isArray\(d\.replies\)\s*\?\s*d\.replies\s*:\s*\[\]/)
+})
+
+test('AI 说明气泡带稳定锚点并提供回复编辑删除入口', () => {
+  assert.match(template, /data-anno-id/)
+  assert.match(template, /data-anno-note-id/)
+  assert.match(template, /function nextAnnoId\(/)
+  assert.match(template, /function openNote\(/)
+  assert.match(template, /data-redit/)
+  assert.match(template, /data-rdel/)
+  assert.match(template, /data-anno-text/)
+  assert.match(template, /逐字比对|=== want/)
+  assert.match(template, /el\.setAttribute\("data-anno-id", nid\)/)
+})

@@ -821,6 +821,8 @@
 
     .anno-cursor .icon { width: 11px; height: 11px; stroke-width: 2.5; }
 
+    .anno-note__text { margin: 0 0 10px; padding: 8px 10px; border-left: 2px solid var(--primary); background: var(--muted); border-radius: var(--radius-sm); word-break: break-word; }
+
     @media print { .anno-bar, .anno-pop, .anno-cursor { display: none !important; } }
   </style>
   <!-- ANNO-FRAMEWORK:CSS:END -->
@@ -959,7 +961,8 @@
   "schema": "prd-annotations@1",
   "updatedAt": "",
   "global": [],
-  "items": []
+  "items": [],
+  "replies": []
 }
   </script>
   <!-- ANNOTATIONS:END -->
@@ -991,7 +994,7 @@
     /* ---------- 数据 ---------- */
 
     function blank() {
-      return { schema: "prd-annotations@1", updatedAt: "", global: [], items: [] };
+      return { schema: "prd-annotations@1", updatedAt: "", global: [], items: [], replies: [] };
     }
 
     function parse(text) {
@@ -1000,6 +1003,7 @@
         if (!d || typeof d !== "object") return null;
         d.global = Array.isArray(d.global) ? d.global : [];
         d.items = Array.isArray(d.items) ? d.items : [];
+        d.replies = Array.isArray(d.replies) ? d.replies : [];
         d.updatedAt = d.updatedAt || "";
         d.schema = d.schema || "prd-annotations@1";
         return d;
@@ -1425,10 +1429,12 @@
       Array.prototype.forEach.call(document.querySelectorAll("[data-anno]"), function (el) {
         var text = el.getAttribute("data-anno");
         if (!text) return;
-        var kind = el.getAttribute("data-anno-kind") === "question" ? "ask" : "note";
-        var pin = mkPin(kind, "", text);
-        pin.setAttribute("data-anno-text", text);
-        attach(el, pin);
+            var kind = el.getAttribute("data-anno-kind") === "question" ? "ask" : "note";
+            var pin = mkPin(kind, "", text);
+            pin.setAttribute("data-anno-text", text);
+            var nid = el.getAttribute("data-anno-id");
+            if (nid) pin.setAttribute("data-anno-note-id", nid);
+            attach(el, pin);
       });
 
       store.items.forEach(function (it, i) {
@@ -1474,8 +1480,19 @@
       var pin = e.target.closest(".anno-pin");
       if (pin) {
         var ref = pin.getAttribute("data-anno-ref");
-        if (ref) { e.preventDefault(); e.stopPropagation(); openEditor(ref, pin); }
-        else { tip.textContent = pin.getAttribute("data-anno-text") || ""; place(tip, pin); }
+            if (ref) { e.preventDefault(); e.stopPropagation(); openEditor(ref, pin); }
+            else {
+              var host = pin.closest("[data-anno-host]");
+              var want = pin.getAttribute("data-anno-text") || "";
+              var noteEl = null;
+              if (host) {
+                var cands = Array.prototype.slice.call(host.querySelectorAll("[data-anno]"));
+                if (host.hasAttribute("data-anno")) cands.unshift(host);
+                noteEl = cands.filter(function (n) { return n.getAttribute("data-anno") === want; })[0] || null;
+              }
+              if (noteEl) { e.preventDefault(); e.stopPropagation(); openNote(noteEl, pin); }
+              else { tip.textContent = want; place(tip, pin); }
+            }
         return;
       }
       if (!e.target.closest(".anno-pop") && !e.target.closest(".anno-bar")) pop.hidden = true;
@@ -1521,6 +1538,80 @@
         persist();
       };
       place(pop, anchor);
+      ta.focus();
+    }
+
+    function nextAnnoId() {
+      var used = [];
+      Array.prototype.forEach.call(document.querySelectorAll("[data-anno-id]"), function (el) {
+        used.push({ id: el.getAttribute("data-anno-id") });
+      });
+      return nextId(used, "a");
+    }
+
+    function openNote(el, pin) {
+      var noteText = el.getAttribute("data-anno") || "";
+      var isQuestion = el.getAttribute("data-anno-kind") === "question";
+      var nid = el.getAttribute("data-anno-id");
+      var mine = nid ? store.replies.filter(function (r) { return r.noteId === nid; }) : [];
+      var rows = mine.map(function (r) {
+        return '<li><p>' + esc(r.text) + '</p><span class="row">' +
+          '<button type="button" class="btn btn-ghost btn-icon btn-sm" data-redit="' + esc(r.id) + '" aria-label="修改">' + ico("i-edit") + '</button>' +
+          '<button type="button" class="btn btn-ghost btn-icon btn-sm" data-rdel="' + esc(r.id) + '" aria-label="删除">' + ico("i-x") + '</button></span></li>';
+      }).join("");
+      pop.innerHTML =
+        '<div class="anno-pop__head">' + esc(screenOf(el) || "本页") + " · " + esc(labelOf(el) || el.tagName.toLowerCase()) + (isQuestion ? " · 待你拍板" : "") + "</div>" +
+        '<p class="anno-note__text">' + esc(noteText) + "</p>" +
+        (rows ? '<ul class="anno-list">' + rows + "</ul>" : "") +
+        '<textarea data-role="text" placeholder="' + (isQuestion ? "写下你的答复" : "对这条说明的意见") + '"></textarea>' +
+        '<div class="anno-pop__row"><button type="button" class="btn btn-outline btn-sm" data-role="close">关闭</button>' +
+        '<button type="button" class="btn btn-sm" data-role="reply">' + ico("i-message") + "回复</button></div>";
+      var ta = pop.querySelector('[data-role="text"]');
+      var editing = null;
+      pop.querySelector('[data-role="reply"]').onclick = function () {
+        var v = ta.value.trim();
+        pop.hidden = true;
+        if (!v) return;
+        if (editing) {
+          store.replies.forEach(function (r) {
+            if (r.id === editing) { r.text = v; r.at = new Date().toISOString(); }
+          });
+          persist();
+          return;
+        }
+        if (!nid) {
+          nid = nextAnnoId();
+          el.setAttribute("data-anno-id", nid);
+          pin.setAttribute("data-anno-note-id", nid);
+        }
+        store.replies.push({
+          id: nextId(store.replies, "r"), noteId: nid, noteText: noteText,
+          noteKind: isQuestion ? "question" : "note", screen: screenOf(el),
+          label: labelOf(el), tag: el.tagName.toLowerCase(), text: v,
+          at: new Date().toISOString()
+        });
+        persist();
+      };
+      pop.querySelector('[data-role="close"]').onclick = function () { pop.hidden = true; };
+      Array.prototype.forEach.call(pop.querySelectorAll("[data-rdel]"), function (b) {
+        b.onclick = function () {
+          store.replies = store.replies.filter(function (r) { return r.id !== b.getAttribute("data-rdel"); });
+          pop.hidden = true;
+          persist();
+        };
+      });
+      Array.prototype.forEach.call(pop.querySelectorAll("[data-redit]"), function (b) {
+        b.onclick = function () {
+          var rid = b.getAttribute("data-redit");
+          var cur = store.replies.filter(function (r) { return r.id === rid; })[0];
+          if (!cur) return;
+          editing = rid;
+          ta.value = cur.text;
+          pop.querySelector('[data-role="reply"]').innerHTML = ico("i-check") + "保存修改";
+          ta.focus();
+        };
+      });
+      place(pop, pin);
       ta.focus();
     }
 
