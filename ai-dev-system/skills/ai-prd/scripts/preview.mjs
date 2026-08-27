@@ -110,21 +110,35 @@ function markRange(html, mark) {
 // 容器模板 + 六份框架源码 → 完整容器 HTML。纯函数：不写盘、不依赖任何命令参数，
 // cmdInit 与测试共用同一个它（测试若各自拼一遍，装配逻辑就有了第二份实现）。
 export async function composeTemplate() {
-  let html = await readFile(TEMPLATE, 'utf8')
+  // 容器与框架源文件同属"skill 安装完整性"，读不到时的处置 MUST 一致——
+  // 只给框架文件包 try/catch 会让容器缺失落到顶层兜底，报出一句语焉不详的"工具自身的问题"。
+  let html
+  try {
+    html = await readFile(TEMPLATE, 'utf8')
+  } catch {
+    fail(`容器模板读不到：${TEMPLATE}`, 1)
+  }
   // 从后往前填，前面区间的下标才不会被前一次填充推移。
   for (const it of [...FRAMEWORK].reverse()) {
     const r = markRange(html, it.mark)
-    if (!r) fail(`容器缺固定区标记：${it.mark}（${TEMPLATE}）`, 2)
+    if (!r) fail(`容器缺固定区标记：${it.mark}（${TEMPLATE}）`, 1)
     const p = path.join(FRAMEWORK_DIR, it.file)
     let body
     try {
       body = await readFile(p, 'utf8')
     } catch {
-      fail(`框架源文件读不到：${it.mark} → ${p}`, 2)
+      fail(`框架源文件读不到：${it.mark} → ${p}`, 1)
     }
     html = html.slice(0, r.from) + FRAMEWORK_PRE + it.open + body + it.close + FRAMEWORK_POST + html.slice(r.to)
   }
   return html
+}
+
+// 判空 MUST 在去注释之后：出厂容器的 `<!-- SCREENS -->` 占位注释否则会被当成已有内容。
+// cmdScreen 与 cmdExtract 共用这一个，MUST NOT 各写一份——两处对"什么算空"的判断一旦
+// 分叉，一处会报「界面插槽还是空的」而另一处说「本区为空」，指的却是不同的事。
+function isBlankRegion(body) {
+  return body.replace(/<!--[\s\S]*?-->/g, '').trim() === ''
 }
 
 // 片段自带外壳时剥掉它：容器已经提供外壳，重复一层会得到 <style><style> 或双层 .devices。
@@ -172,6 +186,12 @@ function fail(msg, code = 2) {
 }
 
 // 退出码约定与 ctx CLI 一致：2 = 用法错误（参数缺失/取值非法），其余失败一律 1。
+// 分界容易踩错，写清一次：**"用户把参数指错了"是 2，"文件内容或安装状态不对"是 1**。
+// 于是 `extract` 拿到一份根本不是原型的文件 → 2（那是参数取值非法）；而"容器缺固定区标记"
+// "框架源文件读不到"→ 1，与既有的 `找不到界面插槽（SCREENS 区被改写了？）`（cmdScreen）
+// 和 `找不到插槽 X 的标记（该区被改写了？）`（cmdSlot）完全同类——那几处一律用 1。
+// MUST NOT 因为"这也是一种非法"就把后一类改成 2：同一份文件里对同类错误给两种码，
+// 下一个照抄邻居代码的人必然写出第三种。
 async function readTarget(file) {
   try {
     const s = await stat(file)
@@ -294,7 +314,7 @@ async function cmdScreen(file, opts) {
   const stripped = region.replace(/^\s*<div class="devices" data-anno-canvas>/, '').replace(/<\/div>\s*$/, '')
   // 判空 MUST 在剥掉外壳**并**去掉注释之后：出厂的 `<!-- SCREENS -->` 占位注释若被
   // 当成"已有内容"保留下来，check 会一直报「界面插槽还是空的」——屏明明已经加了。
-  const inner = stripped.replace(/<!--[\s\S]*?-->/g, '').trim() ? stripped.replace(/\s+$/, '') : ''
+  const inner = isBlankRegion(stripped) ? '' : stripped.replace(/\s+$/, '')
   const body = inner ? `${inner}\n\n${block}` : block
   const next = html.slice(0, r.from) + SLOTS.screens.wrap(body) + html.slice(r.to)
   await writeAtomic(file, next)
@@ -425,11 +445,6 @@ function lineOfMark(html, mark) {
   return i < 0 ? null : html.slice(0, i).split('\n').length
 }
 
-// 判空 MUST 在去注释之后：出厂容器的 `<!-- SCREENS -->` 占位注释否则会被当成已有内容。
-function isBlankRegion(body) {
-  return body.replace(/<!--[\s\S]*?-->/g, '').trim() === ''
-}
-
 async function cmdExtract(file, opts) {
   const html = await readTarget(file)
   if (!markRange(html, 'SCREENS')) {
@@ -440,7 +455,9 @@ async function cmdExtract(file, opts) {
   for (const mark of marks) {
     const range = markRange(html, mark)
     if (!range) {
-      out.push(`===== ${mark} （本区不存在于该文件）=====`, '')
+      // 与下面的空区分支保持同形：段头一行、正文一行。两种分支形态不一致时，
+      // 下游按"段头之后是正文"解析会在这一支拿到空串。
+      out.push(`===== ${mark} （区标记不存在） =====`, '（本区不存在于该文件）', '')
       continue
     }
     out.push(`===== ${mark} （源文件第 ${lineOfMark(html, mark)} 行起） =====`)

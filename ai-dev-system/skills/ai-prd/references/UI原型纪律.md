@@ -99,7 +99,12 @@ node <skills 根>/ai-prd/scripts/preview.mjs check <原型文件>
 
 `assets/templates/ui-prototype.html` 内置一层批注框架，把"对某个界面元素的说明"和"用户对某个界面元素的意见"都收进标准载体：**AI 侧**用元素上的一个属性写说明，鼠标悬浮才展开；**用户侧**用页面顶部工具栏点选元素写意见，随时改随时存，AI 直接从文件里读回来。
 
-容器按标记分区，**能动的只有 §8.1 插槽表里那几个插槽**，其余全是固定实现（下表按标记名引用，MUST NOT 用序号——序号会随容器增区而漂）：
+容器按标记分区，**能动的只有 §8.1 插槽表里那几个插槽**，其余全是固定实现（下表按标记名引用，MUST NOT 用序号——序号会随容器增区而漂）。
+
+> **固定实现区的正文不在容器文件里**（2.10.0 起）：`THEME` / `DESIGN-SYSTEM` / `ANNO-FRAMEWORK:CSS` / `ICONS` / `SCREEN-SCRIPT` / `ANNO-FRAMEWORK:JS` 这六个区的内容住在 `assets/templates/ui-prototype-framework/` 下的独立 css / js / svg 源文件里，`ui-prototype.html` 本体只留分区标记与骨架；`preview.mjs init` 会按装配表把它们填回去。**产出的原型仍是单文件、零外链、可离线打开**——外置的是源码组织方式，不是运行时依赖，这条对产出方**没有任何影响**：你依旧只填插槽、依旧不读容器。
+> 只有**维护批注框架本身**时才需要知道这件事：**改框架改 `ui-prototype-framework/` 下对应那份文件，MUST NOT 往 `ui-prototype.html` 的固定区里写内容**——写了就有两份副本，装配后同一段内容出现两次，而页面照常打开、`check` 也看不出。判据与机器闸见 `ai-dev-workflow` 分发源仓库的 `docs/spec/2026-08-27-原型取段与框架外置-eng-spec.md`。
+
+
 
 | 区 | 标记 | 谁写 |
 |---|---|---|

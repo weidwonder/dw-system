@@ -74,7 +74,7 @@ test('缺框架源文件时 init 报错退出且不留残页', async () => {
   try {
     const r = spawnSync(process.execPath, [script, 'init', target, '--title', '缺文件'], { encoding: 'utf8' })
     const out = (r.stdout || '') + (r.stderr || '')
-    assert.equal(r.status, 2, `缺框架源文件时 init 必须以退出码 2 终止，实际 ${r.status}：${out}`)
+    assert.equal(r.status, 1, `缺框架源文件时 init 必须以退出码 1 终止，实际 ${r.status}：${out}`)
     assert.ok(out.includes(FRAMEWORK[0].mark), '错误文案必须指出是哪个区')
     assert.ok(out.includes(FRAMEWORK[0].file), '错误文案必须给出源文件路径')
     assert.ok(!existsSync(target), 'init 失败时 MUST NOT 留下一个缺样式的残页')

@@ -355,13 +355,13 @@ authority_refs:
     // 从后往前填，前面区间的下标才不会被前一次填充推移。
     for (const it of [...FRAMEWORK].reverse()) {
       const r = markRange(html, it.mark)
-      if (!r) fail(`容器缺固定区标记：${it.mark}（${TEMPLATE}）`, 2)
+      if (!r) fail(`容器缺固定区标记：${it.mark}（${TEMPLATE}）`, 1)
       const p = path.join(FRAMEWORK_DIR, it.file)
       let body
       try {
         body = await readFile(p, 'utf8')
       } catch {
-        fail(`框架源文件读不到：${it.mark} → ${p}`, 2)
+        fail(`框架源文件读不到：${it.mark} → ${p}`, 1)
       }
       html = html.slice(0, r.from) + FRAMEWORK_PRE + it.open + body + it.close + FRAMEWORK_POST + html.slice(r.to)
     }
@@ -535,7 +535,7 @@ authority_refs:
     try {
       const r = spawnSync(process.execPath, [script, 'init', target, '--title', '缺文件'], { encoding: 'utf8' })
       const out = (r.stdout || '') + (r.stderr || '')
-      assert.equal(r.status, 2, `缺框架源文件时 init 必须以退出码 2 终止，实际 ${r.status}：${out}`)
+      assert.equal(r.status, 1, `缺框架源文件时 init 必须以退出码 1 终止，实际 ${r.status}：${out}`)
       assert.ok(out.includes(FRAMEWORK[0].mark), '错误文案必须指出是哪个区')
       assert.ok(out.includes(FRAMEWORK[0].file), '错误文案必须给出源文件路径')
       assert.ok(!existsSync(target), 'init 失败时 MUST NOT 留下一个缺样式的残页')

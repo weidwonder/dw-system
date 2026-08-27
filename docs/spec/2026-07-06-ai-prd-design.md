@@ -56,7 +56,7 @@ ai-dev-system/skills/ai-prd/
       product-prd.md           整品 PRD（对齐 doc-governance REQUIREMENTS.md）
     question-bank.md           分章节提问库（供 elicitation 组批）
   scripts/
-    preview.mjs                原型工具（2.7.0 新增，零第三方依赖）：init / screen / slot 建原型与改稿、
+    preview.mjs                原型工具（2.7.0 新增，零第三方依赖）：init / screen / slot 建原型与改稿、extract 取界面内容、
                                check 交付前结构自检、annotations 取批注、serve 起预览服务
 ```
 

@@ -5,7 +5,7 @@
 
 ## 原型容器（ui-prototype.html）
 
-- **职责**：`ai-prd` 产出的 UI 原型的唯一容器——自带默认视觉基线、设计系统、图标库、批注框架与按屏状态切换；由 `preview.mjs init` 复制建出，产出方只填具名插槽。
+- **职责**：`ai-prd` 产出的 UI 原型的唯一容器——**本体只留分区标记与骨架（约 90 行）**，默认视觉基线 / 设计系统 / 图标库 / 批注框架 / 按屏状态切换这六个固定实现区的**正文住在 `assets/templates/ui-prototype-framework/`**，由 `preview.mjs init` 经 `composeTemplate()` 装配建出（2.10.0 起不再是 `copyFile`）；**产物仍是单文件零外链**，产出方只填具名插槽。
 - **对外接口**
   - 分区标记（`<!-- MARK:BEGIN … END -->`，`check` 按 `FIXED_REGIONS` 校验齐全）：`THEME`、`PROJECT-THEME`、`DESIGN-SYSTEM`、`CUSTOM-CSS`、`ANNO-FRAMEWORK:CSS`、`ICONS`、`TITLE`、`NOTES`、`SCREENS`、`SCREEN-SCRIPT`、`CUSTOM-JS`、`ANNOTATIONS`、`ANNO-FRAMEWORK:JS` — `ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html:14,17,22,24,29,32,36,44,51,58,61,65,81`
   - 画布单列布局 `.stage { display: block }`（不再有右侧常驻栏）— `ui-prototype-framework/design-system.css:486`
@@ -30,18 +30,18 @@
 
 - **职责**：`ai-prd` 唯一脚本，七条子命令覆盖原型全流程（建/加屏/填插槽/取界面/取批注/自检/预览服务）。零第三方依赖，跨平台。
 - **对外接口**
-  - `FRAMEWORK` 六项装配表与 `composeTemplate()` 将容器固定区和 `ui-prototype-framework/` 源文件装配回完整 HTML — `ai-dev-system/skills/ai-prd/scripts/preview.mjs:33-125`
+  - `FRAMEWORK` 六项装配表与 `composeTemplate()` 将容器固定区和 `ui-prototype-framework/` 源文件装配回完整 HTML — `ai-dev-system/skills/ai-prd/scripts/preview.mjs:36-135`
   - `SLOTS` **七个**具名插槽 `title | subtitle | screens | notes | theme | custom | script`，区间一律由 `markRange()` 按 `MARK:BEGIN/END` 界定 — `ai-dev-system/skills/ai-prd/scripts/preview.mjs:54-160` 一带
-  - `annoBlockRange()` 定位批注块**限定在 `ANNOTATIONS` 标记区间内**取，不做全文 `indexOf` — `:166-180` 一带
-  - `screenSkeleton(name, states, desktop, annoRight)` 生成 `.device-wrap > .device-name + .device + .screen-notes`，`--anno-right` 加 `is-anno-right` — `:217-242`
-  - `cmdSlot` 的放行契约：`--agreed` + `--agreed-plan`（闭集 `done|void|move`），受影响集 = 丢锚点项 ∪ 显式声明的 `move` 项；`--drop-anchors` 已废除，传入报错退出码 2 — `:274-300` 一带
-  - `cmdSlot` 写入后的等值不变式**无条件执行**（先删后验，不因"没有放行"跳过），不等即 `拒绝写入：本次替换会改动批注块…这是 bug` — `:353-367`
-  - `cmdAnnotations` 输出**三类 + 回复**：用户元素批注 / 全局反馈 / AI 侧说明（标待拍板）/ 用户对说明的回复（带被回复说明原文）— `:539-584`
-  - `cmdExtract` 按固定顺序输出 `TITLE/NOTES/SCREENS`，`--with-css` 追加 `PROJECT-THEME/CUSTOM-CSS`，段头带源文件行号 — `:433-470`
-  - `cmdCheck` 十二类检查（编号不变，屏注解区、按屏状态入口、注解区按钮行为三项并进第 6/7/8 类）— `:636-846` 一带
-  - `cmdServe` 版本化写回：`versionOf()` 取内容 SHA-256，GET/HEAD 回 `X-Proto-Version`，`POST /save` 认 `If-Match` 头或 `?v=` 查询参数（二者等价，后者供 `sendBeacon`），版本不符回 **409 + `{version, html}`**；`serializeWrite()` 用 Promise 链关掉 TOCTOU 窗口 — `:847-966` 一带
-  - `FIXED_REGIONS` 含 `SCREEN-SCRIPT`，**不含** `CUSTOM-JS`（后者是插槽，产出方要写）— `:508`
-  - `HELP` 文案含 `extract`、七个插槽名、`--anno-right` 与放行参数 — `:967` 一带
+  - `annoBlockRange()` 定位批注块**限定在 `ANNOTATIONS` 标记区间内**取，不做全文 `indexOf` — `:220-230`
+  - `screenSkeleton(name, states, desktop, annoRight)` 生成 `.device-wrap > .device-name + .device + .screen-notes`，`--anno-right` 加 `is-anno-right` — `:270-294`
+  - `cmdSlot` 的放行契约：`--agreed` + `--agreed-plan`（闭集 `done|void|move`），受影响集 = 丢锚点项 ∪ 显式声明的 `move` 项；`--drop-anchors` 已废除，传入报错退出码 2 — `:329-371` 一带
+  - `cmdSlot` 写入后的等值不变式**无条件执行**（先删后验，不因"没有放行"跳过），不等即 `拒绝写入：本次替换会改动批注块…这是 bug` — `:419`
+  - `cmdAnnotations` 输出**三类 + 回复**：用户元素批注 / 全局反馈 / AI 侧说明（标待拍板）/ 用户对说明的回复（带被回复说明原文）— `:556-599`
+  - `cmdExtract` 按固定顺序输出 `TITLE/NOTES/SCREENS`，`--with-css` 追加 `PROJECT-THEME/CUSTOM-CSS`，段头带源文件行号 — `:448-471`
+  - `cmdCheck` 十二类检查（编号不变，屏注解区、按屏状态入口、注解区按钮行为三项并进第 6/7/8 类）— `:653-831` 一带
+  - `cmdServe` 版本化写回：`versionOf()` 取内容 SHA-256，GET/HEAD 回 `X-Proto-Version`，`POST /save` 认 `If-Match` 头或 `?v=` 查询参数（二者等价，后者供 `sendBeacon`），版本不符回 **409 + `{version, html}`**；`serializeWrite()` 用 Promise 链关掉 TOCTOU 窗口 — `:864-980` 一带
+  - `FIXED_REGIONS` 含 `SCREEN-SCRIPT`，**不含** `CUSTOM-JS`（后者是插槽，产出方要写）— `:603`
+  - `HELP` 文案含 `extract`、七个插槽名、`--anno-right` 与放行参数 — `:984` 一带
 - **陷阱项**
   - `SLOTS.screens` / `notes` / `theme` / `custom` / `script` **没有 `re` 字段**，误引用 `slot.re` 会静默失效（`match(undefined)` 给空匹配、`replace(undefined,…)` 当字面串）——历史上撞出过 `screen` 命令零改动却退出 0。
   - 判空 MUST 在剥外壳**并**去注释之后，否则出厂 `<!-- SCREENS -->` 占位注释被当成已有内容。
