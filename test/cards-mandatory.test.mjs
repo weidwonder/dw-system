@@ -145,7 +145,8 @@ test('入口自带工作区隔离门要点：建不建、目录取哪个字段�
   assert.match(skill, /\.\/\.worktrees\//, '入口必须给出 worktree-dir 缺省值')
   assert.match(skill, /MUST NOT 替用户 stash/, '入口必须写明主工作树不干净时中止而不是替用户 stash/reset')
   // 上限取自 `contract-numbers.mjs` 的单点定义，MUST NOT 在这里再写一个字面量——
-  // 此前这两行硬编码 8000，与那份「唯一定义处」并存却没人盯，正是它要消除的形态。
+  // 此前这两行写死了一个与那份「唯一定义处」并存的字面量，却没人盯着两者是否一致，
+  // 正是 `contract-numbers.mjs` 要消除的形态。
   assert.ok(
     Buffer.byteLength(skill, 'utf8') <= ENTRY_MAX_BYTES,
     `入口 MUST ≤ ${ENTRY_MAX_BYTES} 字节（AC-004），当前 ${Buffer.byteLength(skill, 'utf8')}`,

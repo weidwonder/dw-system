@@ -187,16 +187,16 @@ authority_refs:
 
 | # | 被取代物 | 位置 | 本次动作 | 核销标记 |
 |---|---|---|---|---|
-| 1 | 小节标题 `## 四道门（贯穿两条路径，Lean 一道也不豁免）` | `references/core/00-流程总纲.md:22` | 改写为五道门 | 待核销 |
-| 2 | 小节标题 `### 1.3 门的全景：四道贯穿门 + 三道条件门` | `references/core/路径-lean.md:88` | 改写为五道 | 待核销 |
-| 3 | 表述「四道门一道不少」「四道门一道也不豁免」 | `references/core/00-流程总纲.md:52`、`references/core/路径-lean.md:7,90,106` | 逐处改写 | 待核销 |
-| 4 | 计数词受检词表条目 `四道门` | `test/counter-word.test.mjs:51-53` | `word` / `variants` 改为 `五道门`，注释同步 | 待核销 |
-| 5 | 表述「`ai-dev-workflow` 的四道门之二」 | `ai-prd/references/collab/team.md:23` | 改写为指名引用兼容取舍确认门 | 待核销 |
-| 6 | 交叉引用「见 `路径-lean.md` 第 5 步」 | `references/core/00-流程总纲.md:39`、`references/core/用户沟通纪律.md:45` | 改为「第 4 步」（FR-014）| 待核销 |
-| 7 | `docs/TODO.md` 中「spec 定稿后缺一道一般性 review 环节」一条 | `docs/TODO.md` §想做的功能 | 删除（本次做掉）| 待核销 |
-| 8 | `export const ENTRY_MAX_BYTES = 8000` 及其「MUST NOT 上调」注释 | `test/contract-numbers.mjs:23` | 改为 12000，注释改写为「上调 MUST 由用户拍板并同步全部活引用点，MUST NOT 为了让某次改动过闸而顺手上调」| 待核销 |
-| 9 | `cards-mandatory.test.mjs` 里硬编码的两处 `8000` | `test/cards-mandatory.test.mjs:148-149` | 改为引用 `ENTRY_MAX_BYTES` | 待核销 |
-| 10 | `docs/TODO.md` 中「入口 SKILL.md 已到 7980 字节、逼近 8000 字节上限」一条 | `docs/TODO.md` §技术欠账 | 删除（上限上调后该紧迫状态不复存在）| 待核销 |
+| 1 | 小节标题 `## 四道门（贯穿两条路径，Lean 一道也不豁免）` | `references/core/00-流程总纲.md:22` | 改写为五道门 | ✅ 实测引用数 0 |
+| 2 | 小节标题 `### 1.3 门的全景：四道贯穿门 + 三道条件门` | `references/core/路径-lean.md:88` | 改写为五道 | ✅ 实测引用数 0 |
+| 3 | 表述「四道门一道不少」「四道门一道也不豁免」 | `references/core/00-流程总纲.md:52`、`references/core/路径-lean.md:7,90,106` | 逐处改写 | ✅ 实测引用数 0 |
+| 4 | 计数词受检词表条目 `四道门` | `test/counter-word.test.mjs:51-53` | `word` / `variants` 改为 `五道门`，注释同步 | ✅ 实测引用数 0 |
+| 5 | 表述「`ai-dev-workflow` 的四道门之二」 | `ai-prd/references/collab/team.md:23` | 改写为指名引用兼容取舍确认门 | ✅ 实测引用数 0 |
+| 6 | 交叉引用「见 `路径-lean.md` 第 5 步」 | `references/core/00-流程总纲.md:39`、`references/core/用户沟通纪律.md:45` | 改为「第 4 步」（FR-014）| ✅ 实测引用数 0 |
+| 7 | `docs/TODO.md` 中「spec 定稿后缺一道一般性 review 环节」一条 | `docs/TODO.md` §想做的功能 | 删除（本次做掉）| ✅ 实测引用数 0 |
+| 8 | `export const ENTRY_MAX_BYTES = 8000` 及其「MUST NOT 上调」注释 | `test/contract-numbers.mjs:23` | 改为 12000，注释改写为「上调 MUST 由用户拍板并同步全部活引用点，MUST NOT 为了让某次改动过闸而顺手上调」| ✅ 实测引用数 0 |
+| 9 | `cards-mandatory.test.mjs` 里硬编码的两处 `8000` | `test/cards-mandatory.test.mjs:148-149` | 改为引用 `ENTRY_MAX_BYTES` | ✅ 实测引用数 0 |
+| 10 | `docs/TODO.md` 中「入口 SKILL.md 已到 7980 字节、逼近 8000 字节上限」一条 | `docs/TODO.md` §技术欠账 | 删除（上限上调后该紧迫状态不复存在）| ✅ 实测引用数 0 |
 
 **保留例外**：§8.1 第 4 条的"存量 spec 缺 §13 时文档轴跳过"，到期日 2027-02-28，与 §8.1 同一个日期。
 

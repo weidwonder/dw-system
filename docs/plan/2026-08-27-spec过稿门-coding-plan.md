@@ -234,15 +234,15 @@ authority_refs:
 
 | 被取代物 | 删除任务 | 实测引用数 | 核销 |
 |---|---|---|---|
-| `## 四道门（贯穿两条路径，Lean 一道也不豁免）` | Task 2 Step 1 | 待测 | ⏳ |
-| `### 1.3 门的全景：四道贯穿门 + 三道条件门` | Task 4 Step 1 | 待测 | ⏳ |
-| 「四道门一道不少 / 一道也不豁免」表述 | Task 2 Step 4、Task 4 Step 1 | 待测 | ⏳ |
-| 计数词受检词表条目 `四道门` | Task 2 Step 6 | 待测 | ⏳ |
-| 「`ai-dev-workflow` 的四道门之二」 | Task 6 Step 4 | 待测 | ⏳ |
-| 「见 `路径-lean.md` 第 5 步」 | Task 2 Step 4 | 待测 | ⏳ |
-| `docs/TODO.md` 两条待办 | Task 9 Step 2 | 待测 | ⏳ |
-| `ENTRY_MAX_BYTES = 8000` 及其「MUST NOT 上调」注释 | Task 1 Step 1 | 待测 | ⏳ |
-| `cards-mandatory.test.mjs` 两处硬编码 `8000` | Task 1 Step 2 | 待测 | ⏳ |
+| `## 四道门（贯穿两条路径，Lean 一道也不豁免）` | Task 2 Step 1 | 0 | ✅ |
+| `### 1.3 门的全景：四道贯穿门 + 三道条件门` | Task 4 Step 1 | 0 | ✅ |
+| 「四道门一道不少 / 一道也不豁免」表述 | Task 2 Step 4、Task 4 Step 1 | 0 | ✅ |
+| 计数词受检词表条目 `四道门` | Task 2 Step 6 | 0 | ✅ |
+| 「`ai-dev-workflow` 的四道门之二」 | Task 6 Step 4 | 0 | ✅ |
+| 「见 `路径-lean.md` 第 5 步」 | Task 2 Step 4 | 0 | ✅ |
+| `docs/TODO.md` 两条待办 | Task 9 Step 2 | 0 | ✅ |
+| `ENTRY_MAX_BYTES = 8000` 及其「MUST NOT 上调」注释 | Task 1 Step 1 | 0 | ✅ |
+| `cards-mandatory.test.mjs` 两处硬编码 `8000` | Task 1 Step 2 | 0 | ✅ |
 
 ## 完成与自动合并
 
