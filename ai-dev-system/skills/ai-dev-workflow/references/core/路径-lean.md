@@ -497,6 +497,8 @@ Lean 路径通常只需要用户在两处表态：**兼容取舍**（§6.1）和
 - **两个固定文件名的账本是例外**，不按"每次新建一个 `<feature>-<report-type>-report.md`"拆分：`docs/report/bug修复历史.md`（**追加式**，每条是发生过的一次性事实）与 `docs/report/测试场景覆盖度.md`（**状态表**，同一场景只有一行）。两者 **MUST 恒为 `lifecycle: active`、`authority_refs: ['无']`，MUST NOT 被 §10.3 的权威面触发转归档**。
 - **测试资产不是文档**：真实输入样本落项目测试目录（兜底 `tests/fixtures/<场景名>/`），**MUST NOT 塞进 `docs/`**；含凭证的进同级 `secrets/` 并 gitignore，脱敏副本 `secrets.example/` 入库。
 - Lean 的默认命名：`docs/spec/<change-name>-lean-change-spec.md`；交接文档 `docs/plan/<feature>-handoff.md`；报告 `docs/report/<feature>-<report-type>-report.md`。
+- 落盘的文件名 MUST 以 `YYYY-MM-DD-` 开头（`docs/spec/YYYY-MM-DD-<change-name>-lean-change-spec.md`）；常青档与两份索引不加；拆成目录时目录名同样带前缀。项目自己有更严格的命名约定可以更严格，MUST NOT 豁免掉这条前缀。
+  来源：`文档治理.md` §默认命名
 
   来源：`文档治理.md` §硬规则
 
