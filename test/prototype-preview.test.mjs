@@ -776,3 +776,88 @@ test('check 只在屏内容、屏注解、元素说明、设计说明中提示�
   assert.equal(out.ok, true)
   rmSync(dir, { recursive: true, force: true })
 })
+
+test('agreed move 在锚点随新片段带回时成功并保留批注条目', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-move-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  const oldFrag = '<section class="device-wrap"><p class="device-name">S</p><div class="device"><div class="screen"><div class="status is-default"><button data-anno-user="u1">旧</button></div></div></div><div class="screen-notes"><p class="screen-notes__title">注解</p><div class="screen-notes__body"></div><div class="screen-notes__acts"></div></div></section>'
+  assert.equal(run('slot', file, '--set', 'screens', '--text', oldFrag).code, 0)
+  let html = readFileSync(file, 'utf8')
+  html = withAnnotations(html, { schema: 'prd-annotations@1', updatedAt: '', global: [], items: [{ id: 'u1', text: '意见', screen: 'S', label: '旧' }], replies: [] })
+  writeFileSync(file, html)
+  const moved = oldFrag.replace('>旧</button>', ' class="moved">新</button>')
+  const r = run('slot', file, '--set', 'screens', '--text', moved, '--agreed', '--agreed-plan=u1=move')
+  assert.equal(r.code, 0)
+  assert.match(r.out, /放行清单/)
+  assert.match(r.out, /u1.*挪到新元素/)
+  assert.match(readFileSync(file, 'utf8'), /data-anno-user="u1"/)
+  rmSync(dir, { recursive: true, force: true })
+})
+
+// 批注块的定位一律限定在 ANNOTATIONS 标记区间内，且片段里不许出现它的开标签。
+// 这条闸来自一次实测：放行路径上，插槽片段里混进一个同样带 id="anno-data" 的块，
+// 于是 indexOf 认前不认后——放行数据被写进片段里那个假块，真批注块原封不动（要清掉
+// 的批注还在），而命令照常打印「放行清单」并退出 0，全程零报错。交付时看不出任何症状。
+test('片段里混进批注块开标签时拒绝写入，真批注块不被动到', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-fakeblock-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  assert.equal(run('screen', file, '--name', 'S').code, 0)
+
+  const shell =
+    '<div class="screen-notes"><p class="screen-notes__title">这一屏的注解 · 不属于用户界面</p>' +
+    '<div class="screen-notes__body">x</div><div class="screen-notes__acts"></div></div>'
+  const withAnchor =
+    '<section class="device-wrap"><p class="device-name">S</p><div class="device"><div class="screen">' +
+    '<div class="status is-default"><button class="btn" data-anno-user="u1">甲</button></div>' +
+    '</div></div>' + shell + '</section>'
+  assert.equal(run('slot', file, '--set', 'screens', '--text', withAnchor).code, 0)
+  writeFileSync(file, withAnnotations(readFileSync(file, 'utf8'), {
+    schema: 'prd-annotations@1',
+    updatedAt: '2026-08-27T00:00:00.000Z',
+    global: [],
+    items: [{ id: 'u1', screen: 'S', tag: 'button', label: '甲', text: '甲的意见' }],
+    replies: [],
+  }), 'utf8')
+
+  const fake =
+    '<section class="device-wrap"><p class="device-name">S</p><div class="device"><div class="screen">' +
+    '<div class="status is-default">' + SLOT_OPEN + '{"schema":"FAKE"}' + SLOT_CLOSE + '<b>没了</b></div>' +
+    '</div></div>' + shell + '</section>'
+  const r = run('slot', file, '--set', 'screens', '--text', fake, '--agreed', '--agreed-plan=u1=done')
+  assert.notEqual(r.code, 0, '片段里出现批注块开标签时 MUST 拒绝写入')
+  assert.match(r.out, /批注块的开标签/)
+  const after = readAnnotations(readFileSync(file, 'utf8'))
+  assert.deepEqual(after.items.map((x) => x.id), ['u1'], '写入被拒，真批注块 MUST 原封不动')
+})
+
+// 与上一条相对：正常放行路径必须真的把已约定的条目从真批注块里清掉。
+test('正常放行把已约定的条目从真批注块里清掉', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-release-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  assert.equal(run('screen', file, '--name', 'S').code, 0)
+  const shell =
+    '<div class="screen-notes"><p class="screen-notes__title">这一屏的注解 · 不属于用户界面</p>' +
+    '<div class="screen-notes__body">x</div><div class="screen-notes__acts"></div></div>'
+  const withAnchor =
+    '<section class="device-wrap"><p class="device-name">S</p><div class="device"><div class="screen">' +
+    '<div class="status is-default"><button class="btn" data-anno-user="u1">甲</button></div>' +
+    '</div></div>' + shell + '</section>'
+  assert.equal(run('slot', file, '--set', 'screens', '--text', withAnchor).code, 0)
+  writeFileSync(file, withAnnotations(readFileSync(file, 'utf8'), {
+    schema: 'prd-annotations@1',
+    updatedAt: '2026-08-27T00:00:00.000Z',
+    global: [],
+    items: [{ id: 'u1', screen: 'S', tag: 'button', label: '甲', text: '甲的意见' }],
+    replies: [],
+  }), 'utf8')
+  const gone =
+    '<section class="device-wrap"><p class="device-name">S</p><div class="device"><div class="screen">' +
+    '<div class="status is-default"><b>甲没了</b></div></div></div>' + shell + '</section>'
+  const r = run('slot', file, '--set', 'screens', '--text', gone, '--agreed', '--agreed-plan=u1=done')
+  assert.equal(r.code, 0)
+  assert.match(r.out, /放行清单/)
+  assert.deepEqual(readAnnotations(readFileSync(file, 'utf8')).items, [], '放行 MUST 真的清掉那条')
+})

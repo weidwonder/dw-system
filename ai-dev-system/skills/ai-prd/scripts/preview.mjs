@@ -159,12 +159,27 @@ function esc(s) {
   return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
 }
 
-function readAnnoBlock(html) {
-  const s = html.indexOf(ANNO_OPEN)
+// 批注块的定位一律限定在 ANNOTATIONS 标记区间内。MUST NOT 用 indexOf 找全文第一个
+// `<script id="anno-data">`：插槽内容里出现同样的字样时，谁在前面就认谁——实测撞出过
+// 放行数据被写进插槽里那个假块、真块原封不动（要清掉的批注还在），而命令照常打印
+// 放行清单并退出 0，全程零报错。
+function annoBlockRange(html) {
+  const region = markRange(html, 'ANNOTATIONS')
+  const base = region ? region.from : 0
+  const scope = region ? html.slice(region.from, region.to) : html
+  const s = scope.indexOf(ANNO_OPEN)
   if (s < 0) return null
-  const from = html.indexOf('>', s) + 1
-  const to = html.indexOf(CLOSE_SCRIPT, from)
+  const from = scope.indexOf('>', s) + 1
+  const to = scope.indexOf(CLOSE_SCRIPT, from)
   if (to < 0) return null
+  return { from: base + from, to: base + to }
+}
+
+function readAnnoBlock(html) {
+  const r = annoBlockRange(html)
+  if (!r) return null
+  const from = r.from
+  const to = r.to
   try {
     return JSON.parse(html.slice(from, to))
   } catch {
@@ -268,6 +283,13 @@ async function cmdSlot(file, opts) {
 
   const html = await readTarget(file)
   const slot = SLOTS[key]
+  // 插槽内容里出现批注块的开标签，会让"哪个才是真批注块"变成看谁在前面。
+  // 批注块只有一处，且只由页面工具栏与放行路径写 —— 片段里出现它一定是拼错了。
+  if (typeof value === 'string' && value.includes(ANNO_OPEN)) {
+    fail(`拒绝写入：片段里出现了批注块的开标签（${ANNO_OPEN}）。\n` +
+      '  批注块全篇只有一处，住在 ANNOTATIONS 区，只由页面工具栏与显式放行路径写入。\n' +
+      '  片段里 MUST NOT 包含它——把这段去掉再写。', 2)
+  }
   const before = readAnnoBlock(html)
   value = stripShell(value, slot, key)
   const body = key === 'title' ? esc(value.trim()) : value.replace(/\s+$/, '')
@@ -328,14 +350,20 @@ async function cmdSlot(file, opts) {
     if (dropped.length) console.log(`  ⚠ 连带丢弃 ${dropped.length} 条回复：${dropped.map((r) => r.id).join(' ')}`)
     changedData = { ...changedData, replies: (changedData.replies || []).filter((r) => !lostNotes.includes(r.noteId)) }
   }
+  // 第一步：执行本次允许的两类删除（已约定 done/void 的批注、被删说明连带的回复）。
+  if (before && (released.length || lostNotes.length)) {
+    next = replaceAnnoBlock(next, changedData)
+  }
+  // 第二步：无条件校验。批注块 MUST 恰好等于"允许的删除之后"的样子，别的差异一律判 bug。
+  // 这两步 MUST NOT 合并成"不相等就覆盖成我算出来的样子"——那样校验对象就没了，
+  // 而放行路径恰恰是最需要它的那条路。
   if (before) {
     const dropIds = new Set(released.filter((r) => r.act !== 'move').map((r) => r.id))
     const expected = { ...before, items: (before.items || []).filter((x) => !dropIds.has(x.id)) }
     if (before.replies) expected.replies = before.replies.filter((r) => !lostNotes.includes(r.noteId))
     const after = readAnnoBlock(next)
     if (!after || JSON.stringify({ ...expected, updatedAt: '' }) !== JSON.stringify({ ...after, updatedAt: '' })) {
-      if (released.length || lostNotes.length) next = replaceAnnoBlock(next, changedData)
-      else fail('拒绝写入：本次替换会改动批注块（放行清单与连带回复之外的改动）。这是 bug，请报告。', 1)
+      fail('拒绝写入：本次替换会改动批注块（放行清单与连带回复之外的改动）。这是 bug，请报告。', 1)
     }
   }
 
@@ -366,10 +394,10 @@ async function parseAgreedPlan(raw) {
 }
 
 function replaceAnnoBlock(html, data) {
-  const s = html.indexOf(ANNO_OPEN)
-  if (s < 0) fail('找不到批注块，无法放行', 1)
-  const from = html.indexOf('>', s) + 1
-  const to = html.indexOf(CLOSE_SCRIPT, from)
+  const r = annoBlockRange(html)
+  if (!r) fail('找不到批注块，无法放行', 1)
+  const from = r.from
+  const to = r.to
   const text = JSON.stringify({ ...data, updatedAt: new Date().toISOString() }, null, 2)
   return html.slice(0, from) + '\n' + text.replace(/<\//g, '<\\/') + '\n  ' + html.slice(to)
 }
@@ -682,8 +710,8 @@ async function cmdCheck(file, opts) {
   })
 
   const DIFF_WORDS = ['相比上一轮', '相比上一版', '原方案', '本轮把', '上一稿', '改为原来的', '与上一版相比']
-  const proseRegions = screensRegion(html) + sliceRegion(html, 'NOTES') +
-    [...html.matchAll(/data-anno="([^"]*)"/g)].map((m) => m[1]).join(' ')
+  const screenProse = screensRegion(html)
+  const proseRegions = screenProse + sliceRegion(html, 'NOTES')
   DIFF_WORDS.forEach((w) => {
     if (proseRegions.includes(w)) add('P2', `稿间对比措辞「${w}」`, '未定稿前的改稿只写最新设计；业务文案里正好有这个词就忽略本条')
   })
@@ -868,6 +896,7 @@ const HELP = `原型工具（ai-prd）
          插槽名：title | subtitle | screens | notes | theme | custom | script
          script 装注解区按钮的点击行为，与原型同文件，MUST NOT 引外部脚本
          改稿走它：只换插槽内容，批注块与 data-anno-user 锚点原样保留
+         动到带用户批注的元素时：先逐条约定，再带 --agreed --agreed-plan=<id>=<done|void|move> 放行
   annotations <文件> [--json]                           取用户批注 + AI 侧说明（带行号）
   check  <文件> [--json]                                交付前自检（P0 存在则退出码 1）
   serve  <文件> [--port <n>] [--no-open]                起预览服务，页面批注自动写回该文件
