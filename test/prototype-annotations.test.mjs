@@ -353,3 +353,13 @@ test('AI 说明气泡带稳定锚点并提供回复编辑删除入口', () => {
   assert.match(template, /逐字比对|=== want/)
   assert.match(template, /el\.setAttribute\("data-anno-id", nid\)/)
 })
+
+test('annotations 输出用户对说明的回复，包含快照字段与孤儿标记', () => {
+  const tool = read(prdRoot, 'scripts', 'preview.mjs')
+  const fn = cut(tool, 'async function cmdAnnotations', '\n/* ────────────────── check')
+  assert.match(fn, /replies/)
+  assert.match(fn, /noteText/)
+  assert.match(fn, /noteKind/)
+  assert.match(fn, /orphan/)
+  assert.match(fn, /用户对说明的回复/)
+})

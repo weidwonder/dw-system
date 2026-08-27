@@ -356,11 +356,13 @@ function collectAiNotes(html) {
       (attrs.match(/aria-label="([^"]*)"/) || [])[1] ||
       ''
     const span = spans.find((sp) => m.index >= sp.from && m.index < sp.to)
+    const id = (attrs.match(/data-anno-id="([^"]*)"/) || [])[1] || ''
     out.push({
       line: lineOf(html, m.index),
       screen: span ? span.name : '',
       tag: m[1].toLowerCase(),
       kind,
+      id,
       label: label.slice(0, 60),
       text: m[3],
     })
@@ -383,13 +385,15 @@ async function cmdAnnotations(file, opts) {
   const lines = anchorLines(html)
   const items = (data.items || []).map((it) => ({ ...it, line: lines[it.id] || null }))
   const ai = collectAiNotes(html)
+  const known = new Set(ai.map((a) => a.id).filter(Boolean))
+  const replies = (data.replies || []).map((r) => ({ ...r, orphan: !known.has(r.noteId) }))
 
   if (opts.json) {
     console.log(JSON.stringify({
       schema: data.schema || 'prd-annotations@1',
       file: path.resolve(file),
       updatedAt: data.updatedAt || '',
-      user: { items, global: data.global || [] },
+      user: { items, global: data.global || [], replies },
       ai,
     }, null, 2))
     return
@@ -408,6 +412,14 @@ async function cmdAnnotations(file, opts) {
   ai.forEach((a) => {
     console.log(`  ${a.screen || '本页'} › ${a.tag} "${a.label}" @${path.basename(file)}:${a.line}${a.kind === 'question' ? ' [待拍板]' : ''}`)
     console.log(`        ${a.text}`)
+  })
+  console.log(`\n用户对说明的回复（${replies.length}）`)
+  replies.forEach((r) => {
+    const q = r.noteKind === 'question' ? ' [待拍板]' : ''
+    const where = r.orphan ? '（这条说明已不在页面上）' : ''
+    console.log(`  [${r.id}] ${r.screen || '本页'} › ${r.tag || '?'} "${r.label || ''}"${q}${where}`)
+    console.log(`        回的是：${r.noteText}`)
+    console.log(`        回复：${r.text}`)
   })
 }
 
