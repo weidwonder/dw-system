@@ -9,6 +9,7 @@
 | 文档 | 生命周期 | 口径去了哪 |
 |---|---|---|
 | [原型注解分层与文档日期前缀](./spec/2026-08-26-原型注解分层与文档日期前缀-PRD.md) | merged | 已归并进 `docs/REQUIREMENTS.md`；现行口径以需求真相源与实现为准 |
+| [ai-prd 批注框架缺陷报告](./report/2026-08-27-ai-prd-批注框架缺陷报告.md) | merged | 两处缺陷已修，口径进 [原型批注框架绝对定位与图钉可见性](./spec/2026-08-27-原型批注框架绝对定位与图钉可见性-lean-change-spec.md) 与 `cards/ai-dev-system.md#原型容器（ui-prototype.html）`；层叠上下文遮挡那半仍挂在 `docs/TODO.md` §技术欠账 |
 | [自有 AI 辅助开发体系实施计划](./plan/2026-07-06-ai-dev-system.md) | merged | 体系已建成，现行架构见 `CLAUDE.md` 与 [体系设计](./spec/2026-07-06-ai-dev-system-design.md) |
 | [文档治理与 Codex 保护设计](./spec/2026-07-13-document-governance-and-codex-guard-design.md) | merged | 规则已落进 `references/core/文档治理.md` 与安装器 |
 | [文档治理与 Codex 保护实施计划](./plan/2026-07-13-document-governance-and-codex-guard-plan.md) | merged | 同上，任务已全部执行 |

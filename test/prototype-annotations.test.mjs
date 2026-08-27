@@ -370,3 +370,99 @@ test('批注出口明确包含用户对说明的回复第四类', () => {
   assert.match(fn, /用户对说明的回复/)
   assert.match(fn, /user:\s*\{[\s\S]*replies/)
 })
+
+// ---------------------------------------------------------------------------
+// 批注框架不得改写被批注元素的定位，图钉不得被裁切或遮挡
+// spec：docs/spec/2026-08-27-原型批注框架绝对定位与图钉可见性-lean-change-spec.md
+//
+// 这三条锁的都是**写错了页面照常打开、只是悄悄错位或看不见**的那类知识（缺陷报告
+// docs/report/2026-08-27-ai-prd-批注框架缺陷报告.md 记录的两处正是如此），静态断言是
+// 唯一可行的闸——容器的 DOM 行为要真浏览器才跑得起来，本仓库零第三方依赖、没有。
+// ---------------------------------------------------------------------------
+
+// 取某个选择器块里的 z-index。找不到就当场红：选择器改名后断言必须跟着改，
+// 静默退化成"没查到就算过"会让整条层级契约失效。
+const zIndexOf = (selector) => {
+  const i = template.indexOf(selector + ' {')
+  assert.ok(i >= 0, `选择器失效（容器已改写，断言需同步）：${selector}`)
+  const block = template.slice(i, template.indexOf('}', i))
+  const m = block.match(/z-index:\s*(\d+)/)
+  assert.ok(m, `${selector} 块里没有 z-index`)
+  return Number(m[1])
+}
+
+test('提升定位只作用于取值 rel 的宿主——绝对定位元素打了批注不会被打回文档流', () => {
+  // 缺陷 1：[data-anno-host] 与作者的单 class 规则同权重且排在后面，无条件提升会让
+  // position: absolute 的元素当场错位，而作者会误判成自己布局写错。
+  assert.ok(
+    template.includes('[data-anno-host="rel"] { position: relative; }'),
+    '提升定位的规则 MUST 按取值收窄为 [data-anno-host="rel"]，MUST NOT 作用于全部宿主',
+  )
+  assert.ok(
+    !/\[data-anno-host\]\s*\{[^}]*position:/.test(template),
+    'MUST NOT 存在无条件给 [data-anno-host] 设 position 的规则',
+  )
+
+  const attach = cut(template, 'function attach(el, pin)', 'function render()')
+  assert.ok(
+    attach.includes('getComputedStyle(host)') && attach.includes('=== "static"'),
+    'attach() MUST 按 computed position 判定，只有本来是 static 的宿主才提升',
+  )
+  // 同一元素挂多枚图钉时，第二枚会读到已被提升的 relative；不设守卫就会把提升撤掉。
+  assert.ok(
+    attach.includes('getAttribute("data-anno-host") === null'),
+    'attach() MUST 只在首枚图钉时判定定位，后续沿用已有取值',
+  )
+  // 属性本身要恒加：点图钉靠 pin.closest("[data-anno-host]") 回到宿主再找说明元素，
+  // 属性缺席会让绝对定位元素上的 AI 说明打不开（回复功能一并失效）。
+  assert.ok(
+    template.includes('pin.closest("[data-anno-host]")'),
+    '点击图钉仍靠 [data-anno-host] 回溯宿主——该属性 MUST 恒加，只用取值区分要不要提升',
+  )
+  assert.ok(
+    /setAttribute\("data-anno-host",\s*pos === "static" \? "rel" : ""\)/.test(attach),
+    '属性 MUST 无条件写上，用 "rel" / "" 两个取值区分是否提升定位',
+  )
+})
+
+test('图钉贴元素内侧——外侧偏移会被任何 overflow 祖先裁掉', () => {
+  // 缺陷 2 的一半：画布类原型几乎必然有滚动容器，负偏移正好落在裁切区外，
+  // 图钉整枚看不见，用户会以为批注没保存成功。
+  const pinCss = cut(template, '.anno-pin {', '}')
+  const top = pinCss.match(/top:\s*(-?\d+)px/)
+  assert.ok(top, '.anno-pin MUST 显式给出 top')
+  assert.ok(Number(top[1]) >= 0, `.anno-pin 的 top MUST NOT 为负（当前 ${top[1]}px）——负值会被 overflow 裁掉`)
+
+  const attach = cut(template, 'function attach(el, pin)', 'function render()')
+  const right = attach.match(/pin\.style\.right = \((-?\d+) \+ n \* \d+\)/)
+  assert.ok(right, 'attach() MUST 计算图钉的水平偏移')
+  assert.ok(Number(right[1]) >= 0, `图钉水平偏移的起点 MUST NOT 为负（当前 ${right[1]}px）`)
+})
+
+test('图钉的层级高于原型内容、低于批注框架自身的每一层', () => {
+  // 缺陷 2 的另一半：z-index 60 会被原型里任何稍高的自定义层盖住；但拉到极大值又会
+  // 反过来盖住框架自己的工具栏与弹窗。所以是一段区间，两头都要锁。
+  const pin = zIndexOf('.anno-pin')
+  assert.ok(pin > 100, `.anno-pin 的 z-index MUST 高于原型自定义内容的常用层级（当前 ${pin}）`)
+  ;['.anno-notes-panel', '.anno-bar', '.anno-pop', '.anno-cursor'].forEach((sel) => {
+    assert.ok(pin < zIndexOf(sel), `.anno-pin(${pin}) MUST 低于 ${sel}(${zIndexOf(sel)})，否则会遮住框架自己的 UI`)
+  })
+
+  // 这个取值被复制到纪律、卡片与需求真相源三处：纪律要告诉作者这条上限（否则他在 custom
+  // 插槽里写个更高的值就又把图钉盖住了），卡片与真相源是下一个零上下文 agent 的入口。
+  // 三处各记一个数就会漂，所以按容器的实际取值逐处比对。
+  ;[
+    ['UI原型纪律 §8.4', discipline],
+    ['engineering-context/cards/ai-dev-system.md', read(repoRoot, 'engineering-context', 'cards', 'ai-dev-system.md')],
+    ['docs/REQUIREMENTS.md', read(repoRoot, 'docs', 'REQUIREMENTS.md')],
+  ].forEach(([where, body]) => {
+    // 只查 body.includes(pin) 太弱——文件别处出现过这个数就恒真，写上限那句写错了照样绿。
+    // 所以抓「上限」二字近旁的数字逐个比对。
+    const written = [...body.matchAll(/上限[^\d\n]{0,12}(\d{2,})|(\d{2,})[^\d\n]{0,12}上限/g)]
+      .map((m) => Number(m[1] ?? m[2]))
+    assert.ok(written.length > 0, `${where} MUST 写明自定义样式的 z-index 上限（${pin}），否则作者无从避让`)
+    written.forEach((n) => {
+      assert.equal(n, pin, `${where} 写的 z-index 上限 ${n} 与容器实际取值 ${pin} 不一致——同一个量 MUST NOT 各记一个数`)
+    })
+  })
+})

@@ -28,7 +28,7 @@
 ## 技术欠账
 
 - 2026-08-27 ｜ ai-prd ｜ 下次真跑一遍完整产 PRD 流程时回看：产出的原型里“写进屏幕内容的说明文字”是否为零、每屏该说的话是否都在自己的注解区里
-- 2026-08-27 ｜ ai-prd ｜ 批注框架（`assets/templates/ui-prototype.html` 的 `ANNO-FRAMEWORK` 固定实现区）对含绝对定位画布（拓扑图/流程图/座位图类）的原型有两处缺陷：①给 `position: absolute` 元素打批注会被 `[data-anno-host] { position: relative }` 覆盖、元素跑飞错位；②图钉贴元素外侧定位，会被 `overflow` 容器裁切或被层叠上下文遮挡而不可见。复现步骤、根因与修法建议见 `docs/report/2026-08-27-ai-prd-批注框架缺陷报告.md`
+- 2026-08-27 ｜ ai-prd ｜ 批注图钉在**祖先已建立层叠上下文**（`transform` / `filter` / `opacity<1` / 带 `z-index` 的定位祖先）的画布里仍可能被遮挡：`z-index: 880` 只在最近的层叠上下文内有效，拉多高都出不去。彻底解法是把图钉挂到 body 下的覆盖层按 `getBoundingClientRect()` 定位（缺陷报告的修法 C），需处理滚动、resize 与 `serialize()` 剥离；2026-08-27 那次已按修法 A+B 修掉定位改写与 `overflow` 裁切两项，见 `docs/spec/2026-08-27-原型批注框架绝对定位与图钉可见性-lean-change-spec.md`
 - 2026-08-26 ｜ ai-dev-workflow ｜ 入口 SKILL.md 已到 7980 字节、逼近 8000 字节上限，下次新增加载点前需先把入口拆分，否则加不进去
 - 2026-08-26 ｜ ai-prd ｜ 计数词收敛只做了 `ai-dev-workflow/`，机器闸不遍历 `ai-prd/`，`prd复核纪律.md` 里的计数词仍是手工维护，改轴数时漏改不报错
 - 2026-08-26 ｜ 跨模块 ｜ `FR-###` / `AC-###` 需求编号贯通五个落点，但这条契约没有机器闸，唯一防线是 spec 的覆盖自查与评审门忠实轴的覆盖矩阵
