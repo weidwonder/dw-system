@@ -13,7 +13,7 @@
   - 设计说明面板 `#proto-notes-panel`（默认 `hidden`，工具栏 `[data-act="notes"]` 展开），`NOTES` 插槽与 `#proto-notes` 仍在其中 — `ui-prototype.html:44-46`
   - `SCREEN-SCRIPT` 固定区导出**唯一**全局 `window.setScreenState(screenEl, nextState)` —— 只认屏元素与目标态，**不认按钮**（按钮行为归 `CUSTOM-JS` 插槽）— `ui-prototype-framework/screen.js:1-45`
   - 批注数据块 `<script type="application/json" id="anno-data">`，schema 仍是 `prd-annotations@1`，字段 `global[]` / `items[]` / **`replies[]`**（`replies[].noteId` ↔ AI 说明的 `data-anno-id`）— `ui-prototype.html:65-79`
-  - 批注框架 JS：`serialize()` 剥运行时状态并复位设计说明面板 — `ui-prototype-framework/anno.js:106-149`；`write()` 带 `If-Match` 版本头 — `:149-205`；`openNote()` 承载对 AI 说明的增删改回复 — `:593-650`；工具栏 `bar.innerHTML` — `:302-331`；`paint()` 控制保存/复制按钮显隐 — `:333-427`
+  - 批注框架 JS：`serialize()` 剥运行时状态并复位设计说明面板 — `ui-prototype-framework/anno.js:106-149`；`write()` 带 `If-Match` 版本头 — `ui-prototype-framework/anno.js:149-205`；`openNote()` 承载对 AI 说明的增删改回复 — `ui-prototype-framework/anno.js:593-650`；工具栏 `bar.innerHTML` — `ui-prototype-framework/anno.js:302-331`；`paint()` 控制保存/复制按钮显隐 — `ui-prototype-framework/anno.js:333-427`
   - 批注气泡渲染：`data-anno` / `data-anno-kind="question"` / `items[]` — `ui-prototype-framework/anno.js:430-445`
   - 图钉的定位与层级契约：`attach()` 恒给宿主加 `data-anno-host`，仅 `position: static` 宿主取值 `rel` 才提升；图钉贴宿主内侧、`z-index: 880` — `ui-prototype-framework/anno.js:447-490`；`ui-prototype-framework/anno.css:58-72`
 - **陷阱项**
