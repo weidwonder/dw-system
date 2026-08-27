@@ -1735,31 +1735,31 @@ ${layers}
 
 | 被取代物 | 删除/改写任务 | 实测引用数 | 核销 |
 |---|---|---|---|
-| `--drop-anchors` 开关 | Task 7 | 待测 | ⏳ |
-| `opts['drop-anchors']` 判定分支 | Task 7 | 待测 | ⏳ |
-| `⚠ 按 --drop-anchors 丢弃了…` 输出文案 | Task 7 | 待测 | ⏳ |
-| 状态切换卡片 DOM | Task 2 | 待测 | ⏳ |
-| `setState()` 全局遍历与 `stateButtons` | Task 2 | 待测 | ⏳ |
-| `<aside class="aside-stack">` 外壳 | Task 3 | 待测 | ⏳ |
-| `.aside-stack` / `.state-buttons` CSS | Task 3 | 待测 | ⏳ |
-| `.stage` 两列 + `@media` 两行 | Task 3 | 待测 | ⏳ |
-| 说明栏标题「设计说明（不属于用户界面）」 | Task 3 | 待测 | ⏳ |
-| `UI原型纪律.md` 九处失准表述（9.2/9.5/9.6/9.7/9.8/9.9/9.10/9.11/9.12）| Task 9 | 待测 | ⏳ |
-| `ui-prototype.html:937`、`preview.mjs:734` 的「唯一写入方」 | Task 9 / Task 7 | 待测 | ⏳ |
-| `文档治理.md:245` 逃生口（**改写不删**）| Task 10 | 待测 | ⏳ |
-| `CLAUDE.md` 的「MUST NOT 用 `--drop-anchors` 绕过去」 | Task 13 | 待测 | ⏳ |
-| `docs/report/agentic-principle-gap-report.md` 文件名 | Task 12 | 待测 | ⏳ |
+| `--drop-anchors` 开关 | Task 7 | 2（`preview.mjs:275-276`、`:915`）| ✅ 保留例外：spec §8.2 要求留一条指向新名的报错分支 |
+| `opts['drop-anchors']` 判定分支 | Task 7 | 1（`preview.mjs:275`）| ✅ 保留例外：同上，只为识别旧名并报错 |
+| `⚠ 按 --drop-anchors 丢弃了…` 输出文案 | Task 7 | 0 | ✅ |
+| 状态切换卡片 DOM | Task 2 | 0 | ✅ |
+| `setState()` 全局遍历与 `stateButtons` | Task 2 | 0 | ✅ |
+| `<aside class="aside-stack">` 外壳 | Task 3 | 0 | ✅ |
+| `.aside-stack` / `.state-buttons` CSS | Task 3 | 0 | ✅ |
+| `.stage` 两列 + `@media` 两行 | Task 3 | 0（改为 `display: block`）| ✅ |
+| 说明栏标题「设计说明（不属于用户界面）」 | Task 3 | 0 | ✅ 评审门残留轴补删：Task 9 只改了标题，纪律里另有 5 处仍把它说成「画布外的说明栏」，一并改为「设计说明面板（§7.5）」|
+| `UI原型纪律.md` 九处失准表述（9.2/9.5/9.6/9.7/9.8/9.9/9.10/9.11/9.12）| Task 9 | 0 | ✅ 另在评审门补正 §7.6 的 `setScreenState` 示例——原写作单参数 `('success')`，实际是 `(screenEl, 'state-success')` 两参数 + 完整类名，照抄会静默不生效 |
+| `ui-prototype.html:937`、`preview.mjs:734` 的「唯一写入方」 | Task 9 / Task 7 | 0 | ✅ 评审门补改模板 `ANNOTATIONS` 区注释 |
+| `文档治理.md:245` 逃生口（**改写不删**）| Task 10 | 1（`:252`，已收窄）| ✅ 改写类：旧表述全仓检索不到，新表述明写 MUST NOT 豁免日期前缀 |
+| `CLAUDE.md` 的「MUST NOT 用 `--drop-anchors` 绕过去」 | Task 13 | 0 | ✅ 已改为「MUST NOT 未经约定就放行」并补全放行契约 |
+| `docs/report/agentic-principle-gap-report.md` 文件名 | Task 12 | 0 | ✅ 已改名为 `2026-08-02-agentic-principle-gap-report.md`，两处引用同步 |
 | `window.protoSetState`（含按钮语义的导出，复核判为越界，方案期即删）| Task 2 | 0（从未落地）| ✅ |
 
 > **核销标准**：删除类 = 实测引用数 0；改写类 = 旧表述全仓检索不到。核销在代码评审门的残留轴逐条核对。
 
 ## 完成与自动合并
 
-- [ ] **代码评审门通过**：按 `references/core/代码评审纪律.md` §四条轴 逐轴（规范/忠实/残留/文档）的子代理报告齐全，P0/P1 已清零
-- [ ] **需求覆盖核销**：FR-001→T1；FR-002→T1；FR-003→T2；FR-004→T2；FR-005→T2；FR-006→T9；FR-007→T3；FR-008→T3；FR-009→T3；FR-010→T4；FR-011→T4；FR-012→T5；FR-013→T6；FR-014→T9；FR-015→T7；FR-016→T7；FR-017→T7；FR-018→T7；FR-019→T1/T2/T8；FR-020→T2；FR-021→T9；FR-022→T10；FR-023→T9；FR-024→T11；FR-025→T10；FR-026→T10；FR-027→T12；FR-028→T12；FR-029→T13；FR-030→T14；FR-031→T15。**31 条全部有归属，无零引用；每个 Task 的 `满足:` 都指得到真实编号，无镀金。**
-- [ ] 替换清单逐条核销
-- [ ] **准出归并已做**（Task 15）：口径已按 `文档治理.md` §6 映射表归并进 `docs/REQUIREMENTS.md`，变更 PRD 已转 `merged` + 归档头注 + 移进 `docs/index-archive.md`
-- [ ] 需求范围、文档、代码和测试全部完成
+- [x] **代码评审门通过**：按 `references/core/代码评审纪律.md` §四条轴 逐轴（规范/忠实/残留/文档）的子代理报告齐全，P0/P1 已清零
+- [x] **需求覆盖核销**：FR-001→T1；FR-002→T1；FR-003→T2；FR-004→T2；FR-005→T2；FR-006→T9；FR-007→T3；FR-008→T3；FR-009→T3；FR-010→T4；FR-011→T4；FR-012→T5；FR-013→T6；FR-014→T9；FR-015→T7；FR-016→T7；FR-017→T7；FR-018→T7；FR-019→T1/T2/T8；FR-020→T2；FR-021→T9；FR-022→T10；FR-023→T9；FR-024→T11；FR-025→T10；FR-026→T10；FR-027→T12；FR-028→T12；FR-029→T13；FR-030→T14；FR-031→T15。**31 条全部有归属，无零引用；每个 Task 的 `满足:` 都指得到真实编号，无镀金。**
+- [x] 替换清单逐条核销
+- [x] **准出归并已做**（Task 15）：口径已按 `文档治理.md` §6 映射表归并进 `docs/REQUIREMENTS.md`，变更 PRD 已转 `merged` + 归档头注 + 移进 `docs/index-archive.md`
+- [x] 需求范围、文档、代码和测试全部完成
 - [ ] 任务分支已吸收最新 `main` 并重新验证
 - [ ] worktree 状态干净，全部改动已提交
 - [ ] `merge-gate="direct"`：全部门禁通过后在本地对 `main` 做非快进合并（`git merge --no-ff`）并运行合并后验证，不开 PR
