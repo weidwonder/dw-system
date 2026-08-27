@@ -80,7 +80,7 @@ sourceOfTruth: true
 
 | 项 | 内容 |
 |---|---|
-| 原型文件 | 【docs/spec/<name>-prototype-YYYYMMDD.html；不涉及 UI 或纯文案改动时写"不适用 + 原因"】 |
+| 原型文件 | 【docs/spec/YYYY-MM-DD-<name>-prototype.html；不涉及 UI 或纯文案改动时写"不适用 + 原因"】 |
 | 覆盖路径 | 【核心用户旅程、关键页面和状态】 |
 | 样式依据 | 【现有设计 token / 组件库 / 现有页面 / 截图 / 临时视觉假设，写清具体来源】 |
 | 关键状态 | 【默认 / 加载 / 空态 / 错误或无权限 / 成功反馈等】 |

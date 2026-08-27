@@ -10,7 +10,7 @@ authority_refs:            # 本文冻结的权威面；准出时与本次触碰
 # Lean Change Spec（一页）— 【改动标题】
 
 > 用于 Triage 4 问全否的小改动。这一页就是唯一交付物，写完直接实现。
-> 输出：`docs/spec/<change-name>-lean-change-spec.md`。
+> 输出：`docs/spec/YYYY-MM-DD-<change-name>-lean-change-spec.md`。
 > 本模板是完整 eng-spec 的**精简前身**：各节可按文末升级映射**无损对应**到完整 spec 的章节，需求长大时逐节补细即可，不用重写。
 
 - **Issue / 链接**：【tracker URL 或 ID；无则写 N/A】

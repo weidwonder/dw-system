@@ -75,7 +75,7 @@
 
 ## 落位（doc 治理）
 
-- [ ] **落盘计划里已确定**落盘位置（变更 PRD 与轻量 Issue PRD → `docs/spec/<name>-PRD-YYYYMMDD.md`，两者同一命名、只是模板不同；整品 → `docs/REQUIREMENTS.md` 放 `docs/` 根，超过拆分阈值时具体行为规则进 `docs/requirements/<模块>.md`；UI 原型 → `docs/spec/<name>-prototype-YYYYMMDD.html`，与 PRD 同目录，PRD 里的链接指向该路径）。（本清单在 §组稿 第 3 步跑，实际写入在第 7 步——此处只验计划。）
+- [ ] **落盘计划里已确定**落盘位置（变更 PRD 与轻量 Issue PRD → `docs/spec/YYYY-MM-DD-<name>-PRD.md`，两者同一命名、只是模板不同；整品 → `docs/REQUIREMENTS.md` 放 `docs/` 根，超过拆分阈值时具体行为规则进 `docs/requirements/<模块>.md`；UI 原型 → `docs/spec/YYYY-MM-DD-<name>-prototype.html`，与 PRD 同目录，PRD 里的链接指向该路径）。（本清单在 §组稿 第 3 步跑，实际写入在第 7 步——此处只验计划。）
 - [ ] frontmatter 三个字段齐：`lifecycle: active`、`last_confirmed`（本次成稿日期）、`authority_refs`（本 PRD 冻结了哪些对用户可见的行为契约，非空）。三类模板都带这三项。
 - [ ] 项目有 `docs/index.md` 时：**落盘计划里已包含**同步新增条目（**PRD 与 UI 原型都进索引**），且索引里只有现行口径的文档；项目没有 index.md 时本项跳过（不为落盘临时造索引）。（本清单在 `00-prd生成流程.md` §组稿 第 3 步跑，索引实际写入在第 8 步——此处只验计划。）
 - [ ] **落盘计划里已包含**收尾提示：可接 `ai-dev-workflow` 做 Overview / 技术 Spec，PRD 与 UI 原型一并作为其 Step 1 输入。（提示实际发出在 `00-prd生成流程.md` §组稿 第 9 步。）

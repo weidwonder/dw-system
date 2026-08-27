@@ -10,7 +10,7 @@ authority_refs:            # 本 plan 的 Interfaces 节冻结了哪些权威面
 # 【功能名】Coding Plan
 
 > 把 spec 拆成"执行者对代码库零上下文"也能做的 bite-sized 任务。每步一个动作（2–5 分钟）。DRY / YAGNI / TDD / 勤 commit。
-> 输出：`docs/plan/<feature>-coding-plan.md`。按 `references/core/步骤-1-7-设计与实现.md` Step 7 逐任务"加载→批判性 review→实现→跑验证→commit"，每 2–3 个任务过一次 checkpoint。
+> 输出：`docs/plan/YYYY-MM-DD-<feature>-coding-plan.md`。按 `references/core/步骤-1-7-设计与实现.md` Step 7 逐任务"加载→批判性 review→实现→跑验证→commit"，每 2–3 个任务过一次 checkpoint。
 > **垂直切片**：每个任务是一条端到端细流（最小场景从入口到出口、可独立验证），不做水平分层（先全部模型再全部逻辑）；确需宽幅重构用"先扩后收"显式例外。任务间信息只通过本 plan 的 Interfaces 传递，不依赖会话记忆——上下文变重时在 checkpoint 处交给新会话/子 agent 从下一任务继续（见 `references/core/上下文卫生.md`）。
 > **测试只挂稳定缝（seam）**：任务内的测试断言挂在 spec/接口契约上，不挂在预期会重构的内部实现上；禁止"用实现的算法重算一遍当预期值"的同义反复断言。
 

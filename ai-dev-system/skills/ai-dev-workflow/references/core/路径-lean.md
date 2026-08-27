@@ -262,7 +262,7 @@ card 事实 **MUST 以合入后的源码为准，MUST NOT 从 PRD 生成**——
 
 > **何时读本节**：本节引言与 §4.1 在 Triage 四问全否后立即读（前置）——它是第 3 步本体，也是判据 3/4 的回溯落点；**§4.2／§4.3 是触发式的**，触发条件见它们各自那一行，未触发前不读。
 
-产出：`docs/spec/<change-name>-lean-change-spec.md`，骨架用 `assets/templates/lean-change-spec.md`。**MUST 写进 worktree 内的 `docs/spec/`**，MUST NOT 散放在项目根、仓库根、`docs/` 根或代码注释里（目录判据见 §10.1）。
+产出：`docs/spec/YYYY-MM-DD-<change-name>-lean-change-spec.md`，骨架用 `assets/templates/lean-change-spec.md`。**MUST 写进 worktree 内的 `docs/spec/`**，MUST NOT 散放在项目根、仓库根、`docs/` 根或代码注释里（目录判据见 §10.1）。
 
 ### 4.1 〈既有系统清单〉与补卡
 
@@ -466,7 +466,7 @@ Lean 路径通常只需要用户在两处表态：**兼容取舍**（§6.1）和
 
 ### 9.4 处置
 
-- **P0 与 P1 MUST 全部修完**才算过门；P2 由主会话决定当场修或记入 `docs/report/<feature>-review-report.md`。
+- **P0 与 P1 MUST 全部修完**才算过门；P2 由主会话决定当场修或记入 `docs/report/YYYY-MM-DD-<feature>-review-report.md`。
 - **D 轴报告里的文档结算结论 MUST 由主会话当场落盘**，且**不受 P0/P1 口径限制**：失准的完成"改 frontmatter + 插归档头注 + 移出 `index.md` 进 `index-archive.md`"三动作，仍准确的把 `last_confirmed` 更新为当天。子代理只报告不写文件，落盘没有别的执行者；而"仍准确"不是一条问题，挂在"P0/P1 修完才过门"下它永远轮不到执行。
 - 修完后 MUST 重跑**受影响的那一轴**确认（只重跑改动涉及的轴，不必全跑）。
 - **子代理判断有误时，主会话 MUST 在报告里写明"不改 + 一句话理由"，MUST NOT 默默忽略**——沉默的忽略无法与遗漏区分。
@@ -496,7 +496,7 @@ Lean 路径通常只需要用户在两处表态：**兼容取舍**（§6.1）和
 - 报告只有在流程要求形成书面报告时才创建；一旦创建 MUST 写入 `docs/report/`。
 - **两个固定文件名的账本是例外**，不按"每次新建一个 `<feature>-<report-type>-report.md`"拆分：`docs/report/bug修复历史.md`（**追加式**，每条是发生过的一次性事实）与 `docs/report/测试场景覆盖度.md`（**状态表**，同一场景只有一行）。两者 **MUST 恒为 `lifecycle: active`、`authority_refs: ['无']`，MUST NOT 被 §10.3 的权威面触发转归档**。
 - **测试资产不是文档**：真实输入样本落项目测试目录（兜底 `tests/fixtures/<场景名>/`），**MUST NOT 塞进 `docs/`**；含凭证的进同级 `secrets/` 并 gitignore，脱敏副本 `secrets.example/` 入库。
-- Lean 的默认命名：`docs/spec/<change-name>-lean-change-spec.md`；交接文档 `docs/plan/<feature>-handoff.md`；报告 `docs/report/<feature>-<report-type>-report.md`。
+- Lean 的默认命名：`docs/spec/YYYY-MM-DD-<change-name>-lean-change-spec.md`；交接文档 `docs/plan/YYYY-MM-DD-<feature>-handoff.md`；报告 `docs/report/YYYY-MM-DD-<feature>-<report-type>-report.md`。
 - 落盘的文件名 MUST 以 `YYYY-MM-DD-` 开头（`docs/spec/YYYY-MM-DD-<change-name>-lean-change-spec.md`）；常青档与两份索引不加；拆成目录时目录名同样带前缀。项目自己有更严格的命名约定可以更严格，MUST NOT 豁免掉这条前缀。
   来源：`文档治理.md` §默认命名
 
@@ -681,7 +681,7 @@ Lean 路径 MUST 以此门收尾。只有**同时**满足以下条件，才算"�
   来源：`上下文卫生.md` §1. 聪明区
 - 五条规则：
   1. **决策链保持连续**：澄清 → spec SHOULD 在同一连续会话内完成，中途不插入无关任务。
-  2. **交接，不硬撑**：出现下面规则 5 任一**可观察**过载信号、而决策链未走完时，**MUST 写一份交接文档**（已定决策表 / 未定开放问题 / 证据与 cite / 下一步）再开新会话继续，**而不是硬撑到窗口极限，也不依赖自动压缩**。交接文档落任务 worktree 内的 `docs/plan/<feature>-handoff.md`，它遵循 §4.2 的写作纪律——读者就是那个零上下文的新会话。
+  2. **交接，不硬撑**：出现下面规则 5 任一**可观察**过载信号、而决策链未走完时，**MUST 写一份交接文档**（已定决策表 / 未定开放问题 / 证据与 cite / 下一步）再开新会话继续，**而不是硬撑到窗口极限，也不依赖自动压缩**。交接文档落任务 worktree 内的 `docs/plan/YYYY-MM-DD-<feature>-handoff.md`，它遵循 §4.2 的写作纪律——读者就是那个零上下文的新会话。
   3. **编码任务零上下文起步**：连续执行多个任务后上下文变重时，SHOULD 在 checkpoint 处收尾，让新会话只带 spec 从下一步继续；**任务间 MUST NOT 依赖"上个任务的会话记忆"传递信息**——该传递的信息必须写在文档里。
   4. **重探索外包**：大范围代码探索、全仓检索、多方案对比这类"读得多、结论少"的工作，harness 支持子 agent 时 SHOULD 交给子 agent，主会话只收结论（编码后的代码评审逐轴更进一步，是 MUST 交子代理）。**取事实的顺序不变**（§3.1）。**外包不豁免补卡**：子代理返回结论后，**主会话 MUST 按 §3.3–§3.4 把结论落成卡片并随本次分支提交**——子代理只报告、不落盘，**MUST NOT 指望子代理顺手写掉**。
   5. **识别过载信号，立即交接**：开始忘记已拍板的决策、重复问已答过的问题、引用不存在的文件 / 函数——任一出现即视为上下文过载，**MUST 按规则 2 交接**，不再"再撑一会儿"。
@@ -714,7 +714,7 @@ Lean 路径 MUST 以此门收尾。只有**同时**满足以下条件，才算"�
 | 1 | **工作区隔离门** | 独立 worktree；初始化挂账在门内结清 | §2 |
 | 2 | 【bug 类才做】过红回路门 | 先检索 `docs/report/bug修复历史.md`，再造出能变红的复现命令；**回路不存在不许提假设、不许改代码** | §3bis |
 | 3 | 取代码事实：`ctx find-scenes` → `ctx discover` → `ctx get-card`；查不到就读源码并**当场补卡** | 每条事实带 cite 或 `文件:行` | §3.1–§3.6 |
-| 4 | 写一页 Lean Change Spec，**含〈既有系统清单〉** | `docs/spec/<change-name>-lean-change-spec.md`，模板 `assets/templates/lean-change-spec.md` | §4 |
+| 4 | 写一页 Lean Change Spec，**含〈既有系统清单〉** | `docs/spec/YYYY-MM-DD-<change-name>-lean-change-spec.md`，模板 `assets/templates/lean-change-spec.md` | §4 |
 | 5 | 填**兼容取舍**一行 + **替换清单**表 + `FR-###` / `AC-###` 编号 | 保留例外带理由 + 到期日 + 到期动作 | §4.2–§4.3 |
 | 6 | **兼容取舍确认门**（命中大架构判据时同一批附业务语言摘要） | 用户逐条选定后才动手；无既有行为变更时显式写"无兼容取舍" | §6 |
 | 7 | 实现 + **边写边删** | 被取代的旧逻辑当场删除，不留到"最后统一清理" | §7 |
