@@ -58,7 +58,30 @@ node --test test/*.test.mjs
 在地基之上只有两件事**可变**。每次调用先走**路由逻辑**（见 `SKILL.md` §路由逻辑），三步：
 
 1. **探测代码图谱**——**项目根**下 `.codegraph/codegraph.db` 存在 → 加载 `references/capability/graph.md`（回答「找得到吗」：符号、调用链、影响面）。它只是**检索加速面**，不改变任何流程判据；探测不到（或探测本身失败）就按没有算，把重探索外包给子代理，MUST NOT 阻断流程。**本步 MUST NOT 探测 `engineering-context`**——它是必备资产，不是可选开关。
-2. **读协作面**——目标项目根 `CLAUDE.md`（优先）或 `AGENTS.md` 里的 `<!-- ai-dev-workflow:start --> … collaboration="solo|team" merge-gate="direct|pr" worktree-dir="./.worktrees/" … <!-- ai-dev-workflow:end -->` 标记块。**无标记块** → 初始化（`references/init-初始化.md`）：只问一个问题（除你之外还有没有人一起开发）+ 一条待拍板的 merge-gate 建议；**代码图谱不问**（探测得出），**代码事实层也不问**（必备资产，第 5b 步在 worktree 内跑 `ctx init` 直接建骨架）。
+2. **读协作面**——目标项目根 `CLAUDE.md`（优先）或 `AGENTS.md` 里的 `<!-- ai-dev-workflow:start -->
+> **本项目采用 ai-dev-workflow**
+> (mode="team" collaboration="solo" merge-gate="direct" worktree-dir="./.worktrees/")
+>
+> - 唤起 `ai-dev-workflow` / `ai-prd` skill 时按本块字段路由，MUST NOT 再问一次；本项目有没有代码图谱索引由 skill 每次运行时探测得出，MUST NOT 写死在本块里。
+> - 文档目录固定：spec → `docs/spec/`，plan → `docs/plan/`，report → `docs/report/`。
+> - 文档有生命周期：新建文档 frontmatter MUST 带 `lifecycle: active` 与 `authority_refs`；`docs/index.md` 只放现行口径，归档进 `docs/index-archive.md`；代码评审门的 **D 文档轴**按本次**触碰的权威面**（与刷新代码事实**同源但更宽**——多出的那几类不触发刷卡；**唯一权威清单只有一份**，在 `ai-dev-workflow` 的 `references/core/文档治理.md` §3 第 1 步，MUST NOT 在本块复述）判定文档去留、主会话当场落盘，准出时只核对结论。
+> - **任何文档或代码落盘前 MUST 先建立独立 worktree**，Lean Change Spec 也不例外；多仓需求每个仓库各建一个。MUST NOT 在主工作树直接改，MUST NOT stash / reset 用户既有改动。
+> - Worktree 目录以本块 `worktree-dir` 字段为准，**每次从本设置读取**；用户要求换位置时 MUST 改本字段，MUST NOT 临时另建目录。
+> - **编码完成后 MUST 过代码评审门**：派子代理跑规范 / 忠实 / 残留 / 文档四轴（Lean 用单子代理精简版），子代理需加载 `ai-dev-workflow`，P0/P1 修完才收工；Agentic 项目增派一个加载 `agentic-principle` 的 agent 架构轴。
+> - **合并方式只读本块 `merge-gate` 字段，与协作面无关**（`solo` + `pr`、`team` + `direct` 都是合法组合，MUST NOT 由协作面推合并方式）：值为 `direct` 时，全部门禁通过后在本地对主分支做非快进合并（`git merge --no-ff`）并清理 worktree，不开 PR、不等外部门禁；值为 `pr` 时，MUST 先过代码评审门再开 PR（该门是 PR 前的地板，MUST NOT 用它替代人审），审批与 CI 全部通过后才启用平台自动合并，MUST NOT 绕过保护分支、也 MUST NOT 在平台未放行时改用本地直合。两个取值下合并失败都 MUST 保留 worktree 待处理，MUST NOT 强推。完成条件、本字段缺失时的兜底与多仓合并顺序的**推导规则**，唯一权威定义在 `ai-dev-workflow` skill 的 `references/core/worktree开发纪律.md` §完成与自动合并门。
+> - **AI MUST NOT 默认向后兼容**：spec 定稿前把被改变的既有行为逐条列出送拍板（拍板人见下方协作面条目）；被取代的旧函数 / 文件 / 配置 / 开关当场删除，不留"以后可能用"，保留项 MUST 带理由与到期日并登记进替换清单。
+> - 真实数据固化进项目既有测试目录，没有则 `tests/fixtures/<场景名>/`（凭证进同级 `secrets/` 并 gitignore，脱敏副本入库）；长链路 MUST 有断言中间结果的端到端用例；未覆盖的重要场景挂账到 `docs/report/测试场景覆盖度.md`。
+> - **Agentic 应用 MUST 加载 `agentic-principle` skill**（模型自主规划 / 直接调工具 / 未过闸门就改状态 / 记忆跨会话影响决策）：架构选型、提示词、注意力与并发预算、步骤级测试用它；运行期 AI 契约仍用 ai-dev-workflow 的 AI overlay。两者内容互相独立，MUST NOT 合并。
+> - 用户沟通只用业务语言：大架构 MUST 交用户确认，模块内设计只问业务问题，详细程序设计不要求用户确认。
+> - **本项目维护 `engineering-context/` 代码事实层**：`capability-registry.md`（能力 → 权威实现的登记表）+ `cards/<repo>.md`（每个仓库一张事实卡）。它没有开关，内容按任务渐进补齐；起步时只有模板占位是正常状态。
+> - 查"能力对应哪个仓库/接口""跨服务影响面""哪个是权威实现"时 MUST 先用 `ctx`：`ctx find-scenes <关键词>`（未限定单仓时先取端到端全景）→ `ctx discover "<意图>"` → `ctx get-card <repo> [域]`。每条据此得到的事实 MUST 附 cite（path + anchor + 确认时间），无 cite 视为幻觉。
+> - **`ctx` 查不到卡片时 MUST 读源码把事实核实清楚，并当场把卡片补上**（职责 / 对外接口带 `文件:行` / 陷阱项 / 确认时间四项即可），随本次分支一起提交，MUST NOT 顺延到以后；**MUST NOT 退回 grep 找权威实现**。
+> - `ctx` 命令找不到时改用 `node <本skill根目录>/scripts/ctx/src/cli.js <命令>`（功能相同；`<本skill根目录>` = ai-dev-workflow 的 SKILL.md 所在目录）——Claude Code 下是 `.claude/skills/ai-dev-workflow/`，Codex 下是 `.agents/skills/ai-dev-workflow/`，两份内容一致，用你这一侧那份；**MUST NOT 退回 grep**。
+> - 本项目没有其他人类协作方：MUST NOT 向不存在的 owner 求证，MUST NOT 开评审会，MUST NOT 因等**第三方**（owner / 业务方 / 评审人）确认而挂起任务；**用户本人的兼容取舍拍板、以及合并方式为 `pr` 时的平台审批与 CI 除外**（这些例外是门，不是对齐开销）。需要第二意见时派子代理，不等人。
+> - **兼容取舍每次由你（开发者本人）拍板**，AI MUST NOT 代拍，也 MUST NOT 因为"只有我一个人用"就跳过这次拍板。
+> - 合并方式为 `pr` 时，PR 的审批人就是你本人：MUST 把 PR 链接与四轴报告结论交给你过目并请你放行，MUST NOT 静默等待外部审批；CI 失败按常规修复后重推，MUST NOT 改用本地直合。
+<!-- ai-dev-workflow:end -->
+` 标记块。**无标记块** → 初始化（`references/init-初始化.md`）：只问一个问题（除你之外还有没有人一起开发）+ 一条待拍板的 merge-gate 建议；**代码图谱不问**（探测得出），**代码事实层也不问**（必备资产，第 5b 步在 worktree 内跑 `ctx init` 直接建骨架）。
 3. **加载**——**分流前只取三份**（入口 + `用户沟通纪律.md` + `00-流程总纲.md` §Step 0）+ 探测到代码图谱时加 `references/capability/graph.md`（可零篇）；过隔离门、按 §Step 0 过 Triage 之后再按分支补：**Lean 分支**取 §默认倾向 → `路径-lean.md` 前置节 + `collab/` 一份 + lean spec 模板，**MUST NOT 再补余下三份常驻**（自足册就是它们在 Lean 场景的投影，补了等于同一批判据加载两遍）；**完整分支**才补齐 `代码事实纪律.md`、`上下文卫生.md`、`collab/` 一份与总纲其余前置节。**每一份也不整篇读**：`00-流程总纲.md` 与 `代码事实纪律.md` 每个小节标题下都有一行 `> **何时读本节**`，取值只有两类——**前置**（该份被取到时立即读完）与**触发式**（触发点到了才读，条件写在该节自己那一行）；MUST NOT 因为"反正在同一个文件里"就整篇预读。其余判据一律按加载点清单取；要动 `engineering-context` 的**结构**（设计 registry 字段 / 画场景蓝图 / 维护探针集）时才另读 `references/core/engineering-context设计.md`；日常补一张卡片不用读它。
 
 **渐进式披露：判据在它真正要用的那一刻才取**（2.5.0 的核心）。载体是 `SKILL.md` 里的〈**加载点清单**〉——**18 行**，每行四个 REQUIRED 字段：`触发条件` / `加载对象` / `为什么此刻需要` / `适用路径`（`Lean` / `完整` / `两条`）。行的**稳定标识是触发条件文本本身**，MUST NOT 拿行序号当稳定标识引用（增行会让序号漂，且会造出与 `FR-###` 混淆的第三套编号）。每行 MUST 同时满足三条判据：**①触发条件说得出"什么时候"**（MUST NOT 写"可能会用到"）；**②加载单元最小**（能按小节取的 MUST NOT 写整篇）；**③说得出为什么此刻需要**——写不出理由的行说明那次加载压根不该发生，MUST 删掉那次加载，MUST NOT 补一个理由把它塞进清单。18 行是**下限不是上限**：每新判出一个触发式小节，清单 MUST 增一行或并进已有行的「加载对象」列。
