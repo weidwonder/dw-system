@@ -3,7 +3,7 @@
 // 真机的 npm 在 /opt/homebrew 等目录，被下面收窄的 PATH 排除在外。
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { chmodSync, existsSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
@@ -24,8 +24,23 @@ const dir = process.env.CTX_FAKE_DIR
 const state = JSON.parse(fs.readFileSync(path.join(dir, 'state.json'), 'utf8'))
 const args = process.argv.slice(2)
 fs.appendFileSync(path.join(dir, 'calls.log'), 'npm ' + args.join(' ') + ' @ ' + process.cwd() + '\\n')
+if (args[0] === 'root' && args[1] === '-g') {
+  console.log(path.join(dir, 'globalroot'))
+  process.exit(0)
+}
 if (args[0] !== 'link') process.exit(0)
-if (state.linkFails) process.exit(1)
+if (state.linkFails) {
+  console.error('npm error code EACCES')
+  console.error('npm error syscall symlink')
+  process.exit(1)
+}
+// Windows 的 npm：全局命令目录里已有同名文件时拒绝覆盖，除非 --force。复刻它的报错原文。
+if (state.eexist && !args.includes('--force')) {
+  console.error('npm error code EEXIST')
+  console.error('npm error path ' + path.join(dir, 'globalroot-bin', 'ctx'))
+  console.error('npm error EEXIST: file already exists')
+  process.exit(1)
+}
 // 只有 shim 落在 PATH 上时命令才真的可用；linkedButNotOnPath 模拟 npm 全局 bin 不在 PATH。
 if (!state.linkedButNotOnPath) {
   fs.writeFileSync(path.join(dir, 'ctx'), fs.readFileSync(path.join(dir, 'ctx.template')))
@@ -63,6 +78,22 @@ function sandbox(state, fn) {
   // ctx.template 始终存在，假 npm link 装的就是它；默认不放到 PATH 名下（= 本机还没有 ctx）。
   writeFileSync(path.join(fake, 'ctx.template'), fakeCtx(true))
   if (state.foreignCtx) writeExecutable(fake, 'ctx', fakeCtx(false))
+  if (state.ownCtx) writeExecutable(fake, 'ctx', fakeCtx(true))
+  // 全局 node_modules（假 `npm root -g` 的返回值）里那个 ctx 包的三种形态，
+  // 决定 EEXIST 之后安装器判不判得出"这是我们上次留下的"。
+  if (state.globalCtx) {
+    const pkg = path.join(fake, 'globalroot', 'ctx')
+    if (state.globalCtx === 'ours-symlink') {
+      // npm link 的产物：指向某个项目里 skill 副本的符号链接，且目标已经不存在
+      // （项目被删/改名，正是 Windows 上 EEXIST 的成因之一）。安装器只读链接字符串。
+      mkdirSync(path.join(fake, 'globalroot'), { recursive: true })
+      symlinkSync(path.join(fake, 'gone', '.claude', 'skills', 'ai-dev-workflow', 'scripts', 'ctx'), pkg)
+    } else {
+      mkdirSync(path.join(pkg, 'src'), { recursive: true })
+      writeFileSync(path.join(pkg, 'src', 'cli.js'),
+        state.globalCtx === 'ours-file' ? `const HELP = \`${SIGNATURE}\`` : 'const HELP = `ctx — somebody else`')
+    }
+  }
   writeExecutable(fake, 'npm', FAKE_NPM)
   try {
     fn({
@@ -160,4 +191,58 @@ test('帮助文本说明新选项', () => {
   const help = spawnSync(process.execPath, [installer, '--help'], { encoding: 'utf8' })
   assert.equal(help.status, 0)
   assert.match(help.stdout, /--no-ctx-link/)
+})
+
+// —— Windows 换项目重装的必现路径：全局命令目录里已有上次留下的 ctx，npm link 报 EEXIST ——
+// unix 侧 npm 直接替换自己的符号链接，撞不出这条；下面三例全用假 npm 复刻它的报错原文。
+
+test('EEXIST + PATH 上就是本体系的 ctx：确认归属后 --force 覆盖成本次这份', () => {
+  sandbox({ eexist: true, ownCtx: true }, ({ run }) => {
+    const r = run()
+    assert.equal(r.status, 0, r.stderr || r.stdout)
+    assert.match(r.calls, /^npm link @ /m)
+    assert.match(r.calls, /^npm link --force @ /m)
+    assert.match(r.stdout, /全局命令目录里已有本体系上次留下的 ctx/)
+    assert.match(r.stdout, /✓ ctx 已全局可用/)
+  })
+})
+
+test('EEXIST + 命令不在 PATH 上，但全局包目录里那个 ctx 认得出是本体系的：同样 --force 覆盖', () => {
+  const cases = process.platform === 'win32' ? ['ours-file'] : ['ours-file', 'ours-symlink']
+  for (const globalCtx of cases) {
+    sandbox({ eexist: true, globalCtx }, ({ run }) => {
+      const r = run()
+      assert.equal(r.status, 0, r.stderr || r.stdout)
+      assert.match(r.calls, /^npm root -g @ /m, globalCtx)
+      assert.match(r.calls, /^npm link --force @ /m, globalCtx)
+      assert.match(r.stdout, /✓ ctx 已全局可用/, globalCtx)
+    })
+  }
+})
+
+test('EEXIST + 判不出那个文件是谁的：不覆盖，给出处置指引与兜底方式，安装仍然成功', () => {
+  for (const state of [{ eexist: true }, { eexist: true, globalCtx: 'foreign' }]) {
+    sandbox(state, ({ target, run }) => {
+      const r = run()
+      assert.equal(r.status, 0, r.stderr || r.stdout)
+      assert.doesNotMatch(r.calls, /^npm link --force/m)
+      assert.match(r.stdout, /判不出是谁的，不覆盖/)
+      assert.match(r.stdout, /npm rm -g ctx/)
+      // 这一支同样要回显 npm 原文：只给我们提炼过的一行，等于扣下了 npm 报的错误码。
+      assert.match(r.stdout, /^ {5}\| npm error code EEXIST$/m)
+      assert.match(r.stdout, /node .*cli\.js <命令>/)
+      assert.doesNotMatch(r.stdout, /✓ ctx 已全局可用/)
+      assert.ok(existsSync(path.join(ctxPkgDir(target), 'src', 'cli.js')))
+    })
+  }
+})
+
+test('npm link 失败时如实回显 npm 自己的输出，不只给一句概括', () => {
+  sandbox({ linkFails: true }, ({ run }) => {
+    const r = run()
+    assert.equal(r.status, 0, r.stderr || r.stdout)
+    assert.match(r.stdout, /⚠ npm link 失败/)
+    // 捕获输出后若不回显，使用者就丢掉了 npm 给的真正原因（这里是 EACCES）。
+    assert.match(r.stdout, /^ {5}\| npm error code EACCES$/m)
+  })
 })

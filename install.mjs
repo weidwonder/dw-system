@@ -245,9 +245,11 @@ ctx CLI（本体系自带，随 ai-dev-workflow skill 一起安装）：
   ${CTX.why}
   安装后在 ${path.join('.claude', 'skills', CTX.skill, CTX.subdir)} 下执行 npm link，
   把它变成全局 ctx 命令，并用 ctx --help 验证真的可用。链接失败（权限、npm 全局 bin
-  不在 PATH、已有同名 ctx 命令）只降级为警告，并打印 node <路径>/src/cli.js 兜底
-  调用方式——ctx 本体已随 skill 落盘，任何时候都能用兜底方式调用。
-  用 --no-ctx-link 跳过。
+  不在 PATH、PATH 上已有别人的同名 ctx 命令）只降级为警告，并打印 node <路径>/src/cli.js
+  兜底调用方式——ctx 本体已随 skill 落盘，任何时候都能用兜底方式调用。
+  Windows 上换项目重装时 npm link 会因全局目录里还留着上次那份 ctx 而报 EEXIST：
+  确认那个文件确实是本体系留下的才用 npm link --force 覆盖，判不出归属就不覆盖、
+  只打印它的路径与删除方式。用 --no-ctx-link 跳过整段。
 
 codegraph（外部代码知识图谱 CLI，${CODEGRAPH.repo}）：
   ${CODEGRAPH.why}
@@ -882,9 +884,53 @@ function detectCtx() {
 
 // npm link：在包目录里执行，npm 依据 package.json 的 bin 生成全局 shim
 // （unix 是符号链接并自动补上可执行位，Windows 是 ctx.cmd）。
-function linkCtxCli(dir) {
-  console.log(`  → npm link（在 ${dir}）`);
-  return !toolFailed(runTool('npm', ['link'], { cwd: dir, timeout: CTX_CMD_TIMEOUT_MS }));
+// 输出必须捕获而不是直接继承：EEXIST（全局目录已有同名文件）与"没有写权限"是两种
+// 完全不同的失败，处置方式也不同，只有读到 npm 的原文才分得开。
+function linkCtxCli(dir, { force = false } = {}) {
+  const args = force ? ['link', '--force'] : ['link'];
+  console.log(`  → npm ${args.join(' ')}（在 ${dir}）`);
+  const r = runTool('npm', args, { cwd: dir, quiet: true, timeout: CTX_CMD_TIMEOUT_MS });
+  return { ok: !toolFailed(r), out: `${r.stdout || ''}${r.stderr || ''}` };
+}
+
+// 捕获了 npm 的输出就得在失败时如实回显，否则使用者只看到我们的一句概括，
+// 丢掉了 npm 自己给的路径与原因。只取末尾若干行，避免刷屏。
+function printNpmOutput(out) {
+  for (const line of out.split(/\r?\n/).map(l => l.trimEnd()).filter(Boolean).slice(-12)) {
+    console.log(`     | ${line}`);
+  }
+}
+
+// npm 的 EEXIST：全局命令目录里已经有一个同名文件，npm 拒绝覆盖，返回它的路径。
+// 换项目重装时在 Windows 上必现——那里的 shim 是普通文件而不是符号链接，npm 判不出
+// 它是不是自己上次写的（尤其上次那个源目录已经不在了），就一律报错退出；
+// unix 侧 npm 直接替换自己的符号链接，所以这条路径在 macOS/Linux 上撞不出来。
+function parseEexistPath(out) {
+  if (!/EEXIST/.test(out)) return null;
+  const m = out.match(/npm (?:error|ERR!) path (.+)/);
+  return m ? m[1].trim() : null;
+}
+
+// 全局 node_modules 里那个 ctx 包是不是本体系装的——EEXIST 之后要回答的就是这个问题：
+// 确认是我们自己上一次留下的，覆盖它天经地义；判不出归属，一个字节都不能动
+// （这是 §不得顶掉同名命令 那条承诺在"命令不在 PATH 上、探测不到"时的延伸）。
+function globalCtxIsOurs() {
+  const r = runTool('npm', ['root', '-g'], { quiet: true, timeout: CTX_CMD_TIMEOUT_MS });
+  if (toolFailed(r)) return false;
+  // npm 可能在正文前先打若干 warn，取最后一行非空输出才是路径。
+  const root = (r.stdout || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean).pop();
+  if (!root) return false;
+  const pkg = path.join(root, CTX.bin);
+  try {
+    // 形态一：npm link 留下的符号链接，指向某个项目里的 skill 副本。目标目录可能已经
+    // 不存在（项目被删或改名，那正是 EEXIST 的成因之一），所以只读链接字符串、不解引用。
+    const st = fs.lstatSync(pkg);
+    if (st.isSymbolicLink() && fs.readlinkSync(pkg).split(/[\\/]/).includes(CTX.skill)) return true;
+  } catch { /* 不存在或读不了，落到形态二 */ }
+  try {
+    // 形态二：真实目录，或链接目标仍在。直接读入口脚本认签名，与 detectCtx 同一个判据。
+    return fs.readFileSync(path.join(pkg, 'src', 'cli.js'), 'utf8').includes(CTX.signature);
+  } catch { return false; }
 }
 
 function printCtxPlan(target, before) {
@@ -925,9 +971,27 @@ function syncCtx(opt, target) {
       ctxFallbackHint(target);
       return;
     }
-    if (!linkCtxCli(dir)) {
+    let linked = linkCtxCli(dir);
+    if (!linked.ok) {
+      const stale = parseEexistPath(linked.out);
+      if (stale && (before.mine || globalCtxIsOurs())) {
+        // 归属已确认：这是本体系上一次装的 ctx（多半来自另一个项目）。覆盖成本次这份，
+        // 与 unix 侧 npm link 的既有行为一致——那边本来就是直接替换自己的符号链接。
+        console.log(`  · 全局命令目录里已有本体系上次留下的 ctx（${stale}），覆盖成本次安装的这份`);
+        linked = linkCtxCli(dir, { force: true });
+      } else if (stale) {
+        console.log(`  ⚠ 全局命令目录里已有一个 ctx 文件，判不出是谁的，不覆盖：${stale}`);
+        console.log('     确认它可以丢弃后，删掉该文件（或先跑 npm rm -g ctx）再重跑本安装器；');
+        console.log('     想保留它就用 --no-ctx-link 跳过这一段，按下面的兜底方式调用即可。');
+        printNpmOutput(linked.out);
+        ctxFallbackHint(target);
+        return;
+      }
+    }
+    if (!linked.ok) {
       console.log('  ⚠ npm link 失败（常见原因：npm 全局目录没有写权限）。');
       console.log(`     可手动重试：cd ${dir} && npm link`);
+      printNpmOutput(linked.out);
       ctxFallbackHint(target);
       return;
     }
