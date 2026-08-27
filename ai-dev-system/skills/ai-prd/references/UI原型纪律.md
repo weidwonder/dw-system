@@ -136,7 +136,7 @@ node <skills 根>/ai-prd/scripts/preview.mjs check <原型文件>
   node <skills 根>/ai-prd/scripts/preview.mjs annotations <原型文件> --json # 结构化
   ```
 
-  它一次给出三样东西：**用户元素批注**（带屏幕名、元素标签、元素可见文字、**所在行号**）、**用户全局反馈**、以及 **AI 侧写在 `data-anno` 里的说明**（含哪些是 `question` 待拍板项）。跑不起来时兜底：`sed -n '/ANNOTATIONS:BEGIN/,/ANNOTATIONS:END/p' <原型文件>` 取用户批注那半（**这条是 bash-only，Windows 上没有**，所以它是兜底不是首选）。
+  它一次给出三类 + 回复：**用户元素批注**（带屏幕名、元素标签、元素可见文字、**所在行号**）、**用户全局反馈**、**AI 侧写在 `data-anno` 里的说明**（含哪些是 `question` 待拍板项）、以及**用户对说明的回复**（带被回复说明的锚点与原文）。跑不起来时兜底：`sed -n '/ANNOTATIONS:BEGIN/,/ANNOTATIONS:END/p' <原型文件>` 取用户批注那半（**这条是 bash-only，Windows 上没有**，所以它是兜底不是首选）。
 
 - `items[]` 是元素批注，每条带 `screen`（哪一屏，多屏原型据此区分）、`label`（元素上的可见文字）、`path`（结构路径，辅助线索）、`id`；`id` 与界面里的 `data-anno-user="<id>"` 一一对应，要定位元素就 grep 这个属性。`global[]` 是整体意见。
 - 批注 MUST 与用户在对话里提的意见**同等对待**：逐条落稿，或明确回"不改 + 一句话理由"，MUST NOT 默默忽略（同 `00-prd生成流程.md` §组稿 第 4 步用户过稿门）。
