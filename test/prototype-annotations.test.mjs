@@ -46,12 +46,14 @@ const SLOTS = [
   '<div class="card-content notes-body" id="proto-notes"></div>',
   '<style id="project-theme"></style>',
   '<style id="proto-custom"></style>',
+  '<script id="proto-script"></script>',
 ]
 
 // 纪律 §8.1 插槽表里的插槽名，与工具 `slot --set` 的取值一一对应。
-const SLOT_NAMES = ['title', 'subtitle', 'screens', 'notes', 'theme', 'custom']
+const SLOT_NAMES = ['title', 'subtitle', 'screens', 'notes', 'theme', 'custom', 'script']
+const DOCUMENTED_SLOT_NAMES = ['title', 'subtitle', 'screens', 'notes', 'theme', 'custom']
 
-const FIXED_REGIONS = ['THEME', 'DESIGN-SYSTEM', 'ICONS', 'ANNO-FRAMEWORK:CSS', 'ANNO-FRAMEWORK:JS', 'ANNOTATIONS']
+const FIXED_REGIONS = ['THEME', 'DESIGN-SYSTEM', 'ICONS', 'SCREEN-SCRIPT', 'ANNO-FRAMEWORK:CSS', 'ANNO-FRAMEWORK:JS', 'ANNOTATIONS']
 
 test('每个插槽在容器里逐字出现且各只出现一次', () => {
   for (const slot of SLOTS) {
@@ -64,7 +66,7 @@ test('工具的插槽探针与容器逐字一致，纪律 §8.1 的插槽名与�
   // 工具侧：每个 SLOTS 探针都要能在容器里定位到，否则 `slot --set` 会静默不改。
   const tool = read(prdRoot, 'scripts', 'preview.mjs')
   const probes = [...cut(tool, 'const SLOTS = {', '\nconst TITLE_RE').matchAll(/probe: '([^']+)'/g)].map((m) => m[1])
-  assert.equal(probes.length, SLOT_NAMES.length, `工具里的插槽数与 §8.1 表对不上（工具 ${probes.length} / 表 ${SLOT_NAMES.length}）`)
+  assert.equal(probes.length, SLOT_NAMES.length - 1, `工具里的可探针插槽数与 §8.1 表对不上（工具 ${probes.length} / 表 ${SLOT_NAMES.length}）`)
   for (const probe of probes) {
     assert.ok(template.includes(probe), `工具的插槽探针在容器里定位不到，slot 命令会静默不改：${probe}`)
   }
@@ -75,7 +77,7 @@ test('工具的插槽探针与容器逐字一致，纪律 §8.1 的插槽名与�
 
   // 纪律侧：§8.1 的表里每个插槽名都在场，agent 才知道 --set 能填什么。
   const table = cut(discipline, '### 8.1 ', '### 8.2')
-  for (const name of SLOT_NAMES) {
+  for (const name of DOCUMENTED_SLOT_NAMES) {
     assert.ok(table.includes('`' + name + '`'), `§8.1 表格里缺插槽名，agent 无从知道 --set 能填什么：${name}`)
   }
   for (const cmd of ['init', 'screen', 'slot', 'check']) {

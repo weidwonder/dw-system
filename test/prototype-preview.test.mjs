@@ -485,6 +485,63 @@ test('check 对没写注解的屏报 P2 提示且不拦交付', () => {
   rmSync(dir, { recursive: true, force: true })
 })
 
+test('画布上没有第二处能切状态的地方', () => {
+  const html = readFileSync(templatePath, 'utf8')
+  assert.doesNotMatch(html, /aria-label="原型状态切换"/)
+  assert.doesNotMatch(html, /class="state-buttons"/)
+})
+
+test('容器只导出状态表达函数，不导出任何认识按钮的函数', () => {
+  const html = readFileSync(templatePath, 'utf8')
+  assert.match(html, /window\.setScreenState\s*=/)
+  assert.doesNotMatch(html, /protoSetState/)
+  assert.doesNotMatch(html, /window\.\w+\s*=\s*function\s*\([^)]*actName/)
+  const seg = html.slice(html.indexOf('data-submit'))
+  assert.match(seg.slice(0, 400), /closest\(["']\.screen["']\)/)
+})
+
+test('SCREEN-SCRIPT 是固定实现区，CUSTOM-JS 是插槽', () => {
+  const html = readFileSync(templatePath, 'utf8')
+  assert.match(html, /<!-- SCREEN-SCRIPT:BEGIN/)
+  assert.match(html, /<!-- CUSTOM-JS:BEGIN/)
+})
+
+test('slot --set script 写进 CUSTOM-JS 区并转义脚本结束标签', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-anno-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  assert.equal(run('screen', file, '--name', 'S').code, 0)
+  const behavior = 'document.querySelector(\'[data-act="s1-empty"]\').addEventListener("click", function (e) {' +
+    ' window.setScreenState(e.currentTarget.closest(".device-wrap").querySelector(".screen"), "state-empty"); });\n' +
+    '// </script> must remain in the script body'
+  assert.equal(run('slot', file, '--set', 'script', '--text', behavior).code, 0)
+  const html = readFileSync(file, 'utf8')
+  const from = html.indexOf('CUSTOM-JS:BEGIN')
+  const to = html.indexOf('CUSTOM-JS:END')
+  const region = html.slice(from, to)
+  assert.ok(region.includes('s1-empty'))
+  assert.ok(region.includes('<\\/script>'))
+  rmSync(dir, { recursive: true, force: true })
+})
+
+test('check 报出注解区里没有对应行为的按钮', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-anno-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  assert.equal(run('screen', file, '--name', 'S').code, 0)
+  assert.equal(run('slot', file, '--set', 'screens', '--text',
+    '<section class="device-wrap"><p class="device-name">S</p><div class="device"><div class="screen">' +
+    '<div class="status is-default"></div></div></div><div class="screen-notes">' +
+    '<p class="screen-notes__title">这一屏的注解 · 不属于用户界面</p><div class="screen-notes__body">x</div>' +
+    '<div class="screen-notes__acts"><button type="button" class="btn btn-outline btn-sm" data-act="s1-empty">空态</button></div></div></section>').code, 0)
+  const out = JSON.parse(run('check', file, '--json').out)
+  const hit = out.problems.filter((p) => /s1-empty/.test(p.msg) && /没有对应/.test(p.msg))
+  assert.equal(hit.length, 1)
+  assert.equal(hit[0].level, 'P2')
+  assert.equal(out.ok, true)
+  rmSync(dir, { recursive: true, force: true })
+})
+
 // P1：title 插槽的探针曾是容器出厂字面量 `<title>UI 原型</title>`，而 init 一定会改写它，
 // 于是 `slot --set title` 在任何真实原型上都失败——而纪律同时禁止手工编辑原型文件。
 test('slot --set title 在 init 之后仍可用，且一次写 <title> 与页头 <h1> 两处', () => {

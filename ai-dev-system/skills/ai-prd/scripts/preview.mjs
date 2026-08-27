@@ -73,6 +73,12 @@ const SLOTS = {
     shell: ['<style id="proto-custom">', '</style>'],
     wrap: (v) => `\n  <style id="proto-custom">\n${v}\n  </style>\n  `,
   },
+  script: {
+    mark: 'CUSTOM-JS',
+    shell: ['<script id="proto-script">', '</scr' + 'ipt>'],
+    esc: (v) => v.replace(/<\/script/gi, '<\\/script'),
+    wrap: (v) => `\n  <script id="proto-script">\n${v}\n  </scr` + `ipt>\n  `,
+  },
 }
 
 // 标记界定的区间：[BEGIN 注释结束之后, END 注释开始之前)。返回 null 表示标记缺失。
@@ -243,7 +249,7 @@ async function cmdScreen(file, opts) {
   const body = inner ? `${inner}\n\n${block}` : block
   const next = html.slice(0, r.from) + SLOTS.screens.wrap(body) + html.slice(r.to)
   await writeAtomic(file, next)
-  console.log(`已加屏「${opts.name}」，状态层：${states.join(' / ') }，注解区挂${opts['anno-right'] ? '右侧' : '下方'}`)
+  console.log(`已加屏「${opts.name}」，状态层：${states.join(' / ')}，注解区挂${opts['anno-right'] ? '右侧' : '下方'}`)
   console.log('下一步：把这一屏的内容写成片段，用 `slot --set screens` 整体写入（MUST NOT 直接编辑原型文件）。')
 }
 
@@ -261,19 +267,20 @@ async function cmdSlot(file, opts) {
   const before = readAnnoBlock(html)
   value = stripShell(value, slot, key)
   const body = key === 'title' ? esc(value.trim()) : value.replace(/\s+$/, '')
+  const payload = slot.esc ? slot.esc(body) : body
 
   let next
   if (slot.apply) {
-    next = slot.apply(html, body)
+    next = slot.apply(html, payload)
     if (next === html) fail(`插槽 ${key} 没有匹配到任何位置（该区被改写了？）`, 1)
   } else if (slot.mark) {
     const r = markRange(html, slot.mark)
     if (!r) fail(`找不到插槽 ${key} 的标记 ${slot.mark}:BEGIN/END（该区被改写了？）`, 1)
-    next = html.slice(0, r.from) + slot.wrap(body) + html.slice(r.to)
+    next = html.slice(0, r.from) + slot.wrap(payload) + html.slice(r.to)
   } else {
     const re = slot.re || new RegExp(slot.probe.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
     if (!re.test(html)) fail(`找不到插槽 ${key}（该区被改写了？）`, 1)
-    next = html.replace(re, slot.wrap(body))
+    next = html.replace(re, slot.wrap(payload))
   }
 
   // 插槽写入 MUST NOT 动到批注：这正是"改稿会抹掉用户批注"那条死结的解法。
@@ -405,7 +412,7 @@ async function cmdAnnotations(file, opts) {
 
 /* ────────────────── check ────────────────── */
 
-const FIXED_REGIONS = ['THEME', 'DESIGN-SYSTEM', 'ICONS', 'ANNO-FRAMEWORK:CSS', 'ANNO-FRAMEWORK:JS', 'ANNOTATIONS']
+const FIXED_REGIONS = ['THEME', 'DESIGN-SYSTEM', 'ICONS', 'SCREEN-SCRIPT', 'ANNO-FRAMEWORK:CSS', 'ANNO-FRAMEWORK:JS', 'ANNOTATIONS']
 
 // 控件的子元素结构契约：容器 CSS 靠这些形态才生效，写错了页面不报错、只是版式塌掉。
 const STRUCTURE = [
@@ -533,6 +540,17 @@ async function cmdCheck(file, opts) {
         '容器按 .screen > .status 控制显隐，包一层这个状态就永远不显示（页面不会报错）')
     )
   })
+
+  const scriptRegion = sliceRegion(html, 'CUSTOM-JS')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/(^|[^:])\/\/[^\n]*/g, '$1 ')
+  const actNames = [...screens.matchAll(/<button[^>]*data-act="([^"]+)"/g)].map((m) => m[1])
+  actNames.forEach((name) => {
+    if (!scriptRegion.includes(name)) {
+      add('P2', `注解区按钮「${name}」没有对应的点击行为`,
+        '外观由容器给，行为写进 script 插槽：preview.mjs slot --set script')
+    }
+  })
   // 7. 状态层一致性：某个状态只在部分屏上有 → 切到那个状态时其余屏会回落到默认态
   wraps.forEach((w, i) => {
     declared.forEach((k) => {
@@ -569,7 +587,9 @@ async function cmdCheck(file, opts) {
   // 而提示要求做的正是已经做过的事，把作者逼回行内样式（又撞上写死颜色那条）。
   const styleText = sliceRegion(html, 'DESIGN-SYSTEM') + sliceRegion(html, 'THEME') +
     sliceRegion(html, 'CUSTOM-CSS') + sliceRegion(html, 'PROJECT-THEME')
-  const defined = new Set([...styleText.matchAll(/\.([a-z][a-z0-9-]*)/g)].map((m) => m[1]))
+  // 字符类里的 `_` 是必须的：屏注解区用 .screen-notes__title 这类 BEM 命名，
+  // 不认下划线就会把它们全报成「没有样式定义的 class」——而样式明明就在上面。
+  const defined = new Set([...styleText.matchAll(/\.([a-z][a-z0-9_-]*)/g)].map((m) => m[1]))
   const used = new Set()
   for (const m of screens.matchAll(/class="([^"]+)"/g)) m[1].split(/\s+/).forEach((c) => c && used.add(c))
   const unknown = [...used].filter((c) => !defined.has(c))
@@ -739,9 +759,12 @@ async function cmdServe(rel, opts) {
 const HELP = `原型工具（ai-prd）
 
   init   <文件> --title <名> [--subtitle <一句话>]      从容器建一份原型
-  screen <文件> --name <屏名> [--desktop] [--states …]  加一屏（结构与状态层由本命令保证）
+  screen <文件> --name <屏名> [--desktop] [--anno-right] [--states …]
+         加一屏（结构、状态层与屏注解区由本命令保证）
+         --anno-right：注解区挂这一屏右侧；不给即挂下方
   slot   <文件> --set <名> (--from <片段> | --text <文本>)
-         插槽名：title | subtitle | screens | notes | theme | custom
+         插槽名：title | subtitle | screens | notes | theme | custom | script
+         script 装注解区按钮的点击行为，与原型同文件，MUST NOT 引外部脚本
          改稿走它：只换插槽内容，批注块与 data-anno-user 锚点原样保留
   annotations <文件> [--json]                           取用户批注 + AI 侧说明（带行号）
   check  <文件> [--json]                                交付前自检（P0 存在则退出码 1）
