@@ -26,9 +26,10 @@ references/
     team.md             有其他人类协作方：业务方拍业务口径与非目标，评审结论回写 PRD
 assets/
   templates/            change-prd（主）/ lite-issue-prd / product-prd / requirements-module / todo / ui-prototype.html
+                        ui-prototype-framework/（容器固定实现的六份框架源文件）
   question-bank.md      分章节提问库，供组批
 scripts/
-  preview.mjs           原型工具：init/screen/slot 建原型、check 自检、annotations 取批注、
+  preview.mjs           原型工具：init/screen/slot 建原型、extract 取界面、check 自检、annotations 取批注、
                         serve 起预览服务（页面批注自动写回该文件）；
                         跑法 node <skills 根>/ai-prd/scripts/preview.mjs <子命令>
                         （本 skill 不带 ctx —— 那个随 ai-dev-workflow 分发）

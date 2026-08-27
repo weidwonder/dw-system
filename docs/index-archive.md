@@ -19,3 +19,5 @@
 | [文档生命周期门控（Lean Spec）](./spec/2026-08-10-文档生命周期门控-lean-change-spec.md) | merged | 规则已落进 `references/core/文档治理.md` §文档生命周期与索引门控；本文保留设计取舍与用户拍板记录 |
 | [项目真相源与 context-tier 重构](./spec/2026-08-16-项目真相源与context-tier重构-eng-spec.md) | superseded | 代码事实供给口径已被 [代码事实层强制化](./spec/2026-08-18-代码事实层强制化-eng-spec.md) 取代（卡片层改为无条件必备，取消按资产分档）；协作面字段模型的现行口径见 `CLAUDE.md` §安装器的关键设计与 `references/init-初始化.md` |
 | [项目真相源与 context-tier 重构 Coding Plan](./plan/2026-08-16-项目真相源与context-tier重构-coding-plan.md) | merged | 任务已随 2.0.0 全部执行并合入；其 spec 已于 2026-08-18 转 superseded |
+
+| [原型取段与框架外置 · Coding Plan](./plan/2026-08-27-原型取段与框架外置-coding-plan.md) | merged | 六个任务全部执行完毕，口径已落进代码与 [原型取段与框架外置 eng-spec](./spec/2026-08-27-原型取段与框架外置-eng-spec.md)；代码评审门四轴的 6 条 P0/P1 与 7 条 P2 已在 `ce70ffc` 收掉 |

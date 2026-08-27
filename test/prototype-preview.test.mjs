@@ -17,10 +17,11 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
+import { composeTemplate } from '../ai-dev-system/skills/ai-prd/scripts/preview.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const script = path.join(repoRoot, 'ai-dev-system', 'skills', 'ai-prd', 'scripts', 'preview.mjs')
-const templatePath = path.join(repoRoot, 'ai-dev-system', 'skills', 'ai-prd', 'assets', 'templates', 'ui-prototype.html')
+const composedTemplate = await composeTemplate()
 
 const SLOT_OPEN = '<script type="application/json" id="anno-data">'
 const SLOT_CLOSE = '</scr' + 'ipt>'
@@ -88,7 +89,7 @@ async function stopServer(child) {
 test('预览服务：批注 POST 回来后真的写进磁盘上的原型文件', async () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'proto-preview-'))
   const file = path.join(dir, 'demo.html')
-  writeFileSync(file, readFileSync(templatePath, 'utf8'), 'utf8')
+  writeFileSync(file, composedTemplate, 'utf8')
   const { child, base } = await startServer(file)
   try {
     const health = await fetch(base + 'health')
@@ -146,7 +147,7 @@ test('预览服务：批注 POST 回来后真的写进磁盘上的原型文件',
 test('预览服务：非原型 payload 不写盘，回环之外一律拒绝', async () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'proto-preview-'))
   const file = path.join(dir, 'demo.html')
-  const original = readFileSync(templatePath, 'utf8')
+  const original = composedTemplate
   writeFileSync(file, original, 'utf8')
   const { child, base, port } = await startServer(file)
   try {
@@ -177,7 +178,7 @@ test('预览服务：非原型 payload 不写盘，回环之外一律拒绝', as
 })
 
 test('容器在 http 下走自动回写，在 file:// 下降级到手动', () => {
-  const template = readFileSync(templatePath, 'utf8')
+  const template = composedTemplate
   assert.match(template, /location\.protocol === "http:"/, '容器必须能识别自己是被预览服务提供的')
   assert.match(template, /fetch\("save"/, 'http 模式下必须把批注 POST 回服务')
   assert.match(template, /if \(SERVED\) return;/, '自动回写时不该再弹"为什么要点保存"的说明')
@@ -466,7 +467,7 @@ test('screen --anno-right 让注解区挂右侧', () => {
 })
 
 test('屏注解区仍是画布内的元素，用户能在它上面写批注', () => {
-  const html = readFileSync(templatePath, 'utf8')
+  const html = composedTemplate
   const js = html.slice(html.indexOf('ANNO-FRAMEWORK:JS:BEGIN'), html.indexOf('ANNO-FRAMEWORK:JS:END'))
   assert.doesNotMatch(js, /screen-notes[^\n]*(return|continue)/, '拾取模式 MUST NOT 排除注解区')
   assert.match(js, /closest\(["']\.device-wrap["']\)/)
@@ -487,7 +488,7 @@ test('check 对没写注解的屏报 P2 提示且不拦交付', () => {
 })
 
 test('画布右侧不再有常驻列，NOTES 插槽仍在', async () => {
-  const html = readFileSync(templatePath, 'utf8')
+  const html = composedTemplate
   assert.doesNotMatch(html, /class="aside-stack"/)
   assert.doesNotMatch(html, /grid-template-columns:\s*minmax\(0, 1fr\) 340px/)
   assert.match(html, /<!-- NOTES:BEGIN/)
@@ -495,21 +496,21 @@ test('画布右侧不再有常驻列，NOTES 插槽仍在', async () => {
 })
 
 test('说明入口与展开的面板都不随页面滚动', () => {
-  const html = readFileSync(templatePath, 'utf8')
+  const html = composedTemplate
   const css = html.slice(html.indexOf('ANNO-FRAMEWORK:CSS:BEGIN'), html.indexOf('ANNO-FRAMEWORK:CSS:END'))
   const panel = css.slice(css.indexOf('.anno-notes-panel'))
   assert.match(panel.slice(0, 400), /position:\s*(sticky|fixed)/)
 })
 
 test('设计说明面板展开状态不会写进源文件', () => {
-  const html = readFileSync(templatePath, 'utf8')
+  const html = composedTemplate
   const serialize = html.slice(html.indexOf('function serialize()'), html.indexOf('function idb('))
   assert.match(serialize, /querySelector\("#proto-notes-panel"\)/)
   assert.match(serialize, /notesPanel\.setAttribute\("hidden",\s*""\)/)
 })
 
 test('设计说明入口在工具栏右段第一枚、写回按钮左侧，文字只有四个字', () => {
-  const html = readFileSync(templatePath, 'utf8')
+  const html = composedTemplate
   const bar = html.slice(html.indexOf('bar.innerHTML'), html.indexOf('document.body.insertBefore'))
   const iNotes = bar.indexOf('data-act="notes"')
   const iSave = bar.indexOf('data-act="save"')
@@ -635,13 +636,13 @@ test('并发两个写回时后到的那个基于前一个的结果判定', async
 })
 
 test('画布上没有第二处能切状态的地方', () => {
-  const html = readFileSync(templatePath, 'utf8')
+  const html = composedTemplate
   assert.doesNotMatch(html, /aria-label="原型状态切换"/)
   assert.doesNotMatch(html, /class="state-buttons"/)
 })
 
 test('容器只导出状态表达函数，不导出任何认识按钮的函数', () => {
-  const html = readFileSync(templatePath, 'utf8')
+  const html = composedTemplate
   assert.match(html, /window\.setScreenState\s*=/)
   assert.doesNotMatch(html, /protoSetState/)
   assert.doesNotMatch(html, /window\.\w+\s*=\s*function\s*\([^)]*actName/)
@@ -650,7 +651,7 @@ test('容器只导出状态表达函数，不导出任何认识按钮的函数',
 })
 
 test('SCREEN-SCRIPT 是固定实现区，CUSTOM-JS 是插槽', () => {
-  const html = readFileSync(templatePath, 'utf8')
+  const html = composedTemplate
   assert.match(html, /<!-- SCREEN-SCRIPT:BEGIN/)
   assert.match(html, /<!-- CUSTOM-JS:BEGIN/)
 })
@@ -871,4 +872,89 @@ test('文档按次产出范式带日期前缀', () => {
     const body = readFileSync(path.join(repoRoot, rel), 'utf8')
     assert.doesNotMatch(body, /docs\/(spec|plan|report)\/(?:<name>|<feature>|<repo>|<change-name>|<project-name>)/)
   })
+})
+
+test('extract 只给界面内容，正文真的在里面，且远小于全文', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-extract-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', '取段测试标题ZZQ').code, 0)
+  assert.equal(run('screen', file, '--name', '列表页').code, 0)
+  // 三个区各塞一段唯一文案，用来验"正文真的被输出了"，而不是只输出了段头。
+  assert.equal(run('slot', file, '--set', 'notes', '--text', '<p>说明正文NOTESZZQ</p>').code, 0)
+  assert.equal(run('slot', file, '--set', 'screens', '--text',
+    '<section class="device-wrap"><p class="device-name">列表页</p><div class="device">' +
+    '<div class="screen"><div class="status is-default"><button class="btn">屏内文案SCREENSZZQ</button>' +
+    '</div></div></div></section>').code, 0)
+  assert.equal(run('slot', file, '--set', 'custom', '--text', '.zzq-only { color: red; }').code, 0)
+
+  const r = run('extract', file)
+  assert.equal(r.code, 0, r.out)
+
+  // ① 段头齐全且顺序固定：TITLE → NOTES → SCREENS
+  const order = ['TITLE', 'NOTES', 'SCREENS'].map((m) => r.out.indexOf(`===== ${m} `))
+  assert.ok(order.every((i) => i >= 0), `段头不全：${JSON.stringify(order)}`)
+  assert.deepEqual([...order].sort((a, b) => a - b), order, '段序 MUST 固定为 TITLE → NOTES → SCREENS')
+  assert.match(r.out, /===== TITLE （源文件第 \d+ 行起） =====/, 'TITLE 段头格式或行号不正确')
+  assert.match(r.out, /===== NOTES （源文件第 \d+ 行起） =====/, 'NOTES 段头格式或行号不正确')
+  assert.match(r.out, /===== SCREENS （源文件第 \d+ 行起） =====/, 'SCREENS 段头格式或行号不正确')
+
+  // ② 正文真的被输出了——只验段头的话，一个只打印段头的实现也会全绿
+  assert.match(r.out, /取段测试标题ZZQ/, 'TITLE 正文没出现在输出里')
+  assert.match(r.out, /说明正文NOTESZZQ/, 'NOTES 正文没出现在输出里')
+  assert.match(r.out, /屏内文案SCREENSZZQ/, 'SCREENS 正文没出现在输出里')
+
+  // ③ 默认不带样式区，也不带任何固定实现区
+  assert.doesNotMatch(r.out, /zzq-only/, '默认输出 MUST NOT 含 CUSTOM-CSS')
+  assert.doesNotMatch(r.out, /ANNO-FRAMEWORK/, 'MUST NOT 输出批注框架区')
+  assert.doesNotMatch(r.out, /<symbol id="i-/, 'MUST NOT 输出图标 sprite')
+  assert.doesNotMatch(r.out, /--radius-sm/, 'MUST NOT 输出设计系统样式')
+
+  // ④ 末尾指引
+  assert.match(r.out, /preview\.mjs annotations/, '末尾必须指引去 annotations 取批注')
+
+  // ⑤ 降载这件事本身
+  const full = readFileSync(file, 'utf8')
+  assert.ok(
+    Buffer.byteLength(r.out, 'utf8') < Buffer.byteLength(full, 'utf8') * 0.2,
+    `extract 输出应远小于全文，实测 ${Buffer.byteLength(r.out, 'utf8')} / ${Buffer.byteLength(full, 'utf8')}`,
+  )
+
+  // ⑥ --with-css 补两段，且补的是正文不只是段名
+  const w = run('extract', file, '--with-css')
+  assert.equal(w.code, 0, w.out)
+  assert.ok(w.out.indexOf('===== PROJECT-THEME ') >= 0, '--with-css 必须补 PROJECT-THEME 段')
+  assert.ok(w.out.indexOf('===== CUSTOM-CSS ') > w.out.indexOf('===== PROJECT-THEME '),
+    '--with-css 的两段 MUST 排在末尾且 PROJECT-THEME 在前')
+  assert.match(w.out, /zzq-only/, '--with-css 必须输出 CUSTOM-CSS 的正文')
+
+  rmSync(dir, { recursive: true, force: true })
+})
+
+test('extract 拒绝非原型文件；--with-css 放在文件名之前也不吞掉文件名', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-extract-bad-'))
+  const bad = path.join(dir, 'not-a-prototype.html')
+  writeFileSync(bad, '<!doctype html><html><body>hi</body></html>', 'utf8')
+
+  const r = run('extract', bad)
+  assert.equal(r.code, 2, '不是原型文件必须以退出码 2 终止')
+  assert.match(r.out, /SCREENS/, '错误文案必须指出缺的是 SCREENS 分区标记')
+  assert.doesNotMatch(r.out, /=====|=====\s/, '拒绝时不得输出任何区段')
+
+  // parseArgs 对未登记的 --flag 走 `out[key] = argv[++i]`，会吞掉下一个 argv。
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', '顺序测试').code, 0)
+  const flagFirst = run('extract', '--with-css', file)
+  assert.equal(flagFirst.code, 0, '--with-css 放在文件名之前时不得吞掉文件名：' + flagFirst.out)
+  assert.match(flagFirst.out, /===== SCREENS /, '参数顺序颠倒后仍应正常取段')
+
+  rmSync(dir, { recursive: true, force: true })
+})
+
+test('import preview.mjs 不产生副作用（不跑 CLI）', () => {
+  const r = spawnSync(process.execPath,
+    ['--input-type=module', '-e', `import(${JSON.stringify(script)}).then(() => console.log('imported-ok'))`],
+    { encoding: 'utf8' })
+  assert.equal(r.status, 0, `import 时 CLI 被连带执行了：${(r.stdout || '') + (r.stderr || '')}`)
+  assert.match(r.stdout, /imported-ok/)
+  assert.doesNotMatch(r.stdout, /原型工具（ai-prd）/, 'import 时 MUST NOT 打印 HELP')
 })
