@@ -27,7 +27,7 @@
 
 
 - **[原型注解分层与文档日期前缀 · 顶层架构](./spec/2026-08-27-原型注解分层与文档日期前缀-overview.md)** — 本期的 Overview：把改造切成六批（原型容器 / 原型工具 / `ai-prd` 纪律模板 / `ai-dev-workflow` 命名与可达性 / 口径落点 / 机器闸与存量），A/B 两道核查捞出三个开放问题并在 eng-spec 定案。`authority_refs`：三层注释归属的槽位划分、可写位置由六处扩到七处、容器与产出方的职责边界、改稿放行契约、预览写回冲突的处置方向、日期前缀地板、本次的边界划分与合并顺序。
-- **[原型注解分层与文档日期前缀 · 技术 spec](./spec/2026-08-27-原型注解分层与文档日期前缀-eng-spec.md)** — 本期的技术 spec（FR-001–030 / AC-001–038）：屏注解区的 DOM 契约 `.device-wrap > .screen-notes`、新增 `CUSTOM-JS` 插槽与 `SCREEN-SCRIPT` 固定区、容器导出 `window.protoSetState`、批注 schema **不升版本**（回复以可选 `replies[]` 挂在 AI 说明的 `data-anno-id` 上）、`slot` 的 `--agreed` / `--agreed-plan` 放行契约（`--drop-anchors` 废除）、`serve` 的 `X-Proto-Version` / `If-Match` 写回契约、日期前缀的适用范围与常青档例外。`authority_refs`：七个插槽的集合、两个新分区标记、屏注解区 DOM 契约、三种运行时状态表达、`replies[]` 结构与 `data-anno-id` 锚点、放行与写回两组命令契约、日期前缀地板与例外清单。
+- **[原型注解分层与文档日期前缀 · 技术 spec](./spec/2026-08-27-原型注解分层与文档日期前缀-eng-spec.md)** — 本期的技术 spec（FR-001–031 / AC-001–044）：屏注解区的 DOM 契约 `.device-wrap > .screen-notes`、新增 `CUSTOM-JS` 插槽与 `SCREEN-SCRIPT` 固定区、容器导出 `window.setScreenState`（只认屏元素与目标态，不认按钮）、批注 schema **不升版本**（回复以可选 `replies[]` 挂在 AI 说明的 `data-anno-id` 上）、`slot` 的 `--agreed` / `--agreed-plan` 放行契约（`--drop-anchors` 废除）、`serve` 的 `X-Proto-Version` / `If-Match` 写回契约、日期前缀的适用范围与常青档例外。`authority_refs`：七个插槽的集合、两个新分区标记、屏注解区 DOM 契约、三种运行时状态表达、`replies[]` 结构与 `data-anno-id` 锚点、放行与写回两组命令契约、日期前缀地板与例外清单。
 
 - **[ai-dev-workflow 精简与需求追溯](./spec/2026-08-22-workflow精简与需求追溯-PRD.md)** — 与 `github/spec-kit` 比对后的调整需求：常驻负担由 108,003 压到 ≤50,000（移出文档治理/spec写作纪律/worktree开发纪律三篇、入口瘦身、抽历史沿革、全篇措辞精简）、Lean 路径改为**渐进式披露**（交付加载点清单，每行须触发条件明确/加载单元最小/说得出为什么此刻需要；不定体积阈值——该清单取决于命中哪几道门，三版阈值均被复核证伪）、spec 需求编号贯通四个落点、评审门忠实轴增加五类偏离类型。经三轮子代理复核（双轴 28 条 + 验证 8 条 + 收敛验证 6 条，含 6 条 P0）三次重修。`authority_refs`：加载点清单的三条判据、工作区隔离门要点驻留入口、需求编号的 MUST 与永不复用规则、忠实轴报告两维度格式、升级零手动动作承诺。
 - **[渐进式披露与需求追溯](./spec/2026-08-23-渐进式披露与需求追溯-eng-spec.md)** — 2.5.0 的技术 spec：判据加载模型改为**渐进式披露**（常驻收敛到六份且分两批取，其余按住在 `SKILL.md` 的〈加载点清单〉在触发点取），`文档治理.md` / `spec写作纪律.md` / `worktree开发纪律.md` 三篇移出常驻，`路径-lean.md` 扩为 Lean 自足册；spec 需求编 `FR-###` / 验收项编 `AC-###` 贯通到 coding plan、评审门与 test-spec；评审门忠实轴按轴增列五类偏离类型。`authority_refs`：常驻集合与加载点清单、入口自带工作区隔离门要点、需求编号格式与永不复用规则、忠实轴返回格式的增列、措辞精简红线。
@@ -37,7 +37,7 @@
 
 按次产出的计划文件名 MUST 以 `YYYY-MM-DD-` 开头；已归并计划移入归档索引。
 
-- **[原型注解分层与文档日期前缀 Coding Plan](./plan/2026-08-27-原型注解分层与文档日期前缀-coding-plan.md)** — 本期的 coding plan：14 个垂直切片任务（容器 → 工具 → 纪律模板 → 机器闸），每个任务带 `满足:` 的 `FR-###`、失败测试先行、替换清单核销表与三个 checkpoint。`authority_refs`：`window.protoSetState` 签名、`slot` 的 `--agreed` / `--agreed-plan` 参数契约、`serve` 的 `X-Proto-Version` / `If-Match` 头契约、`replies[]` 字段集合、`.screen-notes` DOM 契约与两个新标记名。
+- **[原型注解分层与文档日期前缀 Coding Plan](./plan/2026-08-27-原型注解分层与文档日期前缀-coding-plan.md)** — 本期的 coding plan：15 个垂直切片任务（容器 → 工具 → 纪律模板 → 机器闸），每个任务带 `满足:` 的 `FR-###`、失败测试先行、替换清单核销表与三个 checkpoint。`authority_refs`：`window.setScreenState` 签名、`slot` 的 `--agreed` / `--agreed-plan` 参数契约、`serve` 的 `X-Proto-Version` / `If-Match` 头契约、`replies[]` 字段集合、`.screen-notes` DOM 契约与两个新标记名。
 
 - **[渐进式披露与需求追溯 Coding Plan](./plan/2026-08-23-渐进式披露与需求追溯-coding-plan.md)** — [渐进式披露与需求追溯 spec](./spec/2026-08-23-渐进式披露与需求追溯-eng-spec.md) 的任务拆解（FR-001…FR-014 / AC-001…AC-024 的核销表）。`authority_refs`：Interfaces 节冻结的加载点清单列结构、`FR-###`/`AC-###` 编号格式、忠实轴返回格式的增列方式。
 

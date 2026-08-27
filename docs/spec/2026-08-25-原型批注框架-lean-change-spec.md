@@ -2,16 +2,16 @@
 lifecycle: active
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-08-26'
+last_confirmed: '2026-08-27'
 authority_refs:
-  - 'ui-prototype.html 的分区标记：THEME / DESIGN-SYSTEM / ICONS / ANNO-FRAMEWORK:CSS / ANNO-FRAMEWORK:JS / SCREENS / PROJECT-THEME / ANNOTATIONS'
+  - 'ui-prototype.html 的分区标记：THEME / DESIGN-SYSTEM / ICONS / ANNO-FRAMEWORK:CSS / ANNO-FRAMEWORK:JS / SCREENS / PROJECT-THEME / ANNOTATIONS（2026-08-27 起另加 SCREEN-SCRIPT 与 CUSTOM-JS 两个，见 2026-08-27-原型注解分层与文档日期前缀-eng-spec.md）'
   - '插槽的逐字原文（preview.mjs 的 SLOTS 探针）与容器实际文本的一致性'
   - '纪律 §8.3 列出的 class 与图标 id 集合，与容器实际提供的一致'
-  - '批注数据结构 prd-annotations@1 的字段：global[] / items[]（id / screen / tag / label / path / text / at）'
+  - '批注数据结构 prd-annotations@1 的字段：global[] / items[]（id / screen / tag / label / path / text / at）（2026-08-27 起增加可选 replies[]，schema 号不变）'
   - '元素锚点属性：AI 侧 data-anno + data-anno-kind，用户侧 data-anno-user'
-  - 'UI原型纪律.md §7 的四条判据（复制不重写 / 元素说明写成气泡 / 只读批注块 / 写回文件才读得到）'
+  - 'UI原型纪律.md §7 的四条判据（复制不重写 / 元素说明写成气泡 / 只读批注块 / 写回文件才读得到）（2026-08-27 起第二条细分为三层归属、第三条的写入方增加 slot 显式放行路径）'
   - 'UI原型纪律.md §8 的插槽契约：容器不含示例内容、产出原型不读容器'
-  - 'preview.mjs 的子命令契约：init / screen / slot / check / annotations / serve，以及 --drop-anchors 的语义与退出码约定（2 = 用法错误，其余 1）'
+  - 'preview.mjs 的子命令契约：init / screen / slot / check / annotations / serve，以及退出码约定（2 = 用法错误，其余 1）（--drop-anchors 已于 2026-08-27 废除，改为 --agreed + --agreed-plan）'
   - '流程与门禁契约：00-prd生成流程.md §组稿 第 4/5/6/7 步的准出项（服务由 AI 起停、check 前置、question 逐条摆出、原型带批注整份落盘），以及下游 Step 1/4/8 与 Lean §4.1 的取批注义务'
 ---
 
@@ -95,7 +95,7 @@ authority_refs:
 ## 兼容取舍（用户拍板，定稿前必填）
 
 - **存量原型文件没有批注框架** —— 谁在依赖：已安装本体系的项目里 `docs/spec/*-prototype-*.html` —— 决定：**不回填，纯增量**。旧文件照常打开、照常是现行界面依据；下次该界面被改动时由新原型接替，新原型自带框架。确认于 2026-08-25。
-- **丢弃某条用户批注需要一个逃生口** —— `slot` 默认在锚点丢失时拒绝写入，但"这条意见不用管了"是真实存在的需求。决定：**保留 `--drop-anchors` 显式开关，不堵死**。堵死会把人逼去手工编辑原型文件（纪律明令禁止、且会连带丢掉更多东西），比给一个要显式打出来的开关更糟；误丢的成本已由两道网压住——拒绝写入时逐条打印会失联的批注正文，`check` 再把孤儿批注报成 P0。纪律同时要求"用它之前 MUST 先跟用户说清楚"。确认于 2026-08-26。
+- **丢弃某条用户批注需要一个逃生口** —— `slot` 默认在锚点丢失时拒绝写入，但"这条意见不用管了"是真实存在的需求。决定：**保留 `--drop-anchors` 显式开关，不堵死**。堵死会把人逼去手工编辑原型文件（纪律明令禁止、且会连带丢掉更多东西），比给一个要显式打出来的开关更糟；误丢的成本已由两道网压住——拒绝写入时逐条打印会失联的批注正文，`check` 再把孤儿批注报成 P0。纪律同时要求"用它之前 MUST 先跟用户说清楚"。确认于 2026-08-26。**当时口径**：2026-08-27 起 `--drop-anchors` 已废除——逃生口改为「先与用户逐条约定，再用 `--agreed --agreed-plan` 显式放行」，理由与判据见 `2026-08-27-原型注解分层与文档日期前缀-eng-spec.md` §3.3。
 - **批注写回文件依赖浏览器能力** —— Chrome / Edge 用 File System Access 自动写回；Safari / Firefox 只能"下载副本后覆盖原文件"或"复制 JSON 粘回对话"。决定：**三级自适应降级，不为兼容降低主路径体验**；状态灯显式告诉用户当前批注有没有落到文件里。确认于 2026-08-25。
 
 ## 替换清单（本次淘汰了什么）
@@ -139,7 +139,7 @@ authority_refs:
 - [x] AC-029 `00-prd生成流程.md` 第 4 步要求 AI 后台起服务、第 5 步要求派复核子代理前停服务；第 7 步要求原型带批注整份落盘；第 6 步要求逐条摆出 `question` 项 —— 满足：FR-017、FR-018
 - [x] AC-030 容器有 `proto-custom` 插槽且排在 `DESIGN-SYSTEM` 之后，纪律 §8.4 说明它承接 hover / 动画 / 媒体查询 —— 满足：FR-019
 - [x] AC-031 插槽替换区间按容器的 `BEGIN`/`END` 标记判定，不受片段缩进影响；同一片段连写两次，屏数不增加 —— 满足：FR-014
-- [x] AC-032 `slot` 丢掉用户批注锚点时**拒绝写入**（文件原样未动），拒绝信息点名锚点 id 与那条批注正文；`--drop-anchors` 显式放行 —— 满足：FR-014、FR-018
+- [x] AC-032 `slot` 丢掉用户批注锚点时**拒绝写入**（文件原样未动），拒绝信息点名锚点 id 与那条批注正文；`--drop-anchors` 显式放行（**当时口径**，现由 `--agreed --agreed-plan` 取代）—— 满足：FR-014、FR-018
 - [x] AC-033 `check` 逐条比对批注块条目与界面锚点，失联一条报一条 P0 —— 满足：FR-015、FR-018
 - [x] AC-034 结构契约按 class token 精确比对：含 `.alert-title` + `.alert-description` 的合规提示条不被判红 —— 满足：FR-015
 - [x] AC-035 片段自带外壳时被剥掉并出声，不产生嵌套 `<style>` 或双层 `.devices`；`annotations` 的 AI 侧条目带屏幕名与元素文字 —— 满足：FR-014、FR-016
