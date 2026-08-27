@@ -18,13 +18,14 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
+import { composeTemplate } from '../ai-dev-system/skills/ai-prd/scripts/preview.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const skillsRoot = path.join(repoRoot, 'ai-dev-system', 'skills')
 const prdRoot = path.join(skillsRoot, 'ai-prd')
 const read = (...seg) => readFileSync(path.join(...seg), 'utf8')
 
-const template = read(prdRoot, 'assets', 'templates', 'ui-prototype.html')
+const template = await composeTemplate()
 const discipline = read(prdRoot, 'references', 'UI原型纪律.md')
 
 // 切段取子串：锚点找不到必须当场红，否则 slice 会静默退化成"整个文件"。

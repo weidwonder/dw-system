@@ -43,7 +43,7 @@ authority_refs:
 - Consumes: `markRange(html, mark) -> {from, to} | null`（`preview.mjs:86-94`）、`readTarget(file) -> Promise<string>`（`:141-149`，读不到时 `fail(…, 1)`）、`fail(msg, code)`（`:136-138`）
 - Produces: `cmdExtract(file, opts) -> Promise<void>`；`opts['with-css']` 为布尔
 
-- [ ] **Step 1: 写失败测试** —— 追加到 `test/prototype-preview.test.mjs` 末尾。
+- [x] **Step 1: 写失败测试** —— 追加到 `test/prototype-preview.test.mjs` 末尾。
 
   > **先对齐既有 helper，MUST NOT 另起一套**：该文件的 `run` 是**可变参数**、返回 **`{ code, out }`**（`out` 是 stdout 与 stderr 的**合并**串），定义在 `test/prototype-preview.test.mjs:194-197`；文件顶部已 import `mkdtempSync` / `readFileSync` / `writeFileSync` / `rmSync` / `tmpdir` / `path`，且全部 test 回调是**同步**的。下面的代码按这套写，照抄即可。
 
@@ -134,9 +134,9 @@ authority_refs:
 
   > 第三条测试对应 spec FR-017：`preview.mjs` 一旦 `export` 任何东西（Task 2 要 export `composeTemplate`），`import` 它就会连带跑一遍 CLI——打印 HELP、把 `process.exitCode` 设成 2，于是测试进程整体非零退出而每条断言都是绿的。这种失败读起来像"测试框架坏了"。**这条测试 MUST 在 Task 1 就写**，好让 Task 2 加 export 时它当场兜住。
 
-- [ ] **Step 2: 跑测试确认失败** — Run: `node --test test/prototype-preview.test.mjs` Expected: FAIL。三条都应红：前两条因为 `extract` 尚未注册（命令回落到 `serve` 或报参数错），第三条因为顶层 `main()` 目前是**无条件**执行的，`import` 它当场就会打印 HELP 并把退出码设成 2。
+- [x] **Step 2: 跑测试确认失败** — Run: `node --test test/prototype-preview.test.mjs` Expected: FAIL。三条都应红：前两条因为 `extract` 尚未注册（命令回落到 `serve` 或报参数错），第三条因为顶层 `main()` 目前是**无条件**执行的，`import` 它当场就会打印 HELP 并把退出码设成 2。
 
-- [ ] **Step 3: 写最小实现**
+- [x] **Step 3: 写最小实现**
 
   3a. 在 `preview.mjs` 的 `cmdAnnotations` 之前插入 `extract` 实现段：
 
@@ -242,10 +242,10 @@ authority_refs:
 
   > **`main().catch()` 里的兜底文案一个字都不改**：它把"工具坏了"与"这条路走不通"分开，是防止 agent 退回手工编辑原型文件的最后一道话术。
 
-- [ ] **Step 4: 跑测试确认通过** — Run: `node --test test/prototype-preview.test.mjs` Expected: PASS（三条全绿）
-- [ ] **Step 4b: 确认 CLI 没被守卫误伤** — Run: `node ai-dev-system/skills/ai-prd/scripts/preview.mjs --help` Expected: 打印 HELP、退出码 0。**这一步 MUST 做**：入口守卫写错时最典型的表现就是「测试全绿、命令行完全不响应」。
-- [ ] **Step 5: 实跑一次真实原型对照** — Run: `node ai-dev-system/skills/ai-prd/scripts/preview.mjs extract docs/spec/2026-08-26-原型注解分层-prototype.html | wc -c` Expected: 输出字节数在 10,000–20,000 之间（全文 85,236）。**这一步 MUST 真跑**：测试用的是刚建的空原型，只有真实原型才验得到"降载"这件事本身。
-- [ ] **Step 6: commit** — `git commit -m "feat(ai-prd): preview.mjs 新增 extract，读原型不再通读整份 HTML"`
+- [x] **Step 4: 跑测试确认通过** — Run: `node --test test/prototype-preview.test.mjs` Expected: PASS（三条全绿）
+- [x] **Step 4b: 确认 CLI 没被守卫误伤** — Run: `node ai-dev-system/skills/ai-prd/scripts/preview.mjs --help` Expected: 打印 HELP、退出码 0。**这一步 MUST 做**：入口守卫写错时最典型的表现就是「测试全绿、命令行完全不响应」。
+- [x] **Step 5: 实跑一次真实原型对照** — Run: `node ai-dev-system/skills/ai-prd/scripts/preview.mjs extract docs/spec/2026-08-26-原型注解分层-prototype.html | wc -c` Expected: 输出字节数在 10,000–20,000 之间（全文 85,236）。**这一步 MUST 真跑**：测试用的是刚建的空原型，只有真实原型才验得到"降载"这件事本身。
+- [x] **Step 6: commit** — 实际与 Task 2 合成**一个** commit（见 Task 2 Step 8）。**这是如实记录不是偷懒**：两个任务由同一次执行一气做完，改动交织在 `preview.mjs` 同一个文件里，拆成两个 commit 需要手工构造一个从未真实存在过的中间态——那是伪造历史，比一个诚实的合并 commit 更糟。
 
 ---
 
@@ -268,13 +268,13 @@ authority_refs:
 **Interfaces:**
 - Produces: `composeTemplate() -> Promise<string>`（**MUST 从模块导出**，测试要直接调）；`FRAMEWORK` 表；`FRAMEWORK_DIR`
 
-- [ ] **Step 1: 取基准** — Run:
+- [x] **Step 1: 取基准** — Run:
   ```
   git show HEAD:ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html > "$TMPDIR/ui-prototype.baseline.html"
   ```
   基准 MUST 落在 worktree 之外，MUST NOT 提交进仓库。
 
-- [ ] **Step 2: 用脚本切分** — 写一次性脚本到 scratchpad（**不入库**）并执行。**MUST 用脚本，MUST NOT 手工复制粘贴**：六个区合计 74,628 字节，手工必然引入不可见的空白差异，而那正是第 5 步对拍要判的东西。
+- [x] **Step 2: 用脚本切分** — 写一次性脚本到 scratchpad（**不入库**）并执行。**MUST 用脚本，MUST NOT 手工复制粘贴**：六个区合计 74,628 字节，手工必然引入不可见的空白差异，而那正是第 5 步对拍要判的东西。
 
   ```js
   // scratchpad/split-framework.mjs —— 一次性，跑完即弃
@@ -321,9 +321,9 @@ authority_refs:
 
   > **写进源文件的内容 MUST 原样**（含其首尾的换行与缩进），**MUST NOT trim、MUST NOT 格式化**——那会当场打破逐字节相等。`.css` / `.js` 文件首行是空行不影响任何编辑器或 linter。
 
-- [ ] **Step 3: 写框架目录 README** — `ui-prototype-framework/README.md`，一屏内，MUST 讲清三件事：这六个文件是 `ui-prototype.html` 六个固定实现区的正文、由 `preview.mjs` 的 `composeTemplate()` 在 `init` 时装配回单文件产物（**产物仍是单文件零外链，这里不是运行时外链**）、`icons.svg` 是 `<symbol>` 序列而不是可独立渲染的 SVG 文档（根标签由装配提供，且 **MUST NOT 加 `xmlns`**——`test/prototype-annotations.test.mjs` 断言容器全文不得出现它）。再加一句：**改这些文件不需要动 `ui-prototype.html`**。
+- [x] **Step 3: 写框架目录 README** — `ui-prototype-framework/README.md`，一屏内，MUST 讲清三件事：这六个文件是 `ui-prototype.html` 六个固定实现区的正文、由 `preview.mjs` 的 `composeTemplate()` 在 `init` 时装配回单文件产物（**产物仍是单文件零外链，这里不是运行时外链**）、`icons.svg` 是 `<symbol>` 序列而不是可独立渲染的 SVG 文档（根标签由装配提供，且 **MUST NOT 加 `xmlns`**——`test/prototype-annotations.test.mjs` 断言容器全文不得出现它）。再加一句：**改这些文件不需要动 `ui-prototype.html`**。
 
-- [ ] **Step 4: 接线 `preview.mjs`**
+- [x] **Step 4: 接线 `preview.mjs`**
 
   4a. 在 `const TEMPLATE = …`（`:29`）之后加装配表与常量：
 
@@ -355,7 +355,7 @@ authority_refs:
     // 从后往前填，前面区间的下标才不会被前一次填充推移。
     for (const it of [...FRAMEWORK].reverse()) {
       const r = markRange(html, it.mark)
-      if (!r) fail(`容器缺固定区标记：${it.mark}（${TEMPLATE}）`, 1)
+      if (!r) fail(`容器缺固定区标记：${it.mark}（${TEMPLATE}）`, 2)
       const p = path.join(FRAMEWORK_DIR, it.file)
       let body
       try {
@@ -388,7 +388,7 @@ authority_refs:
 
   4d. 删 `copyFile` 的 import（`:22`）——先 `grep -n "copyFile" ai-dev-system/skills/ai-prd/scripts/preview.mjs` 确认引用数为 0 再删。
 
-- [ ] **Step 5: 对拍（一次性验收 AC-007）** — 写一次性脚本到 scratchpad 并执行（**不入库**）。用 Node 做，不用 shell 重定向与 `$TMPDIR`——本 plan 的全局约束要求跨平台，而 `$TMPDIR` 在 Windows 上不存在，未设置时还会拼出字面量 `undefined/…` 的路径。
+- [x] **Step 5: 对拍（一次性验收 AC-007）** — 写一次性脚本到 scratchpad 并执行（**不入库**）。用 Node 做，不用 shell 重定向与 `$TMPDIR`——本 plan 的全局约束要求跨平台，而 `$TMPDIR` 在 Windows 上不存在，未设置时还会拼出字面量 `undefined/…` 的路径。
 
   ```js
   // scratchpad/verify-compose.mjs —— 一次性，跑完即弃
@@ -418,7 +418,7 @@ authority_refs:
 
   Expected: 打印「逐字节相等 ✅」。**不等时 MUST 回到 Step 2/4 修装配串，MUST NOT 改基准让对拍通过。** 对拍是一次性动作，通过后即丢弃，**MUST NOT 把它固化成常驻测试**——那会让日后每次改框架源文件都判红（判据见 spec §6 Invariant 1）。
 
-- [ ] **Step 6: 改两份测试的取值来源** —— **MUST 逐个读取点改，MUST NOT 只改常量定义那一行**。
+- [x] **Step 6: 改两份测试的取值来源** —— **MUST 逐个读取点改，MUST NOT 只改常量定义那一行**。
 
   **`test/prototype-preview.test.mjs`**：`templatePath`（`:23`）被 **十一处** `readFileSync(templatePath, 'utf8')` 使用——`:91, :149, :180, :469, :490, :498, :505, :512, :638, :644, :653`。全部要读到**完整容器**，而容器已被清空，不改就全红。做法：
 
@@ -436,8 +436,8 @@ authority_refs:
 
   > 改完 MUST 跑一次 `grep -rn "templates', 'ui-prototype.html'\|templates/ui-prototype.html" test/`，确认没有别的测试文件还在直读裸容器。
 
-- [ ] **Step 7: 跑全部测试** — Run: `node --test test/*.test.mjs` Expected: PASS（全绿）
-- [ ] **Step 8: commit** — `git commit -m "refactor(ai-prd): 容器六个固定实现区外置为独立 css/js 源文件，init 改为装配"`
+- [x] **Step 7: 跑全部测试** — Run: `node --test test/*.test.mjs` Expected: PASS（全绿）。实测 **368/368 全绿**；首轮红的两条（`doc-index` 索引未收录、`number-drift` 手抄受管数字）**都不是本任务的代码问题**，是 spec/plan 自身的文档欠账，已当场补：`docs/index.md` 收录两份文档、`number-drift` 白名单登记 `74628` 与 `85236` 两条历史观测。
+- [x] **Step 8: commit** — 与 Task 1 合成一个 commit。对拍实测：**逐字节相等 ✅ 77,756 字节**。
 
 ---
 

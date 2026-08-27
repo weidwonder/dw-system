@@ -1,0 +1,184 @@
+
+    .anno-bar {
+      position: sticky;
+      top: 0;
+      z-index: 900;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 10px 24px;
+      border-bottom: 1px solid var(--border);
+      background: color-mix(in oklab, var(--background) 88%, transparent);
+      backdrop-filter: blur(14px);
+      color: var(--foreground);
+      font-family: var(--font-sans);
+      font-size: 13px;
+    }
+
+    .anno-bar__title { display: flex; align-items: center; gap: 7px; margin-right: 2px; font-weight: 600; }
+    .anno-bar__spacer { flex: 1 1 auto; }
+    .anno-count { color: var(--muted-foreground); font-size: 12px; }
+
+    /* 设计说明面板：挂在工具栏下方，默认收起 */
+    .anno-notes-panel {
+      position: sticky;
+      top: 46px;
+      z-index: 890;
+      border-bottom: 1px solid var(--border);
+      background: color-mix(in oklab, var(--background) 96%, transparent);
+      backdrop-filter: blur(14px);
+    }
+
+    .anno-notes-panel[hidden] { display: none !important; }
+
+    .anno-notes-panel__inner {
+      max-width: 1560px;
+      margin: 0 auto;
+      padding: 14px 24px 16px;
+      font-family: var(--font-sans);
+    }
+
+    .anno-bar [data-act="notes"] { border-color: var(--primary); color: var(--primary); }
+
+    .anno-state { display: flex; align-items: center; gap: 6px; color: var(--muted-foreground); font-size: 12px; white-space: nowrap; }
+
+    .anno-state__dot {
+      width: 7px;
+      height: 7px;
+      flex: none;
+      border-radius: 50%;
+      background: var(--muted-foreground);
+    }
+
+    .anno-state--saved .anno-state__dot { background: var(--success); }
+    .anno-state--dirty .anno-state__dot { background: var(--warning); }
+
+    /* 批注气泡：挂在被批注元素右上角内侧，纯 CSS 绘制，无图片、无外部资源 */
+    /* data-anno-host 恒加（点图钉时靠它 closest 回宿主），但只有取值为 "rel" 才提升定位：
+       attach() 按 computed position 判定，本来是 static 的才给 "rel"。绝对/相对/固定定位的元素
+       取值为空串，因此不会被本行改写掉自己的定位。 */
+    [data-anno-host="rel"] { position: relative; }
+
+    .anno-pin {
+      position: absolute;
+      /* 贴元素内侧而非外侧：外侧偏移会被任何 overflow: auto|hidden 的祖先裁掉，图钉整枚看不见。 */
+      top: 2px;
+      /* 高于原型自定义内容，低于批注框架自身的 .anno-notes-panel(890) / .anno-bar(900)
+         / .anno-pop(1000) / .anno-cursor(1100)，因此不会反过来遮住框架自己的 UI。 */
+      z-index: 880;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      padding: 0;
+      border: 1.5px solid var(--background);
+      border-radius: 50% 50% 50% 3px;
+      color: #fff;
+      font-family: var(--font-sans);
+      font-size: 10px;
+      font-weight: 600;
+      line-height: 1;
+      cursor: pointer;
+      box-shadow: var(--shadow-sm);
+      transition: transform 0.12s;
+    }
+
+    .anno-pin:hover { transform: scale(1.15); }
+    .anno-pin .icon { width: 10px; height: 10px; stroke-width: 2.5; }
+    .anno-pin--note { background: oklch(0.55 0.2 264); }
+    .anno-pin--ask { background: oklch(0.7 0.16 70); }
+    .anno-pin--user { background: oklch(0.6 0.22 350); }
+
+    [data-anno-hidden] .anno-pin { display: none; }
+
+    .anno-pop {
+      position: fixed;
+      z-index: 1000;
+      width: 300px;
+      max-height: 70vh;
+      overflow: auto;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      background: var(--popover);
+      color: var(--popover-foreground);
+      box-shadow: var(--shadow-lg);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .anno-pop[hidden] { display: none !important; }
+    .anno-pop--tip { width: auto; max-width: 280px; padding: 8px 12px; pointer-events: none; }
+
+    .anno-pop__head {
+      margin-bottom: 8px;
+      color: var(--muted-foreground);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      word-break: break-word;
+    }
+
+    .anno-pop textarea {
+      display: block;
+      width: 100%;
+      min-height: 84px;
+      padding: 8px 10px;
+      border: 1px solid var(--input);
+      border-radius: var(--radius-md);
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      resize: vertical;
+    }
+
+    .anno-pop textarea:focus { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 45%, transparent); }
+    .anno-pop__row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
+    .anno-pop__row--split { justify-content: space-between; }
+
+    .anno-list { display: flex; flex-direction: column; margin-bottom: 10px; }
+
+    .anno-list li {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .anno-list li:last-child { border-bottom: 0; }
+    .anno-list p { flex: 1 1 auto; margin: 0; word-break: break-word; }
+    .anno-list small { color: var(--muted-foreground); font-size: 11px; }
+
+    /* 拾取模式：光标跟随一枚气泡，命中元素描边 */
+    [data-anno-picking] { cursor: crosshair; }
+    [data-anno-picking] [data-anno-hit] { outline: 2px solid oklch(0.6 0.22 350); outline-offset: 2px; border-radius: 3px; }
+
+    .anno-cursor {
+      position: fixed;
+      z-index: 1100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      border-radius: 50% 50% 50% 3px;
+      background: oklch(0.6 0.22 350);
+      color: #fff;
+      box-shadow: var(--shadow-md);
+      pointer-events: none;
+      transform: translate(8px, 8px);
+    }
+
+    /* 必须显式盖掉：作者样式里的 display 会压过 [hidden] 的 UA 默认 display:none */
+    .anno-cursor[hidden] { display: none !important; }
+
+    .anno-cursor .icon { width: 11px; height: 11px; stroke-width: 2.5; }
+
+    .anno-note__text { margin: 0 0 10px; padding: 8px 10px; border-left: 2px solid var(--primary); background: var(--muted); border-radius: var(--radius-sm); word-break: break-word; }
+
+    @media print { .anno-bar, .anno-pop, .anno-cursor { display: none !important; } }
+  

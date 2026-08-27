@@ -1,0 +1,39 @@
+
+    /* 中性亮色语义色阶（只有一套，容器不假设产品有暗色），零依赖纯 CSS，与任何 UI 框架无关。 */
+    :root {
+      color-scheme: light;
+
+      --radius: 0.625rem;
+
+      --background: oklch(1 0 0);
+      --foreground: oklch(0.145 0 0);
+      --card: oklch(1 0 0);
+      --card-foreground: oklch(0.145 0 0);
+      --popover: oklch(1 0 0);
+      --popover-foreground: oklch(0.145 0 0);
+      --primary: oklch(0.205 0 0);
+      --primary-foreground: oklch(0.985 0 0);
+      --secondary: oklch(0.97 0 0);
+      --secondary-foreground: oklch(0.205 0 0);
+      --muted: oklch(0.97 0 0);
+      --muted-foreground: oklch(0.556 0 0);
+      --accent: oklch(0.97 0 0);
+      --accent-foreground: oklch(0.205 0 0);
+      --destructive: oklch(0.577 0.245 27.325);
+      --destructive-foreground: oklch(0.985 0 0);
+      --border: oklch(0.922 0 0);
+      --input: oklch(0.922 0 0);
+      --ring: oklch(0.708 0 0);
+
+      /* 状态色：成功 / 警告，供 .badge、.alert 的语义变体取用 */
+      --success: oklch(0.596 0.145 163);
+      --success-foreground: oklch(0.985 0 0);
+      --warning: oklch(0.769 0.152 70);
+      --warning-foreground: oklch(0.279 0.077 46);
+
+      /* 字体只用系统字体栈，禁止 @import 网络字体 */
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+  
