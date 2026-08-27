@@ -33,7 +33,7 @@ authority_refs:
 
 **Slice:** 对一份真实原型敲 `preview.mjs extract <文件>`，拿到 TITLE + NOTES + SCREENS 三段与末尾指引。 ｜ **依赖：** 无
 
-**满足:** FR-001, FR-002, FR-003, FR-004, FR-005, FR-006
+**满足:** FR-001, FR-002, FR-003, FR-004, FR-005, FR-006, FR-017
 
 **Files:**
 - Modify: `ai-dev-system/skills/ai-prd/scripts/preview.mjs`（新增 `cmdExtract` 与两个常量；改 `parseArgs`、`HELP`、`main` 的 `known` 数组与路由）
@@ -43,65 +43,98 @@ authority_refs:
 - Consumes: `markRange(html, mark) -> {from, to} | null`（`preview.mjs:86-94`）、`readTarget(file) -> Promise<string>`（`:141-149`，读不到时 `fail(…, 1)`）、`fail(msg, code)`（`:136-138`）
 - Produces: `cmdExtract(file, opts) -> Promise<void>`；`opts['with-css']` 为布尔
 
-- [ ] **Step 1: 写失败测试** —— 追加到 `test/prototype-preview.test.mjs` 末尾。它用 `init` + `screen` 真建一份原型再取段，不 mock。
+- [ ] **Step 1: 写失败测试** —— 追加到 `test/prototype-preview.test.mjs` 末尾。
+
+  > **先对齐既有 helper，MUST NOT 另起一套**：该文件的 `run` 是**可变参数**、返回 **`{ code, out }`**（`out` 是 stdout 与 stderr 的**合并**串），定义在 `test/prototype-preview.test.mjs:194-197`；文件顶部已 import `mkdtempSync` / `readFileSync` / `writeFileSync` / `rmSync` / `tmpdir` / `path`，且全部 test 回调是**同步**的。下面的代码按这套写，照抄即可。
 
   ```js
-  test('extract 只给界面内容，且远小于全文', async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), 'proto-extract-'))
+  test('extract 只给界面内容，正文真的在里面，且远小于全文', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'proto-extract-'))
     const file = path.join(dir, 'p.html')
-    await run(['init', file, '--title', '取段测试'])
-    await run(['screen', file, '--name', '列表页'])
+    assert.equal(run('init', file, '--title', '取段测试标题ZZQ').code, 0)
+    assert.equal(run('screen', file, '--name', '列表页').code, 0)
+    // 三个区各塞一段唯一文案，用来验"正文真的被输出了"，而不是只输出了段头。
+    assert.equal(run('slot', file, '--set', 'notes', '--text', '<p>说明正文NOTESZZQ</p>').code, 0)
+    assert.equal(run('slot', file, '--set', 'screens', '--text',
+      '<section class="device-wrap"><p class="device-name">列表页</p><div class="device">' +
+      '<div class="screen"><div class="status is-default"><button class="btn">屏内文案SCREENSZZQ</button>' +
+      '</div></div></div></section>').code, 0)
+    assert.equal(run('slot', file, '--set', 'custom', '--text', '.zzq-only { color: red; }').code, 0)
 
-    const r = await run(['extract', file])
-    assert.equal(r.code, 0, r.stderr)
-    for (const mark of ['TITLE', 'NOTES', 'SCREENS']) {
-      assert.match(r.stdout, new RegExp(`=====\\s${mark.replace(/[-:]/g, '\\$&')}\\s`), `缺 ${mark} 段头`)
-    }
-    assert.match(r.stdout, /源文件第 \d+ 行起/, '段头必须给出源文件行号')
-    assert.match(r.stdout, /preview\.mjs annotations/, '末尾必须指引去 annotations 取批注')
+    const r = run('extract', file)
+    assert.equal(r.code, 0, r.out)
 
-    // 固定实现区一个字节都不该出现在输出里
-    assert.doesNotMatch(r.stdout, /ANNO-FRAMEWORK/, 'extract 不得输出批注框架区')
-    assert.doesNotMatch(r.stdout, /<symbol id="i-/, 'extract 不得输出图标 sprite')
-    assert.doesNotMatch(r.stdout, /--radius-sm/, 'extract 不得输出设计系统样式')
+    // ① 段头齐全且顺序固定：TITLE → NOTES → SCREENS
+    const order = ['TITLE', 'NOTES', 'SCREENS'].map((m) => r.out.indexOf(`===== ${m} `))
+    assert.ok(order.every((i) => i >= 0), `段头不全：${JSON.stringify(order)}`)
+    assert.deepEqual([...order].sort((a, b) => a - b), order, '段序 MUST 固定为 TITLE → NOTES → SCREENS')
+    assert.match(r.out, /源文件第 \d+ 行起/, '段头必须给出源文件行号')
 
-    const full = await readFile(file, 'utf8')
+    // ② 正文真的被输出了——只验段头的话，一个只打印段头的实现也会全绿
+    assert.match(r.out, /取段测试标题ZZQ/, 'TITLE 正文没出现在输出里')
+    assert.match(r.out, /说明正文NOTESZZQ/, 'NOTES 正文没出现在输出里')
+    assert.match(r.out, /屏内文案SCREENSZZQ/, 'SCREENS 正文没出现在输出里')
+
+    // ③ 默认不带样式区，也不带任何固定实现区
+    assert.doesNotMatch(r.out, /zzq-only/, '默认输出 MUST NOT 含 CUSTOM-CSS')
+    assert.doesNotMatch(r.out, /ANNO-FRAMEWORK/, 'MUST NOT 输出批注框架区')
+    assert.doesNotMatch(r.out, /<symbol id="i-/, 'MUST NOT 输出图标 sprite')
+    assert.doesNotMatch(r.out, /--radius-sm/, 'MUST NOT 输出设计系统样式')
+
+    // ④ 末尾指引
+    assert.match(r.out, /preview\.mjs annotations/, '末尾必须指引去 annotations 取批注')
+
+    // ⑤ 降载这件事本身
+    const full = readFileSync(file, 'utf8')
     assert.ok(
-      Buffer.byteLength(r.stdout, 'utf8') < Buffer.byteLength(full, 'utf8') * 0.2,
-      `extract 输出应远小于全文，实测 ${Buffer.byteLength(r.stdout, 'utf8')} / ${Buffer.byteLength(full, 'utf8')}`,
+      Buffer.byteLength(r.out, 'utf8') < Buffer.byteLength(full, 'utf8') * 0.2,
+      `extract 输出应远小于全文，实测 ${Buffer.byteLength(r.out, 'utf8')} / ${Buffer.byteLength(full, 'utf8')}`,
     )
 
-    const withCss = await run(['extract', file, '--with-css'])
-    assert.equal(withCss.code, 0, withCss.stderr)
-    assert.match(withCss.stdout, /=====\sPROJECT-THEME\s/, '--with-css 必须补 PROJECT-THEME 段')
-    assert.match(withCss.stdout, /=====\sCUSTOM-CSS\s/, '--with-css 必须补 CUSTOM-CSS 段')
+    // ⑥ --with-css 补两段，且补的是正文不只是段名
+    const w = run('extract', file, '--with-css')
+    assert.equal(w.code, 0, w.out)
+    assert.ok(w.out.indexOf('===== PROJECT-THEME ') >= 0, '--with-css 必须补 PROJECT-THEME 段')
+    assert.ok(w.out.indexOf('===== CUSTOM-CSS ') > w.out.indexOf('===== PROJECT-THEME '),
+      '--with-css 的两段 MUST 排在末尾且 PROJECT-THEME 在前')
+    assert.match(w.out, /zzq-only/, '--with-css 必须输出 CUSTOM-CSS 的正文')
 
-    await rm(dir, { recursive: true, force: true })
+    rmSync(dir, { recursive: true, force: true })
   })
 
-  test('extract 拒绝非原型文件，且 --with-css 不吞掉文件名', async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), 'proto-extract-bad-'))
+  test('extract 拒绝非原型文件；--with-css 放在文件名之前也不吞掉文件名', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'proto-extract-bad-'))
     const bad = path.join(dir, 'not-a-prototype.html')
-    await writeFile(bad, '<!doctype html><html><body>hi</body></html>', 'utf8')
+    writeFileSync(bad, '<!doctype html><html><body>hi</body></html>', 'utf8')
 
-    const r = await run(['extract', bad])
+    const r = run('extract', bad)
     assert.equal(r.code, 2, '不是原型文件必须以退出码 2 终止')
-    assert.match(r.stderr, /SCREENS/, '错误文案必须指出缺的是 SCREENS 分区标记')
-    assert.doesNotMatch(r.stdout, /=====/, '拒绝时不得输出任何区段')
+    assert.match(r.out, /SCREENS/, '错误文案必须指出缺的是 SCREENS 分区标记')
+    assert.doesNotMatch(r.out, /=====/, '拒绝时不得输出任何区段')
 
-    // parseArgs 对未登记的 --flag 会吞掉下一个 argv：--with-css 必须是布尔白名单成员
+    // parseArgs 对未登记的 --flag 走 `out[key] = argv[++i]`，会吞掉下一个 argv。
     const file = path.join(dir, 'p.html')
-    await run(['init', file, '--title', '顺序测试'])
-    const flagFirst = await run(['extract', '--with-css', file])
-    assert.equal(flagFirst.code, 0, '--with-css 放在文件名之前时不得吞掉文件名：' + flagFirst.stderr)
+    assert.equal(run('init', file, '--title', '顺序测试').code, 0)
+    const flagFirst = run('extract', '--with-css', file)
+    assert.equal(flagFirst.code, 0, '--with-css 放在文件名之前时不得吞掉文件名：' + flagFirst.out)
+    assert.match(flagFirst.out, /===== SCREENS /, '参数顺序颠倒后仍应正常取段')
 
-    await rm(dir, { recursive: true, force: true })
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  test('import preview.mjs 不产生副作用（不跑 CLI）', () => {
+    const r = spawnSync(process.execPath,
+      ['--input-type=module', '-e', `import(${JSON.stringify(script)}).then(() => console.log('imported-ok'))`],
+      { encoding: 'utf8' })
+    assert.equal(r.status, 0, `import 时 CLI 被连带执行了：${(r.stdout || '') + (r.stderr || '')}`)
+    assert.match(r.stdout, /imported-ok/)
+    assert.doesNotMatch(r.stdout, /原型工具（ai-prd）/, 'import 时 MUST NOT 打印 HELP')
   })
   ```
 
-  > **动手前先确认这份测试文件已有的辅助**：`run(args)`、`mkdtemp` / `rm` / `writeFile` / `readFile` 的 import、`os`、`path`。缺哪个就在文件顶部补哪个，**MUST NOT 另起一套 helper**。`run()` 若不返回 `{code, stdout, stderr}` 三元组，按它的实际返回改写断言，MUST NOT 改 `run()` 本身（其它测试在用）。
+  > 第三条测试对应 spec FR-017：`preview.mjs` 一旦 `export` 任何东西（Task 2 要 export `composeTemplate`），`import` 它就会连带跑一遍 CLI——打印 HELP、把 `process.exitCode` 设成 2，于是测试进程整体非零退出而每条断言都是绿的。这种失败读起来像"测试框架坏了"。**这条测试 MUST 在 Task 1 就写**，好让 Task 2 加 export 时它当场兜住。
 
-- [ ] **Step 2: 跑测试确认失败** — Run: `node --test test/prototype-preview.test.mjs` Expected: FAIL（`extract` 尚未注册，命令回落到 `serve` 或报参数错）
+- [ ] **Step 2: 跑测试确认失败** — Run: `node --test test/prototype-preview.test.mjs` Expected: FAIL。三条都应红：前两条因为 `extract` 尚未注册（命令回落到 `serve` 或报参数错），第三条因为顶层 `main()` 目前是**无条件**执行的，`import` 它当场就会打印 HELP 并把退出码设成 2。
 
 - [ ] **Step 3: 写最小实现**
 
@@ -180,7 +213,37 @@ authority_refs:
     if (cmd === 'extract') return cmdExtract(target, opts)
   ```
 
-- [ ] **Step 4: 跑测试确认通过** — Run: `node --test test/prototype-preview.test.mjs` Expected: PASS
+  3f. **加模块入口守卫（FR-017）**。文件末尾的 `main().catch((e) => { … })` 现在是**无条件**执行的；Task 2 要 `export composeTemplate`，一旦有了 export，`import` 这个文件就会连带跑一遍 CLI。把顶层调用包进入口判断：
+
+  ```js
+  // 只有被当作入口直接执行时才跑 CLI。加这道判断是因为本文件从 2.10.0 起要 export
+  // composeTemplate 给测试用——没有它，`import('./preview.mjs')` 会打印 HELP 并把
+  // process.exitCode 设成 2，于是测试进程整体非零退出，而每一条断言都是绿的。
+  // 判据用 realpath 比较而不是字符串：`node ./scripts/preview.mjs` 与经符号链接调用时
+  // argv[1] 的形态不同。取不到 argv[1] 时视为"不是直接执行"——被 import 时静默是正确
+  // 行为，而 CLI 少跑一次会立刻显形。
+  function isDirectRun() {
+    if (!process.argv[1]) return false
+    try {
+      return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
+    } catch {
+      return false
+    }
+  }
+
+  if (isDirectRun()) {
+    main().catch((e) => {
+      // …原有函数体整段保留，一个字都不改…
+    })
+  }
+  ```
+
+  同时在文件顶部 import 里补 `realpathSync`：`import { realpathSync } from 'node:fs'`（该文件目前只从 `node:fs/promises` 取过东西，**MUST 另起一行**从 `node:fs` 取同步版，MUST NOT 把它塞进 `node:fs/promises` 那行）。
+
+  > **`main().catch()` 里的兜底文案一个字都不改**：它把"工具坏了"与"这条路走不通"分开，是防止 agent 退回手工编辑原型文件的最后一道话术。
+
+- [ ] **Step 4: 跑测试确认通过** — Run: `node --test test/prototype-preview.test.mjs` Expected: PASS（三条全绿）
+- [ ] **Step 4b: 确认 CLI 没被守卫误伤** — Run: `node ai-dev-system/skills/ai-prd/scripts/preview.mjs --help` Expected: 打印 HELP、退出码 0。**这一步 MUST 做**：入口守卫写错时最典型的表现就是「测试全绿、命令行完全不响应」。
 - [ ] **Step 5: 实跑一次真实原型对照** — Run: `node ai-dev-system/skills/ai-prd/scripts/preview.mjs extract docs/spec/2026-08-26-原型注解分层-prototype.html | wc -c` Expected: 输出字节数在 10,000–20,000 之间（全文 85,236）。**这一步 MUST 真跑**：测试用的是刚建的空原型，只有真实原型才验得到"降载"这件事本身。
 - [ ] **Step 6: commit** — `git commit -m "feat(ai-prd): preview.mjs 新增 extract，读原型不再通读整份 HTML"`
 
@@ -267,10 +330,10 @@ authority_refs:
   ```js
   // 容器的六个固定实现区不住在 ui-prototype.html 里，住在下面这个目录，init 时装配回去。
   // 产物仍是**单文件零外链**——外置的是**源码组织方式**，不是运行时依赖。
-  const FRAMEWORK_DIR = path.join(HERE, '..', 'assets', 'templates', 'ui-prototype-framework')
-  const FRAMEWORK_PRE = '\n  '
-  const FRAMEWORK_POST = '\n  '
-  const FRAMEWORK = [
+  export const FRAMEWORK_DIR = path.join(HERE, '..', 'assets', 'templates', 'ui-prototype-framework')
+  export const FRAMEWORK_PRE = '\n  '
+  export const FRAMEWORK_POST = '\n  '
+  export const FRAMEWORK = [
     { mark: 'THEME',              file: 'theme.css',         open: '<style>',                                       close: '</style>' },
     { mark: 'DESIGN-SYSTEM',      file: 'design-system.css', open: '<style>',                                       close: '</style>' },
     { mark: 'ANNO-FRAMEWORK:CSS', file: 'anno.css',          open: '<style>',                                       close: '</style>' },
@@ -279,6 +342,8 @@ authority_refs:
     { mark: 'ANNO-FRAMEWORK:JS',  file: 'anno.js',           open: '<script>',                                      close: '</script>' },
   ]
   ```
+
+  > **`export` 写在片段里，不是事后补**：Task 3 的测试 `import { composeTemplate, FRAMEWORK, FRAMEWORK_DIR, FRAMEWORK_PRE, FRAMEWORK_POST }`，漏一个就是 named export 错误。测试遍历装配表本身是刻意的——将来新增第七个固定区时，那些断言**自动**覆盖到它，不必记得回来改测试。
 
   4b. 加装配函数（放在 `markRange` 之后，`cmdInit` 之前），并 `export` 它：
 
@@ -323,17 +388,53 @@ authority_refs:
 
   4d. 删 `copyFile` 的 import（`:22`）——先 `grep -n "copyFile" ai-dev-system/skills/ai-prd/scripts/preview.mjs` 确认引用数为 0 再删。
 
-- [ ] **Step 5: 对拍（一次性验收 AC-007）** — Run:
-  ```
-  node -e "import('./ai-dev-system/skills/ai-prd/scripts/preview.mjs').then(async m => { const { writeFileSync } = await import('node:fs'); writeFileSync(process.env.TMPDIR + '/composed.html', await m.composeTemplate()) })"
-  diff "$TMPDIR/composed.html" "$TMPDIR/ui-prototype.baseline.html" && echo "逐字节相等 ✅"
-  ```
-  Expected: `diff` 无输出、打印 ✅。**不等时 MUST 回到 Step 2/4 修装配串，MUST NOT 改基准让对拍通过。** 对拍是一次性动作，通过后基准即丢弃，**MUST NOT 把它固化成常驻测试**——那会让日后每次改框架源文件都判红（判据见 spec §6 Invariant 1）。
+- [ ] **Step 5: 对拍（一次性验收 AC-007）** — 写一次性脚本到 scratchpad 并执行（**不入库**）。用 Node 做，不用 shell 重定向与 `$TMPDIR`——本 plan 的全局约束要求跨平台，而 `$TMPDIR` 在 Windows 上不存在，未设置时还会拼出字面量 `undefined/…` 的路径。
 
-- [ ] **Step 6: 改两份测试的取值来源**
+  ```js
+  // scratchpad/verify-compose.mjs —— 一次性，跑完即弃
+  import { execFileSync } from 'node:child_process'
+  import { composeTemplate } from '../ai-dev-system/skills/ai-prd/scripts/preview.mjs'
 
-  - `test/prototype-annotations.test.mjs:27`：`const template = read(prdRoot, 'assets', 'templates', 'ui-prototype.html')` → 改为 `const template = await composeTemplate()`（从 `preview.mjs` import；该文件顶层若不是 async 上下文，用 `await` 顶层 import 即可——测试文件是 ESM）。**MUST NOT 逐条改断言**：这份文件有三十余条断言（零外链、图标 id 双向一致、class 清单、`explainOnce`、`data-anno-rt` 剥离…），它们要验的一直是"容器完整体"，换取值来源即全部照旧成立。
-  - `test/prototype-preview.test.mjs:23`：`templatePath` 若只用于读取内容，同样改为调 `composeTemplate()`；若用于把模板复制成临时文件，改为把装配结果 `writeFile` 到临时路径。
+  const baseline = execFileSync('git',
+    ['show', 'HEAD:ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html'],
+    { encoding: 'buffer', maxBuffer: 64 * 1024 * 1024 })
+  const composed = Buffer.from(await composeTemplate(), 'utf8')
+
+  if (composed.equals(baseline)) {
+    console.log(`逐字节相等 ✅（${composed.length} 字节）`)
+  } else {
+    console.error(`不相等 ❌ 装配 ${composed.length} 字节 / 基准 ${baseline.length} 字节`)
+    const n = Math.min(composed.length, baseline.length)
+    let k = 0
+    while (k < n && composed[k] === baseline[k]) k += 1
+    console.error(`首个差异在第 ${k} 字节：`)
+    console.error(`  装配：${JSON.stringify(composed.slice(Math.max(0, k - 40), k + 40).toString('utf8'))}`)
+    console.error(`  基准：${JSON.stringify(baseline.slice(Math.max(0, k - 40), k + 40).toString('utf8'))}`)
+    process.exitCode = 1
+  }
+  ```
+
+  > **`git show HEAD:<path>` 取的是本任务开始前的容器**——Task 1 没有碰过它，所以 HEAD 上那份就是改造前的原样。若此前已在本任务里 commit 过容器改动，MUST 改用那个 commit 之前的 ref。
+
+  Expected: 打印「逐字节相等 ✅」。**不等时 MUST 回到 Step 2/4 修装配串，MUST NOT 改基准让对拍通过。** 对拍是一次性动作，通过后即丢弃，**MUST NOT 把它固化成常驻测试**——那会让日后每次改框架源文件都判红（判据见 spec §6 Invariant 1）。
+
+- [ ] **Step 6: 改两份测试的取值来源** —— **MUST 逐个读取点改，MUST NOT 只改常量定义那一行**。
+
+  **`test/prototype-preview.test.mjs`**：`templatePath`（`:23`）被 **十一处** `readFileSync(templatePath, 'utf8')` 使用——`:91, :149, :180, :469, :490, :498, :505, :512, :638, :644, :653`。全部要读到**完整容器**，而容器已被清空，不改就全红。做法：
+
+  ```js
+  import { composeTemplate } from '../ai-dev-system/skills/ai-prd/scripts/preview.mjs'
+  // 容器的六个固定实现区自 2.10.0 起住在 ui-prototype-framework/ 下，`ui-prototype.html`
+  // 只剩骨架与区标记。这里要验的一直是**容器完整体**（零外链、图标 id 双向一致、class 清单…），
+  // 所以取装配结果，而不是裸模板。顶层 await 在 ESM 测试文件里合法。
+  const composedTemplate = await composeTemplate()
+  ```
+
+  然后把那十一处 `readFileSync(templatePath, 'utf8')` 全部换成 `composedTemplate`。`:91` 是 `writeFileSync(file, readFileSync(templatePath, 'utf8'), 'utf8')`，换成 `writeFileSync(file, composedTemplate, 'utf8')`。替换完 `grep -n "templatePath" test/prototype-preview.test.mjs` **MUST 只剩 0 处**（常量本身一并删掉，留着就是个没人用的诱饵）。
+
+  **`test/prototype-annotations.test.mjs`**：只有一处——`:27` 的 `const template = read(prdRoot, 'assets', 'templates', 'ui-prototype.html')` → `const template = await composeTemplate()`。**MUST NOT 逐条改断言**：这份文件有三十余条断言（零外链、图标 id 双向一致、class 清单、`explainOnce`、`data-anno-rt` 剥离…），它们要验的一直是容器完整体，换取值来源即全部照旧成立。同文件 `:67` 与 `:304` 的 `read(prdRoot, 'scripts', 'preview.mjs')` 读的是脚本不是容器，**不要动**。
+
+  > 改完 MUST 跑一次 `grep -rn "templates', 'ui-prototype.html'\|templates/ui-prototype.html" test/`，确认没有别的测试文件还在直读裸容器。
 
 - [ ] **Step 7: 跑全部测试** — Run: `node --test test/*.test.mjs` Expected: PASS（全绿）
 - [ ] **Step 8: commit** — `git commit -m "refactor(ai-prd): 容器六个固定实现区外置为独立 css/js 源文件，init 改为装配"`
@@ -352,7 +453,7 @@ authority_refs:
 
 **Slice:** 有人删掉框架源文件、清空其内容、或往容器空区里塞东西时，测试当场判红。 ｜ **依赖：** Task 2
 
-**满足:** FR-016
+**满足:** FR-016（顺带端到端覆盖 FR-012）
 
 **Files:**
 - Create: `test/prototype-framework.test.mjs`
@@ -371,7 +472,7 @@ authority_refs:
   import { readFileSync, existsSync } from 'node:fs'
   import path from 'node:path'
   import { fileURLToPath } from 'node:url'
-  import { composeTemplate, FRAMEWORK, FRAMEWORK_DIR } from '../ai-dev-system/skills/ai-prd/scripts/preview.mjs'
+  import { composeTemplate, FRAMEWORK, FRAMEWORK_DIR, FRAMEWORK_PRE, FRAMEWORK_POST } from '../ai-dev-system/skills/ai-prd/scripts/preview.mjs'
 
   const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
   const container = path.join(repoRoot, 'ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html')
@@ -403,14 +504,44 @@ authority_refs:
     }
   })
 
-  test('装配结果里六个区都被填上，包裹标签成对', async () => {
+  // 这条 MUST 断言"区间正文 === 对应源文件的内容"，MUST NOT 只验"非空 + 含 open/close"：
+  // 后者是同义反复——open/close 来自同一张装配表，把 anno.css 装进 THEME 区照样全绿，
+  // 而那正是这条闸唯一挡得住、别处又挡不住的错误（映射错位）。
+  test('装配结果每个区的正文逐字节等于它那份源文件', async () => {
     const html = await composeTemplate()
     for (const it of FRAMEWORK) {
       const r = markRange(html, it.mark)
       assert.ok(r, `装配结果缺固定区标记：${it.mark}`)
-      const seg = html.slice(r.from, r.to)
-      assert.ok(seg.trim().length > 0, `装配结果的 ${it.mark} 区仍是空的`)
-      assert.ok(seg.includes(it.open) && seg.includes(it.close), `${it.mark} 的包裹标签没有成对出现`)
+      const body = readFileSync(path.join(FRAMEWORK_DIR, it.file), 'utf8')
+      assert.equal(
+        html.slice(r.from, r.to),
+        FRAMEWORK_PRE + it.open + body + it.close + FRAMEWORK_POST,
+        `${it.mark} 区的装配结果与 ${it.file} 不一致——要么装配串错了，要么装配表把这个区指向了别的文件`,
+      )
+    }
+  })
+
+  test('缺框架源文件时 init 报错退出且不留残页', async () => {
+    const { spawnSync } = await import('node:child_process')
+    const { mkdtempSync, renameSync, rmSync } = await import('node:fs')
+    const { tmpdir } = await import('node:os')
+    const script = path.join(repoRoot, 'ai-dev-system/skills/ai-prd/scripts/preview.mjs')
+    const victim = path.join(FRAMEWORK_DIR, FRAMEWORK[0].file)
+    const stash = victim + '.stashed'
+    const dir = mkdtempSync(path.join(tmpdir(), 'proto-missing-'))
+    const target = path.join(dir, 'p.html')
+
+    renameSync(victim, stash)
+    try {
+      const r = spawnSync(process.execPath, [script, 'init', target, '--title', '缺文件'], { encoding: 'utf8' })
+      const out = (r.stdout || '') + (r.stderr || '')
+      assert.equal(r.status, 2, `缺框架源文件时 init 必须以退出码 2 终止，实际 ${r.status}：${out}`)
+      assert.ok(out.includes(FRAMEWORK[0].mark), '错误文案必须指出是哪个区')
+      assert.ok(out.includes(FRAMEWORK[0].file), '错误文案必须给出源文件路径')
+      assert.ok(!existsSync(target), 'init 失败时 MUST NOT 留下一个缺样式的残页')
+    } finally {
+      renameSync(stash, victim)   // MUST 无条件恢复，否则这条测试会毒化后续全部测试
+      rmSync(dir, { recursive: true, force: true })
     }
   })
 
@@ -423,7 +554,10 @@ authority_refs:
   > `FRAMEWORK` 与 `FRAMEWORK_DIR` MUST 一并 `export`（Task 2 的 4a 里加 `export` 前缀）——测试遍历装配表本身，才能在**新增第七个区**时自动覆盖到它。
 
 - [ ] **Step 2: 跑** — Run: `node --test test/prototype-framework.test.mjs` Expected: PASS
-- [ ] **Step 3: 验闸真的会红** — 临时把 `theme.css` 内容清空，重跑，Expected: FAIL；恢复后 Expected: PASS。**这一步 MUST 真做**：一条从没红过的闸和没有闸是一回事。
+- [ ] **Step 3: 验闸真的会红（三种坏法各试一次）** — **这一步 MUST 真做**：一条从没红过的闸和没有闸是一回事。每种坏法验完 MUST 立刻恢复，再进下一种。
+  1. 清空 `theme.css` 的内容 → Expected: FAIL（「框架源文件是空的」）
+  2. 往容器的 `THEME` 区间里塞一行内容 → Expected: FAIL（「容器的 THEME 区间不为空」）
+  3. 把装配表里 `THEME` 那项的 `file` 改成 `anno.css` → Expected: FAIL（「THEME 区的装配结果与 anno.css 不一致」）。**第 3 种是新增那条正文等值断言唯一挡得住的错误**，改成只验「非空 + 含 open/close」的话它会全绿。
 - [ ] **Step 4: commit** — `git commit -m "test(ai-prd): 容器与框架源文件的装配契约加机器闸"`
 
 ---
@@ -440,7 +574,10 @@ authority_refs:
 - Modify: `ai-dev-system/skills/ai-dev-workflow/references/core/路径-lean.md:273`（Lean）
 - Modify: `ai-dev-system/skills/ai-dev-workflow/references/core/00-流程总纲.md`（§完整流程步骤索引 的表注）
 - Modify: `ai-dev-system/skills/ai-prd/references/UI原型纪律.md` §8.1 命令表（补 `extract` 一行）
-- Modify: `ai-dev-system/skills/ai-prd/scripts/ctx` 无关；`ai-dev-system/skills/ai-prd/SKILL.md` 的目录树若列了子命令，同补
+- Modify: `ai-dev-system/skills/ai-prd/SKILL.md:28-34`（**必改**）：目录树里 `preview.mjs` 那行的子命令由六条改为七条并补 `extract`，`assets/templates/` 下补 `ui-prototype-framework/`
+- Modify: `engineering-context/capability-registry.md:22-23`（**必改**）：那一行仍写着「六条子命令」
+
+> **上面两处是「必改」不是「若有则改」**：命令数与目录布局写死在这两个文件里，漏改的表现是下一个零上下文 agent 按 registry 里的「六条子命令」去找，压根不知道有 `extract`——而本次改造的全部收益都在那条命令上。
 
 - [ ] **Step 1: 逐处改写**。每处 MUST **就地**给出完整命令，MUST NOT 只写"见总纲"——写在总纲里等于写给一个当时不在场的读者（这条判据 `CLAUDE.md` 已就 `annotations` 立过一次）。落笔模式：
 
@@ -471,6 +608,7 @@ authority_refs:
 - [ ] **Step 1: 刷 `#原型容器（ui-prototype.html）` 域** — 分区标记那条的行号全部失效（容器已从 1,825 行降到约 90 行）。**行号 MUST 重新实测**，MUST NOT 顺手保留旧值。批注框架的实现细节（`serialize()` / `write()` / `openNote()` / `bar.innerHTML` / `paint()` / `attach()` 的行号）MUST 改指 `ui-prototype-framework/anno.js:<行>`，样式类改指 `anno.css` / `design-system.css`。**这是本次改造的一项真实收益**：这些行号从此不再因为改了另一个区而整体推移。
 - [ ] **Step 2: 刷 `#原型工具（preview.mjs）` 域** — 补 `cmdExtract` 与 `--with-css` 的布尔白名单陷阱、`FRAMEWORK` 装配表与 `composeTemplate()`、`cmdInit` 不再 `copyFile`。陷阱项补一条：**框架源文件的首尾空白是装配的一部分，MUST NOT trim**。
 - [ ] **Step 3: 新增 `#原型读取契约（ai-dev-workflow）` 域** — 职责：定义下游五个落点怎么读原型；对外接口：五个落点各自的 `文件:行`，两条命令的分工（`extract` 给界面、`annotations` 给批注）；陷阱项：只跑其中一条等于没读全，界面上看不见的 `data-anno` 说明同属用户可见行为契约。
+- [ ] **Step 3b: 审计探针集** — Run: `grep -n "原型\|prototype\|preview" engineering-context/probe-set.md`。若有 probe 引用原型能力，MUST 置 `needs-reconfirm` 并在核销记录里写明；若一条都没有，MUST 在 commit message 或核销表里显式写「探针集无原型相关 probe，无需修改」——**MUST NOT 默默跳过**：`assets/context-layer/probe-set.md` 要求权威面变化时检查关联探针状态，"看了一眼没有"和"没看"在事后是分不开的。
 - [ ] **Step 4: 确认时间统一填 `2026-08-27`**，跑 `node ai-dev-system/skills/ai-dev-workflow/scripts/ctx/src/cli.js discover "原型 extract 装配"` 确认能查到
 - [ ] **Step 5: commit** — `git commit -m "docs(context): 刷新原型容器/工具卡片，新增原型读取契约域"`
 
@@ -510,6 +648,8 @@ authority_refs:
 | 容器里留下框架正文的第二份副本（切了没清空） | M | Task 3 第一条测试逐区断言容器空区 |
 | 五个落点只改了其中几个，剩下的仍写着"打开该文件" | M | Task 4 逐处列出 `文件:行`；`wording-redline` 与 `lean-selfcontained` 两条闸兜底 |
 | `icons.svg` 被误加 `xmlns` 以求"是个合法 SVG" | L | Task 3 专测一条；框架 README 就地说明 |
+| 加了 `export` 却漏了入口守卫：测试进程非零退出而每条断言都绿，读起来像"测试框架坏了" | H | Task 1 Step 3f 的守卫 + 第三条测试；Task 1 Step 4b 反向确认 CLI 没被守卫误伤 |
+| 只改了 `templatePath` 的定义行，剩下十一个读取点仍读被清空的容器 | H | Task 2 Step 6 逐点列出行号，并要求改完 `grep` 到 0 处 |
 
 ## 替换清单核销（来自 spec §8.2）
 
@@ -520,6 +660,9 @@ authority_refs:
 | `ui-prototype.html` 六个固定区的正文（74,628 字节） | Task 2 Step 2 | 待填 | ⏳ |
 | `步骤-1-7-设计与实现.md:21` 的「MUST 打开该文件」 | Task 4 Step 2 | 待填 | ⏳ |
 | `00-流程总纲.md` 步骤索引表注里「MUST NOT 通读整份 HTML」的降级条件 | Task 4 Step 1 | 待填 | ⏳ |
+| 顶层无条件的 `main().catch(…)` 调用 | Task 1 Step 3f | 待填 | ⏳ |
+| `test/prototype-preview.test.mjs` 的 `templatePath` 常量 | Task 2 Step 6 | 待填 | ⏳ |
+| `capability-registry.md` 与 `ai-prd/SKILL.md` 里「六条子命令」的表述 | Task 6 Step 2 | 待填 | ⏳ |
 
 ## 完成与自动合并
 
