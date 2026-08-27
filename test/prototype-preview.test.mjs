@@ -762,3 +762,17 @@ test('失败给中文提示而不是 Node 堆栈，退出码区分用法错误�
   assert.equal(badArg.code, 2, '用法错误应退 2')
   rmSync(dir, { recursive: true, force: true })
 })
+
+test('check 只在屏内容、屏注解、元素说明、设计说明中提示稿间对比措辞', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-diff-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  assert.equal(run('screen', file, '--name', 'S').code, 0)
+  assert.equal(run('slot', file, '--set', 'notes', '--text', '相比上一轮把筛选挪到了顶部').code, 0)
+  const out = JSON.parse(run('check', file, '--json').out)
+  const hit = out.problems.filter((p) => /稿间对比/.test(p.msg))
+  assert.equal(hit.length, 1)
+  assert.equal(hit[0].level, 'P2')
+  assert.equal(out.ok, true)
+  rmSync(dir, { recursive: true, force: true })
+})

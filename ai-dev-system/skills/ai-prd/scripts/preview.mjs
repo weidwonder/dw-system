@@ -330,7 +330,8 @@ async function cmdSlot(file, opts) {
   }
   if (before) {
     const dropIds = new Set(released.filter((r) => r.act !== 'move').map((r) => r.id))
-    const expected = { ...before, items: (before.items || []).filter((x) => !dropIds.has(x.id)), replies: (before.replies || []).filter((r) => !lostNotes.includes(r.noteId)) }
+    const expected = { ...before, items: (before.items || []).filter((x) => !dropIds.has(x.id)) }
+    if (before.replies) expected.replies = before.replies.filter((r) => !lostNotes.includes(r.noteId))
     const after = readAnnoBlock(next)
     if (!after || JSON.stringify({ ...expected, updatedAt: '' }) !== JSON.stringify({ ...after, updatedAt: '' })) {
       if (released.length || lostNotes.length) next = replaceAnnoBlock(next, changedData)
@@ -678,6 +679,13 @@ async function cmdCheck(file, opts) {
     } catch (e) {
       add('P0', `内联脚本 #${i + 1} 语法错误：${e.message}`)
     }
+  })
+
+  const DIFF_WORDS = ['相比上一轮', '相比上一版', '原方案', '本轮把', '上一稿', '改为原来的', '与上一版相比']
+  const proseRegions = screensRegion(html) + sliceRegion(html, 'NOTES') +
+    [...html.matchAll(/data-anno="([^"]*)"/g)].map((m) => m[1]).join(' ')
+  DIFF_WORDS.forEach((w) => {
+    if (proseRegions.includes(w)) add('P2', `稿间对比措辞「${w}」`, '未定稿前的改稿只写最新设计；业务文案里正好有这个词就忽略本条')
   })
 
   if (opts.json) {
