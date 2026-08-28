@@ -11,7 +11,7 @@ authority_refs:
   - '元素锚点属性：AI 侧 data-anno + data-anno-kind，用户侧 data-anno-user'
   - 'UI原型纪律.md §7 的四条判据（复制不重写 / 元素说明写成气泡 / 只读批注块 / 写回文件才读得到）（2026-08-27 起第二条细分为三层归属、第三条的写入方增加 slot 显式放行路径）'
   - 'UI原型纪律.md §8 的插槽契约：容器不含示例内容、产出原型不读容器'
-  - 'preview.mjs 的子命令契约：init / screen / slot / check / annotations / serve，以及退出码约定（2 = 用法错误，其余 1）（--drop-anchors 已于 2026-08-27 废除，改为 --agreed + --agreed-plan）'
+  - 'preview.mjs 的子命令契约：init / screen / slot / check / annotations / serve，以及退出码约定（2 = 用法错误，其余 1）（--drop-anchors 已于 2026-08-27 废除，改为 --agreed + --agreed-plan）（`extract` 于 2026-08-27 新增，见 `2026-08-27-原型取段与框架外置-eng-spec.md`）'
   - '流程与门禁契约：00-prd生成流程.md §组稿 第 4/5/6/7 步的准出项（服务由 AI 起停、check 前置、question 逐条摆出、原型带批注整份落盘），以及下游 Step 1/4/8 与 Lean §4.1 的取批注义务'
 ---
 

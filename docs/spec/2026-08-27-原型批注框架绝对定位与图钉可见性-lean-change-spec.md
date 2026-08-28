@@ -36,9 +36,9 @@ authority_refs:
 
 ## 具体改动点
 
-- `ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html:1423-1440`（`attach()`，行号为改后坐标）—— 只有 `getComputedStyle(host).position === "static"` 时才加 `data-anno-host`；图钉的水平偏移改为贴内侧。
-- `ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html:710`（`[data-anno-host="rel"]`）—— 规则本身保留，注释写明它只作用于本来是 `static` 的元素。
-- `ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html:712-735`（`.anno-pin`）—— `top: -6px` → `top: 2px`（贴内侧，`overflow` 裁不掉）；`z-index: 60` → `880`。
+- `ai-dev-system/skills/ai-prd/assets/templates/ui-prototype-framework/anno.js:447-490`（`attach()`，行号为改后坐标）—— 只有 `getComputedStyle(host).position === "static"` 时才加 `data-anno-host`；图钉的水平偏移改为贴内侧。
+- `ai-dev-system/skills/ai-prd/assets/templates/ui-prototype-framework/anno.css:61`（`[data-anno-host="rel"]`）—— 规则本身保留，注释写明它只作用于本来是 `static` 的元素。
+- `ai-dev-system/skills/ai-prd/assets/templates/ui-prototype-framework/anno.css:63-93`（`.anno-pin`）—— `top: -6px` → `top: 2px`（贴内侧，`overflow` 裁不掉）；`z-index: 60` → `880`。
 - `ai-dev-system/skills/ai-prd/references/UI原型纪律.md` §8.4 —— 补两条：自定义样式的 `z-index` MUST NOT ≥ 880（880 起是批注框架自留层）；绝对定位控件可以直接写进 `custom` 插槽，框架不会改写它的定位。
 - `engineering-context/cards/ai-dev-system.md#原型容器（ui-prototype.html）` —— 对外接口补批注图钉的定位与层级契约，陷阱项补 z-index 上限。
 - `test/prototype-annotations.test.mjs` —— 新增本次三条不变式的机器闸。
@@ -50,8 +50,8 @@ authority_refs:
 - 关键 NFR：零外部资源不变（本次只改 CSS 取值与一处 JS 条件判断，不引入任何资源）。
 - 既有系统清单：
   - `ui-prototype.html` 的 `ANNO-FRAMEWORK:CSS` / `ANNO-FRAMEWORK:JS` 固定实现区 —— 出处：`cards/ai-dev-system.md#原型容器（ui-prototype.html）` @2026-08-27
-  - `serialize()` 剥运行时状态时移除 `data-anno-host` —— 出处：`ui-prototype.html:1079`
-  - 框架自身的层级序列 bar 900 / notes-panel 890 / pop 1000 / cursor 1100 —— 出处：`ui-prototype.html:654,676,741,805`
+  - `serialize()` 剥运行时状态时移除 `data-anno-host` —— 出处：`ui-prototype-framework/anno.js:106`
+  - 框架自身的层级序列 bar 900 / notes-panel 890 / pop 1000 / cursor 1100 —— 出处：`ui-prototype-framework/anno.css:5,27,69,98,162`
   - `preview.mjs` 的 `check` 固定区校验 —— 出处：`cards/ai-dev-system.md#原型工具（preview.mjs）` @2026-08-27
 - 本次补的卡片：`engineering-context/cards/ai-dev-system.md#原型容器（ui-prototype.html）`（补图钉定位与层级契约；该域已存在，本次是补充而非新建）
 

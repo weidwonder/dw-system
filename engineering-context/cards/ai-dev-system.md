@@ -5,17 +5,17 @@
 
 ## 原型容器（ui-prototype.html）
 
-- **职责**：`ai-prd` 产出的 UI 原型的唯一容器——自带默认视觉基线、设计系统、图标库、批注框架与按屏状态切换；由 `preview.mjs init` 复制建出，产出方只填具名插槽。
+- **职责**：`ai-prd` 产出的 UI 原型的唯一容器——**本体只留分区标记与骨架（约 90 行）**，默认视觉基线 / 设计系统 / 图标库 / 批注框架 / 按屏状态切换这六个固定实现区的**正文住在 `assets/templates/ui-prototype-framework/`**，由 `preview.mjs init` 经 `composeTemplate()` 装配建出（2.10.0 起不再是 `copyFile`）；**产物仍是单文件零外链**，产出方只填具名插槽。
 - **对外接口**
-  - 分区标记（`<!-- MARK:BEGIN … END -->`，`check` 按 `FIXED_REGIONS` 校验齐全）：`THEME`、`PROJECT-THEME`、`DESIGN-SYSTEM`、`CUSTOM-CSS`、`ANNO-FRAMEWORK:CSS`、`ICONS`、`TITLE`、`NOTES`、`SCREENS`、`SCREEN-SCRIPT`、`CUSTOM-JS`、`ANNOTATIONS`、`ANNO-FRAMEWORK:JS` — `ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html:14,57,62,644,649,831,879,887,894,901,950,954,970`
-  - 画布单列布局 `.stage { display: block }`（不再有右侧常驻栏）— `:548-552`
-  - 屏注解区 `.device-wrap > .screen-notes`（`__title` / `__body` / `__acts` 三个子位），挂在设备壳之外；`.device-wrap.is-anno-right` 改挂右侧 — `:561-588`
-  - 设计说明面板 `#proto-notes-panel`（默认 `hidden`，工具栏 `[data-act="notes"]` 展开），`NOTES` 插槽与 `#proto-notes` 仍在其中 — `:885-893`
-  - `SCREEN-SCRIPT` 固定区导出**唯一**全局 `window.setScreenState(screenEl, nextState)` —— 只认屏元素与目标态，**不认按钮**（按钮行为归 `CUSTOM-JS` 插槽）— `:901-911`
-  - 批注数据块 `<script type="application/json" id="anno-data">`，schema 仍是 `prd-annotations@1`，字段 `global[]` / `items[]` / **`replies[]`**（`replies[].noteId` ↔ AI 说明的 `data-anno-id`）— `:954-968`
-  - 批注框架 JS：`serialize()` 剥运行时状态（只认三种表达：`.screen` 上的 `state-*` 类、`[data-state]` 的 `aria-pressed`、`[data-anno-runtime]` 自报），并把 `#proto-notes-panel` 复位为 `hidden` — `:1076-1118`；`write()` 带 `If-Match` 版本头，`adoptLatest(latestHtml, latestVersion)` 按 id 合并磁盘与内存两侧 — `:1119-1170`；`openNote()` 承载对 AI 说明的增删改回复 — `:1552-1620`；工具栏 `bar.innerHTML` 按序为 标题/加注释/全局反馈/隐藏批注/**计数**/spacer/**设计说明**/save/复制 JSON/状态灯 — `:1272-1282`；`paint()` 令 `复制 JSON` 在 `SERVED && servedOk` 时隐藏、save 按钮在同条件且无脏数据时隐藏 — `:1303-1345`
-  - 批注气泡渲染：`data-anno` → note 气泡、`data-anno-kind="question"` → ask 气泡（琥珀）、`items[]` → user 气泡 — `:1432` 一带
-  - 图钉的定位与层级契约：`attach()` 恒给宿主加 `data-anno-host`（点图钉靠它 `closest` 回宿主），**只有 computed position 为 `static` 的宿主取值 `rel`** 才被 `[data-anno-host="rel"] { position: relative }` 提升；图钉贴宿主**内侧**（`top: 2px`、`right: 2 + n*21`）、`z-index: 880` — `:706-735,1423-1440`
+  - 分区标记（`<!-- MARK:BEGIN … END -->`，`check` 按 `FIXED_REGIONS` 校验齐全）：`THEME`、`PROJECT-THEME`、`DESIGN-SYSTEM`、`CUSTOM-CSS`、`ANNO-FRAMEWORK:CSS`、`ICONS`、`TITLE`、`NOTES`、`SCREENS`、`SCREEN-SCRIPT`、`CUSTOM-JS`、`ANNOTATIONS`、`ANNO-FRAMEWORK:JS` — `ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html:14,17,22,24,29,32,36,44,51,58,61,65,81`
+  - 画布单列布局 `.stage { display: block }`（不再有右侧常驻栏）— `ui-prototype-framework/design-system.css:486`
+  - 屏注解区 `.device-wrap > .screen-notes`（`__title` / `__body` / `__acts` 三个子位），挂在设备壳之外；`.device-wrap.is-anno-right` 改挂右侧 — `ui-prototype-framework/design-system.css:499-526`
+  - 设计说明面板 `#proto-notes-panel`（默认 `hidden`，工具栏 `[data-act="notes"]` 展开），`NOTES` 插槽与 `#proto-notes` 仍在其中 — `ui-prototype.html:44-46`
+  - `SCREEN-SCRIPT` 固定区导出**唯一**全局 `window.setScreenState(screenEl, nextState)` —— 只认屏元素与目标态，**不认按钮**（按钮行为归 `CUSTOM-JS` 插槽）— `ui-prototype-framework/screen.js:1-45`
+  - 批注数据块 `<script type="application/json" id="anno-data">`，schema 仍是 `prd-annotations@1`，字段 `global[]` / `items[]` / **`replies[]`**（`replies[].noteId` ↔ AI 说明的 `data-anno-id`）— `ui-prototype.html:65-79`
+  - 批注框架 JS：`serialize()` 剥运行时状态并复位设计说明面板 — `ui-prototype-framework/anno.js:106-149`；`write()` 带 `If-Match` 版本头 — `ui-prototype-framework/anno.js:149-205`；`openNote()` 承载对 AI 说明的增删改回复 — `ui-prototype-framework/anno.js:593-650`；工具栏 `bar.innerHTML` — `ui-prototype-framework/anno.js:302-331`；`paint()` 控制保存/复制按钮显隐 — `ui-prototype-framework/anno.js:333-427`
+  - 批注气泡渲染：`data-anno` / `data-anno-kind="question"` / `items[]` — `ui-prototype-framework/anno.js:430-445`
+  - 图钉的定位与层级契约：`attach()` 恒给宿主加 `data-anno-host`，仅 `position: static` 宿主取值 `rel` 才提升；图钉贴宿主内侧、`z-index: 880` — `ui-prototype-framework/anno.js:447-490`；`ui-prototype-framework/anno.css:58-72`
 - **陷阱项**
   - 用非上述三种方式改 DOM 状态，`serialize()` 还原不掉，写回时状态被烘进文件且零报错。
   - `serialize()` 若漏了 `#proto-notes-panel` 的复位，用户展开设计说明后的写回会把"展开"烘进文件。
@@ -28,24 +28,33 @@
 
 ## 原型工具（preview.mjs）
 
-- **职责**：`ai-prd` 唯一脚本，六条子命令覆盖原型全流程（建/加屏/填插槽/取批注/自检/预览服务）。零第三方依赖，跨平台。
+- **职责**：`ai-prd` 唯一脚本，七条子命令覆盖原型全流程（建/加屏/填插槽/取界面/取批注/自检/预览服务）。零第三方依赖，跨平台。
 - **对外接口**
-  - `SLOTS` **七个**具名插槽 `title | subtitle | screens | notes | theme | custom | script`，区间一律由 `markRange()` 按 `MARK:BEGIN/END` 界定 — `ai-dev-system/skills/ai-prd/scripts/preview.mjs:40-160` 一带
-  - `annoBlockRange()` 定位批注块**限定在 `ANNOTATIONS` 标记区间内**取，不做全文 `indexOf` — `:166-180` 一带
-  - `screenSkeleton(name, states, desktop, annoRight)` 生成 `.device-wrap > .device-name + .device + .screen-notes`，`--anno-right` 加 `is-anno-right` — `:217-242`
-  - `cmdSlot` 的放行契约：`--agreed` + `--agreed-plan`（闭集 `done|void|move`），受影响集 = 丢锚点项 ∪ 显式声明的 `move` 项；`--drop-anchors` 已废除，传入报错退出码 2 — `:274-300` 一带
-  - `cmdSlot` 写入后的等值不变式**无条件执行**（先删后验，不因"没有放行"跳过），不等即 `拒绝写入：本次替换会改动批注块…这是 bug` — `:353-367`
-  - `cmdAnnotations` 输出**三类 + 回复**：用户元素批注 / 全局反馈 / AI 侧说明（标待拍板）/ 用户对说明的回复（带被回复说明原文）— `:461-505`
-  - `cmdCheck` 十二类检查（编号不变，屏注解区、按屏状态入口、注解区按钮行为三项并进第 6/7/8 类）— `:558-760` 一带
-  - `cmdServe` 版本化写回：`versionOf()` 取内容 SHA-256，GET/HEAD 回 `X-Proto-Version`，`POST /save` 认 `If-Match` 头或 `?v=` 查询参数（二者等价，后者供 `sendBeacon`），版本不符回 **409 + `{version, html}`**；`serializeWrite()` 用 Promise 链关掉 TOCTOU 窗口 — `:769-850` 一带
-  - `FIXED_REGIONS` 含 `SCREEN-SCRIPT`，**不含** `CUSTOM-JS`（后者是插槽，产出方要写）— `:508`
-  - `HELP` 文案含七个插槽名、`--anno-right` 与放行参数 — `:889` 一带
+  - `FRAMEWORK` 六项装配表与 `composeTemplate()` 将容器固定区和 `ui-prototype-framework/` 源文件装配回完整 HTML — `ai-dev-system/skills/ai-prd/scripts/preview.mjs:36-135`
+  - `SLOTS` **七个**具名插槽 `title | subtitle | screens | notes | theme | custom | script`，区间一律由 `markRange()` 按 `MARK:BEGIN/END` 界定 — `ai-dev-system/skills/ai-prd/scripts/preview.mjs:54-160` 一带
+  - `annoBlockRange()` 定位批注块**限定在 `ANNOTATIONS` 标记区间内**取，不做全文 `indexOf` — `:220-230`
+  - `screenSkeleton(name, states, desktop, annoRight)` 生成 `.device-wrap > .device-name + .device + .screen-notes`，`--anno-right` 加 `is-anno-right` — `:270-294`
+  - `cmdSlot` 的放行契约：`--agreed` + `--agreed-plan`（闭集 `done|void|move`），受影响集 = 丢锚点项 ∪ 显式声明的 `move` 项；`--drop-anchors` 已废除，传入报错退出码 2 — `:329-371` 一带
+  - `cmdSlot` 写入后的等值不变式**无条件执行**（先删后验，不因"没有放行"跳过），不等即 `拒绝写入：本次替换会改动批注块…这是 bug` — `:419`
+  - `cmdAnnotations` 输出**三类 + 回复**：用户元素批注 / 全局反馈 / AI 侧说明（标待拍板）/ 用户对说明的回复（带被回复说明原文）— `:556-599`
+  - `cmdExtract` 按固定顺序输出 `TITLE/NOTES/SCREENS`，`--with-css` 追加 `PROJECT-THEME/CUSTOM-CSS`，段头带源文件行号 — `:448-471`
+  - `cmdCheck` 十二类检查（编号不变，屏注解区、按屏状态入口、注解区按钮行为三项并进第 6/7/8 类）— `:653-831` 一带
+  - `cmdServe` 版本化写回：`versionOf()` 取内容 SHA-256，GET/HEAD 回 `X-Proto-Version`，`POST /save` 认 `If-Match` 头或 `?v=` 查询参数（二者等价，后者供 `sendBeacon`），版本不符回 **409 + `{version, html}`**；`serializeWrite()` 用 Promise 链关掉 TOCTOU 窗口 — `:864-980` 一带
+  - `FIXED_REGIONS` 含 `SCREEN-SCRIPT`，**不含** `CUSTOM-JS`（后者是插槽，产出方要写）— `:603`
+  - `HELP` 文案含 `extract`、七个插槽名、`--anno-right` 与放行参数 — `:984` 一带
 - **陷阱项**
   - `SLOTS.screens` / `notes` / `theme` / `custom` / `script` **没有 `re` 字段**，误引用 `slot.re` 会静默失效（`match(undefined)` 给空匹配、`replace(undefined,…)` 当字面串）——历史上撞出过 `screen` 命令零改动却退出 0。
   - 判空 MUST 在剥外壳**并**去注释之后，否则出厂 `<!-- SCREENS -->` 占位注释被当成已有内容。
   - 终止用抛 `Abort` 不用 `process.exit()`（管道下输出会被截断而退出码正常）。
   - 批注块定位 MUST 限定在 `ANNOTATIONS` 区间内：全文 `indexOf` 时，片段里夹带一个假 `id="anno-data"` 块会让放行数据写进假块、真块原样不动，命令照常打印放行清单并退出 0（实测撞出过，文件里留下三个批注块）。
   - `script` 插槽写入 MUST 转义 `</script`，否则内容提前闭合脚本标签。
+- **确认时间**：2026-08-27
+
+## 原型读取契约（ai-dev-workflow）
+
+- **职责**：下游五个读原型落点统一先取界面与批注，避免通读固定实现区。
+- **对外接口**：界面内容用 `node <skills 根>/ai-prd/scripts/preview.mjs extract <原型文件>`，批注用同脚本 `annotations <原型文件>`；两条都跑完才算读过原型。五个落点：`步骤-1-7-设计与实现.md:21`（Step 1）、`:139`（Step 4），`步骤-8-10-测试.md:10`（Step 8），`路径-lean.md:273`，`00-流程总纲.md:111`。
+- **陷阱项**：只跑其中一条等于没读全；界面上看不见的 `data-anno` 说明同属用户可见行为契约；两条命令都跑不起来时才降级为直读文件并在问题清单记一笔。
 - **确认时间**：2026-08-27
 
 ## 文档治理与命名（ai-dev-workflow）
@@ -77,7 +86,7 @@
 - **职责**：定义完整流程与 Lean 路径共用的贯穿门与条件门——每道门插在哪、判据在哪一节、谁拍板、复述这些门的文件有哪些。
 - **对外接口**
   - 贯穿门总表 §五道门（计数词 `五道门` 的**权威定义处**，别处 MUST 指名引用具体那道门的小节）— `ai-dev-system/skills/ai-dev-workflow/references/core/00-流程总纲.md:22`
-  - 五道贯穿门依次为：工作区隔离门 / 兼容取舍确认门（`:116`）/ **spec 过稿门**（`:139`，2.10.0 新增）/ 代码评审门（`:186`）/ 完成与自动合并门（`:202`）
+  - 五道贯穿门依次为：工作区隔离门 / 兼容取舍确认门（`:116`）/ **spec 过稿门**（`:139`，2.11.0 新增）/ 代码评审门（`:186`）/ 完成与自动合并门（`:202`）
   - §spec 过稿门 的四个子节是各处引用的锚点：`§摆什么给拍板人` / `§怎么算过了这道门` / `§跳过本门只有一条通路` / `§结论 MUST 当场留痕` — `:147,153,162,170`
   - 三道条件门（红回路 / 不可逆 / 大架构）在总表之后逐条声明 — `:33-39`
   - 大架构确认门的**判据**（主干路"形状"变 vs "取值"变；槽位增删算）— `references/core/用户沟通纪律.md:11-45`；**落地位置**（完整流程 Step 4 前）— `references/core/步骤-1-7-设计与实现.md:101`
@@ -91,4 +100,4 @@
   - `gate-sync.test.mjs` 对 `路径-lean.md` **按 §1.3 切段**匹配，**MUST NOT 退回全文匹配**——同一个门名在 §6.3/§14 也出现，全文匹配下把 §1.3 表里那一行抽掉照样全绿（写闸时反向自检当场撞出）。
   - Lean 的步骤号与自足册节号是两套（§2=第1步 … §6=第4步 … §10=第10步），MUST NOT 拿节号当步骤号引用。
   - 给常驻篇（`用户沟通纪律.md` 等）新增一段判据要同时看两个预算：**常驻前置量 50,000**（`test/resident-budget.test.mjs`，当前余量已不足百字节）与该节是否因此**从"无 MUST"变成"含 MUST"**——后者会自动新增一条 Lean 自足册覆盖义务。
-- **确认时间**：2026-08-27（2.10.0 合入后）
+- **确认时间**：2026-08-27（2.11.0 合入后）

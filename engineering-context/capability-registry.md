@@ -20,6 +20,6 @@
 |---|---|---|---|---|---|---|---|---|---|
 | 【能力】 | 【含义】 | 【repo】 | 【POST /v2/xxx】 | 【旧接口不可用】 | 【切点】 | 【owner】 | 【测试入口】 | 【YYYY-MM-DD / PR】 | 【诞生压力】 |
 | 原型容器与批注框架 | 原型的唯一容器：分区标记 + 设计系统 + 图标库 + 批注框架 | ai-dev-system | `ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html` | 无 | — | 本人 | `test/prototype-annotations.test.mjs` | 2026-08-27 | 容器里放示例会锚定产出 |
-| 原型产出与改稿工具 | init/screen/slot/annotations/check/serve 六条子命令 | ai-dev-system | `ai-dev-system/skills/ai-prd/scripts/preview.mjs` | 手工编辑原型文件（会抹掉批注锚点，明令禁止） | — | 本人 | `test/prototype-preview.test.mjs` | 2026-08-27 | 手工改稿会让用户批注失联 |
+| 原型产出与改稿工具 | init/screen/slot/extract/annotations/check/serve 七条子命令 | ai-dev-system | `ai-dev-system/skills/ai-prd/scripts/preview.mjs` | 手工编辑原型文件（会抹掉批注锚点，明令禁止） | — | 本人 | `test/prototype-preview.test.mjs` | 2026-08-27 | 手工改稿会让用户批注失联 |
 | 文档命名与生命周期 | 产出文档的目录、命名、lifecycle/authority_refs 与索引门控 | ai-dev-system | `ai-dev-system/skills/ai-dev-workflow/references/core/文档治理.md` §默认命名 | 字段名 `status`（已被 lean-change-spec 的「写作进度」占用） | — | 本人 | `test/doc-index.test.mjs` | 2026-08-27 | 索引与真相源要可机检 |
 | 原型纪律（结构/自检/批注/写回） | 原型的产出、结构、自检、批注框架与写回路径的权威判据 | ai-dev-system | `ai-dev-system/skills/ai-prd/references/UI原型纪律.md` | 无 | — | 本人 | `test/prototype-annotations.test.mjs` | 2026-08-27 | 结构知识靠记必漏，收进 check |

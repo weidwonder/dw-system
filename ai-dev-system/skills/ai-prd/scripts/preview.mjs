@@ -19,7 +19,8 @@
 // 零第三方依赖；路径一律走 node:path，跨平台。
 import { createServer } from 'node:http'
 import { createHash } from 'node:crypto'
-import { readFile, writeFile, rename, stat, copyFile } from 'node:fs/promises'
+import { readFile, writeFile, rename, stat } from 'node:fs/promises'
+import { realpathSync } from 'node:fs'
 import { spawn } from 'node:child_process'
 import path from 'node:path'
 import process from 'node:process'
@@ -27,6 +28,19 @@ import { fileURLToPath } from 'node:url'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const TEMPLATE = path.join(HERE, '..', 'assets', 'templates', 'ui-prototype.html')
+// 容器的六个固定实现区不住在 ui-prototype.html 里，住在下面这个目录，init 时装配回去。
+// 产物仍是**单文件零外链**——外置的是**源码组织方式**，不是运行时依赖。
+export const FRAMEWORK_DIR = path.join(HERE, '..', 'assets', 'templates', 'ui-prototype-framework')
+export const FRAMEWORK_PRE = '\n  '
+export const FRAMEWORK_POST = '\n  '
+export const FRAMEWORK = [
+  { mark: 'THEME',              file: 'theme.css',         open: '<style>',                                       close: '</style>' },
+  { mark: 'DESIGN-SYSTEM',      file: 'design-system.css', open: '<style>',                                       close: '</style>' },
+  { mark: 'ANNO-FRAMEWORK:CSS', file: 'anno.css',          open: '<style>',                                       close: '</style>' },
+  { mark: 'ICONS',              file: 'icons.svg',         open: '<svg style="display:none" aria-hidden="true">', close: '</svg>' },
+  { mark: 'SCREEN-SCRIPT',      file: 'screen.js',         open: '<script>',                                      close: '</script>' },
+  { mark: 'ANNO-FRAMEWORK:JS',  file: 'anno.js',           open: '<script>',                                      close: '</script>' },
+]
 const MAX_BODY = 32 * 1024 * 1024
 const LOOPBACK = /^(127\.0\.0\.1|\[::1\]|localhost)(:\d+)?$/
 
@@ -93,6 +107,40 @@ function markRange(html, mark) {
   return { from: bEnd + 3, to: e }
 }
 
+// 容器模板 + 六份框架源码 → 完整容器 HTML。纯函数：不写盘、不依赖任何命令参数，
+// cmdInit 与测试共用同一个它（测试若各自拼一遍，装配逻辑就有了第二份实现）。
+export async function composeTemplate() {
+  // 容器与框架源文件同属"skill 安装完整性"，读不到时的处置 MUST 一致——
+  // 只给框架文件包 try/catch 会让容器缺失落到顶层兜底，报出一句语焉不详的"工具自身的问题"。
+  let html
+  try {
+    html = await readFile(TEMPLATE, 'utf8')
+  } catch {
+    fail(`容器模板读不到：${TEMPLATE}`, 1)
+  }
+  // 从后往前填，前面区间的下标才不会被前一次填充推移。
+  for (const it of [...FRAMEWORK].reverse()) {
+    const r = markRange(html, it.mark)
+    if (!r) fail(`容器缺固定区标记：${it.mark}（${TEMPLATE}）`, 1)
+    const p = path.join(FRAMEWORK_DIR, it.file)
+    let body
+    try {
+      body = await readFile(p, 'utf8')
+    } catch {
+      fail(`框架源文件读不到：${it.mark} → ${p}`, 1)
+    }
+    html = html.slice(0, r.from) + FRAMEWORK_PRE + it.open + body + it.close + FRAMEWORK_POST + html.slice(r.to)
+  }
+  return html
+}
+
+// 判空 MUST 在去注释之后：出厂容器的 `<!-- SCREENS -->` 占位注释否则会被当成已有内容。
+// cmdScreen 与 cmdExtract 共用这一个，MUST NOT 各写一份——两处对"什么算空"的判断一旦
+// 分叉，一处会报「界面插槽还是空的」而另一处说「本区为空」，指的却是不同的事。
+function isBlankRegion(body) {
+  return body.replace(/<!--[\s\S]*?-->/g, '').trim() === ''
+}
+
 // 片段自带外壳时剥掉它：容器已经提供外壳，重复一层会得到 <style><style> 或双层 .devices。
 // 纪律的示例带过外壳（§8.4），所以这里宽容处理并出声，而不是判错让人猜。
 function stripShell(value, slot, key) {
@@ -138,6 +186,12 @@ function fail(msg, code = 2) {
 }
 
 // 退出码约定与 ctx CLI 一致：2 = 用法错误（参数缺失/取值非法），其余失败一律 1。
+// 分界容易踩错，写清一次：**"用户把参数指错了"是 2，"文件内容或安装状态不对"是 1**。
+// 于是 `extract` 拿到一份根本不是原型的文件 → 2（那是参数取值非法）；而"容器缺固定区标记"
+// "框架源文件读不到"→ 1，与既有的 `找不到界面插槽（SCREENS 区被改写了？）`（cmdScreen）
+// 和 `找不到插槽 X 的标记（该区被改写了？）`（cmdSlot）完全同类——那几处一律用 1。
+// MUST NOT 因为"这也是一种非法"就把后一类改成 2：同一份文件里对同类错误给两种码，
+// 下一个照抄邻居代码的人必然写出第三种。
 async function readTarget(file) {
   try {
     const s = await stat(file)
@@ -200,8 +254,7 @@ async function cmdInit(file, opts) {
     throw e
   })
   if (exists) fail(`目标已存在，不覆盖：${file}\n要改内容请用 slot / screen 子命令。`, 1)
-  await copyFile(TEMPLATE, file)
-  let html = await readFile(file, 'utf8')
+  let html = await composeTemplate()
   html = html.replace(TITLE_RE, `<title>${esc(opts.title)} · 原型</title>`)
   html = html.replace(H1_RE, `<h1 id="proto-title">${esc(opts.title)}</h1>`)
   if (opts.subtitle) html = html.replace(SLOTS.subtitle.re, SLOTS.subtitle.wrap(esc(opts.subtitle)))
@@ -261,7 +314,7 @@ async function cmdScreen(file, opts) {
   const stripped = region.replace(/^\s*<div class="devices" data-anno-canvas>/, '').replace(/<\/div>\s*$/, '')
   // 判空 MUST 在剥掉外壳**并**去掉注释之后：出厂的 `<!-- SCREENS -->` 占位注释若被
   // 当成"已有内容"保留下来，check 会一直报「界面插槽还是空的」——屏明明已经加了。
-  const inner = stripped.replace(/<!--[\s\S]*?-->/g, '').trim() ? stripped.replace(/\s+$/, '') : ''
+  const inner = isBlankRegion(stripped) ? '' : stripped.replace(/\s+$/, '')
   const body = inner ? `${inner}\n\n${block}` : block
   const next = html.slice(0, r.from) + SLOTS.screens.wrap(body) + html.slice(r.to)
   await writeAtomic(file, next)
@@ -373,6 +426,48 @@ async function cmdSlot(file, opts) {
     console.log('  放行清单（已与用户逐条约定）：')
     released.forEach((r) => console.log(`    ${r.id}  ${{ done: '已落实', void: '作废', move: '挪到新元素' }[r.act]}  ${r.detail}`))
   }
+}
+
+/* ────────────────── extract ────────────────── */
+
+// 读侧取段。一份真实原型 85KB 里约 72% 是固定实现区（批注框架 / 设计系统 / 图标 sprite），
+// 对"这个界面长什么样、写了什么字"零价值——通读一次白付约 15k token，而下游 Step 1/4/8
+// 每次都被要求打开它。
+// MUST NOT 在这里做摘要、剥 class 或压缩嵌套：原型是**用户可见行为的权威描述**，
+// 有损提取会让下游拿不到原始 DOM，而它恰恰要照着原型写 spec 与用例。
+const EXTRACT_BASE = ['TITLE', 'NOTES', 'SCREENS']
+const EXTRACT_CSS = ['PROJECT-THEME', 'CUSTOM-CSS']
+
+// 行号取 BEGIN 那一行。MUST NOT 改用 markRange 的 `from` 起算——`from` 落在 BEGIN 注释的
+// `-->` 之后，而该注释可能跨多行（THEME 的就占两行），用它算出的行号会偏大。
+function lineOfMark(html, mark) {
+  const i = html.indexOf(`<!-- ${mark}:BEGIN`)
+  return i < 0 ? null : html.slice(0, i).split('\n').length
+}
+
+async function cmdExtract(file, opts) {
+  const html = await readTarget(file)
+  if (!markRange(html, 'SCREENS')) {
+    fail(`不是本体系的原型文件（缺 SCREENS 分区标记）：${file}`, 2)
+  }
+  const marks = opts['with-css'] ? [...EXTRACT_BASE, ...EXTRACT_CSS] : [...EXTRACT_BASE]
+  const out = []
+  for (const mark of marks) {
+    const range = markRange(html, mark)
+    if (!range) {
+      // 与下面的空区分支保持同形：段头一行、正文一行。两种分支形态不一致时，
+      // 下游按"段头之后是正文"解析会在这一支拿到空串。
+      out.push(`===== ${mark} （区标记不存在） =====`, '（本区不存在于该文件）', '')
+      continue
+    }
+    out.push(`===== ${mark} （源文件第 ${lineOfMark(html, mark)} 行起） =====`)
+    const body = html.slice(range.from, range.to)
+    out.push(isBlankRegion(body) ? '（本区为空）' : body)
+    out.push('')
+  }
+  out.push('----- 本命令只给界面内容。用户批注、全局反馈、AI 侧 data-anno 说明与回复请跑：')
+  out.push('      preview.mjs annotations <原型文件>')
+  console.log(out.join('\n'))
 }
 
 const AGREED_ACTIONS = ['done', 'void', 'move']
@@ -897,6 +992,7 @@ const HELP = `原型工具（ai-prd）
          script 装注解区按钮的点击行为，与原型同文件，MUST NOT 引外部脚本
          改稿走它：只换插槽内容，批注块与 data-anno-user 锚点原样保留
          动到带用户批注的元素时：先逐条约定，再带 --agreed --agreed-plan=<id>=<done|void|move> 放行
+  extract <文件> [--with-css]                           取界面内容（结构+文案；批注用 annotations）
   annotations <文件> [--json]                           取用户批注 + AI 侧说明（带行号）
   check  <文件> [--json]                                交付前自检（P0 存在则退出码 1）
   serve  <文件> [--port <n>] [--no-open]                起预览服务，页面批注自动写回该文件
@@ -911,6 +1007,7 @@ function parseArgs(argv) {
     else if (a === '--desktop') out.desktop = true
     else if (a === '--anno-right') out['anno-right'] = true
     else if (a === '--json') out.json = true
+    else if (a === '--with-css') out['with-css'] = true
     else if (a === '--agreed') out.agreed = true
     else if (a === '--drop-anchors') out['drop-anchors'] = true
     else if (a === '--help' || a === '-h') out.help = true
@@ -941,7 +1038,7 @@ async function main() {
     process.exitCode = opts.help ? 0 : 2
     return
   }
-  const known = ['init', 'screen', 'slot', 'annotations', 'check', 'serve']
+  const known = ['init', 'screen', 'slot', 'extract', 'annotations', 'check', 'serve']
   let cmd = 'serve'
   let file = opts._[0]
   if (known.includes(opts._[0])) {
@@ -954,6 +1051,7 @@ async function main() {
   if (cmd === 'init') return cmdInit(target, opts)
   if (cmd === 'screen') return cmdScreen(target, opts)
   if (cmd === 'slot') return cmdSlot(target, opts)
+  if (cmd === 'extract') return cmdExtract(target, opts)
   if (cmd === 'annotations') return cmdAnnotations(target, opts)
   if (cmd === 'check') return cmdCheck(target, opts)
   return cmdServe(target, opts)
@@ -962,13 +1060,30 @@ async function main() {
 // 顶层兜底：任何没被上面各层接住的异常 MUST NOT 以 Node 堆栈的形式出现——
 // 拿到堆栈的 agent 会把"工具坏了"读成"这条路走不通"，转而手工改原型文件，
 // 那正是本工具要消灭的行为。同一条教训在 ctx CLI 的 run() 里已写过一次。
-main().catch((e) => {
-  if (e instanceof Abort) {
-    console.error(e.message)
-    process.exitCode = e.code
-    return
+// 只有被当作入口直接执行时才跑 CLI。加这道判断是因为本文件从 2.10.0 起要 export
+// composeTemplate 给测试用——没有它，`import('./preview.mjs')` 会打印 HELP 并把
+// `process.exitCode` 设成 2，于是测试进程整体非零退出，而每一条断言都是绿的。
+// 判据用 realpath 比较而不是字符串：`node ./scripts/preview.mjs` 与经符号链接调用时
+// argv[1] 的形态不同。取不到 argv[1] 时视为"不是直接执行"——被 import 时静默是正确
+// 行为，而 CLI 少跑一次会立刻显形。
+function isDirectRun() {
+  if (!process.argv[1]) return false
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
+  } catch {
+    return false
   }
-  console.error(`preview.mjs 执行失败：${(e && e.message) || e}`)
-  console.error('这是工具自身的问题，MUST NOT 因此改用手工编辑原型文件——请报告这条信息。')
-  process.exitCode = 1
-})
+}
+
+if (isDirectRun()) {
+  main().catch((e) => {
+    if (e instanceof Abort) {
+      console.error(e.message)
+      process.exitCode = e.code
+      return
+    }
+    console.error(`preview.mjs 执行失败：${(e && e.message) || e}`)
+    console.error('这是工具自身的问题，MUST NOT 因此改用手工编辑原型文件——请报告这条信息。')
+    process.exitCode = 1
+  })
+}

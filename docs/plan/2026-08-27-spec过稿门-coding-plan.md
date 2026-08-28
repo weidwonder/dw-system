@@ -206,17 +206,17 @@ authority_refs:
 **满足:** `FR-016, FR-017`
 
 **Files:**
-- Modify: `ai-dev-system/VERSION`（→ `2.10.0`）
+- Modify: `ai-dev-system/VERSION`（→ `2.11.0`）
 - Modify: `docs/TODO.md`（删两条）
 - Modify: `docs/index.md`（收录本 spec 与本 plan）
 - Modify: `CLAUDE.md`（§架构 第 2 节的门表述、§改动时注意 增一条本门的跨文件契约）
 
-- [ ] **Step 1: bump VERSION** — 写 `2.10.0`。**MUST NOT 新建** `ai-dev-system/migrations/2.10.0.md`：本次零手动动作（重装即可、不改标记块字段、不要求回填存量文档）。
+- [ ] **Step 1: bump VERSION** — 写 `2.11.0`。**MUST NOT 新建** `ai-dev-system/migrations/2.11.0.md`：本次零手动动作（重装即可、不改标记块字段、不要求回填存量文档）。
 - [ ] **Step 2: 销账** — `docs/TODO.md` 删掉「spec 定稿后缺一道一般性 review 环节」与「入口 SKILL.md 已到 7980 字节、逼近 8000 字节上限」两条。
 - [ ] **Step 3: 索引** — `docs/index.md` 按现有格式收录本 spec 与本 plan。
 - [ ] **Step 4: CLAUDE.md** — §架构 第 2 节的门表述改成五道并点名新门；§改动时注意 增一条「spec 过稿门是跨文件的契约」，列出全部落点与要跑的测试。
 - [ ] **Step 5: 验证** — Run: `node --test test/*.test.mjs` Expected: PASS（含 `installer-migration.test.mjs` —— 它对当前 VERSION 的迁移指南是条件式断言，不建指南不判红）
-- [ ] **Step 6: commit** — `git commit -m "chore: 2.10.0 —— spec 过稿门与入口字节上限上调"`
+- [ ] **Step 6: commit** — `git commit -m "chore: 2.11.0 —— spec 过稿门与入口字节上限上调"`
 
 ---
 
