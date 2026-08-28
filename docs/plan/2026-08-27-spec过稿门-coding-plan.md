@@ -220,6 +220,25 @@ authority_refs:
 
 ---
 
+### Task 10：存量豁免的落点（评审门回填）
+
+**Slice:** §8.1 第 4 条拍板的兼容取舍真正生效——文档轴碰到 2.11.0 之前的存量 spec 不会误报。 ｜ **依赖：** Task 5（模板新增了过稿记录节，才有"存量没有这一节"这回事）
+
+**满足:** `FR-020`
+
+**来历**：本任务是代码评审门忠实轴回填的。原 plan 的 9 个任务里**没有任何一个承载 §8.1 第 4 条**——用户拍了"存量 spec 缺该节时文档轴 MUST 跳过"，spec §8.2 也把它登记成保留例外，但 `代码评审纪律.md` 一个字没改，这条豁免没有落点。拍板结论与需求清单之间的缺口，机器闸看不出来（它不知道有过这次拍板），只有把 §8.1 逐条对回实现才会显形。
+
+**Files:**
+- Modify: `ai-dev-system/skills/ai-dev-workflow/references/core/代码评审纪律.md`（§四条轴 D 轴职责段、§子代理 prompt 模板 文档轴职责段）
+
+- [x] **Step 1: D 轴职责段补豁免** — 在"真相源里出现尚未实现的内容…"那条之后接一条到期豁免（至 2027-02-28）：缺「过稿记录」节的存量 spec MUST 跳过、MUST NOT 报成缺陷；**豁免只针对「这一节压根不存在」**，有该节却为空或与实际过门情况不符的照常报。
+- [x] **Step 2: prompt 模板同改** — 文档轴职责段的 ① 与 ② 之间插同一条，措辞收到三行内（那是子代理 prompt，篇幅敏感）。
+- [x] **Step 3: 回填 spec** — spec §1.1 增 FR-020、§11 增 AC-020，使这条保留例外可核销。
+- [x] **Step 4: 验证** — Run: `node --test test/doc-axis.test.mjs test/counter-word.test.mjs test/wording-redline.test.mjs test/lean-selfcontained.test.mjs` Expected: PASS
+- [x] **Step 5: commit** — 随评审门修复一并提交
+
+---
+
 ## Risks and Mitigations
 
 | Risk | Impact | Mitigation |
