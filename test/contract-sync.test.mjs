@@ -27,7 +27,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { LOADING_POINT_MIN } from './contract-numbers.mjs'
+import { ENTRY_MAX_BYTES, LOADING_POINT_MIN } from './contract-numbers.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const read = (rel) => readFileSync(path.join(repoRoot, ...rel.split('/')), 'utf8')
@@ -40,6 +40,18 @@ const CONTRACTS = [
     refs: [
       { file: 'docs/spec/2026-08-23-渐进式披露与需求追溯-eng-spec.md', anchor: '断言清单行数 ≥' },
       { file: 'CLAUDE.md', anchor: '清单 ≥' },
+    ],
+  },
+  {
+    name: '入口 SKILL.md 字节上限',
+    value: ENTRY_MAX_BYTES,
+    // 2026-08-27 补上（FR-019）。此前 `ENTRY_MAX_BYTES` 虽然住在单点定义处，却**一个引用点都
+    // 没被盯住**——`cards-mandatory.test.mjs` 另行硬编码了同一个数，`CLAUDE.md` 里还有三处
+    // 文字引用，把上限改一处而漏改其余全绿。这正是本文件顶部注释警告过的形态。
+    refs: [
+      { file: 'CLAUDE.md', anchor: '入口 `SKILL.md` ≤' },
+      { file: 'CLAUDE.md', anchor: 'skill 入口（常驻，≤' },
+      { file: 'CLAUDE.md', anchor: '入口 ≤' },
     ],
   },
 ]
@@ -61,12 +73,14 @@ test('契约数字：文档里的引用与单点定义一致', () => {
       for (const [lineNo, line] of hits) {
         // 取该行里紧跟锚点之后的第一个整数，与定义值比。
         const after = line.slice(line.indexOf(anchor) + anchor.length)
-        const m = after.match(/\**\s*(\d+)/)
+        // 允许千位逗号：本仓四位以上的数字一律写成 `12,000` / `50,000`，
+        // 只吃 `\d+` 会在 `8,000` 上取到 `8` 并报一个看不懂的不一致。
+        const m = after.match(/\**\s*([\d,]+)/)
         if (!m) {
           problems.push(`【${name}】${file}:${lineNo} 锚点「${anchor}」之后取不到数字：\n    ${line.trim().slice(0, 160)}`)
           continue
         }
-        if (Number(m[1]) !== value) {
+        if (Number(m[1].replace(/,/g, '')) !== value) {
           problems.push(
             `【${name}】${file}:${lineNo} 写的是 ${m[1]}，而单点定义是 ${value}\n` +
               `    定义处：test/contract-numbers.mjs\n` +

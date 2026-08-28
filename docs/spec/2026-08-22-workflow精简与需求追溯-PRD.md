@@ -2,7 +2,7 @@
 lifecycle: active
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-08-22'
+last_confirmed: '2026-08-27'
 authority_refs:
   - 'Lean 路径的加载清单（入口 + 协作面分册 + lean spec 模板 + 自足册）与「冲突以细则为准」的从属规则'
   - '工作区隔离门要点必须驻留在入口（该门在 Triage 之前，过门时尚未分流）'

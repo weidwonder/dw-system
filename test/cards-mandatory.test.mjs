@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url'
 import { initScaffold } from '../ai-dev-system/skills/ai-dev-workflow/scripts/ctx/src/commands.js'
 // 计数词豁免清单的唯一定义处，两条机器闸共用一份（详见该文件抬头）。
 import { EXEMPT_DIRS, EXEMPT_FILES } from './counter-word-exempt.mjs'
-import { LOADING_POINT_MIN } from './contract-numbers.mjs'
+import { ENTRY_MAX_BYTES, LOADING_POINT_MIN } from './contract-numbers.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const skillsRoot = path.join(repoRoot, 'ai-dev-system', 'skills')
@@ -144,9 +144,12 @@ test('入口自带工作区隔离门要点：建不建、目录取哪个字段�
   assert.match(skill, /worktree-dir/, '入口必须点名目录取自哪个字段')
   assert.match(skill, /\.\/\.worktrees\//, '入口必须给出 worktree-dir 缺省值')
   assert.match(skill, /MUST NOT 替用户 stash/, '入口必须写明主工作树不干净时中止而不是替用户 stash/reset')
+  // 上限取自 `contract-numbers.mjs` 的单点定义，MUST NOT 在这里再写一个字面量——
+  // 此前这两行写死了一个与那份「唯一定义处」并存的字面量，却没人盯着两者是否一致，
+  // 正是 `contract-numbers.mjs` 要消除的形态。
   assert.ok(
-    Buffer.byteLength(skill, 'utf8') <= 8000,
-    `入口 MUST ≤ 8000 字节（AC-004），当前 ${Buffer.byteLength(skill, 'utf8')}`,
+    Buffer.byteLength(skill, 'utf8') <= ENTRY_MAX_BYTES,
+    `入口 MUST ≤ ${ENTRY_MAX_BYTES} 字节（AC-004），当前 ${Buffer.byteLength(skill, 'utf8')}`,
   )
 })
 

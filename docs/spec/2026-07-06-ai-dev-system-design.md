@@ -4,7 +4,7 @@ status: 'design-approved-pending-review'
 documentRole: 'design-spec'
 sourceOfTruth: true
 lifecycle: active
-last_confirmed: '2026-08-23'
+last_confirmed: '2026-08-27'
 authority_refs:
   - 'skill 的交付形态与目录结构：ai-dev-system/skills/<name>/{SKILL.md,references/,assets/,scripts/}'
   - 'references/ 的分层职责：core 与按维度追加的分册怎么划分（各分册的加载时机自 2.5.0 起改由 2026-08-23-渐进式披露与需求追溯-eng-spec.md 定义）'
@@ -58,7 +58,7 @@ ai-dev-system/
         ├── SKILL.md                   # 入口：探测代码图谱 → 读协作面 → 加载；首次运行 → 初始化
         ├── references/
         │   ├── core/                  # 共享内核（tech-agnostic）；2.5.0 起只有部分分册常驻，其余按加载点取
-        │   │   ├── 00-流程总纲.md       # Triage 4 问 + 10 步 + 四道门，每步配 prompt
+        │   │   ├── 00-流程总纲.md       # Triage 4 问 + 10 步 + 五道门，每步配 prompt
         │   │   ├── spec写作纪律.md       # 零上下文可动手 / RFC2119 / 无占位符
         │   │   └── AI-LLM-overlay.md     # AI 契约：prompt 版本化/输出校验/成本/eval 门
         │   ├── collab/                # 协作面（读标记块字段，必加载一份）

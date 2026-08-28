@@ -34,6 +34,7 @@
 - **[渐进式披露与需求追溯](./spec/2026-08-23-渐进式披露与需求追溯-eng-spec.md)** — 2.5.0 的技术 spec：判据加载模型改为**渐进式披露**（常驻收敛到六份且分两批取，其余按住在 `SKILL.md` 的〈加载点清单〉在触发点取），`文档治理.md` / `spec写作纪律.md` / `worktree开发纪律.md` 三篇移出常驻，`路径-lean.md` 扩为 Lean 自足册；spec 需求编 `FR-###` / 验收项编 `AC-###` 贯通到 coding plan、评审门与 test-spec；评审门忠实轴按轴增列五类偏离类型。`authority_refs`：常驻集合与加载点清单、入口自带工作区隔离门要点、需求编号格式与永不复用规则、忠实轴返回格式的增列、措辞精简红线。
 - **[流程总纲历史沿革](./spec/2026-08-23-流程总纲历史沿革.md)** — `00-流程总纲.md` 里"当初为什么这么定"的论证展开，渐进式披露改造时从常驻总纲抽出：大架构确认门为什么绑"改动命中判据"而不绑 Overview、第 3 问的确认义务为什么单列、默认倾向判据 3/4 为什么回溯触发、七条护栏为什么全写成否定式。总纲只留判据，照总纲执行不需要读本文；要改判据时才读。`authority_refs`：总纲各条判据的立论依据与读错后果。
 
+- **[spec 过稿门](./spec/2026-08-27-ai-dev-workflow-spec过稿门-eng-spec.md)** — 给 `ai-dev-workflow` 新增第五道贯穿门：技术 spec 定稿后、生成 Coding Plan 之前，把 spec 里业务可判定的部分（范围与不做什么 / 功能需求 / 兼容取舍结论 / 完成定义）交拍板人过目并表态，默认每次都过、只有拍板人显式说一句才跳过且只对本次有效，结论当场写进 spec §13 过稿记录；Lean 侧并进第 4 步那一批、不新增步骤号。同期把入口 `SKILL.md` 字节上限由 8000 上调到 12000（中文判据文本在 UTF-8 下每字 3 字节），并让该常量第一次被引用点闸盯住。`authority_refs`：贯穿门清单与各门插入位置、三层确认边界与本门的关系、eng-spec 与 lean-change-spec 的留痕节、加载点清单行集合与 `ENTRY_MAX_BYTES`、计数词受检词表、注入目标项目的标记块条目集合。
 - **[原型取段与框架外置](./spec/2026-08-27-原型取段与框架外置-eng-spec.md)** — 2.10.0 的技术 spec（FR-001–017 / AC-001–020）：读侧新增 `preview.mjs extract`，按分区标记原样取出 `TITLE` / `NOTES` / `SCREENS`（`--with-css` 补两段样式区），`ai-dev-workflow` 五个读原型落点从「打开该文件」改为「先跑 `extract` + `annotations`」，实测一份真实原型 85,236 字节降到 11,436；写侧把容器六个固定实现区的正文外置成 `ui-prototype-framework/` 下的独立 css / js / svg 源文件，`init` 由 `copyFile` 改为 `composeTemplate()` 装配，**产物仍是单文件零外链且与外置前逐字节相等**。装配等值只作一次性迁移验收，常驻闸改为断言「容器固定区为空 + 每区正文等于它那份源文件」——把等值固化成常驻闸会让日后每次改框架都判红。`authority_refs`：`extract` 与 `composeTemplate()` 的接口契约、`FRAMEWORK` 装配表的 mark→file→wrap 映射、框架源文件目录布局、五个读原型落点的规定动作、`preview.mjs` 的模块入口守卫。
 
 ## 进行中的计划（`docs/plan/`）
@@ -41,6 +42,7 @@
 
 按次产出的计划文件名 MUST 以 `YYYY-MM-DD-` 开头；已归并计划移入归档索引。
 
+- **[spec 过稿门 Coding Plan](./plan/2026-08-27-spec过稿门-coding-plan.md)** — 9 个垂直切片任务（字节上限 → 总纲立判据 → 完整流程分册 → Lean 自足册 → 模板 → 协作面与注入片段 → 入口加载点 → 门同步机器闸 → 版本与账本），每个任务带 `满足:` 的 `FR-###`、反向自检与替换清单核销表。`authority_refs`：`ENTRY_MAX_BYTES` 取值与引用方式、`§spec 过稿门` 与 `§6.3` 小节名、两份模板的留痕节名。
 - **[原型注解分层与文档日期前缀 Coding Plan](./plan/2026-08-27-原型注解分层与文档日期前缀-coding-plan.md)** — 本期的 coding plan：15 个垂直切片任务（容器 → 工具 → 纪律模板 → 机器闸），每个任务带 `满足:` 的 `FR-###`、失败测试先行、替换清单核销表与三个 checkpoint。`authority_refs`：`window.setScreenState` 签名、`slot` 的 `--agreed` / `--agreed-plan` 参数契约、`serve` 的 `X-Proto-Version` / `If-Match` 头契约、`replies[]` 字段集合、`.screen-notes` DOM 契约与两个新标记名。
 
 - **[渐进式披露与需求追溯 Coding Plan](./plan/2026-08-23-渐进式披露与需求追溯-coding-plan.md)** — [渐进式披露与需求追溯 spec](./spec/2026-08-23-渐进式披露与需求追溯-eng-spec.md) 的任务拆解（FR-001…FR-014 / AC-001…AC-024 的核销表）。`authority_refs`：Interfaces 节冻结的加载点清单列结构、`FR-###`/`AC-###` 编号格式、忠实轴返回格式的增列方式。
