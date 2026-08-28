@@ -93,7 +93,7 @@
   - Lean 侧的投影：§1.3 门的全景 — `references/core/路径-lean.md:88`；§6 第 4 步（兼容取舍 §6.1 + 大架构 §6.2 + spec 过稿 §6.3 **同一批抛出**）— `:347,373,402`
   - 完整流程 Step 5 内部技术自检**明确不问用户**，其末尾声明 Step 6 之前有两道门且顺序固定 — `references/core/步骤-1-7-设计与实现.md:147-160`
   - 留痕落点：`assets/templates/eng-spec.md` §13 过稿记录、`assets/templates/lean-change-spec.md` 过稿记录节
-  - 机器闸两条：`test/counter-word.test.mjs:51-58` 管计数词取值（`五道门`，旧值 `四道门` 留在 variants 里同受管辖）；`test/gate-sync.test.mjs` 管"每道门在必须复述它的文件里在不在场" + 总表行数与标题计数词一致
+  - 机器闸两条：`test/counter-word.test.mjs:48-58` 管计数词取值（`五道门`，旧值 `四道门` 留在 variants 里同受管辖）；`test/gate-sync.test.mjs` 管"每道门在必须复述它的文件里在不在场" + 总表行数与标题计数词一致
 - **陷阱项**
   - 门的复述散在多处，加/减一道门要同改：总纲总表与总览图、`路径-lean.md` §1.3、入口 `SKILL.md`、`collab/{solo,team}.md`、`assets/config-snippets/base.md`、`ai-prd/references/collab/team.md`（**该处在 ai-prd 下，`test/counter-word.test.mjs` 不遍历，漏改不报错**）、`docs/REQUIREMENTS.md` 的门禁节。
   - `五道门` 的权威小节名字面就含受检子串，引用方 MUST 指名引用**具体那一道门**的小节，MUST NOT 引用总表。

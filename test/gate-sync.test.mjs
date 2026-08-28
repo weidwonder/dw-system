@@ -45,7 +45,15 @@ export function parseGateTable(overview) {
   )
   const declared = CN_NUM[m[1]]
   const body = overview.slice(overview.indexOf(m[0]) + m[0].length)
-  const table = body.slice(0, body.indexOf('\n\n另有'))
+  // 切段边界同样 MUST 断言存在。`indexOf` 找不到时返回 -1，`slice(0, -1)` 会把总表悄悄扩到
+  // 全文末尾，`names` 混进后文表格的加粗首列——又是一次静默失效（同下方 sliceSection 的约定）。
+  const end = body.indexOf('\n\n另有')
+  assert.notEqual(
+    end,
+    -1,
+    '总表下方的「另有三道条件触发的门」锚点找不到——切段边界已失效，MUST 判红而不是让总表扩到全文末尾。',
+  )
+  const table = body.slice(0, end)
   // 表格数据行的首列形如 `| **工作区隔离门** | …`
   const names = [...table.matchAll(/^\|\s*\*\*(.+?)\*\*\s*\|/gm)].map((r) => r[1].trim())
   return { declared, names }

@@ -2,7 +2,7 @@
 lifecycle: active
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-08-23'
+last_confirmed: '2026-08-27'
 authority_refs:
   - '本 plan 的 Interfaces 节冻结了：加载点清单的列结构、FR-###/AC-### 编号格式、忠实轴返回格式的增列方式'
 ---
