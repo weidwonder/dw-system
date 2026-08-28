@@ -5,26 +5,28 @@
 
 ## 原型容器（ui-prototype.html）
 
-- **职责**：`ai-prd` 产出的 UI 原型的唯一容器——**本体只留分区标记与骨架（约 90 行）**，默认视觉基线 / 设计系统 / 图标库 / 批注框架 / 按屏状态切换这六个固定实现区的**正文住在 `assets/templates/ui-prototype-framework/`**，由 `preview.mjs init` 经 `composeTemplate()` 装配建出（2.10.0 起不再是 `copyFile`）；**产物仍是单文件零外链**，产出方只填具名插槽。
+- **职责**：`ai-prd` 产出的 UI 原型的唯一容器——本体只留分区标记与骨架，六个固定实现区的正文住在 `assets/templates/ui-prototype-framework/`，由 `preview.mjs init` 经 `composeTemplate()` 装配建出；**产物仍是单文件零外链**，产出方只填具名插槽。**2.12.0 起 `DESIGN-SYSTEM` 区分两层装配**。
 - **对外接口**
-  - 分区标记（`<!-- MARK:BEGIN … END -->`，`check` 按 `FIXED_REGIONS` 校验齐全）：`THEME`、`PROJECT-THEME`、`DESIGN-SYSTEM`、`CUSTOM-CSS`、`ANNO-FRAMEWORK:CSS`、`ICONS`、`TITLE`、`NOTES`、`SCREENS`、`SCREEN-SCRIPT`、`CUSTOM-JS`、`ANNOTATIONS`、`ANNO-FRAMEWORK:JS` — `ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html:14,17,22,24,29,32,36,44,51,58,61,65,81`
-  - 画布单列布局 `.stage { display: block }`（不再有右侧常驻栏）— `ui-prototype-framework/design-system.css:486`
-  - 屏注解区 `.device-wrap > .screen-notes`（`__title` / `__body` / `__acts` 三个子位），挂在设备壳之外；`.device-wrap.is-anno-right` 改挂右侧 — `ui-prototype-framework/design-system.css:499-526`
-  - 设计说明面板 `#proto-notes-panel`（默认 `hidden`，工具栏 `[data-act="notes"]` 展开），`NOTES` 插槽与 `#proto-notes` 仍在其中 — `ui-prototype.html:44-46`
-  - `SCREEN-SCRIPT` 固定区导出**唯一**全局 `window.setScreenState(screenEl, nextState)` —— 只认屏元素与目标态，**不认按钮**（按钮行为归 `CUSTOM-JS` 插槽）— `ui-prototype-framework/screen.js:1-45`
-  - 批注数据块 `<script type="application/json" id="anno-data">`，schema 仍是 `prd-annotations@1`，字段 `global[]` / `items[]` / **`replies[]`**（`replies[].noteId` ↔ AI 说明的 `data-anno-id`）— `ui-prototype.html:65-79`
-  - 批注框架 JS：`serialize()` 剥运行时状态并复位设计说明面板 — `ui-prototype-framework/anno.js:106-149`；`write()` 带 `If-Match` 版本头 — `ui-prototype-framework/anno.js:149-205`；`openNote()` 承载对 AI 说明的增删改回复 — `ui-prototype-framework/anno.js:593-650`；工具栏 `bar.innerHTML` — `ui-prototype-framework/anno.js:302-331`；`paint()` 控制保存/复制按钮显隐 — `ui-prototype-framework/anno.js:333-427`
-  - 批注气泡渲染：`data-anno` / `data-anno-kind="question"` / `items[]` — `ui-prototype-framework/anno.js:430-445`
-  - 图钉的定位与层级契约：`attach()` 恒给宿主加 `data-anno-host`，仅 `position: static` 宿主取值 `rel` 才提升；图钉贴宿主内侧、`z-index: 880` — `ui-prototype-framework/anno.js:447-490`；`ui-prototype-framework/anno.css:58-72`
+  - 分区标记（`<!-- MARK:BEGIN … END -->`，`check` 按 `FIXED_REGIONS` 校验齐全）：`THEME`、`PROJECT-THEME`、`DESIGN-SYSTEM`、`CUSTOM-CSS`、`ANNO-FRAMEWORK:CSS`、`ICONS`、`TITLE`、`NOTES`、`SCREENS`、`SCREEN-SCRIPT`、`CUSTOM-JS`、`ANNOTATIONS`、`ANNO-FRAMEWORK:JS`
+  - **结构层**（恒装配，196 行）：画布 `.stage` / `.devices` / `.device-wrap` / `.device` / `.app-bar` / `.screen` / `.status` / `.screen-notes`、图标尺寸、排版原语，以及满高布局原语 `.fill` + `.scroll-y` — `ui-prototype-framework/structure.css`
+  - **外观层**（默认不装配，408 行）：按钮 / 表单 / 卡片 / 徽标 / 提示条 / 空态 / 列表 / 导航 / 浮层，只有 `init --with-baseline` 才追加 — `ui-prototype-framework/components.css`
+  - 屏内布局：屏名 `.device-name` 恒在设备壳左上方（`align-self: flex-start`），屏注解区 `.device-wrap > .screen-notes` 恒挂该屏下方、居中限宽 420px；桌面屏 `860×540` — `ui-prototype-framework/structure.css:99`
+  - 满高链路：`.device`(flex column) → `.screen`(flex:1, min-height:0) → 状态层(flex column, flex:1)，产出方用 `.fill` + `.scroll-y` 做内部滚动区
+  - 状态切换：`SCREEN-SCRIPT` 导出 `window.setScreenState(screenEl, nextState)`，并提供 **`[data-state]` 声明式 hook**（点击带该属性的元素 → 把所在屏切到目标态；空串 = 回默认态）— `ui-prototype-framework/screen.js:17`
+  - 设计说明面板 `#proto-notes-panel`（`position: sticky; top: 46px`，默认 `hidden`，工具栏 `[data-act="notes"]` 展开），正文外壳类是 `.anno-notes-body`（2.12.0 起，此前借用外观层的 `.card-content`）
+  - 批注数据块 `<script type="application/json" id="anno-data">`，schema `prd-annotations@1`，字段 `global[]` / `items[]` / `replies[]`
+  - 批注框架自护：框架 UI 内 `[hidden]` 恒生效的通用规则 — `ui-prototype-framework/anno.css:81`；图钉尺寸盒与三种变体背景色带 `!important` — `:88`；注解区按钮 `.anno-btn` 尺寸盒同样锁死 — `:256`
+  - AI 说明的回复编辑态：`setEditing()` 统一进出（高亮被改那条 + 提示 + 放弃修改按钮）— `ui-prototype-framework/anno.js:622`；发号 `nextAnnoId()` 同时看 DOM 与 `store.replies` 已用的 noteId — `:589`
 - **陷阱项**
-  - 用非上述三种方式改 DOM 状态，`serialize()` 还原不掉，写回时状态被烘进文件且零报错。
-  - `serialize()` 若漏了 `#proto-notes-panel` 的复位，用户展开设计说明后的写回会把"展开"烘进文件。
-  - 批注块注释里刻意不写取批注命令（命令含本区结束标记字样，写进去会让按标记取段的读法提前截断）— `:954-958`
-  - `window.setScreenState` **MUST NOT** 扩成认按钮名的形态——那会把按钮语义写进容器，越过 PRD 非目标 3。
-  - 提升定位 MUST NOT 改回无条件施加：`[data-anno-host]` 与作者的单 class 规则同权重且排在后面，无条件提升会把 `position: absolute` 的元素打回文档流、当场错位且零报错。同理 `attach()` 里的判定 MUST 只在首枚图钉时做——此刻宿主可能已被上一枚提升成 `relative`，再判一次会把提升撤掉。
-  - 图钉的偏移 MUST NOT 改回负值（元素外侧）：任何 `overflow: auto|hidden` 的祖先都会把它整枚裁掉，用户会以为批注没保存成功。
-  - 自定义样式的 `z-index` 上限是 880（框架自留层从此起算：图钉 880 < 设计说明面板 890 < 工具栏 900 < 批注弹窗 1000 < 拾取光标 1100）；图钉的层级 MUST 落在这段区间的下沿，拉高到框架自身之上会反过来遮住工具栏与弹窗。
-- **确认时间**：2026-08-27
+  - **`[hidden]` 的 `display:none` 来自 UA 样式表，任何作者的 `display` 都压过它**——框架 UI 内新增隐藏元素时 MUST 靠 `anno.css:81` 那条通用规则兜住，MUST NOT 逐个元素补（逐条补必然漏，实测踩过三次）。
+  - **`!important` 有传染性**：`.anno-pin` / `.anno-btn` 的属性为挡产出方带了 `!important`，**框架自己**覆盖同名属性的规则（如 `[data-anno-hidden] .anno-pin`、`.anno-btn--icon`）也 MUST 带 `!important`，否则压不过自己。
+  - 渲染弹窗的函数 MUST NOT 绑定自己没渲染的 `data-role`——`null.onclick` 抛 TypeError 会让函数整个中断，表现只是"按钮点了没反应"。
+  - `window.setScreenState` MUST NOT 扩成认按钮名的形态；`[data-state]` hook 是声明式属性，不改它的签名。
+  - 用非上述方式改 DOM 状态，`serialize()` 还原不掉，写回时状态被烘进文件且零报错。
+  - 图钉的偏移 MUST NOT 改回负值（元素外侧）：任何 `overflow` 祖先都会把它整枚裁掉。
+  - 自定义样式的 `z-index` 上限是 880（图钉 880 < 设计说明面板 890 < 工具栏 900 < 批注弹窗 1000 < 拾取光标 1100）。
+  - **框架改动对已生成的原型不生效**——框架在 `init` 时装配进产物，只能重建，而重建会清空批注块（已记入 `docs/TODO.md` 技术欠账）。
+- **确认时间**：2026-08-28
 
 ## 原型工具（preview.mjs）
 
@@ -41,14 +43,23 @@
   - `cmdCheck` 十二类检查（编号不变，屏注解区、按屏状态入口、注解区按钮行为三项并进第 6/7/8 类）— `:653-831` 一带
   - `cmdServe` 版本化写回：`versionOf()` 取内容 SHA-256，GET/HEAD 回 `X-Proto-Version`，`POST /save` 认 `If-Match` 头或 `?v=` 查询参数（二者等价，后者供 `sendBeacon`），版本不符回 **409 + `{version, html}`**；`serializeWrite()` 用 Promise 链关掉 TOCTOU 窗口 — `:864-980` 一带
   - `FIXED_REGIONS` 含 `SCREEN-SCRIPT`，**不含** `CUSTOM-JS`（后者是插槽，产出方要写）— `:603`
+  - `FRAMEWORK` 装配表用 **`files[]` + `baselineFiles[]`**（有序多文件拼装），`composeTemplate({baseline})` 决定是否追加外观层 — `scripts/preview.mjs:33`、`:119`
+  - `init --with-baseline` 开启外观层，两条路径各自打印下一步指引 — `:293`
+  - `screenSkeleton(name, states, desktop)` 生成屏骨架，**声明多个状态时直接生成 `data-state` 切换按钮**（值带 `state-` 前缀，默认态用空串），行为由容器 hook 提供 — `:315`；`--anno-right` 已废除，传入报错退出码 2
+  - `reattachNoteIds()`：`slot --set screens` 时按 `data-anno` 文本把 `data-anno-id` 续回新片段，**新旧两侧都唯一才续**，有歧义不猜 — `:389`
+  - `emptyStates()`：声明了却没填内容的状态层报 P1（判空在剥标签**并**去 HTML 注释之后）— `:757`
+  - `writeAtomic()` 临时文件名唯一（pid + 时间 + 序号），失败清理半成品 — `:234`
+  - `check` 的状态按钮检查改为**校验 `data-state` 取值**（前缀合法 + 指向本屏真有的状态层），不再按字符串包含判断有无绑定
   - `HELP` 文案含 `extract`、七个插槽名、`--anno-right` 与放行参数 — `:984` 一带
 - **陷阱项**
+  - **`check` 的 class 定义来源 MUST 含 `ANNO-FRAMEWORK:CSS` 区**：屏注解区的按钮用批注框架私有类，漏掉这一区会把工具自己生成的按钮报成"没有样式定义"。
+  - 并发改同一份原型：唯一临时名只消除 ENOENT 崩溃，**后写仍覆盖先写**（各自读的是同一份旧内容），工具不加锁。
   - `SLOTS.screens` / `notes` / `theme` / `custom` / `script` **没有 `re` 字段**，误引用 `slot.re` 会静默失效（`match(undefined)` 给空匹配、`replace(undefined,…)` 当字面串）——历史上撞出过 `screen` 命令零改动却退出 0。
   - 判空 MUST 在剥外壳**并**去注释之后，否则出厂 `<!-- SCREENS -->` 占位注释被当成已有内容。
   - 终止用抛 `Abort` 不用 `process.exit()`（管道下输出会被截断而退出码正常）。
   - 批注块定位 MUST 限定在 `ANNOTATIONS` 区间内：全文 `indexOf` 时，片段里夹带一个假 `id="anno-data"` 块会让放行数据写进假块、真块原样不动，命令照常打印放行清单并退出 0（实测撞出过，文件里留下三个批注块）。
   - `script` 插槽写入 MUST 转义 `</script`，否则内容提前闭合脚本标签。
-- **确认时间**：2026-08-27
+- **确认时间**：2026-08-28
 
 ## 原型读取契约（ai-dev-workflow）
 
@@ -76,7 +87,7 @@
   - §5 PRD「UI 原型」五项表（三类模板同一套项）
   - §6 交付前自检清单（「**未经约定**失联的一条报一条 P0」、「每个声明覆盖的状态都在该屏注解区里有对应切换按钮且按钮有行为」）
   - §7 批注框架三区表与写入方声明；§7.5 设计说明、§7.6 屏注解区、§7.7 放行契约
-  - §8.1 命令表、§8.2 屏结构、§8.3 class 与 hook、§8.4 项目样式
+  - §8.1 命令表、§8.2 屏结构、**§8.3 风格归属判据**（外观层默认不装配；棕地 MUST NOT 开基线、绿地 MUST 与用户确认四项、确无来源才兜底）、§8.4 项目样式与 `.fill`/`.scroll-y`
 - **陷阱项**：批注数据块的写入方现在有**两个**——页面工具栏，以及 §7.7 显式放行路径上的 `slot`；**AI 手工编辑本块仍然禁止**。三层归属是闭集，MUST NOT 自造第四层。
 - **确认时间**：2026-08-27
 

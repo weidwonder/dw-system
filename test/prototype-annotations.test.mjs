@@ -26,6 +26,10 @@ const prdRoot = path.join(skillsRoot, 'ai-prd')
 const read = (...seg) => readFileSync(path.join(...seg), 'utf8')
 
 const template = await composeTemplate()
+// 外观层（按钮 / 表单 / 卡片 …）默认不装配，§8.3 的 class 表只在 --with-baseline 下成立，
+// 因此校验那张表 MUST 用基线装配。用默认装配去校验会红，而"修红"的做法是删掉表里的
+// class——正好把这条闸要保护的东西删光。
+const templateWithBaseline = await composeTemplate({ baseline: true })
 const discipline = read(prdRoot, 'references', 'UI原型纪律.md')
 
 // 切段取子串：锚点找不到必须当场红，否则 slice 会静默退化成"整个文件"。
@@ -44,7 +48,7 @@ const SLOTS = [
   '<h1 id="proto-title">UI 原型</h1>',
   '<p id="proto-subtitle"></p>',
   '<div class="devices" data-anno-canvas><!-- SCREENS --></div>',
-  '<div class="card-content notes-body" id="proto-notes"></div>',
+  '<div class="anno-notes-body notes-body" id="proto-notes"></div>',
   '<style id="project-theme"></style>',
   '<style id="proto-custom"></style>',
   '<script id="proto-script"></script>',
@@ -208,8 +212,11 @@ test('纪律 §8.3 列的每个 class 都在容器里真有定义', () => {
     for (const c of m[1].matchAll(/\.[a-z][a-z0-9-]*/g)) listed.add(c[0])
   }
   assert.ok(listed.size >= 40, `§8.3 应列出成套 class（当前只抽到 ${listed.size} 个，表格格式可能变了）`)
-  const missing = [...listed].filter((cls) => !new RegExp(`\\${cls}(?![a-z0-9-])`).test(template))
+  const missing = [...listed].filter((cls) => !new RegExp(`\\${cls}(?![a-z0-9-])`).test(templateWithBaseline))
   assert.deepEqual(missing, [], `纪律列了容器里不存在的 class，agent 会照抄一个没样式的名字：${missing.join(' ')}`)
+  // 反向：这张表 MUST NOT 在默认装配下成立——它成立就说明外观层又被塞回默认路径了。
+  const btnDefined = /\.btn(?![a-z0-9-])\s*\{/.test(template)
+  assert.ok(!btnDefined, '外观层回到了默认装配：风格 MUST 由项目真实样式来源决定，容器 MUST NOT 替产出方定死')
 })
 
 test('§8.2 的结构 class 与状态类都在容器里', () => {

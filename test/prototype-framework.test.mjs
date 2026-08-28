@@ -35,26 +35,52 @@ test('容器的六个固定区区间为空——正文只有一处，在框架�
 
 test('装配表每项都对应一个存在且非空的框架源文件', () => {
   for (const it of FRAMEWORK) {
-    const p = path.join(FRAMEWORK_DIR, it.file)
-    assert.ok(existsSync(p), `装配表指向的框架源文件不存在：${it.mark} → ${p}`)
-    assert.ok(readFileSync(p, 'utf8').trim().length > 0, `框架源文件是空的：${p}`)
+    // `files` 与 `baselineFiles` 都要查：后者只在 --with-baseline 时装配，漏查会让
+    // 外观层源文件被删掉也全绿，而默认路径不装它、正好一路查不出来。
+    for (const f of [...it.files, ...(it.baselineFiles || [])]) {
+      const p = path.join(FRAMEWORK_DIR, f)
+      assert.ok(existsSync(p), `装配表指向的框架源文件不存在：${it.mark} → ${p}`)
+      assert.ok(readFileSync(p, 'utf8').trim().length > 0, `框架源文件是空的：${p}`)
+    }
   }
 })
 
 // 这条 MUST 断言“区间正文 === 对应源文件的内容”，MUST NOT 只验“非空 + 含 open/close”:
 // 后者是同义反复——open/close 来自同一张装配表，把 anno.css 装进 THEME 区照样全绿，
 // 而那正是这条闸唯一挡得住、别处又挡不住的错误（映射错位）。
-test('装配结果每个区的正文逐字节等于它那份源文件', async () => {
-  const html = await composeTemplate()
-  for (const it of FRAMEWORK) {
-    const r = markRange(html, it.mark)
-    assert.ok(r, `装配结果缺固定区标记：${it.mark}`)
-    const body = readFileSync(path.join(FRAMEWORK_DIR, it.file), 'utf8')
-    assert.equal(
-      html.slice(r.from, r.to),
-      FRAMEWORK_PRE + it.open + body + it.close + FRAMEWORK_POST,
-      `${it.mark} 区的装配结果与 ${it.file} 不一致——要么装配串错了，要么装配表把这个区指向了别的文件`,
-    )
+// 两条装配路径都要验：默认只装 `files`，`--with-baseline` 追加 `baselineFiles`。
+// 只验其中一条，另一条串错了照样全绿——而默认路径正是绝大多数原型走的那条。
+for (const baseline of [false, true]) {
+  test(`装配结果每个区的正文逐字节等于它那份源文件（baseline=${baseline}）`, async () => {
+    const html = await composeTemplate({ baseline })
+    for (const it of FRAMEWORK) {
+      const r = markRange(html, it.mark)
+      assert.ok(r, `装配结果缺固定区标记：${it.mark}`)
+      const files = [...it.files, ...(baseline && it.baselineFiles ? it.baselineFiles : [])]
+      const body = files.map((f) => readFileSync(path.join(FRAMEWORK_DIR, f), 'utf8')).join('')
+      assert.equal(
+        html.slice(r.from, r.to),
+        FRAMEWORK_PRE + it.open + body + it.close + FRAMEWORK_POST,
+        `${it.mark} 区的装配结果与 ${files.join(' + ')} 不一致——要么装配串错了，要么装配表把这个区指向了别的文件`,
+      )
+    }
+  })
+}
+
+test('外观层默认不装配，只有 --with-baseline 才进产物', async () => {
+  const plain = await composeTemplate()
+  const withBase = await composeTemplate({ baseline: true })
+  const probe = readFileSync(path.join(FRAMEWORK_DIR, 'components.css'), 'utf8').split('\n')
+    .find((l) => l.includes('.btn {'))
+  assert.ok(probe, 'components.css 里找不到 .btn 定义——探针失效，这条闸已退化')
+  assert.ok(!plain.includes(probe), '默认装配不应含外观层：风格 MUST 由项目真实样式来源决定')
+  assert.ok(withBase.includes(probe), '--with-baseline 应装入外观层')
+  // 结构层两条路径都必须在，否则批注框架与 check 会失去锚点
+  const structProbe = readFileSync(path.join(FRAMEWORK_DIR, 'structure.css'), 'utf8').split('\n')
+    .find((l) => l.includes('.device-wrap {'))
+  assert.ok(structProbe, 'structure.css 里找不到 .device-wrap——探针失效')
+  for (const [name, html] of [['默认', plain], ['基线', withBase]]) {
+    assert.ok(html.includes(structProbe), `${name}路径缺结构层：批注框架与 check 会失去锚点`)
   }
 })
 
@@ -67,7 +93,7 @@ test('缺框架源文件时 init 报错退出且不留残页', async () => {
   const skillCopy = path.join(dir, 'ai-prd')
   cpSync(path.join(repoRoot, 'ai-dev-system/skills/ai-prd'), skillCopy, { recursive: true })
   const script = path.join(skillCopy, 'scripts/preview.mjs')
-  const victim = path.join(skillCopy, 'assets/templates/ui-prototype-framework', FRAMEWORK[0].file)
+  const victim = path.join(skillCopy, 'assets/templates/ui-prototype-framework', FRAMEWORK[0].files[0])
   const target = path.join(dir, 'p.html')
 
   unlinkSync(victim)
@@ -76,7 +102,7 @@ test('缺框架源文件时 init 报错退出且不留残页', async () => {
     const out = (r.stdout || '') + (r.stderr || '')
     assert.equal(r.status, 1, `缺框架源文件时 init 必须以退出码 1 终止，实际 ${r.status}：${out}`)
     assert.ok(out.includes(FRAMEWORK[0].mark), '错误文案必须指出是哪个区')
-    assert.ok(out.includes(FRAMEWORK[0].file), '错误文案必须给出源文件路径')
+    assert.ok(out.includes(FRAMEWORK[0].files[0]), '错误文案必须给出源文件路径')
     assert.ok(!existsSync(target), 'init 失败时 MUST NOT 留下一个缺样式的残页')
   } finally {
     rmSync(dir, { recursive: true, force: true })
@@ -86,4 +112,69 @@ test('缺框架源文件时 init 报错退出且不留残页', async () => {
 test('icons.svg 不得含 xmlns——它是 sprite 片段，不是独立 SVG 文档', () => {
   const svg = readFileSync(path.join(FRAMEWORK_DIR, 'icons.svg'), 'utf8')
   assert.doesNotMatch(svg, /xmlns/, 'xmlns 会带进 http:// 串，当场挂掉容器的零外链自检')
+})
+
+// ── 2.12.0：两条"页面照常打开、零报错"的框架自护契约 ──
+// 它们锁的都是 CSS 层叠层面的事，跑不出浏览器，所以只能断言源码里的保护还在。弱闸，
+// 但挡得住"重构时顺手删掉一个 !important"这类回归——而那正是这两个 bug 的复发路径。
+
+test('框架 UI 内的 [hidden] 恒生效：不被自己的 display 声明击穿', () => {
+  const css = readFileSync(path.join(FRAMEWORK_DIR, 'anno.css'), 'utf8')
+  // `[hidden]` 的 display:none 来自 UA 样式表，任何作者的 display 都压过它——元素照样
+  // 占位可点，而 JS 里的 `x.hidden = true` 看起来完全正常。实测踩过三次。
+  const rule = css.match(/\[class\^="anno-"\]\[hidden\][\s\S]{0,400}?\{[^}]*\}/)
+  assert.ok(rule, 'anno.css 缺覆盖整个框架 UI 的 [hidden] 规则——新加的隐藏元素会恒显示')
+  assert.match(rule[0], /display:\s*none\s*!important/, '该规则必须用 !important，否则压不过带 !important 的 display')
+  // 覆盖面：框架三个容器 + anno- 前缀自身，缺一个下次加元素就漏
+  for (const sel of ['.anno-bar [hidden]', '.anno-pop [hidden]', '.anno-notes-panel [hidden]']) {
+    assert.ok(rule[0].includes(sel) || css.includes(sel), `[hidden] 规则未覆盖 ${sel}`)
+  }
+})
+
+test('图钉的尺寸盒对产出方样式免疫', () => {
+  const css = readFileSync(path.join(FRAMEWORK_DIR, 'anno.css'), 'utf8')
+  const js = readFileSync(path.join(FRAMEWORK_DIR, 'anno.js'), 'utf8')
+  // 前提：图钉是 <button> 且挂进产出方元素内部，所以 `.act button {…}`(0,1,1) 压过
+  // `.anno-pin`(0,1,0)。这个前提若变了，下面的断言就该重写而不是删掉。
+  assert.match(js, /function mkPin[\s\S]{0,200}createElement\("button"\)/,
+    '图钉不再是 button 了——本条断言的前提已变，MUST 重新评估保护方式而不是删掉它')
+  assert.match(js, /host\.appendChild\(pin\)/, '图钉不再挂进宿主内部了——同上')
+  const block = css.match(/\.anno-pin\s*\{[^}]*\}/)
+  assert.ok(block, 'anno.css 里找不到 .anno-pin 定义')
+  // 只锁"会让它变形或盖住宿主"的那几条：实测 .act button{width:100%;height:40px} 把
+  // 18px 的图钉撑成整块深色，宿主按钮上只剩一个感叹号
+  for (const prop of ['position', 'width', 'height', 'padding', 'font-size', 'box-sizing']) {
+    // 前置边界是必须的：`width:[^;]*!important` 会命中 `min-width: 0 !important` 的子串，
+    // `height` 同样被 line-height / max-height 骗过——反向自检当场撞出：把
+    // `width: 18px !important` 的 !important 拿掉，这条断言照样全绿。
+    assert.match(block[0], new RegExp(`(?:^|[;{\\s])${prop}:[^;]*!important`, 'm'),
+      `.anno-pin 的 ${prop} 缺 !important——产出方一条标签选择器就能把图钉撑变形`)
+  }
+  // 三种图钉靠背景色区分，被 `button { background: … }` 刷成同色就分不出来
+  for (const v of ['note', 'ask', 'user']) {
+    const m = css.match(new RegExp(`\\.anno-pin--${v}\\s*\\{[^}]*\\}`))
+    assert.ok(m && /background:[^;]*!important/.test(m[0]), `.anno-pin--${v} 的背景色缺 !important`)
+  }
+})
+
+test('弹窗里绑定的 data-role 都是同一个函数自己渲染过的', () => {
+  const js = readFileSync(path.join(FRAMEWORK_DIR, 'anno.js'), 'utf8')
+  // 为什么要这条闸：`pop.querySelector('[data-role="x"]').onclick = …` 在该函数没渲染
+  // 这个 role 时会 `null.onclick` 抛 TypeError，**函数从这一行整个中断**——后面的
+  // place(pop, …) 再也执行不到，表现只是"这个按钮点了没反应"，控制台以外毫无线索。
+  // 真跑撞出过：给 openNote 加"放弃修改"绑定时用字符串替换，锚点在四个函数里都存在，
+  // 于是 openGlobal / openEditor / newNote 各被塞进一行，三个弹窗全打不开。
+  const bodies = js.split(/\n    function (?=\w)/).slice(1)
+  const offenders = []
+  for (const body of bodies) {
+    const name = (body.match(/^(\w+)/) || [])[1] || '?'
+    if (!/pop\.innerHTML\s*=/.test(body)) continue          // 不渲染弹窗的函数不在此列
+    const declared = new Set([...body.matchAll(/data-role="([^"]+)"/g)]
+      .filter((m) => !/querySelector/.test(body.slice(Math.max(0, m.index - 30), m.index)))
+      .map((m) => m[1]))
+    for (const m of body.matchAll(/querySelector\('\[data-role="([^"]+)"\]'\)/g)) {
+      if (!declared.has(m[1])) offenders.push(`${name} 绑定了自己没渲染的 data-role="${m[1]}"`)
+    }
+  }
+  assert.deepEqual(offenders, [], offenders.join('\n'))
 })
