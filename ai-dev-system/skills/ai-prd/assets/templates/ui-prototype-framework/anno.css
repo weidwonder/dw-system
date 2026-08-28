@@ -60,38 +60,82 @@
        取值为空串，因此不会被本行改写掉自己的定位。 */
     [data-anno-host="rel"] { position: relative; }
 
+    /* ────────── 为什么这一块几乎每条都带 !important ──────────
+       图钉是 `<button class="anno-pin">`，而它 **appendChild 进产出方的元素内部**——
+       产出方写一条标签选择器（`button { … }`、`.act button { … }`）就会命中它，且
+       `.act button` 的特异性(0,1,1)本就压过 `.anno-pin`(0,1,0)。实测：一条
+       `.act button { width:100%; height:40px; background:#0f172a }` 把图钉撑成整块深色
+       盖住宿主按钮，页面上只剩一个感叹号，hover 气泡也出不来——而这一切零报错，
+       用户以为是自己的按钮坏了。
+       2.12.0 外观层默认不装配后，产出方 MUST 自己写全部控件样式，写标签选择器的概率
+       大幅上升，这条从偶发变成高频，因此 MUST 由框架自己兜住，MUST NOT 靠在纪律里写
+       一句"别用标签选择器"来防——那是靠 agent 记住，必然漏。
+       只锁**会让它变形或盖住宿主**的属性；颜色变体、hover 变换等仍可正常层叠。 */
+    /* ────────── [hidden] 在框架 UI 内恒生效 ──────────
+       `[hidden]` 的 `display: none` 来自 UA 样式表，**任何**作者的 display 声明都压过它——
+       元素照样占位、照样可点，而 JS 里的 `x.hidden = true` 看起来完全正常。框架早先为
+       .anno-notes-panel 单独处理过一次，但那是一条一条补的，新加元素必然漏：2.12.0 加
+       编辑态提示（display:flex）与"放弃修改"按钮（.anno-btn 的 display:inline-flex
+       !important）时又各踩一次，两个控件在还没有任何回复时就恒显示，用户以为自己莫名
+       进了编辑模式。所以这里 MUST 用覆盖整个框架 UI 的规则，MUST NOT 退回逐个元素补。 */
+    [class^="anno-"][hidden],
+    [class*=" anno-"][hidden],
+    .anno-bar [hidden],
+    .anno-pop [hidden],
+    .anno-notes-panel [hidden],
+    .screen-notes__acts [hidden] { display: none !important; }
+
     .anno-pin {
-      position: absolute;
+      position: absolute !important;
       /* 贴元素内侧而非外侧：外侧偏移会被任何 overflow: auto|hidden 的祖先裁掉，图钉整枚看不见。 */
-      top: 2px;
+      top: 2px !important;
+      bottom: auto !important;
+      left: auto !important;
       /* 高于原型自定义内容，低于批注框架自身的 .anno-notes-panel(890) / .anno-bar(900)
          / .anno-pop(1000) / .anno-cursor(1100)，因此不会反过来遮住框架自己的 UI。 */
-      z-index: 880;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 18px;
-      height: 18px;
-      padding: 0;
-      border: 1.5px solid var(--background);
-      border-radius: 50% 50% 50% 3px;
-      color: #fff;
-      font-family: var(--font-sans);
-      font-size: 10px;
-      font-weight: 600;
-      line-height: 1;
+      z-index: 880 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      box-sizing: border-box !important;
+      width: 18px !important;
+      height: 18px !important;
+      min-width: 0 !important;
+      min-height: 0 !important;
+      max-width: none !important;
+      max-height: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: 1.5px solid var(--background) !important;
+      border-radius: 50% 50% 50% 3px !important;
+      color: #fff !important;
+      font-family: var(--font-sans) !important;
+      font-size: 10px !important;
+      font-weight: 600 !important;
+      line-height: 1 !important;
+      text-transform: none !important;
+      letter-spacing: normal !important;
       cursor: pointer;
-      box-shadow: var(--shadow-sm);
+      box-shadow: var(--shadow-sm) !important;
       transition: transform 0.12s;
+      /* 宿主是 flex/grid 容器时，图钉会成为它的 item 并参与布局分配（absolute 元素在
+         grid 里仍会被当成 item 定位）。这两条把它从任何父布局的分配里摘出去。 */
+      flex: none !important;
+      grid-area: unset !important;
     }
 
     .anno-pin:hover { transform: scale(1.15); }
     .anno-pin .icon { width: 10px; height: 10px; stroke-width: 2.5; }
-    .anno-pin--note { background: oklch(0.55 0.2 264); }
-    .anno-pin--ask { background: oklch(0.7 0.16 70); }
-    .anno-pin--user { background: oklch(0.6 0.22 350); }
+    /* 背景色同样要锁：三种图钉靠颜色区分（说明 / 待拍板 / 用户批注），被产出方的
+       `button { background: … }` 刷成同一色就分不出来了，而页面照常打开。 */
+    .anno-pin--note { background: oklch(0.55 0.2 264) !important; }
+    .anno-pin--ask { background: oklch(0.7 0.16 70) !important; }
+    .anno-pin--user { background: oklch(0.6 0.22 350) !important; }
 
-    [data-anno-hidden] .anno-pin { display: none; }
+    /* MUST 带 !important：.anno-pin 的 display 为挡产出方的标签选择器带了 !important，
+       框架自己的这条覆盖规则不带就压不过它——工具栏的"隐藏批注"会整个失效。凡是覆盖
+       .anno-pin / .anno-btn 上任何带 !important 属性的规则，都受这条约束。 */
+    [data-anno-hidden] .anno-pin { display: none !important; }
 
     .anno-pop {
       position: fixed;
@@ -150,6 +194,26 @@
     }
 
     .anno-list li:last-child { border-bottom: 0; }
+
+    /* 正在被修改的那条：左侧色条 + 底色，一眼看出改的是哪条，而不是以为在新增。 */
+    .anno-list li.is-editing {
+      margin: 0 -6px;
+      padding-left: 6px;
+      border-left: 3px solid oklch(0.7 0.16 70);
+      background: color-mix(in oklab, oklch(0.7 0.16 70) 12%, transparent);
+      border-radius: 4px;
+    }
+
+    .anno-editing {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 0 0 6px;
+      color: oklch(0.55 0.14 70);
+      font-size: 12px;
+    }
+
+    .anno-editing .icon { width: 12px; height: 12px; }
     .anno-list p { flex: 1 1 auto; margin: 0; word-break: break-word; }
     .anno-list small { color: var(--muted-foreground); font-size: 11px; }
 
@@ -182,3 +246,51 @@
 
     @media print { .anno-bar, .anno-pop, .anno-cursor { display: none !important; } }
   
+    /* ────────── 批注框架自用控件（私有，不属于产出方可用的样式面） ──────────
+       工具栏与弹窗此前借用 DESIGN-SYSTEM 的 .btn / .card-content。2.12.0 起外观层
+       默认不装配，借用会让批注 UI 在默认路径上整个裸奔，因此这里自带一份最小实现。
+       类名一律 anno- 前缀：它们是框架内部件，MUST NOT 出现在 §8.3 的可用 class 表里，
+       产出方也 MUST NOT 使用。 */
+    /* 同 .anno-pin 的理由：屏注解区住在 .device-wrap 内，产出方一条 `.device-wrap button`
+       或裸 `button { width: 100% }` 就会把状态切换按钮撑成整行。这里只锁尺寸盒，配色仍可层叠。 */
+    .anno-btn {
+      display: inline-flex !important;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box !important;
+      gap: 6px;
+      width: auto !important;
+      min-width: 0 !important;
+      max-width: none !important;
+      height: 32px !important;
+      margin: 0 !important;
+      padding: 0 12px !important;
+      flex: none !important;
+      border: 1px solid transparent;
+      border-radius: var(--radius-md);
+      background: var(--primary);
+      color: var(--primary-foreground);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 1;
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+    }
+
+    .anno-btn:hover { background: color-mix(in oklab, var(--primary) 90%, transparent); }
+    .anno-btn:focus-visible { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 45%, transparent); }
+    .anno-btn:disabled, .anno-btn[aria-disabled="true"] { opacity: 0.5; pointer-events: none; }
+    .anno-btn .icon { width: 14px; height: 14px; }
+
+    .anno-btn--outline { background: var(--background); color: var(--foreground); border-color: var(--border); }
+    .anno-btn--outline:hover { background: var(--accent); color: var(--accent-foreground); }
+    .anno-btn--ghost { background: transparent; color: var(--foreground); }
+    .anno-btn--ghost:hover { background: var(--accent); color: var(--accent-foreground); }
+    /* 同上：.anno-btn 的 width / padding 带了 !important，这里不带就压不过。 */
+    .anno-btn--icon { width: 32px !important; padding: 0 !important; }
+
+    /* 设计说明面板的正文外壳（原先借 .card-content） */
+    .anno-notes-body { padding: 14px 16px; }

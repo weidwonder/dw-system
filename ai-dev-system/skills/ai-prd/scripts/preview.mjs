@@ -19,7 +19,7 @@
 // 零第三方依赖；路径一律走 node:path，跨平台。
 import { createServer } from 'node:http'
 import { createHash } from 'node:crypto'
-import { readFile, writeFile, rename, stat } from 'node:fs/promises'
+import { readFile, writeFile, rename, rm, stat } from 'node:fs/promises'
 import { realpathSync } from 'node:fs'
 import { spawn } from 'node:child_process'
 import path from 'node:path'
@@ -33,13 +33,20 @@ const TEMPLATE = path.join(HERE, '..', 'assets', 'templates', 'ui-prototype.html
 export const FRAMEWORK_DIR = path.join(HERE, '..', 'assets', 'templates', 'ui-prototype-framework')
 export const FRAMEWORK_PRE = '\n  '
 export const FRAMEWORK_POST = '\n  '
+// `files` 是有序数组：同一个固定区可由多份源文件顺序拼成。`DESIGN-SYSTEM` 因此分两层——
+// `structure.css` 是结构层（画布 / 设备壳 / 屏 / 状态层 / 布局原语 / 图标尺寸），批注框架与
+// `check` 都以它为锚点，**恒装配**；`components.css` 是外观层（按钮 / 表单 / 卡片 / 徽标 …），
+// 它决定原型长什么样，**默认不装配**，只有 `init --with-baseline` 才追加。判据见
+// `references/UI原型纪律.md` §8.3：原型的视觉风格 MUST 由本次项目的真实样式来源决定，
+// 容器 MUST NOT 替产出方把风格定死。
 export const FRAMEWORK = [
-  { mark: 'THEME',              file: 'theme.css',         open: '<style>',                                       close: '</style>' },
-  { mark: 'DESIGN-SYSTEM',      file: 'design-system.css', open: '<style>',                                       close: '</style>' },
-  { mark: 'ANNO-FRAMEWORK:CSS', file: 'anno.css',          open: '<style>',                                       close: '</style>' },
-  { mark: 'ICONS',              file: 'icons.svg',         open: '<svg style="display:none" aria-hidden="true">', close: '</svg>' },
-  { mark: 'SCREEN-SCRIPT',      file: 'screen.js',         open: '<script>',                                      close: '</script>' },
-  { mark: 'ANNO-FRAMEWORK:JS',  file: 'anno.js',           open: '<script>',                                      close: '</script>' },
+  { mark: 'THEME',              files: ['theme.css'],      open: '<style>',                                       close: '</style>' },
+  { mark: 'DESIGN-SYSTEM',      files: ['structure.css'], baselineFiles: ['components.css'],
+                                                           open: '<style>',                                       close: '</style>' },
+  { mark: 'ANNO-FRAMEWORK:CSS', files: ['anno.css'],       open: '<style>',                                       close: '</style>' },
+  { mark: 'ICONS',              files: ['icons.svg'],      open: '<svg style="display:none" aria-hidden="true">', close: '</svg>' },
+  { mark: 'SCREEN-SCRIPT',      files: ['screen.js'],      open: '<script>',                                      close: '</script>' },
+  { mark: 'ANNO-FRAMEWORK:JS',  files: ['anno.js'],        open: '<script>',                                      close: '</script>' },
 ]
 const MAX_BODY = 32 * 1024 * 1024
 const LOOPBACK = /^(127\.0\.0\.1|\[::1\]|localhost)(:\d+)?$/
@@ -71,10 +78,10 @@ const SLOTS = {
     wrap: (v) => `    <div class="devices" data-anno-canvas>\n${v}\n    </div>\n    `,
   },
   notes: {
-    probe: '<div class="card-content notes-body" id="proto-notes"></div>',
+    probe: '<div class="anno-notes-body notes-body" id="proto-notes"></div>',
     mark: 'NOTES',
-    shell: ['<div class="card-content notes-body" id="proto-notes">', '</div>'],
-    wrap: (v) => `\n        <div class="card-content notes-body" id="proto-notes">\n${v}\n        </div>\n        `,
+    shell: ['<div class="anno-notes-body notes-body" id="proto-notes">', '</div>'],
+    wrap: (v) => `\n        <div class="anno-notes-body notes-body" id="proto-notes">\n${v}\n        </div>\n        `,
   },
   theme: {
     probe: '<style id="project-theme"></style>',
@@ -109,7 +116,7 @@ function markRange(html, mark) {
 
 // 容器模板 + 六份框架源码 → 完整容器 HTML。纯函数：不写盘、不依赖任何命令参数，
 // cmdInit 与测试共用同一个它（测试若各自拼一遍，装配逻辑就有了第二份实现）。
-export async function composeTemplate() {
+export async function composeTemplate({ baseline = false } = {}) {
   // 容器与框架源文件同属"skill 安装完整性"，读不到时的处置 MUST 一致——
   // 只给框架文件包 try/catch 会让容器缺失落到顶层兜底，报出一句语焉不详的"工具自身的问题"。
   let html
@@ -122,13 +129,17 @@ export async function composeTemplate() {
   for (const it of [...FRAMEWORK].reverse()) {
     const r = markRange(html, it.mark)
     if (!r) fail(`容器缺固定区标记：${it.mark}（${TEMPLATE}）`, 1)
-    const p = path.join(FRAMEWORK_DIR, it.file)
-    let body
-    try {
-      body = await readFile(p, 'utf8')
-    } catch {
-      fail(`框架源文件读不到：${it.mark} → ${p}`, 1)
+    const files = [...it.files, ...(baseline && it.baselineFiles ? it.baselineFiles : [])]
+    const parts = []
+    for (const f of files) {
+      const p = path.join(FRAMEWORK_DIR, f)
+      try {
+        parts.push(await readFile(p, 'utf8'))
+      } catch {
+        fail(`框架源文件读不到：${it.mark} → ${p}`, 1)
+      }
     }
+    const body = parts.join('')
     html = html.slice(0, r.from) + FRAMEWORK_PRE + it.open + body + it.close + FRAMEWORK_POST + html.slice(r.to)
   }
   return html
@@ -164,6 +175,17 @@ const STATE_LABEL = {
   empty: '空态：告诉用户下一步能做什么，别只写"暂无数据"',
   error: '错误 / 无权限：写清用户可理解的原因与兜底动作',
   success: '成功反馈：写清业务结果与下一步',
+}
+
+// 屏注解区状态按钮的短文案。与 STATE_LABEL 分开：后者是状态层里的写作提示（整句），
+// 塞进按钮会撑爆注解区。默认态按钮的 data-state 取空串——setScreenState 只清 `state-`
+// 前缀的 class，传 'is-default' 会往 .screen 上留一个永远清不掉的无关 class。
+const STATE_BTN = {
+  'is-default': '默认',
+  loading: '加载中',
+  empty: '空态',
+  error: '错误',
+  success: '成功',
 }
 
 const CLOSE_SCRIPT = '</scr' + 'ipt>'
@@ -203,10 +225,24 @@ async function readTarget(file) {
 }
 
 // 原子写：先落同目录临时文件再改名，中途崩溃不会留下半份原型。
+// 临时文件名 MUST 唯一。此前是固定的 `.<basename>.tmp`：两条命令同时改同一份原型时，
+// 先完成的那条把 tmp rename 走，后一条的 rename 撞 ENOENT——而报错文案是"文件找不到"，
+// 零上下文的读者会去查路径拼写，查不出任何问题（实测踩过）。
+// 边界：唯一化只消除这次崩溃。两条命令并发改同一份原型仍是后写覆盖先写（各自读的是
+// 同一份旧内容），工具不加锁——串行执行即可，这也是文档一贯教的用法。
+let tmpSeq = 0
 async function writeAtomic(file, text) {
-  const tmp = path.join(path.dirname(file), `.${path.basename(file)}.tmp`)
-  await writeFile(tmp, text, 'utf8')
-  await rename(tmp, file)
+  const tag = `${process.pid}.${Date.now().toString(36)}.${(tmpSeq += 1)}`
+  const tmp = path.join(path.dirname(file), `.${path.basename(file)}.${tag}.tmp`)
+  try {
+    await writeFile(tmp, text, 'utf8')
+    await rename(tmp, file)
+  } catch (e) {
+    // 失败时 MUST 清掉半成品，否则原型目录里会攒下一堆 .tmp，而 check 只看原型文件、
+    // 永远不会提这件事。清理本身失败不掩盖原始错误。
+    try { await rm(tmp, { force: true }) } catch { /* 原始错误更重要 */ }
+    throw e
+  }
 }
 
 function esc(s) {
@@ -254,12 +290,21 @@ async function cmdInit(file, opts) {
     throw e
   })
   if (exists) fail(`目标已存在，不覆盖：${file}\n要改内容请用 slot / screen 子命令。`, 1)
-  let html = await composeTemplate()
+  const baseline = !!opts['with-baseline']
+  let html = await composeTemplate({ baseline })
   html = html.replace(TITLE_RE, `<title>${esc(opts.title)} · 原型</title>`)
   html = html.replace(H1_RE, `<h1 id="proto-title">${esc(opts.title)}</h1>`)
   if (opts.subtitle) html = html.replace(SLOTS.subtitle.re, SLOTS.subtitle.wrap(esc(opts.subtitle)))
   await writeAtomic(file, html)
   console.log(`已创建原型：${file}`)
+  if (baseline) {
+    console.log('已装入中性外观基线：按钮 / 表单 / 卡片 / 徽标等控件样式可直接用（class 表见 UI原型纪律.md §8.3）。')
+    console.log('它只是"确实没有样式来源"时的兜底，MUST 在 PRD 的 UI 原型节写明「视觉为临时假设，开发前需替换为真实样式依据」。')
+  } else {
+    console.log('未装外观基线：容器只给结构（画布 / 设备壳 / 屏 / 状态层 / .fill / .scroll-y）与图标，')
+    console.log('控件外观由你按本次项目的真实样式来源写进 custom 插槽——棕地项目继承现有设计，绿地项目先与用户确认。')
+    console.log('确实查不到任何样式来源、且用户同意用中性兜底时，才重新 init 并加 --with-baseline。')
+  }
   console.log('下一步：preview.mjs screen <文件> --name <屏名> 加屏，再往各状态层里填内容。')
 }
 
@@ -267,14 +312,23 @@ async function cmdInit(file, opts) {
 
 // 生成一屏的结构骨架。骨架只给结构与状态层，不含任何业务内容——
 // 容器里放示例会锚定产出，这条是 2.7.0 立下的判据，工具同样受它约束。
-function screenSkeleton(name, states, desktop, annoRight) {
+function screenSkeleton(name, states, desktop) {
   const layers = states
     .map((k) => {
       const cls = k === 'is-default' ? 'status is-default' : `status ${k}`
       return `          <div class="${cls}">\n            <!-- ${STATE_LABEL[k]} -->\n          </div>`
     })
     .join('\n')
-  const wrapCls = `device-wrap${desktop ? ' is-desktop' : ''}${annoRight ? ' is-anno-right' : ''}`
+  // 状态按钮由本命令直接生成，行为由容器的 [data-state] hook 提供——产出方不写一行绑定。
+  // 只有一个默认态时不生成按钮：一个"默认"孤零零挂着没有意义。
+  const acts = states.length < 2 ? '' : states
+    .map((k) => {
+      const v = k === 'is-default' ? '' : `state-${k}`
+      const pressed = k === 'is-default' ? 'true' : 'false'
+      return `            <button type="button" class="anno-btn anno-btn--outline" data-state="${v}" aria-pressed="${pressed}">${STATE_BTN[k]}</button>`
+    })
+    .join('\n')
+  const wrapCls = `device-wrap${desktop ? ' is-desktop' : ''}`
   return `      <section class="${wrapCls}">
         <p class="device-name">${esc(name)}</p>
         <div class="device">
@@ -288,7 +342,9 @@ ${layers}
         <div class="screen-notes">
           <p class="screen-notes__title">这一屏的注解 · 不属于用户界面</p>
           <div class="screen-notes__body"></div>
-          <div class="screen-notes__acts"></div>
+          <div class="screen-notes__acts">
+${acts}
+          </div>
         </div>
       </section>`
 }
@@ -304,11 +360,11 @@ async function cmdScreen(file, opts) {
   const html = await readTarget(file)
   // 区间一律走 markRange：SLOTS.screens 没有 `re`，此处曾误引用它——`html.match(undefined)`
   // 恒返回空匹配、`html.replace(undefined, …)` 把 undefined 当字面串找不到，于是本命令
-  // **对文件零改动却打印「已加屏」并退出 0**。评审撞出，两轴各报一次。
+  console.log(`已加屏「${opts.name}」，状态层：${states.join(' / ')}` + (states.length > 1 ? '；注解区已生成对应的状态切换按钮，行为由容器提供，无需自己写绑定' : ''))
   const r = markRange(html, SLOTS.screens.mark)
   if (!r) fail('找不到界面插槽（SCREENS 区被改写了？）', 1)
   const region = html.slice(r.from, r.to)
-  const block = screenSkeleton(opts.name, states, !!opts.desktop, !!opts['anno-right'])
+  const block = screenSkeleton(opts.name, states, !!opts.desktop)
 
   // 已有屏时追加在后面，保留既有内容与批注锚点；空插槽时直接落第一屏。
   const stripped = region.replace(/^\s*<div class="devices" data-anno-canvas>/, '').replace(/<\/div>\s*$/, '')
@@ -318,11 +374,49 @@ async function cmdScreen(file, opts) {
   const body = inner ? `${inner}\n\n${block}` : block
   const next = html.slice(0, r.from) + SLOTS.screens.wrap(body) + html.slice(r.to)
   await writeAtomic(file, next)
-  console.log(`已加屏「${opts.name}」，状态层：${states.join(' / ')}，注解区挂${opts['anno-right'] ? '右侧' : '下方'}`)
   console.log('下一步：把这一屏的内容写成片段，用 `slot --set screens` 整体写入（MUST NOT 直接编辑原型文件）。')
 }
 
 /* ────────────────── slot ────────────────── */
+
+// 改稿时把 data-anno-id 按说明文本续回去。
+// 为什么需要它：`data-anno-id` 不是产出方写的，是**用户第一次回复某条说明时由页面运行时
+// 补进 DOM 的**——AI 手里的片段来源（上一版片段文件、或自己重写的界面）通常没有它。于是
+// 一次正常改稿就会让整批 id 消失，挂在这些说明上的用户回复被当成"说明已删除"连带丢弃，
+// 而 AI 只看到一行 ⚠。更糟的是页面端的发号只看 DOM，下次回复会从 a1 重新发，把残留的旧
+// 回复挂到毫不相干的新说明上。
+// 判据：文本在**新旧两侧都唯一**时才续——有歧义就不猜，照走原来的丢弃路径出声。
+function reattachNoteIds(oldScreens, nextScreens) {
+  const tagsOf = (s) => [...s.matchAll(/<[a-zA-Z][^>]*>/g)]
+  const annoOf = (tag) => (tag.match(/data-anno="([^"]*)"/) || [])[1]
+  const idOf = (tag) => (tag.match(/data-anno-id="([^"]+)"/) || [])[1]
+
+  const oldByText = new Map()
+  for (const m of tagsOf(oldScreens)) {
+    const text = annoOf(m[0]); const id = idOf(m[0])
+    if (text === undefined || !id) continue
+    oldByText.set(text, oldByText.has(text) ? null : id)   // 重复文本置 null = 不可用
+  }
+  if (![...oldByText.values()].some(Boolean)) return { screens: nextScreens, reattached: [] }
+
+  const newCount = new Map()
+  for (const m of tagsOf(nextScreens)) {
+    const text = annoOf(m[0])
+    if (text === undefined) continue
+    newCount.set(text, (newCount.get(text) || 0) + 1)
+  }
+
+  const reattached = []
+  const screens = nextScreens.replace(/<[a-zA-Z][^>]*>/g, (tag) => {
+    const text = annoOf(tag)
+    if (text === undefined || idOf(tag)) return tag        // 没说明、或已自带 id → 不动
+    const id = oldByText.get(text)
+    if (!id || newCount.get(text) !== 1) return tag        // 旧侧有歧义、或新侧不唯一 → 不猜
+    reattached.push({ id, text })
+    return tag.replace(/data-anno="/, `data-anno-id="${id}" data-anno="`)
+  })
+  return { screens, reattached }
+}
 
 async function cmdSlot(file, opts) {
   if (opts['drop-anchors']) {
@@ -377,6 +471,13 @@ async function cmdSlot(file, opts) {
   }
   const noteIdsOf = (s) => new Set([...screensRegion(s).matchAll(/data-anno-id="([^"]+)"/g)].map((m) => m[1]))
   const hadNotes = noteIdsOf(html)
+  if (opts.set === 'screens' && hadNotes.size) {
+    const r = reattachNoteIds(screensRegion(html), screensRegion(next))
+    if (r.reattached.length) {
+      next = next.replace(screensRegion(next), r.screens)
+      console.log(`  · 续回 ${r.reattached.length} 个 data-anno-id（按说明文本匹配），挂在它们上的用户回复因此不会丢`)
+    }
+  }
   const keptNotes = noteIdsOf(next)
   const lostNotes = [...hadNotes].filter((id) => !keptNotes.has(id))
   const declaredMove = plan ? Object.keys(plan).filter((id) => plan[id] === 'move') : []
@@ -650,6 +751,18 @@ function nestedStates(wrap) {
   return bad
 }
 
+// 声明了却没填内容的状态层。判空 MUST 在剥标签**并**去 HTML 注释之后——骨架生成时每个
+// 状态层里都留着一行写作提示注释（`<!-- 空态：… -->`），不去掉的话每一层都算"有内容"，
+// 这条检查会恒绿。
+function emptyStates(wrap) {
+  const out = []
+  for (const m of wrap.matchAll(/<div class="status ([^"]*)">([\s\S]*?)<\/div>\s*(?=<div class="status |<\/div>)/g)) {
+    const body = m[2].replace(/<!--[\s\S]*?-->/g, '').replace(/<[^>]*>/g, '').trim()
+    if (!body) out.push(m[1].trim())
+  }
+  return out
+}
+
 async function cmdCheck(file, opts) {
   const html = await readTarget(file)
   const problems = []
@@ -679,7 +792,7 @@ async function cmdCheck(file, opts) {
   if (html.includes('<h1 id="proto-title">UI 原型</h1>')) add('P1', '页头标题还是默认值')
   if (html.includes('<p id="proto-subtitle"></p>')) add('P1', '页头副标题为空', '写一句：样式依据 + 覆盖路径')
   if (html.includes('<!-- SCREENS -->')) add('P0', '界面插槽还是空的', 'preview.mjs screen --name <屏名>')
-  if (/<div class="card-content notes-body" id="proto-notes">\s*<\/div>/.test(html))
+  if (/<div class="anno-notes-body notes-body" id="proto-notes">\s*<\/div>/.test(html))
     add('P1', '设计说明栏为空', '写样式依据 / 覆盖范围 / 开放问题三段')
 
   // 5. 批注块可解析
@@ -700,7 +813,6 @@ async function cmdCheck(file, opts) {
   const screens = screensRegion(html)
   const wraps = screens.match(/<section class="device-wrap[^"]*">[\s\S]*?<\/section>/g) || []
   if (!wraps.length) add('P0', '一个屏都没有')
-  const declared = new Set()
   wraps.forEach((w, i) => {
     const name = (w.match(/<p class="device-name">([\s\S]*?)<\/p>/) || [])[1]
     if (!name) add('P0', `第 ${i + 1} 屏缺 .device-name`, '屏幕名 MUST 在 .device 之外，批注按它区分是哪一屏')
@@ -717,34 +829,38 @@ async function cmdCheck(file, opts) {
     const dn = w.indexOf('device-name')
     const dv = w.indexOf('<div class="device">')
     if (dn > 0 && dv > 0 && dn > dv) add('P0', `第 ${i + 1} 屏的 .device-name 写进了 .device 里`, '它 MUST 在 .device 之外')
-    STATE_KEYS.forEach((k) => {
-      const cls = k === 'is-default' ? 'status is-default' : `status ${k}`
-      if (w.includes(`class="${cls}"`)) declared.add(k)
-    })
     // 状态层 MUST 是 .screen 的直接子元素：容器靠 `.screen > .status` 控制显隐，
     // 包一层就永远不显示，而页面照常打开、零报错——这是最贵的那类静默错误。
     nestedStates(w).forEach((cls) =>
       add('P0', `第 ${i + 1} 屏的「${cls}」状态层不是 .screen 的直接子元素`,
         '容器按 .screen > .status 控制显隐，包一层这个状态就永远不显示（页面不会报错）')
     )
+    // 声明了状态层却没往里填内容 = 切过去一片空白。这与"压根没有这个层"对用户是**同一个
+    // 结果**，而后者此前有检查、前者没有——真跑撞出过：三个 loading 层全空，check 全绿。
+    emptyStates(w).forEach((cls) =>
+      add('P1', `第 ${i + 1} 屏的「${cls}」状态层是空的`,
+        '骨架建出来就是空的，要自己填内容；切到这个状态用户会看到一片空白（页面不会报错）')
+    )
   })
 
-  const scriptRegion = sliceRegion(html, 'CUSTOM-JS')
-    .replace(/\/\*[\s\S]*?\*\//g, ' ')
-    .replace(/(^|[^:])\/\/[^\n]*/g, '$1 ')
-  const actNames = [...screens.matchAll(/<button[^>]*data-act="([^"]+)"/g)].map((m) => m[1])
-  actNames.forEach((name) => {
-    if (!scriptRegion.includes(name)) {
-      add('P2', `注解区按钮「${name}」没有对应的点击行为`,
-        '外观由容器给，行为写进 script 插槽：preview.mjs slot --set script')
-    }
-  })
-  // 7. 状态层一致性：某个状态只在部分屏上有 → 切到那个状态时其余屏会回落到默认态
+  // 7. 状态按钮的属性值：行为由容器的 [data-state] hook 提供，产出方不写绑定，因此这里
+  //    要查的不再是"有没有绑定"，而是**值对不对**——`data-state="loading"`（漏了 state-
+  //    前缀）或指向本屏没有的状态层，按钮照样能点、页面零报错，状态就是不切。
+  //    此前这条查的是"按钮名在不在 script 区的字符串里"，一个 supportedStates 数组字面量
+  //    就能骗过它，写条注释也能。
   wraps.forEach((w, i) => {
-    declared.forEach((k) => {
-      const cls = k === 'is-default' ? 'status is-default' : `status ${k}`
+    const acts = [...w.matchAll(/<button[^>]*data-state="([^"]*)"/g)].map((m) => m[1])
+    acts.forEach((v) => {
+      if (v === '') return                      // 空串 = 回默认态，恒合法
+      if (!STATE_KEYS.includes(v.replace(/^state-/, '')) || !v.startsWith('state-')) {
+        add('P1', `第 ${i + 1} 屏的状态按钮 data-state="${v}" 不是合法状态`,
+          `MUST 是 state- 前缀加 ${STATE_KEYS.filter((k) => k !== 'is-default').join(' / ')} 之一，或空串（回默认态）`)
+        return
+      }
+      const cls = `status ${v.replace(/^state-/, '')}`
       if (!w.includes(`class="${cls}"`)) {
-        add('P2', `第 ${i + 1} 屏没有「${k}」状态层`, '切到该状态时这一屏会继续显示默认态（容器已做回落，不会空白）')
+        add('P1', `第 ${i + 1} 屏的状态按钮 data-state="${v}" 指向本屏没有的状态层`,
+          '点下去会回落到默认态，看起来像按钮坏了')
       }
     })
   })
@@ -773,8 +889,12 @@ async function cmdCheck(file, opts) {
   // 四处都按标记取：曾误用 SLOTS.custom.re / SLOTS.theme.re（两者都没有 `re`），
   // 于是写进 custom / theme 插槽的 class 从不算"已定义"，正确用法反被报成没定义——
   // 而提示要求做的正是已经做过的事，把作者逼回行内样式（又撞上写死颜色那条）。
+  // ANNO-FRAMEWORK:CSS 也 MUST 算进来：屏注解区的状态按钮由 `screen` 命令生成、用的是
+  // 批注框架的私有类（.anno-btn 系列），样式在那一区。漏掉它，工具自己生成的按钮会被
+  // 自己的检查报成"没有样式定义"，而产出方按提示去 custom 里补，反倒覆盖掉框架样式。
   const styleText = sliceRegion(html, 'DESIGN-SYSTEM') + sliceRegion(html, 'THEME') +
-    sliceRegion(html, 'CUSTOM-CSS') + sliceRegion(html, 'PROJECT-THEME')
+    sliceRegion(html, 'CUSTOM-CSS') + sliceRegion(html, 'PROJECT-THEME') +
+    sliceRegion(html, 'ANNO-FRAMEWORK:CSS')
   // 字符类里的 `_` 是必须的：屏注解区用 .screen-notes__title 这类 BEM 命名，
   // 不认下划线就会把它们全报成「没有样式定义的 class」——而样式明明就在上面。
   const defined = new Set([...styleText.matchAll(/\.([a-z][a-z0-9_-]*)/g)].map((m) => m[1]))
@@ -983,13 +1103,16 @@ async function cmdServe(rel, opts) {
 
 const HELP = `原型工具（ai-prd）
 
-  init   <文件> --title <名> [--subtitle <一句话>]      从容器建一份原型
-  screen <文件> --name <屏名> [--desktop] [--anno-right] [--states …]
-         加一屏（结构、状态层与屏注解区由本命令保证）
-         --anno-right：注解区挂这一屏右侧；不给即挂下方
+  init   <文件> --title <名> [--subtitle <一句话>] [--with-baseline]
+         从容器建一份原型。默认只装结构层，控件外观由你按项目真实样式来源写进
+         custom 插槽；确无样式来源且用户同意用中性兜底时才加 --with-baseline
+  screen <文件> --name <屏名> [--desktop] [--states …]
+         加一屏（结构、状态层、屏注解区与状态切换按钮都由本命令保证）
+         声明了多个状态时自动生成切换按钮，行为由容器提供，不用自己写绑定
   slot   <文件> --set <名> (--from <片段> | --text <文本>)
          插槽名：title | subtitle | screens | notes | theme | custom | script
-         script 装注解区按钮的点击行为，与原型同文件，MUST NOT 引外部脚本
+         script 装本次原型特有的交互演示，与原型同文件，MUST NOT 引外部脚本
+         （注解区状态按钮不用写，容器已内置行为）
          改稿走它：只换插槽内容，批注块与 data-anno-user 锚点原样保留
          动到带用户批注的元素时：先逐条约定，再带 --agreed --agreed-plan=<id>=<done|void|move> 放行
   extract <文件> [--with-css]                           取界面内容（结构+文案；批注用 annotations）
@@ -1005,7 +1128,8 @@ function parseArgs(argv) {
     const a = argv[i]
     if (a === '--no-open') out.open = false
     else if (a === '--desktop') out.desktop = true
-    else if (a === '--anno-right') out['anno-right'] = true
+    else if (a === '--anno-right') fail('--anno-right 已废除（2.12.0）：屏在画布上矩阵排列，屏注解区一律挂在该屏下方。\n去掉这个参数重跑即可，版式不受影响。', 2)
+    else if (a === '--with-baseline') out['with-baseline'] = true
     else if (a === '--json') out.json = true
     else if (a === '--with-css') out['with-css'] = true
     else if (a === '--agreed') out.agreed = true

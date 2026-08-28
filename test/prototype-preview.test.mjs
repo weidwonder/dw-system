@@ -362,7 +362,10 @@ test('slot 丢掉用户批注锚点时拒绝写入，并说清丢的是哪几条
 test('结构契约按 class token 精确比对，不误伤同前缀的子元素 class', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'proto-token-'))
   const file = path.join(dir, 'p.html')
-  assert.equal(run('init', file, '--title', 'T').code, 0)
+  // 这条测的是 .alert 一族的**结构契约**，属于外观层范畴，因此 MUST 用基线装配建原型。
+  // 默认装配下这些 class 压根没有样式，会先撞上"未定义 class"那条 P1，断言就不再是在
+  // 验结构契约了。
+  assert.equal(run('init', file, '--title', 'T', '--with-baseline').code, 0)
   const ok = '<section class="device-wrap"><p class="device-name">A</p><div class="device"><div class="screen">' +
     '<div class="status is-default"><div class="alert alert-info">' +
     '<div class="alert-title">提示</div><div class="alert-description">有 2 单不可改期</div>' +
@@ -456,13 +459,35 @@ test('screen 加屏时连注解区外壳一起给出，默认挂下方', () => {
   rmSync(dir, { recursive: true, force: true })
 })
 
-test('screen --anno-right 让注解区挂右侧', () => {
+// 2.12.0 废除 --anno-right：屏在画布上矩阵排列，注解区一律挂该屏下方。旧路径把
+// .device-wrap 整个改成 flex-direction: row，而它有三个子元素、规则只写了后两个，屏名
+// 被一并排进同一行；叠加 --desktop 时两条同特异性的 width 后写者赢，宽度锁死又塞不下。
+test('--anno-right 已废除：传入即报错，且不留下半成品', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'proto-anno-'))
   const file = path.join(dir, 'p.html')
   assert.equal(run('init', file, '--title', 'T').code, 0)
-  assert.equal(run('screen', file, '--name', '详情', '--anno-right').code, 0)
+  const before = readFileSync(file, 'utf8')
+  const r = run('screen', file, '--name', '详情', '--anno-right')
+  assert.equal(r.code, 2, '废除的参数 MUST 硬失败，MUST NOT 静默忽略')
+  assert.match(r.out + r.err, /--anno-right 已废除/)
+  assert.equal(readFileSync(file, 'utf8'), before, '报错路径 MUST NOT 改动文件')
+  rmSync(dir, { recursive: true, force: true })
+})
+
+test('屏注解区恒挂在该屏下方，且屏名恒在设备壳之外', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-below-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  assert.equal(run('screen', file, '--name', '详情', '--desktop').code, 0)
   const html = readFileSync(file, 'utf8')
-  assert.match(html, /<section class="device-wrap is-anno-right">/)
+  assert.match(html, /<section class="device-wrap is-desktop">/, 'desktop 屏不应再带 is-anno-right')
+  assert.ok(!html.includes('is-anno-right'), '容器与产物都不应再出现 is-anno-right')
+  const wrap = html.slice(html.indexOf('<section class="device-wrap'))
+  const iName = wrap.indexOf('device-name')
+  const iDevice = wrap.indexOf('<div class="device">')
+  const iNotes = wrap.indexOf('screen-notes')
+  assert.ok(iName >= 0 && iDevice > iName, '屏名 MUST 在设备壳之前（左上角）')
+  assert.ok(iNotes > iDevice, '注解区 MUST 排在设备壳之后（下方）')
   rmSync(dir, { recursive: true, force: true })
 })
 
@@ -674,21 +699,53 @@ test('slot --set script 写进 CUSTOM-JS 区并转义脚本结束标签', () => 
   rmSync(dir, { recursive: true, force: true })
 })
 
-test('check 报出注解区里没有对应行为的按钮', () => {
-  const dir = mkdtempSync(path.join(tmpdir(), 'proto-anno-'))
+// 2.12.0：状态切换的行为由容器的 [data-state] hook 统一提供，产出方不写绑定，因此这条
+// 查的不再是"有没有绑定"，而是**属性值对不对**。旧检查按"按钮名在不在 script 区的字符串
+// 里"判定，一个 supportedStates 数组字面量就能骗过它——真跑撞出过：按钮属性名写的是
+// data-act、脚本选择器查的是 [data-state]，零个监听器绑上，而 check 全绿。
+test('check 抓出 data-state 写错前缀或指向本屏没有的状态层', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-act-'))
   const file = path.join(dir, 'p.html')
   assert.equal(run('init', file, '--title', 'T').code, 0)
-  assert.equal(run('screen', file, '--name', 'S').code, 0)
-  assert.equal(run('slot', file, '--set', 'screens', '--text',
-    '<section class="device-wrap"><p class="device-name">S</p><div class="device"><div class="screen">' +
-    '<div class="status is-default"></div></div></div><div class="screen-notes">' +
+  const wrap = (btns) => '<section class="device-wrap"><p class="device-name">S</p><div class="device">' +
+    '<div class="screen"><div class="status is-default">内容</div></div></div><div class="screen-notes">' +
     '<p class="screen-notes__title">这一屏的注解 · 不属于用户界面</p><div class="screen-notes__body">x</div>' +
-    '<div class="screen-notes__acts"><button type="button" class="btn btn-outline btn-sm" data-act="s1-empty">空态</button></div></div></section>').code, 0)
+    '<div class="screen-notes__acts">' + btns + '</div></div></section>'
+
+  // ① 漏了 state- 前缀：按钮能点、页面零报错、状态就是不切
+  assert.equal(run('slot', file, '--set', 'screens', '--text',
+    wrap('<button type="button" data-state="loading">加载</button>')).code, 0)
+  let out = JSON.parse(run('check', file, '--json').out)
+  assert.equal(out.problems.filter((p) => /data-state="loading"/.test(p.msg) && /不是合法状态/.test(p.msg)).length, 1)
+
+  // ② 前缀对但本屏没有这个状态层：点下去回落默认态，看起来像按钮坏了
+  assert.equal(run('slot', file, '--set', 'screens', '--text',
+    wrap('<button type="button" data-state="state-empty">空态</button>')).code, 0)
+  out = JSON.parse(run('check', file, '--json').out)
+  assert.equal(out.problems.filter((p) => /指向本屏没有的状态层/.test(p.msg)).length, 1)
+
+  // ③ 空串回默认态恒合法，MUST NOT 报
+  assert.equal(run('slot', file, '--set', 'screens', '--text',
+    wrap('<button type="button" data-state="">默认</button>')).code, 0)
+  out = JSON.parse(run('check', file, '--json').out)
+  assert.equal(out.problems.filter((p) => /data-state/.test(p.msg)).length, 0)
+  rmSync(dir, { recursive: true, force: true })
+})
+
+test('screen 生成的状态按钮开箱即用：值合法且被 check 认可', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-gen-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  assert.equal(run('screen', file, '--name', 'S', '--states', 'is-default,loading,empty').code, 0)
+  const html = readFileSync(file, 'utf8')
+  // 生成的值 MUST 带 state- 前缀——漏了它按钮照样能点、状态永远不切，真跑时是 check
+  // 当场抓到本命令自己写错的
+  assert.match(html, /data-state="state-loading"/)
+  assert.match(html, /data-state="state-empty"/)
+  assert.match(html, /data-state="" aria-pressed="true"/)
   const out = JSON.parse(run('check', file, '--json').out)
-  const hit = out.problems.filter((p) => /s1-empty/.test(p.msg) && /没有对应/.test(p.msg))
-  assert.equal(hit.length, 1)
-  assert.equal(hit[0].level, 'P2')
-  assert.equal(out.ok, true)
+  assert.equal(out.problems.filter((p) => /data-state/.test(p.msg)).length, 0,
+    'screen 自己生成的按钮不应被 check 判红')
   rmSync(dir, { recursive: true, force: true })
 })
 
@@ -730,7 +787,7 @@ test('写进 custom / theme 插槽的 class 算已定义，不被报成"没有�
 test('状态层与组件契约不误伤同前缀 class，也不与状态层 class 撞名', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'proto-collide-'))
   const file = path.join(dir, 'p.html')
-  assert.equal(run('init', file, '--title', 'T').code, 0)
+  assert.equal(run('init', file, '--title', 'T', '--with-baseline').code, 0)
   assert.equal(run('slot', file, '--set', 'screens', '--text',
     '<section class="device-wrap"><p class="device-name">A</p><div class="device"><div class="screen">' +
     '<div class="status is-default"><div class="row"><span class="status-pill">已完成</span></div></div>' +
@@ -957,4 +1014,87 @@ test('import preview.mjs 不产生副作用（不跑 CLI）', () => {
   assert.equal(r.status, 0, `import 时 CLI 被连带执行了：${(r.stdout || '') + (r.stderr || '')}`)
   assert.match(r.stdout, /imported-ok/)
   assert.doesNotMatch(r.stdout, /原型工具（ai-prd）/, 'import 时 MUST NOT 打印 HELP')
+})
+
+// ── 2.12.0：改稿时 data-anno-id 的续接 ──
+// `data-anno-id` 不是产出方写的，是用户第一次回复某条 AI 说明时由页面运行时补进 DOM 的。
+// AI 手里的片段来源没有它，于是一次正常改稿就让整批 id 消失、挂在上面的用户回复被当成
+// "说明已删除"连带丢弃。真跑撞出过，且页面端发号只看 DOM，下次回复会从 a1 重新发，把
+// 残留的旧回复挂到毫不相干的新说明上——比丢失更糟，因为它看起来"有数据"。
+const withReply = (dir, annoText) => {
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  const screens = '<section class="device-wrap"><p class="device-name">S</p><div class="device">' +
+    '<div class="screen"><div class="status is-default">' +
+    `<button data-anno-id="a1" data-anno="${annoText}">导出</button>` +
+    '</div></div></div></section>'
+  assert.equal(run('slot', file, '--set', 'screens', '--text', screens).code, 0)
+  // 直接构造"用户已回复过"的状态：正常路径下这一步由页面写回完成
+  let html = readFileSync(file, 'utf8')
+  html = html.replace(/(<script type="application\/json" id="anno-data">)([\s\S]*?)(<\/script>)/,
+    (m, a, body, c) => {
+      const d = JSON.parse(body)
+      d.replies = [{ id: 'r1', noteId: 'a1', noteText: annoText, text: '这里要分两份', at: '2026-08-28T00:00:00Z' }]
+      return a + JSON.stringify(d, null, 2) + c
+    })
+  writeFileSync(file, html)
+  return file
+}
+
+test('改稿漏抄 data-anno-id 时按说明文本续回去，用户回复不丢', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-reattach-'))
+  const anno = '导出是否需要按付款状态分开导两份'
+  const file = withReply(dir, anno)
+  // 新片段抄了说明文本、改了按钮文案，但漏了 data-anno-id——这是改稿的常态
+  const next = '<section class="device-wrap"><p class="device-name">S</p><div class="device">' +
+    '<div class="screen"><div class="status is-default">' +
+    `<button data-anno="${anno}">导出对账单</button>` +
+    '</div></div></div></section>'
+  const r = run('slot', file, '--set', 'screens', '--text', next)
+  assert.equal(r.code, 0)
+  const html = readFileSync(file, 'utf8')
+  assert.match(html, /data-anno-id="a1"/, 'id 没被续回，挂在它上面的用户回复会被当成孤儿丢掉')
+  assert.match(html, /导出对账单/, '界面改动本身要生效')
+  const replies = JSON.parse(html.match(/id="anno-data"[^>]*>([\s\S]*?)<\/script>/)[1]).replies
+  assert.equal(replies.length, 1, `用户回复被丢了：${JSON.stringify(replies)}`)
+  rmSync(dir, { recursive: true, force: true })
+})
+
+test('说明文本在新片段里不唯一时不猜，照走丢弃路径并出声', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-ambig-'))
+  const anno = '这里待确认'
+  const file = withReply(dir, anno)
+  // 两个元素带同一段说明文本 → 续到哪个都可能错，MUST NOT 猜
+  const next = '<section class="device-wrap"><p class="device-name">S</p><div class="device">' +
+    '<div class="screen"><div class="status is-default">' +
+    `<button data-anno="${anno}">A</button><button data-anno="${anno}">B</button>` +
+    '</div></div></div></section>'
+  const r = run('slot', file, '--set', 'screens', '--text', next)
+  assert.equal(r.code, 0)
+  const html = readFileSync(file, 'utf8')
+  assert.ok(!/data-anno-id="a1"/.test(html), '有歧义时 MUST NOT 硬续一个 id')
+  assert.match(r.out + r.err, /丢掉了 1 条 AI 说明/, '不续接时 MUST 出声，MUST NOT 静默丢回复')
+  rmSync(dir, { recursive: true, force: true })
+})
+
+test('并发改同一份原型不再撞 ENOENT：临时文件名唯一', async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-race-'))
+  const file = path.join(dir, 'p.html')
+  assert.equal(run('init', file, '--title', 'T').code, 0)
+  const mk = (n) => '<section class="device-wrap"><p class="device-name">S' + n + '</p><div class="device">' +
+    '<div class="screen"><div class="status is-default">屏 ' + n + '</div></div></div></section>'
+  // 固定临时名时，先完成的那条 rename 走 tmp，后一条撞 ENOENT——报错文案却是"文件找不到"
+  const rs = await Promise.all([1, 2, 3, 4].map((n) => new Promise((res) => {
+    const c = spawn(process.execPath, [script, 'slot', file, '--set', 'screens', '--text', mk(n)], { encoding: 'utf8' })
+    let out = ''
+    c.stdout.on('data', (d) => { out += d }); c.stderr.on('data', (d) => { out += d })
+    c.on('close', (code) => res({ code, out }))
+  })))
+  const crashed = rs.filter((r) => /ENOENT/.test(r.out))
+  assert.deepEqual(crashed.map((r) => r.out.slice(0, 120)), [], '并发写撞了 ENOENT')
+  assert.ok(readFileSync(file, 'utf8').includes('device-wrap'), '文件应仍是完整原型')
+  // 半成品 MUST 清干净：check 只看原型文件，攒下的 .tmp 永远不会被提起
+  const leftover = (await import('node:fs')).readdirSync(dir).filter((f) => f.endsWith('.tmp'))
+  assert.deepEqual(leftover, [], `残留临时文件：${leftover.join(' ')}`)
+  rmSync(dir, { recursive: true, force: true })
 })

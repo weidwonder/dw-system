@@ -93,8 +93,8 @@
       pop.innerHTML =
         '<div class="anno-pop__head">批注要存进文件，AI 才读得到</div>' +
         "<p style=\"margin:0 0 4px\">你写的批注现在只在这台电脑的浏览器里。" + how + "</p>" +
-        '<div class="anno-pop__row"><button type="button" class="btn btn-outline btn-sm" data-role="later">以后再说</button>' +
-        '<button type="button" class="btn btn-sm" data-role="now">' + ico("i-save") + act + "</button></div>";
+        '<div class="anno-pop__row"><button type="button" class="anno-btn anno-btn--outline" data-role="later">以后再说</button>' +
+        '<button type="button" class="anno-btn" data-role="now">' + ico("i-save") + act + "</button></div>";
       pop.querySelector('[data-role="later"]').onclick = function () { pop.hidden = true; };
       pop.querySelector('[data-role="now"]').onclick = function () { pop.hidden = true; connect(); };
       place(pop, bar.querySelector('[data-act="save"]'));
@@ -301,14 +301,14 @@
     bar.setAttribute("data-anno-rt", "");
     bar.innerHTML =
       '<span class="anno-bar__title">' + ico("i-message", "icon-sm") + "原型批注</span>" +
-      '<button type="button" class="btn btn-outline btn-sm" data-act="pick" aria-pressed="false">' + ico("i-plus") + "加注释</button>" +
-      '<button type="button" class="btn btn-outline btn-sm" data-act="global">' + ico("i-message") + "全局反馈</button>" +
-      '<button type="button" class="btn btn-ghost btn-sm" data-act="toggle" aria-pressed="false">' + ico("i-eye") + "隐藏批注</button>" +
+      '<button type="button" class="anno-btn anno-btn--outline" data-act="pick" aria-pressed="false">' + ico("i-plus") + "加注释</button>" +
+      '<button type="button" class="anno-btn anno-btn--outline" data-act="global">' + ico("i-message") + "全局反馈</button>" +
+      '<button type="button" class="anno-btn anno-btn--ghost" data-act="toggle" aria-pressed="false">' + ico("i-eye") + "隐藏批注</button>" +
       '<span class="anno-count"></span>' +
       '<span class="anno-bar__spacer"></span>' +
-      '<button type="button" class="btn btn-outline btn-sm" data-act="notes" aria-pressed="false"><svg class="icon"><use href="#i-file"/></svg>设计说明</button>' +
-      '<button type="button" class="btn btn-sm" data-act="save"></button>' +
-      '<button type="button" class="btn btn-ghost btn-sm" data-act="copy">' + ico("i-copy") + "复制 JSON</button>" +
+      '<button type="button" class="anno-btn anno-btn--outline" data-act="notes" aria-pressed="false"><svg class="icon"><use href="#i-file"/></svg>设计说明</button>' +
+      '<button type="button" class="anno-btn" data-act="save"></button>' +
+      '<button type="button" class="anno-btn anno-btn--ghost" data-act="copy">' + ico("i-copy") + "复制 JSON</button>" +
       '<span class="anno-state"><span class="anno-state__dot"></span><span class="anno-state__text"></span></span>';
     document.body.insertBefore(bar, document.body.firstChild);
 
@@ -559,9 +559,9 @@
         '<div class="anno-pop__head">' + esc(it.screen || "本页") + " · " + esc(it.label || it.tag || "元素") + "</div>" +
         '<textarea data-role="text"></textarea>' +
         '<div class="anno-pop__row anno-pop__row--split">' +
-        '<button type="button" class="btn btn-ghost btn-sm" data-role="del">' + ico("i-trash") + "删除</button>" +
-        '<span class="row"><button type="button" class="btn btn-outline btn-sm" data-role="close">关闭</button>' +
-        '<button type="button" class="btn btn-sm" data-role="ok">保存</button></span></div>';
+        '<button type="button" class="anno-btn anno-btn--ghost" data-role="del">' + ico("i-trash") + "删除</button>" +
+        '<span class="row"><button type="button" class="anno-btn anno-btn--outline" data-role="close">关闭</button>' +
+        '<button type="button" class="anno-btn" data-role="ok">保存</button></span></div>';
       var ta = pop.querySelector('[data-role="text"]');
       ta.value = it.text || "";
       pop.querySelector('[data-role="ok"]').onclick = function () {
@@ -582,11 +582,16 @@
       ta.focus();
     }
 
+    // 发号 MUST 同时看两处：DOM 里已挂的 data-anno-id，**以及已被回复引用过的 noteId**。
+    // 只看 DOM 会在改稿后重新从 a1 发号——新片段没把 data-anno-id 抄过来时 DOM 里一个都
+    // 没有，而 store.replies 里旧回复还引用着 a1，于是那条旧回复被挂到一条毫不相干的新
+    // 说明上，页面照常打开、零报错，用户只会觉得"这条回复我没写过"。
     function nextAnnoId() {
       var used = [];
       Array.prototype.forEach.call(document.querySelectorAll("[data-anno-id]"), function (el) {
         used.push({ id: el.getAttribute("data-anno-id") });
       });
+      store.replies.forEach(function (r) { used.push({ id: r.noteId }); });
       return nextId(used, "a");
     }
 
@@ -596,19 +601,38 @@
       var nid = el.getAttribute("data-anno-id");
       var mine = nid ? store.replies.filter(function (r) { return r.noteId === nid; }) : [];
       var rows = mine.map(function (r) {
-        return '<li><p>' + esc(r.text) + '</p><span class="row">' +
-          '<button type="button" class="btn btn-ghost btn-icon btn-sm" data-redit="' + esc(r.id) + '" aria-label="修改">' + ico("i-edit") + '</button>' +
-          '<button type="button" class="btn btn-ghost btn-icon btn-sm" data-rdel="' + esc(r.id) + '" aria-label="删除">' + ico("i-x") + '</button></span></li>';
+        return '<li data-rid="' + esc(r.id) + '"><p>' + esc(r.text) + '</p><span class="row">' +
+          '<button type="button" class="anno-btn anno-btn--ghost anno-btn--icon" data-redit="' + esc(r.id) + '" aria-label="修改">' + ico("i-edit") + '</button>' +
+          '<button type="button" class="anno-btn anno-btn--ghost anno-btn--icon" data-rdel="' + esc(r.id) + '" aria-label="删除">' + ico("i-x") + '</button></span></li>';
       }).join("");
       pop.innerHTML =
         '<div class="anno-pop__head">' + esc(screenOf(el) || "本页") + " · " + esc(labelOf(el) || el.tagName.toLowerCase()) + (isQuestion ? " · 待你拍板" : "") + "</div>" +
         '<p class="anno-note__text">' + esc(noteText) + "</p>" +
         (rows ? '<ul class="anno-list">' + rows + "</ul>" : "") +
+        '<p class="anno-editing" data-role="editing-hint" hidden>' + ico("i-edit") + '正在修改上面高亮的那条回复</p>' +
         '<textarea data-role="text" placeholder="' + (isQuestion ? "写下你的答复" : "对这条说明的意见") + '"></textarea>' +
-        '<div class="anno-pop__row"><button type="button" class="btn btn-outline btn-sm" data-role="close">关闭</button>' +
-        '<button type="button" class="btn btn-sm" data-role="reply">' + ico("i-message") + "回复</button></div>";
+        '<div class="anno-pop__row"><button type="button" class="anno-btn anno-btn--outline" data-role="close">关闭</button>' +
+        '<button type="button" class="anno-btn anno-btn--outline" data-role="cancel-edit" hidden>放弃修改</button>' +
+        '<button type="button" class="anno-btn" data-role="reply">' + ico("i-message") + "回复</button></div>";
       var ta = pop.querySelector('[data-role="text"]');
       var editing = null;
+      // 进出编辑态 MUST 走这一个函数。此前编辑只改了提交按钮的文案，被编辑的那条仍原样
+      // 列在上面、也没有退出的出口，于是"改第几条"和"是不是在改"都看不出来，用户以为
+      // 自己在新增第二条回复。
+      function setEditing(rid) {
+        editing = rid;
+        var hint = pop.querySelector('[data-role="editing-hint"]');
+        var cancel = pop.querySelector('[data-role="cancel-edit"]');
+        var submit = pop.querySelector('[data-role="reply"]');
+        Array.prototype.forEach.call(pop.querySelectorAll(".anno-list li"), function (li) {
+          li.classList.toggle("is-editing", !!rid && li.getAttribute("data-rid") === rid);
+        });
+        if (hint) hint.hidden = !rid;
+        if (cancel) cancel.hidden = !rid;
+        submit.innerHTML = rid ? ico("i-check") + "保存修改" : ico("i-message") + "回复";
+        ta.placeholder = rid ? "修改这条回复" : (isQuestion ? "写下你的答复" : "对这条说明的意见");
+        if (!rid) ta.value = "";
+      }
       pop.querySelector('[data-role="reply"]').onclick = function () {
         var v = ta.value.trim();
         pop.hidden = true;
@@ -634,6 +658,7 @@
         persist();
       };
       pop.querySelector('[data-role="close"]').onclick = function () { pop.hidden = true; };
+      pop.querySelector('[data-role="cancel-edit"]').onclick = function () { setEditing(null); ta.focus(); };
       Array.prototype.forEach.call(pop.querySelectorAll("[data-rdel]"), function (b) {
         b.onclick = function () {
           store.replies = store.replies.filter(function (r) { return r.id !== b.getAttribute("data-rdel"); });
@@ -646,9 +671,8 @@
           var rid = b.getAttribute("data-redit");
           var cur = store.replies.filter(function (r) { return r.id === rid; })[0];
           if (!cur) return;
-          editing = rid;
           ta.value = cur.text;
-          pop.querySelector('[data-role="reply"]').innerHTML = ico("i-check") + "保存修改";
+          setEditing(rid);
           ta.focus();
         };
       });
@@ -659,18 +683,18 @@
     function openGlobal() {
       var lost = store.items.filter(function (it) { return !findEl(it.id); });
       var rows = store.global.map(function (g) {
-        return "<li><p>" + esc(g.text) + '</p><button type="button" class="btn btn-ghost btn-icon btn-sm" data-del="' + esc(g.id) + '" aria-label="删除">' + ico("i-x") + "</button></li>";
+        return "<li><p>" + esc(g.text) + '</p><button type="button" class="anno-btn anno-btn--ghost anno-btn--icon" data-del="' + esc(g.id) + '" aria-label="删除">' + ico("i-x") + "</button></li>";
       }).join("");
       var lostRows = lost.map(function (it) {
         return "<li><p><small>失联 · " + esc(it.screen || "") + " · " + esc(it.label || "") + "</small><br />" + esc(it.text) +
-          '</p><button type="button" class="btn btn-ghost btn-icon btn-sm" data-drop="' + esc(it.id) + '" aria-label="删除">' + ico("i-x") + "</button></li>";
+          '</p><button type="button" class="anno-btn anno-btn--ghost anno-btn--icon" data-drop="' + esc(it.id) + '" aria-label="删除">' + ico("i-x") + "</button></li>";
       }).join("");
       pop.innerHTML =
         '<div class="anno-pop__head">全局反馈（针对整份原型）</div>' +
         (rows ? '<ul class="anno-list">' + rows + "</ul>" : "") +
         '<textarea data-role="text" placeholder="写下对整份原型的意见"></textarea>' +
-        '<div class="anno-pop__row"><button type="button" class="btn btn-outline btn-sm" data-role="close">关闭</button>' +
-        '<button type="button" class="btn btn-sm" data-role="add">' + ico("i-plus") + "添加</button></div>" +
+        '<div class="anno-pop__row"><button type="button" class="anno-btn anno-btn--outline" data-role="close">关闭</button>' +
+        '<button type="button" class="anno-btn" data-role="add">' + ico("i-plus") + "添加</button></div>" +
         (lostRows
           ? '<div class="anno-pop__head" style="margin-top:14px">已失联的元素批注（界面被改掉了）</div><ul class="anno-list">' + lostRows + "</ul>"
           : "");
@@ -800,8 +824,8 @@
       pop.innerHTML =
         '<div class="anno-pop__head">' + esc(screenOf(el) || "本页") + " · " + esc(labelOf(el) || el.tagName.toLowerCase()) + "</div>" +
         '<textarea data-role="text" placeholder="对这个元素的意见"></textarea>' +
-        '<div class="anno-pop__row"><button type="button" class="btn btn-outline btn-sm" data-role="close">取消</button>' +
-        '<button type="button" class="btn btn-sm" data-role="ok">保存</button></div>';
+        '<div class="anno-pop__row"><button type="button" class="anno-btn anno-btn--outline" data-role="close">取消</button>' +
+        '<button type="button" class="anno-btn" data-role="ok">保存</button></div>';
       var ta = pop.querySelector('[data-role="text"]');
       pop.querySelector('[data-role="ok"]').onclick = function () {
         var v = ta.value.trim();

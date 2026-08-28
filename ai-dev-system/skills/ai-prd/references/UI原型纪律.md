@@ -87,7 +87,8 @@ node <skills 根>/ai-prd/scripts/preview.mjs check <原型文件>
 - 文件内 `http://` / `https://` 外链数为 0，无 `<script src>`、`<link href>`、`@import url(...)`、`xmlns`、网络字体。
 - 全文无 `【`：占位符已清零（与 `prd写作纪律.md` 的无占位符成稿一致）。**容器本身不含任何占位符**，残留的 `【` 一定来自自己填进插槽的内容，MUST 逐个换成接近真实的业务文案，**MUST NOT 靠整段删掉来消 `【`**。
 - 用户界面区域内不含"设计说明 / 开放问题 / 样式依据 / 待确认"等字样——这些只允许出现在设计说明面板（§7.5）、该屏的屏注解区（§7.6），或元素上的 `data-anno` 悬浮气泡（§7.2）。
-- 每个声明覆盖的状态都在该屏的注解区里有对应切换按钮，且按钮有对应行为。
+- 每个声明覆盖的状态都在该屏的注解区里有对应切换按钮，且按钮的 `data-state` 值合法、指向本屏真有的状态层（行为由容器提供，不必自己绑）。
+- **声明了的状态层里真的填了内容**：骨架建出来是空的，空着切过去就是一片空白——这与"压根没有这个状态层"对用户是同一个结果，MUST 逐层填完再交付。
 - 容器的固定实现区标记齐全且未被改写：`THEME`、`DESIGN-SYSTEM`、`ICONS`、`ANNO-FRAMEWORK:CSS`、`ANNO-FRAMEWORK:JS`、`ANNOTATIONS` 各自的 `BEGIN`/`END` 都在（§7.1、§8.1）。
 - 改稿时批注块内容与界面上的 `data-anno-user` 属性原样保留，用户已写的批注一条不少（§7.1）——`check` 会逐条比对批注块里的条目与界面上的锚点，**未经约定**失联的一条报一条 P0；按 §7.7 约定后由工具清掉的不触发它。
 - 每屏的 `.device-name` 在 `.device` 之外、`.status` 各层是 `.screen` 的直接子元素（§8.2）。
@@ -188,16 +189,13 @@ node <skills 根>/ai-prd/scripts/preview.mjs <原型文件>
 
 ### 7.6 屏注解区
 
-屏注解区是每屏随附的画布外说明区域，默认位于屏幕下方，传入 `--anno-right` 时挂在屏幕右侧。它固定包含小标题、整屏注释和状态切换按钮；屏名留在 `.device-name`，不得搬进注解区。按钮行为写进 `script` 插槽。改状态 MUST 用容器认得的三种表达之一；容器为此导出 `window.setScreenState(screenEl, nextState)`——**两个参数**，第一个是那一屏的 `.screen` 元素，第二个是**完整的状态类名**（`state-empty`，不是 `empty`）。照抄这一行：
+屏注解区是每屏随附的画布外说明区域，**恒挂在该屏下方**（屏在画布上矩阵排列，注解区跟着走；`--anno-right` 已于 2.12.0 废除，传入即报错）。它固定包含小标题、整屏注释和状态切换按钮；**屏名恒在设备壳左上方**、留在 `.device-name` 里，MUST NOT 搬进注解区、也 MUST NOT 写进 `.device`（`check` 判 P0）。
 
-```js
-btn.addEventListener("click", (e) => {
-  const screen = e.currentTarget.closest(".device-wrap").querySelector(".screen");
-  window.setScreenState(screen, "state-empty");
-});
-```
+**状态切换按钮不用自己写，也不用自己绑。** 声明了多个状态的屏，`screen` 命令直接生成按钮，行为由容器的 `[data-state]` hook 统一提供——**MUST NOT 再往 `script` 插槽里写状态切换的绑定代码**（重复绑定会让一次点击切两回）。
 
-少传一个参数、或把类名写成不带 `state-` 前缀的短名，页面照常打开、按钮照常能点，只是状态永远不切换且零报错。用这三种表达之外的方式改状态，还会被写回时烘进文件。容器只给状态表达，不给点击语义，绑定与按下态由产出方自己写。屏注解区不进批注出口。
+要手写按钮时（一般不需要），标记方式只有一种：给按钮加 `data-state="state-empty"`，值是**完整状态类名**（`state-empty`，不是 `empty`），回默认态用空串 `data-state=""`。**MUST NOT 改用别的属性名**——早前框架内部两处不一致（写回逻辑认 `data-state`、自检认 `data-act`、骨架又零示范），实测导致产出方按钮写一个、选择器查另一个，零个监听器绑上：按钮能点、页面零报错、状态永远不切。`check` 现在会抓这两类错（前缀写漏、指向本屏没有的状态层）。
+
+容器为状态表达导出 `window.setScreenState(screenEl, nextState)`——**两个参数**，第一个是那一屏的 `.screen` 元素，第二个是完整状态类名。少传一个参数、或把类名写成不带 `state-` 前缀的短名，页面照常打开、状态永远不切换且零报错。用这三种表达之外的方式改状态，还会被写回时烘进文件。屏注解区不进批注出口。
 
 ### 7.7 改稿动到带用户批注的元素时
 
@@ -220,8 +218,8 @@ btn.addEventListener("click", (e) => {
 
 | 做什么 | 命令 |
 |---|---|
-| 建一份原型 | `node <skills 根>/ai-prd/scripts/preview.mjs init <文件> --title <需求名> --subtitle <一句话>` |
-| 加一屏 | `… screen <文件> --name <屏名> [--desktop] [--anno-right] [--states is-default,loading,empty,error,success]` |
+| 建一份原型 | `node <skills 根>/ai-prd/scripts/preview.mjs init <文件> --title <需求名> --subtitle <一句话> [--with-baseline]`（默认不装外观层，判据见 §8.3）|
+| 加一屏 | `… screen <文件> --name <屏名> [--desktop] [--states is-default,loading,empty,error,success]`（声明多个状态时自动生成切换按钮，行为由容器提供）|
 | 填 / 改插槽 | `… slot <文件> --set <插槽名> --from <片段文件>`（或 `--text <文本>`） |
 | 交付前自检 | `… check <文件>`（见 §6） |
 | 取界面内容 | `… extract <文件> [--with-css]`（结构、文案、状态层；批注另用 `annotations`） |
@@ -229,7 +227,7 @@ btn.addEventListener("click", (e) => {
 | 起预览服务 | `… serve <文件> [--port <n>]`（见 §7.4；由你后台起、由你停） |
 
 - **建原型 MUST 用 `init`**，MUST NOT 手工 `cp` 再逐个替换——`init` 同时落好标题与副标题，少三次易错的整行替换。
-- **加屏 MUST 用 `screen`**：`.device-wrap` / `.device-name` 的位置、`.app-bar`、五个状态层的类名全部由它保证。这些正是手写时最容易错、错了又不报错的地方。
+- **加屏 MUST 用 `screen`**：`.device-wrap` / `.device-name` 的位置、`.app-bar`、五个状态层的类名、以及**屏注解区的状态切换按钮**全部由它保证。这些正是手写时最容易错、错了又不报错的地方——按钮的属性名尤其如此（见 §7.6）。
 - **改稿 MUST 用 `slot`**，MUST NOT 直接编辑原型文件：`slot` 只换插槽内容，**批注块与界面上的 `data-anno-user` 锚点原样保留**，且不需要把整份原型读进上下文。手工改稿要么得先整份读进来（几万 token），要么重新生成而抹掉用户已写的批注——两条都不可接受。
 - 界面内容较长时先写成片段文件再 `--from` 送进去，比在命令行里拼长字符串可靠。
 
@@ -274,7 +272,17 @@ btn.addEventListener("click", (e) => {
 
 ### 8.3 可用的 class 与交互 hook
 
-容器自带一套中性组件样式与图标，纯 CSS + 内联 SVG、零依赖；屏注解区是状态切换的唯一入口。它管的只是**这份原型怎么画**，**MUST NOT 被读成"要求项目采用某个 UI 框架或组件库"**——项目用什么技术栈由工程侧决定；PRD 里也 MUST NOT 因为容器长这样就写进任何框架名。
+**先看这一条：下面那张组件表默认不存在。**
+
+容器分两层装配。**结构层恒装配**——画布、设备壳、屏、状态层、屏注解区、图标尺寸、`.fill` / `.scroll-y` 两个布局原语，它们是批注框架与 `check` 的锚点，与视觉风格无关。**外观层（按钮 / 表单 / 卡片 / 徽标 / 提示条 / 空态 / 列表 / 导航 / 浮层，就是下面那张表）默认不装配**，只有 `init --with-baseline` 才追加。
+
+这么分的判据：**原型的视觉风格 MUST 由本次项目的真实样式来源决定，MUST NOT 由容器替产出方定死**。容器塞一套完整控件库进去，产出方就会照它画——它长什么样，原型就长什么样，而那套样子与本次项目毫无关系。风格来源的取法在 §1 的自查清单，优先级也在那里。
+
+- **棕地项目**：MUST 按 §1 自查清单继承现有设计（token / 组件库 / 同类页面），**MUST NOT 开基线**——项目已经有风格了，开基线等于往里掺一套无关的。
+- **绿地项目**：风格 MUST 与用户确认后再画（品牌色、字体、圆角、控件形态至少确认到这四项），确认结果写进 `theme` 与 `custom` 插槽。
+- **确实查不到任何来源、且用户也给不出**：才可以 `--with-baseline` 用中性兜底，并 MUST 在 PRD 的 UI 原型节写明"视觉为临时假设，开发前需替换为真实样式依据"。**MUST NOT 因为它省事就默认开**。
+
+开了基线之后，下面这张表才可用。它管的只是**这份原型怎么画**，**MUST NOT 被读成"要求项目采用某个 UI 框架或组件库"**——项目用什么技术栈由工程侧决定；PRD 里也 MUST NOT 因为容器长这样就写进任何框架名。
 
 | 用途 | class |
 |---|---|
@@ -285,7 +293,7 @@ btn.addEventListener("click", (e) => {
 | 数据 | `.table` `.list` `.list-item` `.kv` `.kv-row` `.avatar` `.avatar-sm` `.separator` |
 | 状态 | `.badge` `.badge-secondary` `.badge-outline` `.badge-destructive` `.badge-success` `.badge-warning`；`.alert` `.alert-destructive` `.alert-success` `.alert-warning` `.alert-info` `.alert-title` `.alert-description`；`.empty` `.empty-icon` `.empty-title` `.empty-description`；`.skeleton`；`.progress` `.progress-bar` |
 | 导航 | `.tabs-list` `.tabs-trigger` `.nav` `.nav-item` |
-| 页面 | `.app-bar` `.app-title` `.screen` `.device` `.device-wrap` `.device-name` `.devices` |
+| 页面（**结构层，恒可用**）| `.app-bar` `.app-title` `.screen` `.device` `.device-wrap` `.device-name` `.devices` `.fill` `.scroll-y` |
 | 浮层 | `.toast`；`.dialog` `.dialog-header` `.dialog-title` `.dialog-body` `.dialog-footer`；`.kbd` |
 | 图标 | `<svg class="icon"><use href="#i-search"/></svg>`，尺寸用 `.icon-sm` / `.icon-lg` |
 
@@ -331,7 +339,7 @@ btn.addEventListener("click", (e) => {
 - 查不到样式来源时本插槽 MUST 整段留空（判据同 §4），**MUST NOT 填臆造的品牌色冒充既有样式**。
 - 容器只有**一套中性亮色基线**，**MUST NOT 假设产品有暗色模式**，也 MUST NOT 为暗色另做一套屏幕。产品本身就是暗色的，直接在本插槽里把 token 覆盖成暗色取值即可，**MUST NOT 在原型里另加主题切换装置**。
 
-**组件表里没有的控件** → `custom` 插槽。它排在设计系统之后，覆盖得掉容器样式，且写的是真正的 `<style>`，因此 `:hover`、`::before`、`@keyframes`、`@media` 都能用：
+**控件外观一律 → `custom` 插槽**（开了 `--with-baseline` 时，则只写组件表没有的那些）。它排在设计系统之后，覆盖得掉容器样式，且写的是真正的 `<style>`，因此 `:hover`、`::before`、`@keyframes`、`@media` 都能用：
 
 ```css
 /* 同样只写内容，外层 <style id="proto-custom"> 由容器提供 */
@@ -341,5 +349,7 @@ btn.addEventListener("click", (e) => {
 
 - 自定义控件的取色同样 MUST 用 token 变量，理由同上。
 - 类名 MUST NOT 与容器已有的 class 重名，否则会盖掉组件样式；`check` 会报出没有样式定义的 class，但重名它看不出来，起名时自己避开 §8.3 那张表。
+- **SHOULD 用类选择器，不用裸标签选择器**（`button { … }` / `.card button { … }`）：批注框架的图钉是挂进你的元素**内部**的 `<button>`，标签选择器会一并命中它。框架已把图钉与注解区按钮的尺寸盒锁死（那些属性带 `!important`），所以不会再被撑变形；但你的样式仍会白写一遍，且**框架自己**若日后新增控件就未必都在保护范围内。用类选择器是零成本的稳妥做法。
+- **满高布局用 `.fill` + `.scroll-y`，MUST NOT 写死 `max-height` 像素**：`.device` → `.screen` → 状态层是打通的 flex 链，`.fill` 吃满剩余高度、`.scroll-y` 在内部滚动。写死像素会让内容区缩成一条、设备壳下方留出大片空白，而页面照常打开、`check` 也看不出来。
 - **绝对定位的控件可以照写**（拓扑图 / 流程图 / 座位图这类画布）：批注框架只把**本来是 `static`** 的元素提升为 `position: relative`，`absolute` / `relative` / `fixed` / `sticky` 的元素打了批注也不会被改写定位，MUST NOT 为此另加提权选择器。
 - **自定义样式的 `z-index` 上限是 880**（MUST 严格小于它）：880 起是批注框架的自留层（图钉 880，其上还有设计说明面板、工具栏、批注弹窗与拾取光标）。写到这个区间里会盖住图钉，用户看不见图钉就会以为批注没保存成功。
