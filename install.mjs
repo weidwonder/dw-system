@@ -9,7 +9,8 @@
 //      只影响本项目；其他项目照常启用）。
 //   3) 为 Codex 写入项目级 AGENTS.md 覆盖指令，或按用户选择通过 Codex CLI 全局卸载冲突插件。
 //   4) 在目标项目 .gitignore 幂等追加所有已安装 skill 目录与版本 stamp，
-//      避免本体系随目标仓库提交。
+//      避免本体系随目标仓库提交；并询问一次 docs/ 与 engineering-context/
+//      要不要提交进 git（默认不提交，即写进同一个标记块），结果记在块内、只问一次。
 //   5) 把 skill 自带的 ctx CLI 全局链接成 `ctx` 命令（失败降级为 node 兜底调用提示）。
 //   6) 检查 codegraph（外部代码知识图谱 CLI）是否为最新，缺失则装、更旧则升，
 //      接线到 agent 并对目标项目建立索引。
@@ -28,6 +29,8 @@
 //   --source-dir=<dir>  使用本地仓库源码（仅用于开发和测试）
 //   --no-ctx-link       跳过把 skill 自带的 ctx CLI 链接成全局命令
 //   --no-codegraph      跳过 codegraph 的检查、安装、接线与建索引
+//   --docs-in-git=<yes|no>
+//                      docs/ 与 engineering-context/ 是否提交进 git（不传则问一次，默认 no）
 //   --codegraph-location=<local|global>
 //                      codegraph 接线范围（默认 local，只影响本项目）
 //   --dry-run          只打印将做什么，不落盘
@@ -139,6 +142,12 @@ const CODEX_GUARD_END = '<!-- ai-dev-system:codex-conflicts:end -->';
 // .gitignore 标记块：# 开头对 git 是注释行，机器可精确定位、可幂等替换。
 const GITIGNORE_START = '# ai-dev-system:gitignore:start';
 const GITIGNORE_END = '# ai-dev-system:gitignore:end';
+// 由用户拍板是否入库的两个目录：docs/（本流程产出的 spec / plan / report）与
+// engineering-context/（代码事实层）。它们是项目自己的产物，不像 skill 目录那样有唯一答案。
+const PROJECT_DOCS_DIRS = ['/docs/', '/engineering-context/'];
+// 决定记在 .gitignore 标记块内的一行注释里：# 开头对 git 是注释、无副作用，
+// 且能把"上次选了提交"与"从来没问过"区分开——只看有没有忽略规则是分不开这两者的。
+const PROJECT_DOCS_MARK = '# ai-dev-system:project-docs-in-git=';
 const WORKFLOW_MODE_START = '<!-- ai-dev-workflow:start -->';
 const WORKFLOW_MODE_END = '<!-- ai-dev-workflow:end -->';
 // CLAUDE.md / AGENTS.md 软链接的解析跳数上限，用来在成环时给出明确报错而不是死循环。
@@ -163,6 +172,8 @@ function parseArgs(argv) {
     noCtxLink: false,
     noCodegraph: false,
     codegraphLocation: 'local',
+    // null = 未指定：沿用 .gitignore 里已记的决定，都没有才交互询问一次。
+    docsInGit: null,
     target: null,
   };
   for (const a of argv) {
@@ -187,6 +198,13 @@ function parseArgs(argv) {
         throw new Error('--codegraph-location 只能是 local 或 global');
       }
       opt.codegraphLocation = value;
+    }
+    else if (a.startsWith('--docs-in-git=')) {
+      const value = a.slice('--docs-in-git='.length);
+      if (value !== 'yes' && value !== 'no') {
+        throw new Error('--docs-in-git 只能是 yes 或 no');
+      }
+      opt.docsInGit = value;
     }
     else if (a.startsWith('--agentic-repo=')) opt.companionRepos['agentic-principle'] = a.slice('--agentic-repo='.length);
     else if (a.startsWith('--keep=')) opt.keep.push(a.slice('--keep='.length));
@@ -225,6 +243,9 @@ function helpText() {
                    覆盖 agentic-principle 的来源仓库（默认 ${COMPANION_SKILLS[0].repo}）
   --no-ctx-link    跳过把 skill 自带的 ctx CLI 链接成全局命令
   --no-codegraph   跳过 codegraph 的检查、安装、接线与建索引
+  --docs-in-git=<yes|no>
+                   docs/ 与 engineering-context/ 是否提交进 git；不传则交互询问一次
+                   （默认 no = 写进 .gitignore），已记过决定时直接沿用、不再询问
   --codegraph-location=<local|global>
                    codegraph 接线范围（默认 local，只影响本项目）
   --dry-run        预演，不落盘
@@ -263,6 +284,13 @@ codegraph（外部代码知识图谱 CLI，${CODEGRAPH.repo}）：
   - .agents/skills/  Codex 使用
   安装后会在目标项目 .gitignore 幂等追加已安装 skill 目录与版本 stamp 的
   忽略规则（标记块，重复安装不重复追加），避免本体系随目标仓库提交。
+
+docs/ 与 engineering-context/ 是否入库：
+  交互安装时问一次——选"提交"则一个字节都不动这两个目录，选"不提交"（回车即此项）
+  则把它们写进同一个标记块。决定以 ${PROJECT_DOCS_MARK}yes|no 记在块内，重装直接
+  沿用、不再发问。--yes / --dry-run / 非交互终端取与回车相同的默认值（no）一次落定；
+  .gitignore 里已有你自己写的这两个目录的忽略规则时既不发问、也不接管它们。
+  --docs-in-git=yes|no 优先于以上全部，也是事后改主意的入口。
 
 默认在目标项目里处理这些与本流程冲突的插件/技能（Codex 默认仅本项目，不影响全局）：
 ${[
@@ -340,7 +368,7 @@ ${CODEX_GUARD_END}`;
 
 // 只忽略本体系安装的具体 skill 目录与版本 stamp，不整目录忽略，
 // 避免误伤用户自己放在 .claude/skills/ 或 .agents/skills/ 下的 skill。
-function gitignoreBlock(skills) {
+function gitignoreBlock(skills, projectDocsInGit) {
   const lines = [];
   for (const dir of ['.claude/skills', '.agents/skills']) {
     for (const name of skills) lines.push(`/${dir}/${name}/`);
@@ -349,7 +377,35 @@ function gitignoreBlock(skills) {
   // codegraph 的索引是本机 SQLite 库（体量大、与写它的操作系统绑定），必须留在本地。
   // 无条件写入：--no-codegraph 与默认安装产出同一个标记块，避免两种跑法来回改写 .gitignore。
   lines.push(`/${CODEGRAPH.indexDir}/`);
+  // 只有"使用者自己早就忽略过这两个目录"这一种情形不写（projectDocsInGit 为 null）——
+  // 那时接管他的规则只会得到两份重复的忽略行。
+  if (projectDocsInGit) {
+    lines.push(PROJECT_DOCS_MARK + projectDocsInGit);
+    if (projectDocsInGit === 'no') lines.push(...PROJECT_DOCS_DIRS);
+  }
   return [GITIGNORE_START, ...lines, GITIGNORE_END].join('\n');
+}
+
+// 上次的决定：只认标记块【内】那行注释，块外同名字样不作数。
+function readProjectDocsDecision(raw) {
+  const block = getMarkedBlock(raw, GITIGNORE_START, GITIGNORE_END);
+  if (!block) return null;
+  const line = block.split(/\r?\n/).find(l => l.trim().startsWith(PROJECT_DOCS_MARK));
+  if (!line) return null;
+  const value = line.trim().slice(PROJECT_DOCS_MARK.length);
+  return value === 'yes' || value === 'no' ? value : null;
+}
+
+// 标记块【外】已有针对这两个目录的忽略规则：说明使用者（或别的工具）早就处理过，
+// 同样算问过了——不再发问，也不把这些规则搬进我们的标记块。
+function projectDocsIgnoredOutsideBlock(raw) {
+  const block = getMarkedBlock(raw, GITIGNORE_START, GITIGNORE_END);
+  const outside = block ? raw.split(block).join('\n') : raw;
+  const wanted = new Set(PROJECT_DOCS_DIRS.flatMap(dir => {
+    const bare = dir.replace(/^\//, '');
+    return [dir, bare, dir.replace(/\/$/, ''), bare.replace(/\/$/, '')];
+  }));
+  return outside.split(/\r?\n/).some(l => wanted.has(l.trim()));
 }
 
 function mergeMarkedBlock(raw, block, startMarker, endMarker) {
@@ -619,6 +675,26 @@ async function chooseCodexConflictMode(opt, hasConflict) {
     '请选择 [1/2，默认 1]：',
   )).trim().toLowerCase();
   return answer === '2' || answer === 'uninstall' ? 'uninstall' : 'guard';
+}
+
+// docs/ 与 engineering-context/ 是否入库：只问一次，结果记进 .gitignore 标记块。
+// 返回 'yes' / 'no' / null（null 只有一种来源：使用者自己早就忽略过，我们不接管）。
+async function chooseProjectDocsInGit(opt, gitignoreRaw) {
+  if (opt.docsInGit) return opt.docsInGit;               // 显式指定：也是改主意的唯一入口
+  const recorded = readProjectDocsDecision(gitignoreRaw);
+  if (recorded) return recorded;                          // 问过一次就不再问
+  if (projectDocsIgnoredOutsideBlock(gitignoreRaw)) return null; // 使用者已自行忽略：不接管
+  // 非交互（--yes / --dry-run / 管道里跑）取与回车相同的默认值，一次落定、之后不再问。
+  if (opt.yes || opt.dryRun || !process.stdin.isTTY) return 'no';
+  const answer = (await ask(
+    '\n本项目的 docs/ 与 engineering-context/ 要提交进 git 吗？\n' +
+    '  docs/                本流程产出的 spec / plan / report\n' +
+    '  engineering-context/ 代码事实层（能力登记表 + 各仓库事实卡片）\n' +
+    '  y) 提交进 git（协作者共享同一份代码事实）\n' +
+    '  n) 不提交，写进 .gitignore 只留在本机（默认）\n' +
+    '请选择 [y/N]（只问这一次，结果记在 .gitignore 标记块里）：',
+  )).trim().toLowerCase();
+  return answer === 'y' || answer === 'yes' ? 'yes' : 'no';
 }
 
 function copySkills(skillsRoot, skills, destDir) {
@@ -1258,6 +1334,11 @@ async function main() {
   const codexUninstallIds = codexMode === 'uninstall' && !opt.dryRun
     ? findInstalledCodexConflicts()
     : [];
+  // docs/ 与 engineering-context/ 是否入库：在打印计划之前问，
+  // 让"继续？[y/N]"面对的是一份已经确定下来的改动清单。
+  const gitignoreFile = path.join(target, '.gitignore');
+  const gitignoreRaw = readTextIfExists(gitignoreFile);
+  const projectDocsInGit = await chooseProjectDocsInGit(opt, gitignoreRaw);
 
   // 计划
   console.log('\nai-dev-workflow 安装器');
@@ -1295,6 +1376,13 @@ async function main() {
     console.log('  3) 不修改任何冲突插件/技能设置' + (opt.noPlugins ? '（--no-plugins）' : '（全部 --keep）'));
   }
   console.log('  4) 在 .gitignore 追加已安装 skill 目录与版本 stamp（幂等标记块，避免本体系随仓库提交）');
+  if (projectDocsInGit === 'no') {
+    console.log(`       docs/ 与 engineering-context/ 一并写进该标记块（你选择不提交进 git）`);
+  } else if (projectDocsInGit === 'yes') {
+    console.log('       docs/ 与 engineering-context/ 不忽略，随仓库提交（你的选择，已记在标记块里）');
+  } else {
+    console.log('       docs/ 与 engineering-context/ 已被你自己的 .gitignore 规则忽略：不发问，也不接管这些规则');
+  }
   if (opt.noCompanions) {
     console.log('  5) 跳过伴生 skill 检查（--no-agentic）');
   } else {
@@ -1399,13 +1487,18 @@ async function main() {
   }
 
   // 1b) 幂等追加 .gitignore 标记块，避免安装的 skill 随目标仓库提交
-  const gitignoreFile = path.join(target, '.gitignore');
-  const gitignoreRaw = readTextIfExists(gitignoreFile);
-  const gitignoreMerged = mergeMarkedBlock(gitignoreRaw, gitignoreBlock(skills), GITIGNORE_START, GITIGNORE_END);
+  const gitignoreMerged = mergeMarkedBlock(
+    gitignoreRaw, gitignoreBlock(skills, projectDocsInGit), GITIGNORE_START, GITIGNORE_END,
+  );
   if (gitignoreMerged !== gitignoreRaw) {
     fs.writeFileSync(gitignoreFile, gitignoreMerged);
     assertMarkedBlock(readTextIfExists(gitignoreFile), GITIGNORE_START, GITIGNORE_END, gitignoreFile);
     console.log(`✓ 已在 ${path.relative(target, gitignoreFile)} 追加已安装 skill 的忽略规则（幂等标记块）`);
+    if (projectDocsInGit === 'no') {
+      console.log(`  ↳ docs/ 与 engineering-context/ 已一并忽略（改主意用 --docs-in-git=yes 重跑）`);
+    } else if (projectDocsInGit === 'yes') {
+      console.log('  ↳ docs/ 与 engineering-context/ 随仓库提交（该选择已记进标记块，重装不再询问）');
+    }
   }
 
   // 2a) 合并 Claude Code enabledPlugins（不覆盖其他键）
