@@ -6,7 +6,7 @@
 // 固化成常驻闸之后，日后每改一次 anno.css 都会判红——而让改框架变容易正是外置的目的。
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync, existsSync } from 'node:fs'
+import { readFileSync, existsSync, readdirSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { composeTemplate, FRAMEWORK, FRAMEWORK_DIR, FRAMEWORK_PRE, FRAMEWORK_POST } from '../ai-dev-system/skills/ai-prd/scripts/preview.mjs'
@@ -174,6 +174,55 @@ test('弹窗里绑定的 data-role 都是同一个函数自己渲染过的', () 
       .map((m) => m[1]))
     for (const m of body.matchAll(/querySelector\('\[data-role="([^"]+)"\]'\)/g)) {
       if (!declared.has(m[1])) offenders.push(`${name} 绑定了自己没渲染的 data-role="${m[1]}"`)
+    }
+  }
+  assert.deepEqual(offenders, [], offenders.join('\n'))
+})
+
+test('框架 JS 只用私有 class，MUST NOT 借用默认不装配的外观层', () => {
+  // 为什么要这条闸：外观层（components.css）默认不装配之后，框架自己的 UI 一旦还挂着
+  // `.btn` / `.card-content` 这类外观层 class，在**默认路径**下就完全没有样式可用——
+  // 按钮渲染成裸 <button>，而页面照常打开、命令照常退出 0，没有任何一处会报错。
+  // 2.12.0 已经为此把框架 UI 私有化过一轮（.anno-btn / .anno-notes-body），但 paint()
+  // 里 5 处运行时 className 赋值漏改，默认路径下"保存"按钮当场裸奔——同一类问题第二次
+  // 出现，因此固化成闸：初始 innerHTML 里的 class 与运行时改写的 className 一并查。
+  const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '')
+  const classesIn = (f) =>
+    new Set([...strip(readFileSync(path.join(FRAMEWORK_DIR, f), 'utf8'))
+      .matchAll(/\.([a-zA-Z][\w-]*)/g)].map((m) => m[1]))
+
+  // 禁用集 = 只有开了基线才存在的 class。结构层与批注层自带的一律放行。
+  const allowed = new Set([...classesIn('structure.css'), ...classesIn('anno.css')])
+  const forbidden = new Set([...classesIn('components.css')].filter((c) => !allowed.has(c)))
+  assert.ok(forbidden.size > 20, '禁用集异常地小——多半是 components.css 的路径或切分线变了')
+
+  const offenders = []
+  // 扫目录下**全部** .js：写死文件名会让日后新增的框架 JS 静默逃逸。
+  const jsFiles = readdirSync(FRAMEWORK_DIR).filter((f) => f.endsWith('.js'))
+  assert.ok(jsFiles.length >= 2, `框架 JS 少于 2 个（实测 ${jsFiles.length}），装配表或目录结构变了`)
+  for (const f of jsFiles) {
+    const js = readFileSync(path.join(FRAMEWORK_DIR, f), 'utf8')
+    // 四种写法都要查：模板串里的 class="…"、运行时 className = "…"、classList.add/toggle/replace，
+    // 三种引号各算一遍。只查其中一种正是这次漏网的成因——初始 innerHTML 全对，paint() 里全错；
+    // 而 classList 与单引号/模板串在框架里本就在用（screen.js 的 classList.add 就是）。
+    for (const re of [
+      /class=["'`]([^"'`]*)["'`]/g,
+      /className\s*=\s*["'`]([^"'`]*)["'`]/g,
+      /classList\.(?:add|toggle|replace)\(([^)]*)\)/g,
+    ]) {
+      for (const m of js.matchAll(re)) {
+        // classList 分支捕获的是整个参数列表（含引号与逗号），先把字面量抽出来；
+        // 另两个分支捕获的已经是空格分隔的 class 串，split 后同形。
+        const toks = /classList/.test(m[0])
+          ? [...m[1].matchAll(/["'`]([^"'`]+)["'`]/g)].map((x) => x[1])
+          : m[1].split(/\s+/)
+        for (const tok of toks.filter(Boolean)) {
+          if (forbidden.has(tok)) {
+            const line = js.slice(0, m.index).split('\n').length
+            offenders.push(`${f}:${line} 用了外观层 class「${tok}」——默认不装配时它没有任何样式`)
+          }
+        }
+      }
     }
   }
   assert.deepEqual(offenders, [], offenders.join('\n'))

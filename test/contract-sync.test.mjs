@@ -27,7 +27,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { ENTRY_MAX_BYTES, LOADING_POINT_MIN } from './contract-numbers.mjs'
+import { ENTRY_MAX_BYTES, LOADING_POINT_MIN, PRD_ENTRY_MAX_BYTES } from './contract-numbers.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const read = (rel) => readFileSync(path.join(repoRoot, ...rel.split('/')), 'utf8')
@@ -53,6 +53,13 @@ const CONTRACTS = [
       { file: 'CLAUDE.md', anchor: 'skill 入口（常驻，≤' },
       { file: 'CLAUDE.md', anchor: '入口 ≤' },
     ],
+  },
+  {
+    name: 'ai-prd 入口 SKILL.md 字节上限',
+    value: PRD_ENTRY_MAX_BYTES,
+    // 与上一条是两个量（两个 skill 的入口结构不同，判据见 `contract-numbers.mjs`）。
+    // 锚点串刻意带上 `ai-prd`，否则会命中上一条那三个锚点里的同形句子。
+    refs: [{ file: 'CLAUDE.md', anchor: '`ai-prd` 的入口 `SKILL.md` 上限是' }],
   },
 ]
 
