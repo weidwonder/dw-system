@@ -89,7 +89,7 @@ npx --yes git+https://github.com/weidwonder/ai-dev-system.git . --ref=main
 
 安装器的默认 `--ref` 就是它自带的 `ai-dev-system/VERSION` 对应的 tag，因此 npx 包版本与装进项目的技能版本始终一致。显式传了 `--ref` 而该版本取不到时，安装器直接以非零退出码失败，不会悄悄换成别的版本装进去。
 
-常用参数：`--shared` 把 Claude Code 项目配置提交给全仓共享；`--keep=<插件短名>` 保留指定冲突插件；`--no-plugins` 只装 skill；`--yes` 跳过安装器自身的交互确认；`--no-codegraph` 跳过 codegraph 那一段；`--codegraph-location=global` 把 codegraph 接到所有项目而不只是本项目。完整参数用 `npx --yes git+https://github.com/weidwonder/ai-dev-system.git --help` 查看。
+常用参数：`--shared` 把 Claude Code 项目配置提交给全仓共享；`--keep=<插件短名>` 保留指定冲突插件；`--no-plugins` 只装 skill；`--yes` 跳过安装器自身的交互确认；`--docs-in-git=yes|no` 直接指定 `docs/` 与 `engineering-context/` 是否提交进 git（不传则交互问一次，默认 `no`）；`--no-codegraph` 跳过 codegraph 那一段；`--codegraph-location=global` 把 codegraph 接到所有项目而不只是本项目。完整参数用 `npx --yes git+https://github.com/weidwonder/ai-dev-system.git --help` 查看。
 
 > 命令前面的 `npx --yes` 只跳过 npm 下载确认，安装器仍会在修改项目之前询问一次。需要全自动安装时，在目标目录后再传一次：`npx --yes git+https://github.com/weidwonder/ai-dev-system.git . --yes`。
 
@@ -111,10 +111,11 @@ node /path/to/ai-dev-system/install.mjs . --source-dir=/path/to/ai-dev-system
 1. 从 GitHub 获取 `--repo` 对应仓库的 `--ref` 版本，并校验其中至少有一个有效 skill；下载或校验失败时不修改目标项目；
 2. 复制该版本的**所有** skill（默认含 `ai-prd` + `ai-dev-workflow` 和 `ctx` CLI）→ `<项目>/.claude/skills/`，完成 Claude Code 项目级安装；
 3. 复制同一批 skill → `<项目>/.agents/skills/`，完成 Codex 项目级安装；
-4. 合并（不覆盖）Claude Code 的 `enabledPlugins`，在本项目把冲突插件设为 `false`；
-5. 安装时让用户选择 Codex 冲突技能处理方式：默认写入项目 `AGENTS.md` 约束自动触发，也可明确选择通过 Codex CLI 全局卸载；若任一入口已有 workflow 标记块，同时补齐 `CLAUDE.md` 与 `AGENTS.md`；
-6. 把 skill 自带的 `ctx` CLI 链接成**全局 `ctx` 命令**（在 `<项目>/.claude/skills/ai-dev-workflow/scripts/ctx` 下 `npm link`），并实跑 `ctx --help` 验证真的可用。链接失败（无写权限、npm 全局 bin 不在 PATH、PATH 上已有**别人的**同名 `ctx`）只降级为警告，并打印 `node <skill>/scripts/ctx/src/cli.js <命令>` 兜底调用方式。Windows 上换项目重装时 `npm link` 会因全局命令目录里还留着上次那个 `ctx` 而报 `EEXIST`：安装器会先确认那个文件确实是本体系留下的，确认了才 `npm link --force` 覆盖成本次这份；判不出归属就一个字节都不动，只打印文件路径与删除方式——CLI 本体已随 skill 落盘，**命令找不到不等于 ctx 不可用**。`--no-ctx-link` 可跳过；
-7. 保持 [codegraph](https://github.com/colbymchenry/codegraph)（本地代码知识图谱 CLI）为最新——没装就 `npm install -g @colbymchenry/codegraph`，有新版就 `codegraph upgrade`——随后接线到 agent（默认 `--location=local`，只影响本项目），并在 `.codegraph/` 不存在时用 `codegraph init` 给本仓库建索引。这一段任何失败只降级为警告；`--no-codegraph` 可整段跳过。Codex CLI 没有项目级 MCP 配置，项目级接线会跳过它，安装器会打印手动全局接线命令。
+4. 在目标项目 `.gitignore` 幂等追加一个标记块，逐条忽略已安装的 skill 目录与版本 stamp；同时**问一次** `docs/` 与 `engineering-context/` 要不要提交进 git——**默认（回车）是不提交**，就把这两个目录一并写进同一个标记块；答"提交"则一个字节都不动它们。答案以一行注释记在块内，重装直接沿用、**不再询问**。`--yes` 与非交互终端（CI、npx 自动安装）取同一个默认值 `no` 一次落定；`.gitignore` 里已有你自己写的这两个目录的忽略规则时既不发问、也不接管它们。`--docs-in-git=yes|no` 优先于以上全部，也是事后改主意的入口；
+5. 合并（不覆盖）Claude Code 的 `enabledPlugins`，在本项目把冲突插件设为 `false`；
+6. 安装时让用户选择 Codex 冲突技能处理方式：默认写入项目 `AGENTS.md` 约束自动触发，也可明确选择通过 Codex CLI 全局卸载；若任一入口已有 workflow 标记块，同时补齐 `CLAUDE.md` 与 `AGENTS.md`；
+7. 把 skill 自带的 `ctx` CLI 链接成**全局 `ctx` 命令**（在 `<项目>/.claude/skills/ai-dev-workflow/scripts/ctx` 下 `npm link`），并实跑 `ctx --help` 验证真的可用。链接失败（无写权限、npm 全局 bin 不在 PATH、PATH 上已有**别人的**同名 `ctx`）只降级为警告，并打印 `node <skill>/scripts/ctx/src/cli.js <命令>` 兜底调用方式。Windows 上换项目重装时 `npm link` 会因全局命令目录里还留着上次那个 `ctx` 而报 `EEXIST`：安装器会先确认那个文件确实是本体系留下的，确认了才 `npm link --force` 覆盖成本次这份；判不出归属就一个字节都不动，只打印文件路径与删除方式——CLI 本体已随 skill 落盘，**命令找不到不等于 ctx 不可用**。`--no-ctx-link` 可跳过；
+8. 保持 [codegraph](https://github.com/colbymchenry/codegraph)（本地代码知识图谱 CLI）为最新——没装就 `npm install -g @colbymchenry/codegraph`，有新版就 `codegraph upgrade`——随后接线到 agent（默认 `--location=local`，只影响本项目），并在 `.codegraph/` 不存在时用 `codegraph init` 给本仓库建索引。这一段任何失败只降级为警告；`--no-codegraph` 可整段跳过。Codex CLI 没有项目级 MCP 配置，项目级接线会跳过它，安装器会打印手动全局接线命令。
 
 | 插件 | 为什么与本流程冲突 |
 |---|---|

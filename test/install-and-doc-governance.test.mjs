@@ -540,3 +540,78 @@ test('ai-prd questions and deliverables use business language only', () => {
     assert.doesNotMatch(readFileSync(file, 'utf8'), forbidden, file)
   }
 })
+
+// docs/ 与 engineering-context/ 是目标项目自己的产物，入不入库没有唯一答案，
+// 所以由安装器问一次并把结果记进标记块。下面这组守的是"只问一次"与"非交互零改动"。
+test('installer records the docs/engineering-context in-git decision once', () => {
+  const target = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-docsgit-'))
+  try {
+    writeFileSync(path.join(target, '.gitignore'), 'node_modules/\n')
+
+    const first = spawnSync(process.execPath, localInstallArgs(target, '--yes', '--docs-in-git=no'), { cwd: repoRoot, encoding: 'utf8' })
+    assert.equal(first.status, 0, first.stderr || first.stdout)
+    const gitignore = read(target, '.gitignore')
+    assert.match(gitignore, /^# ai-dev-system:project-docs-in-git=no$/m)
+    assert.match(gitignore, /^\/docs\/$/m)
+    assert.match(gitignore, /^\/engineering-context\/$/m)
+    // 两条规则必须落在标记块【内】，否则下次安装的幂等改写会把它们留成孤儿。
+    const block = gitignore.slice(gitignore.indexOf('# ai-dev-system:gitignore:start'), gitignore.indexOf('# ai-dev-system:gitignore:end'))
+    assert.match(block, /^\/docs\/$/m)
+    assert.match(block, /^\/engineering-context\/$/m)
+
+    // 重装不带任何选项：沿用已记的决定，既不重复追加也不回退。
+    const rerun = spawnSync(process.execPath, localInstallArgs(target, '--yes'), { cwd: repoRoot, encoding: 'utf8' })
+    assert.equal(rerun.status, 0, rerun.stderr || rerun.stdout)
+    const rerunGitignore = read(target, '.gitignore')
+    assert.equal((rerunGitignore.match(/^\/docs\/$/gm) || []).length, 1)
+    assert.equal((rerunGitignore.match(/project-docs-in-git=no/g) || []).length, 1)
+
+    runGit(target, 'init', '-b', 'main')
+    for (const p of ['docs/spec/x.md', 'engineering-context/cards/a.md']) {
+      const check = spawnSync('git', ['check-ignore', p], { cwd: target, encoding: 'utf8' })
+      assert.equal(check.status, 0, `${p} 应被忽略：${check.stderr || check.stdout}`)
+    }
+  } finally {
+    rmSync(target, { recursive: true, force: true })
+  }
+})
+
+test('installer keeps docs/ tracked when the user says yes, and falls back to the default otherwise', () => {
+  const yesTarget = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-docsgit-yes-'))
+  const quietTarget = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-docsgit-quiet-'))
+  const ownTarget = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-docsgit-own-'))
+  try {
+    // 选"提交"：只留决定记号，不写任何忽略规则——记号是把"选过提交"与"从没问过"分开的唯一依据。
+    const yes = spawnSync(process.execPath, localInstallArgs(yesTarget, '--yes', '--docs-in-git=yes'), { cwd: repoRoot, encoding: 'utf8' })
+    assert.equal(yes.status, 0, yes.stderr || yes.stdout)
+    const yesGitignore = read(yesTarget, '.gitignore')
+    assert.match(yesGitignore, /^# ai-dev-system:project-docs-in-git=yes$/m)
+    assert.doesNotMatch(yesGitignore, /^\/docs\/$/m)
+    assert.doesNotMatch(yesGitignore, /^\/engineering-context\/$/m)
+
+    // 非交互（--yes / CI / npx）取与回车相同的默认值 no，一次落定并记进块内。
+    const quiet = spawnSync(process.execPath, localInstallArgs(quietTarget, '--yes'), { cwd: repoRoot, encoding: 'utf8' })
+    assert.equal(quiet.status, 0, quiet.stderr || quiet.stdout)
+    const quietGitignore = read(quietTarget, '.gitignore')
+    assert.match(quietGitignore, /^# ai-dev-system:project-docs-in-git=no$/m)
+    assert.match(quietGitignore, /^\/docs\/$/m)
+    assert.match(quietGitignore, /^\/engineering-context\/$/m)
+
+    // 使用者自己早就忽略过：不发问，也不把他的规则搬进我们的标记块。
+    writeFileSync(path.join(ownTarget, '.gitignore'), 'docs/\nengineering-context/\n')
+    const own = spawnSync(process.execPath, localInstallArgs(ownTarget, '--yes'), { cwd: repoRoot, encoding: 'utf8' })
+    assert.equal(own.status, 0, own.stderr || own.stdout)
+    assert.match(own.stdout, /不发问，也不接管这些规则/)
+    const ownGitignore = read(ownTarget, '.gitignore')
+    assert.doesNotMatch(ownGitignore, /project-docs-in-git/)
+    const ownBlock = ownGitignore.slice(ownGitignore.indexOf('# ai-dev-system:gitignore:start'))
+    assert.doesNotMatch(ownBlock, /^docs\/$/m)
+
+    // 非法取值硬失败，不静默按默认走。
+    const bogus = spawnSync(process.execPath, localInstallArgs(yesTarget, '--yes', '--docs-in-git=maybe'), { cwd: repoRoot, encoding: 'utf8' })
+    assert.notEqual(bogus.status, 0)
+    assert.match(bogus.stderr + bogus.stdout, /--docs-in-git 只能是 yes 或 no/)
+  } finally {
+    for (const t of [yesTarget, quietTarget, ownTarget]) rmSync(t, { recursive: true, force: true })
+  }
+})
