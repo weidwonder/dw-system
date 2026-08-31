@@ -6,7 +6,7 @@
 >
 > **产物去向**：原型与 PRD 一起作为 `ai-dev-workflow` Step 1 的输入，下游的 Overview / eng-spec / test-spec 会按它落用户可见行为。因此原型不是给评审看一眼的插图，是**要被工程读的行为契约**。
 
-> **本文小节**：[1 自查样式](#1-先自查现有样式查不到再问用户) · [2 交付形态](#2-交付-html-高保真交互页) · [3 面向用户](#3-面向用户而不是面向文档) · [4 范围控制](#4-短平快范围控制) · [4.5 被取代时](#45-原型被取代时加横幅不删文件) · [5 PRD 写法](#5-prd-中的写法) · [6 交付自检](#6-交付前自检跑-check-命令) · [7 批注框架](#7-界面批注框架容器已内置-must-not-自己造)（7.1 建/改稿 · 7.2 元素说明 · 7.3 读回批注 · 7.4 写回文件）· [8 填内容](#8-怎么往容器里填内容工具--插槽契约)（8.1 工具与插槽 · 8.2 界面结构 · 8.3 class 与 hook · 8.4 项目样式与自定义控件）
+> **本文小节**：[1 自查样式](#1-先自查现有样式查不到再问用户) · [2 交付形态](#2-交付-html-高保真交互页) · [3 面向用户](#3-面向用户而不是面向文档) · [4 范围控制](#4-短平快范围控制) · [4.5 被取代时](#45-原型被取代时加横幅不删文件) · [5 PRD 写法](#5-prd-中的写法) · [6 交付自检](#6-交付前自检跑-check-命令) · [7 批注框架](#7-界面批注框架容器已内置-must-not-自己造)（7.1 建/改稿 · 7.2 元素说明 · 7.3 读回批注 · 7.4 写回文件 · 7.5 设计说明 · 7.6 屏注解区 · 7.7 动到带批注的元素 · 7.8 服务开着时改稿）· [8 填内容](#8-怎么往容器里填内容工具--插槽契约)（8.1 工具与插槽 · 8.2 界面结构 · 8.3 class 与 hook · 8.4 项目样式与自定义控件 · 8.5 走一遍完整链路）
 
 ## 1. 先自查现有样式，查不到再问用户
 
@@ -27,7 +27,7 @@
 ## 2. 交付 HTML 高保真交互页
 
 - 涉及 UI 的 PRD MUST 配一个独立 HTML 原型文件：`docs/spec/YYYY-MM-DD-<name>-prototype.html`。PRD 只放链接、覆盖范围和关键状态清单，不把大段 HTML 嵌进 PRD。
-- **产出时机只有一个**：批 C 只产出 UI Prototype Brief，HTML 原型在 `00-prd生成流程.md` §组稿 第 2 步生成，与 PRD 一起过第 6 条的落盘确认门后才写入 `docs/spec/`。**MUST NOT 在批 C 就把原型落盘**——那道门要回述的正是原型覆盖范围与样式依据，提前落盘等于绕门。
+- **产出时机只有一个**：批 C 只产出 UI Prototype Brief，HTML 原型在 `00-prd生成流程.md` §组稿 第 2 步生成，与 PRD 一起过 §组稿 第 6 步的落盘确认门后才写入 `docs/spec/`。**MUST NOT 在批 C 就把原型落盘**——那道门要回述的正是原型覆盖范围与样式依据，提前落盘等于绕门。
 - **给用户过目用的是预览副本，不是正式文件**：`00-prd生成流程.md` §组稿 第 4 步的用户过稿门要用户真的打开原型点一遍，因此 MUST 把原型写成可离线打开的**预览副本**放在系统临时目录或用户明确指定的项目外位置，并把路径告诉用户；**MUST NOT 因为"用户要看"就提前写进 `docs/`**，也 MUST NOT 只贴一段 HTML 源码让用户自己存盘。正式文件在第 7 步按本节命名重新写出，预览副本的路径与文件名一概不作数。
 - 原型 MUST 是可在浏览器直接打开的**单文件** HTML（含内联 CSS 与少量 JS），能点击 / 切换关键状态。
 - **MUST NOT 引用任何外部资源**：不用 CDN 脚本或样式、不用网络字体、不用远程图片（图片改用内联 SVG 或纯 CSS 占位），字体只用系统字体栈。原型要能离线、内网、断网打开——依赖外链的原型等于交付了一个会白屏的文件。
@@ -102,7 +102,7 @@ node <skills 根>/ai-prd/scripts/preview.mjs check <原型文件>
 
 容器按标记分区，**能动的只有 §8.1 插槽表里那几个插槽**，其余全是固定实现（下表按标记名引用，MUST NOT 用序号——序号会随容器增区而漂）。
 
-> **固定实现区的正文不在容器文件里**（2.10.0 起）：`THEME` / `DESIGN-SYSTEM` / `ANNO-FRAMEWORK:CSS` / `ICONS` / `SCREEN-SCRIPT` / `ANNO-FRAMEWORK:JS` 这六个区的内容住在 `assets/templates/ui-prototype-framework/` 下的独立 css / js / svg 源文件里，`ui-prototype.html` 本体只留分区标记与骨架；`preview.mjs init` 会按装配表把它们填回去。**产出的原型仍是单文件、零外链、可离线打开**——外置的是源码组织方式，不是运行时依赖，这条对产出方**没有任何影响**：你依旧只填插槽、依旧不读容器。
+> **固定实现区的正文不在容器文件里**（2.10.0 起）：`THEME` / `DESIGN-SYSTEM` / `ANNO-FRAMEWORK:CSS` / `ICONS` / `SCREEN-SCRIPT` / `ANNO-FRAMEWORK:JS` 这六个区的内容住在 `assets/templates/ui-prototype-framework/` 下的独立 css / js / svg 源文件里，`ui-prototype.html` 本体只留分区标记与骨架；`preview.mjs init` 会按装配表把它们填回去。**产出的原型仍是单文件、零外链、可离线打开**——外置的是源码组织方式，不是运行时依赖，这条对产出方**没有任何影响**：你依旧只填插槽、依旧不读容器。**要改框架本身**（而不是产出原型）时才读 `assets/templates/ui-prototype-framework/README.md`：装配表、结构层与外观层的切分线、新增源文件该归哪一层都在那里。
 > 只有**维护批注框架本身**时才需要知道这件事：**改框架改 `ui-prototype-framework/` 下对应那份文件，MUST NOT 往 `ui-prototype.html` 的固定区里写内容**——写了就有两份副本，装配后同一段内容出现两次，而页面照常打开、`check` 也看不出。判据与机器闸见 `ai-dev-workflow` 分发源仓库的 `docs/spec/2026-08-27-原型取段与框架外置-eng-spec.md`。
 
 
@@ -241,7 +241,7 @@ node <skills 根>/ai-prd/scripts/preview.mjs <原型文件>
 | `notes` | 设计说明面板（顶部工具栏入口，默认收起）：样式依据 / 覆盖范围 / 开放问题三段 |
 | `theme` | 项目真实样式 token 覆盖（§8.4） |
 | `custom` | 组件表里没有的控件样式、hover、动画、媒体查询（§8.4） |
-| `script` | 屏注解区按钮的绑定与按下态等交互行为 |
+| `script` | 本次原型特有的交互演示（与原型同文件，MUST NOT 引外部脚本）。**屏注解区的状态切换按钮 MUST NOT 写进这里**——`screen` 已生成按钮、容器已内置行为，再写一份就是重复绑定（§7.6）|
 
 `MUST NOT 改动插槽之外的任何一行`——`THEME` / `DESIGN-SYSTEM` / `ICONS` / `ANNO-FRAMEWORK` / `ANNOTATIONS` 各区都是固定实现，改写一次就会让批注读不回来、样式失效，而且不会有任何报错。
 
@@ -272,9 +272,9 @@ node <skills 根>/ai-prd/scripts/preview.mjs <原型文件>
 
 ### 8.3 可用的 class 与交互 hook
 
-**先看这一条：下面那张组件表默认不存在。**
+**先看这一条：下面那张表分两半——标了「结构层，恒可用」的那几行恒在，其余各行默认不存在。**
 
-容器分两层装配。**结构层恒装配**——画布、设备壳、屏、状态层、屏注解区、图标尺寸、`.fill` / `.scroll-y` 两个布局原语，它们是批注框架与 `check` 的锚点，与视觉风格无关。**外观层（按钮 / 表单 / 卡片 / 徽标 / 提示条 / 空态 / 列表 / 导航 / 浮层，就是下面那张表）默认不装配**，只有 `init --with-baseline` 才追加。
+容器分两层装配。**结构层恒装配**——画布、设备壳、屏、状态层、屏注解区、图标尺寸、`.fill` / `.scroll-y` 两个布局原语，它们是批注框架与 `check` 的锚点，与视觉风格无关。**外观层（按钮 / 表单 / 卡片 / 徽标 / 提示条 / 空态 / 列表 / 导航 / 浮层，即下面表里未标「结构层，恒可用」的那些行）默认不装配**，只有 `init --with-baseline` 才追加。
 
 这么分的判据：**原型的视觉风格 MUST 由本次项目的真实样式来源决定，MUST NOT 由容器替产出方定死**。容器塞一套完整控件库进去，产出方就会照它画——它长什么样，原型就长什么样，而那套样子与本次项目毫无关系。风格来源的取法在 §1 的自查清单，优先级也在那里。
 
@@ -282,11 +282,11 @@ node <skills 根>/ai-prd/scripts/preview.mjs <原型文件>
 - **绿地项目**：风格 MUST 与用户确认后再画（品牌色、字体、圆角、控件形态至少确认到这四项），确认结果写进 `theme` 与 `custom` 插槽。
 - **确实查不到任何来源、且用户也给不出**：才可以 `--with-baseline` 用中性兜底，并 MUST 在 PRD 的 UI 原型节写明"视觉为临时假设，开发前需替换为真实样式依据"。**MUST NOT 因为它省事就默认开**。
 
-开了基线之后，下面这张表才可用。它管的只是**这份原型怎么画**，**MUST NOT 被读成"要求项目采用某个 UI 框架或组件库"**——项目用什么技术栈由工程侧决定；PRD 里也 MUST NOT 因为容器长这样就写进任何框架名。
+下面这张表里，标着「**结构层，恒可用**」的那几行任何时候都在（它们随结构层恒装配）；**其余各行要开了基线才存在**。整张表管的只是**这份原型怎么画**，**MUST NOT 被读成"要求项目采用某个 UI 框架或组件库"**——项目用什么技术栈由工程侧决定；PRD 里也 MUST NOT 因为容器长这样就写进任何框架名。
 
 | 用途 | class |
 |---|---|
-| 排版 | `.stack` `.stack-sm` `.row` `.row-between` `.grow` `.muted` `.text-sm` `.text-xs` `.font-medium` `.font-semibold` `.truncate` `.mono` |
+| 排版（**结构层，恒可用**）| `.stack` `.stack-sm` `.row` `.row-between` `.grow` `.muted` `.text-sm` `.text-xs` `.font-medium` `.font-semibold` `.truncate` `.mono` |
 | 按钮 | `.btn` `.btn-secondary` `.btn-outline` `.btn-ghost` `.btn-destructive` `.btn-link` `.btn-sm` `.btn-lg` `.btn-icon` `.btn-block` |
 | 表单 | `.field` `.label` `.input` `.textarea` `.select-wrap` `.select` `.input-group` `.field-hint` `.field-error` `.checkbox` `.switch` |
 | 容器 | `.card` `.card-compact` `.card-flush` `.card-header` `.card-title` `.card-description` `.card-content` `.card-footer` |
@@ -295,7 +295,7 @@ node <skills 根>/ai-prd/scripts/preview.mjs <原型文件>
 | 导航 | `.tabs-list` `.tabs-trigger` `.nav` `.nav-item` |
 | 页面（**结构层，恒可用**）| `.app-bar` `.app-title` `.screen` `.device` `.device-wrap` `.device-name` `.devices` `.fill` `.scroll-y` |
 | 浮层 | `.toast`；`.dialog` `.dialog-header` `.dialog-title` `.dialog-body` `.dialog-footer`；`.kbd` |
-| 图标 | `<svg class="icon"><use href="#i-search"/></svg>`，尺寸用 `.icon-sm` / `.icon-lg` |
+| 图标（**结构层，恒可用**）| `<svg class="icon"><use href="#i-search"/></svg>`，尺寸用 `.icon-sm` / `.icon-lg` |
 
 图标 id：`i-check` `i-x` `i-plus` `i-minus` `i-search` `i-chevron-right` `i-chevron-down` `i-chevron-left` `i-arrow-right` `i-arrow-left` `i-menu` `i-more` `i-bell` `i-user` `i-users` `i-home` `i-file` `i-inbox` `i-trash` `i-edit` `i-settings` `i-filter` `i-download` `i-upload` `i-eye` `i-lock` `i-star` `i-calendar` `i-clock` `i-info` `i-alert` `i-alert-triangle` `i-check-circle` `i-x-circle` `i-loader` `i-message` `i-sun` `i-moon` `i-external` `i-save` `i-copy`
 
@@ -353,3 +353,29 @@ node <skills 根>/ai-prd/scripts/preview.mjs <原型文件>
 - **满高布局用 `.fill` + `.scroll-y`，MUST NOT 写死 `max-height` 像素**：`.device` → `.screen` → 状态层是打通的 flex 链，`.fill` 吃满剩余高度、`.scroll-y` 在内部滚动。写死像素会让内容区缩成一条、设备壳下方留出大片空白，而页面照常打开、`check` 也看不出来。
 - **绝对定位的控件可以照写**（拓扑图 / 流程图 / 座位图这类画布）：批注框架只把**本来是 `static`** 的元素提升为 `position: relative`，`absolute` / `relative` / `fixed` / `sticky` 的元素打了批注也不会被改写定位，MUST NOT 为此另加提权选择器。
 - **自定义样式的 `z-index` 上限是 880**（MUST 严格小于它）：880 起是批注框架的自留层（图钉 880，其上还有设计说明面板、工具栏、批注弹窗与拾取光标）。写到这个区间里会盖住图钉，用户看不见图钉就会以为批注没保存成功。
+
+### 8.5 走一遍：一份原型从建到收批注
+
+**这是示例不是判据**，每步规则以上面各节原文为准。需求："给学生端加『错题重练』入口与练习页。"棕地项目、已在 §1 自查到项目用的是自家 token（**因此不开基线**）。
+
+```
+P=<系统临时目录>/错题重练-prototype.html          # 预览副本落项目外（§2），不进 docs/
+S=<skills 根>/ai-prd/scripts/preview.mjs
+
+node $S init   "$P" --title "错题重练" --subtitle "沿用 design/tokens.css；覆盖 我的-错题本-重练三屏"
+node $S screen "$P" --name "我的"      --states is-default
+node $S screen "$P" --name "错题本"    --states is-default,empty,loading
+node $S screen "$P" --name "重练中"    --states is-default,success
+node $S slot   "$P" --set theme  --from theme.css       # 项目真实 token（§8.4）
+node $S slot   "$P" --set custom --from controls.css    # 控件外观自己写：没开基线（§8.3）
+node $S slot   "$P" --set screens --from screens.html   # 三屏内容 + data-anno 说明
+node $S slot   "$P" --set notes  --text "样式依据：design/tokens.css｜覆盖：错题本→重练｜开放问题：每次重练多少题未定"
+node $S check  "$P"                                     # 必须无 P0（§6）
+node $S serve  "$P" &                                   # 你后台起，用户零操作批注（§7.4）
+```
+
+用户看完提了两条意见 → `node $S annotations "$P"` 取回**三类 + 回复**：一条元素批注挂在"开始重练"按钮上、一条全局反馈说"错题本要能按学科筛"、外加你自己写的一条 `data-anno-kind="question"`（每次重练多少题）用户已就地回复"20 题"。
+
+改稿时"开始重练"按钮那一屏要重画 → **把它身上的 `data-anno-user` 锚点抄进新片段**再 `slot --set screens`；漏抄的话 `slot` 会拒绝写入并列出会失联的批注（§7.7）。**本例锚点原样带过去、批注指向的控件语义没变，因此不触发 §7.7 的逐条约定**；真要动到批注所指的那条意见本身（落实了 / 作废 / 挪到别的元素），MUST 先按 §7.7 与用户逐条约定再带 `--agreed --agreed-plan` 放行。筛选功能属"这次不做、以后想做" → 进 `docs/TODO.md`，不写进非目标。
+
+定稿后：**先停掉 serve**（§7.4），再派复核子代理；落盘时**整份以预览副本为准**写进 `docs/spec/`，批注和锚点一起进库（`00-prd生成流程.md` §组稿 第 7 步）。

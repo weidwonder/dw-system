@@ -37,3 +37,22 @@ export const ENTRY_MAX_BYTES = 12000
 
 /** 常驻前置量门槛（AC-003）。权威计算在 `resident-budget.test.mjs`，本值只作它的门槛常量。 */
 export const RESIDENT_BUDGET = 50000
+
+/**
+ * `ai-prd` 入口 `SKILL.md` 的字节上限。**与 `ENTRY_MAX_BYTES` 是两个量**：后者管
+ * `ai-dev-workflow` 的入口，两个 skill 的入口结构不同（workflow 走渐进式披露、判据下沉到
+ * 分册；ai-prd 的路由第 2 步无条件加载三份 references，入口自带完整纪律），**MUST NOT 合并
+ * 成一个数**。
+ *
+ * 定为 20000 的判据：本值是**防回涨的棘轮，不是精简目标**。2026-08-30 实测入口 19,579 字节、
+ * 内含 61 条规范结论（按本闸四桶口径：MUST NOT 40 + 裸 MUST 20 + SHOULD 1；
+ * **MUST NOT 单独成桶、不计进 MUST**，用 `grep -o MUST` 数会把 MUST NOT 双计成 100，MUST NOT 那样数），
+ * 约每 320 字节一条——它不是注水文件，压到 `ENTRY_MAX_BYTES` 那个量级等于每条结论只剩约 197 字节，
+ * 会把 `wording-redline` 红线②③要保护的消歧上下文剥光。
+ *
+ * **超了怎么办**：首选把新增内容写进 references（路由第 2 步反正会加载它们），MUST NOT 顺手
+ * 上调本值。注意**存量判据往外搬会被 `wording-redline.test.mjs` 判红**（它按文件计规范词条数，
+ * 没有"判据移到别处"的豁免通路）——真要做整体下沉，MUST 先与用户拍板该闸的逃生口怎么开，
+ * MUST NOT 靠绕过任一条闸来达成。
+ */
+export const PRD_ENTRY_MAX_BYTES = 20000

@@ -23,6 +23,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
+import { PRD_ENTRY_MAX_BYTES } from './contract-numbers.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const prdRoot = path.join(repoRoot, 'ai-dev-system', 'skills', 'ai-prd')
@@ -51,7 +52,12 @@ test('复核纪律存在，且两轴与三个出口都写明', () => {
 /** 组稿节的顶层步骤：[{ num, text }]，text 是该步首行。按门名定位用，不钉死编号。 */
 function composeSteps() {
   const flow = read(prdRoot, 'references', '00-prd生成流程.md')
-  const section = flow.slice(flow.indexOf('\n## 组稿'), flow.indexOf('\n## PRD 生命周期'))
+  // 终点取「下一个 ### 子节」与「## PRD 生命周期」中较早的那个：组稿节末尾允许挂示例
+  // 子节（如〈走一遍〉），其中的有序列表**不是**组稿步骤，切到 ## 会把它们一起数进来。
+  const from = flow.indexOf('\n## 组稿')
+  const stop = [flow.indexOf('\n### ', from), flow.indexOf('\n## PRD 生命周期', from)]
+    .filter((i) => i >= 0)
+  const section = flow.slice(from, Math.min(...stop))
   return [...section.matchAll(/^([0-9]+)\. (.*)$/gm)].map((m) => ({ num: Number(m[1]), text: m[2] }))
 }
 
@@ -126,10 +132,10 @@ test('组稿步骤号全仓一致：编号连续，且指向各门的引用都�
   const draft = gateStep('用户过稿门')
   const wrong = []
   for (const [file, body] of prdFiles) {
-    for (const m of body.matchAll(/第 ([0-9]+) 条的落盘确认门/g)) {
-      if (Number(m[1]) !== landing) wrong.push(`${file} ← 「第 ${m[1]} 条的落盘确认门」应为第 ${landing} 条`)
+    for (const m of body.matchAll(/第 ([0-9]+) [条步]的落盘确认门/g)) {
+      if (Number(m[1]) !== landing) wrong.push(`${file} ← 「第 ${m[1]} 条的落盘确认门」应为第 ${landing} 步`)
     }
-    for (const m of body.matchAll(/§组稿 第 ([0-9]+) 步的用户过稿门/g)) {
+    for (const m of body.matchAll(/§组稿 第 ([0-9]+) [条步]的用户过稿门/g)) {
       if (Number(m[1]) !== draft) wrong.push(`${file} ← 「第 ${m[1]} 步的用户过稿门」应为第 ${draft} 步`)
     }
   }
@@ -205,4 +211,20 @@ test('子代理报告的「出口」列取值能表达全部三个出口', () =>
   const trace = body.slice(body.indexOf('「取证足迹」'), body.indexOf('- 「未能取证」'))
   assert.ok(/MUST\s*写|必写/.test(trace), '取证足迹未写成强制项')
   assert.ok(/无论|与本轴有没有发现|不管/.test(trace), '取证足迹未写明与本轴有无发现无关')
+})
+
+test(`ai-prd 入口 SKILL.md ≤ ${PRD_ENTRY_MAX_BYTES} 字节（防回涨棘轮）`, () => {
+  // 为什么要有这条闸：ai-prd 的入口没有渐进式披露——路由第 2 步无条件加载三份 references，
+  // 而入口自己又把三道门的判据完整复述了一遍。复述是刻意的（入口要能独立路由），但它没有
+  // 任何上界，一路涨到 19,599 字节都没有东西出声，是姊妹 skill 入口的两倍多。
+  //
+  // 本值是**棘轮不是精简目标**：入口里 100 条规范结论约每 195 字节一条，压下去就会剥掉
+  // `wording-redline` 红线②③保护的消歧上下文。超了 MUST 先把新增内容写进 references
+  // （反正会被加载），MUST NOT 顺手上调 PRD_ENTRY_MAX_BYTES。判据见 contract-numbers.mjs。
+  const bytes = Buffer.byteLength(read(prdRoot, 'SKILL.md'), 'utf8')
+  assert.ok(
+    bytes <= PRD_ENTRY_MAX_BYTES,
+    `ai-prd 入口 SKILL.md ${bytes} 字节，超出上限 ${PRD_ENTRY_MAX_BYTES}（超 ${bytes - PRD_ENTRY_MAX_BYTES}）。` +
+      'MUST 把新增内容写进 references/（路由第 2 步会加载它们），MUST NOT 上调上限值。',
+  )
 })

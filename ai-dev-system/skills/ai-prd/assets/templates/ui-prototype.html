@@ -56,9 +56,11 @@
   </main>
 
   <!-- SCREEN-SCRIPT:BEGIN 原型级交互 · 固定实现 · 整段原样保留，MUST NOT 修改或删除
-       注解区按钮的行为写进下方 CUSTOM-JS 插槽；改状态用这里导出的 window.setScreenState。 --><!-- SCREEN-SCRIPT:END -->
+       屏注解区状态切换按钮的行为已由本区内置（认 [data-state] 属性），产出方不写一行绑定；
+       要在别处改状态用这里导出的 window.setScreenState(screenEl, nextState)。 --><!-- SCREEN-SCRIPT:END -->
 
-  <!-- CUSTOM-JS:BEGIN 插槽：注解区按钮的点击行为写这里，用 slot --set script 写入。 -->
+  <!-- CUSTOM-JS:BEGIN 插槽：本次原型特有的交互演示写这里，用 slot --set script 写入。
+       屏注解区的状态切换按钮 MUST NOT 写进本区——容器已内置其行为，再写一份会重复绑定。 -->
   <script id="proto-script"></script>
   <!-- CUSTOM-JS:END -->
 

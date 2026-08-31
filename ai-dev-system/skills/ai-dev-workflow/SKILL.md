@@ -35,7 +35,7 @@ description: "AI 辅助开发主流程：从已有 PRD 起步做需求落地、O
 | 每次唤起（分流前）| 本入口全文 + `core/用户沟通纪律.md` + `core/00-流程总纲.md` §Step 0 | 隔离门与第 2 步问答都在 Triage 之前，手里没别的文件 | 两条 |
 | `merge-gate` 缺省 | `core/worktree开发纪律.md` §完成与自动合并门 | 判据只在那节定义 | 两条 |
 | 要建 worktree | `core/worktree开发纪律.md` §工作区隔离门 | 入口要点只够判过不过 | 两条 |
-| Triage 四问全否 | `core/00-流程总纲.md` §默认倾向 → 未升级即 **Lean 分支**：`core/路径-lean.md` **前置节** + `collab/` 一份 + lean 模板 | 先判够不够格走 Lean；自足册含直管 Lean 的 MUST，MUST NOT 整篇预读，也 MUST NOT 再补余下三份 | Lean |
+| Triage 四问全否 | **Lean 分支**：`core/路径-lean.md` **前置节**（含 §1.2 = §默认倾向 投影，判升级用它、MUST NOT 再取原节）+ `collab/` 一份 + lean 模板 | 自足册含直管 Lean 的 MUST，MUST NOT 整篇预读、MUST NOT 再补余下三份 | Lean |
 | Triage 任一为是（或 §默认倾向 判升级）| **完整分支**：补齐常驻余下三份 + `core/00-流程总纲.md` 其余前置节，再取 `core/步骤-1-7-设计与实现.md` | 只有完整流程用得上，分流前取 = Lean 白付 | 完整 |
 | 红回路门命中（bug / 回归 / 异常行为）| `core/bug诊断纪律.md` (L§3bis) | 改代码前 MUST 先造复现回路 | 两条 |
 | `ctx` 敲不动、返回空或术语对不上 | `core/代码事实纪律.md` §2 (L§3.2) | 兜底调用与"在哪跑"的陷阱 | 两条 |

@@ -346,7 +346,7 @@
       if (SERVED) {
         // 预览服务模式：批注直接写回原文件，用户什么都不用点
         save.hidden = servedOk && !dirty;
-        save.className = "btn btn-outline btn-sm";
+        save.className = "anno-btn anno-btn--outline";
         save.innerHTML = ico("i-save") + "重试写回";
         save.title = "预览服务暂时写不进文件时，点一下重试";
         if (servedOk && !dirty) {
@@ -359,24 +359,24 @@
           text.textContent = "预览服务没响应——批注暂存本机，恢复后会补写";
         }
       } else if (!CAN_FS) {
-        save.className = "btn btn-sm";
+        save.className = "anno-btn";
         save.innerHTML = ico("i-download") + "下载副本";
         save.title = "本浏览器不能直接写文件：下载后覆盖原文件，AI 才读得到这些批注";
         text.textContent = "批注还没进文件——下载后覆盖原文件";
       } else if (handle && granted && !dirty) {
-        save.className = "btn btn-sm";
+        save.className = "anno-btn";
         save.innerHTML = ico("i-check") + "已保存到文件";
         save.title = "每次增删改都会自动写回 " + FILE + "，不用再点";
         state.className = "anno-state anno-state--saved";
         text.textContent = "批注已在文件里，AI 读得到";
       } else if (handle && dirty) {
-        save.className = "btn btn-sm";
+        save.className = "anno-btn";
         save.innerHTML = ico("i-save") + "保存到文件";
         save.title = "有改动还没写回文件，点一下补写";
         state.className = "anno-state anno-state--dirty";
         text.textContent = "有改动还没写回文件";
       } else {
-        save.className = "btn btn-sm";
+        save.className = "anno-btn";
         save.innerHTML = ico("i-save") + "保存到文件";
         save.title = "点一下，在弹窗里选中这个原型文件本身；之后每次批注都会自动写回它";
         text.textContent = "批注只在本机浏览器里，AI 读不到";

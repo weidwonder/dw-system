@@ -1,5 +1,5 @@
 ---
-lifecycle: active          # 任务全部执行完并合入后，准出时通常转 merged（口径已落进代码）
+lifecycle: active          # active | merged | superseded | obsolete，见 references/core/文档治理.md §文档生命周期与索引门控；plan 的常态是任务全部执行完并合入后、准出时转 merged（口径已落进代码）
 superseded_by: ''
 archived: ''
 last_confirmed: ''       # 最近一次被权威面触发复核、判定仍准确的日期；新建时填当天

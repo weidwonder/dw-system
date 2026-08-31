@@ -7,14 +7,11 @@
 // 全漏，所有静态自检仍判过）。能被脚本读出来的东西不该写进文档——同 CLAUDE.md「探测得
 // 出来的不设字段」。
 //
-// 用法：
-//   node preview.mjs init   <文件> --title <名> [--subtitle <一句话>]
-//   node preview.mjs screen <文件> --name <屏名> [--desktop] [--states a,b,c]
-//   node preview.mjs slot   <文件> --set <title|subtitle|screens|notes|theme|custom> (--from <片段文件> | --text <文本>)
-//   node preview.mjs annotations <文件> [--json]
-//   node preview.mjs check  <文件> [--json]
-//   node preview.mjs serve  <文件> [--port <n>] [--no-open]
-//   node preview.mjs <文件>            # 等价于 serve
+// 用法：`node preview.mjs --help`。
+//
+// 这里**刻意不留一份手写的用法摘要**：子命令与参数只有 HELP 常量一个权威源。此前头部
+// 抄过一份，随后 extract 子命令、init 的 --with-baseline、slot 的 script 插槽陆续加进
+// HELP 却没同步到这里，同一个文件里两份用法说明互相矛盾——而读到哪一份全看谁先翻到。
 //
 // 零第三方依赖；路径一律走 node:path，跨平台。
 import { createServer } from 'node:http'
