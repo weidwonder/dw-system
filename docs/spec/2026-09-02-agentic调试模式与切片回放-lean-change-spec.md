@@ -7,6 +7,7 @@ authority_refs:
   - 'AI-LLM-overlay.md §AI 契约清单 的「可观测性」项：每次推理必记字段清单'
   - 'AI-LLM-overlay.md §Agentic 应用 分工表：哪些关注点归 agentic-principle、哪些归本 overlay'
   - '测试资产纪律.md §2：真实输入固化为测试资产的来源与去重规则'
+  - '步骤-8-10-测试.md Step 8「优先用真实样本」条：真实输入来源的复述口径'
 ---
 
 # Lean Change Spec（一页）— Agentic 调试模式与切片回放接线
@@ -48,7 +49,7 @@ authority_refs:
 - `ai-dev-system/VERSION` — bump（FR-005，待拍板）。
 - `docs/index.md` — 登记本 spec。
 
-**伴生仓库 `agentic-principle`（已完成，commit `6175f2f`，未推送）**：新增 D12「可观测与回放」维度与 `references/runtime/observability.md`，并同步 SKILL.md 维度矩阵 / 约束 17 / 失败处理 / 按需引用 / 验证清单 / 案例、testing.md（节点口径含程序段、夹具首选切片）、design-doc-template.md（批次 13 + 骨架 §16）、verification.md、review-mode.md、incremental.md、debug-mode.md、scan_agent.py（D12 探针）与两份 README。
+**伴生仓库 `agentic-principle`（已完成，已推送：`main` = `6175f2f`，annotated tag `v0.8.0`，2026-09-02）**：新增 D12「可观测与回放」维度与 `references/runtime/observability.md`，并同步 SKILL.md 维度矩阵 / 约束 17 / 失败处理 / 按需引用 / 验证清单 / 案例、testing.md（节点口径含程序段、夹具首选切片）、design-doc-template.md（批次 13 + 骨架 §16）、verification.md、review-mode.md、incremental.md、debug-mode.md、scan_agent.py（D12 探针）与两份 README。
 
 ## 影响范围 / 不做什么
 
@@ -82,7 +83,7 @@ authority_refs:
 ## 验收标准（可判定，含边界/失败用例）
 
 - [ ] AC-001 `AI-LLM-overlay.md` 分工表第一行含「调试模式」「切片」「回放」三个词，且该文件全文 MUST NOT 出现切片字段清单、开关粒度、回放比对口径等 D12 判据正文（只给指针）—— 满足：FR-001
-- [ ] AC-002 `AI-LLM-overlay.md` 「可观测性」项含调试模式开启时的完整 request/response 留存、默认关、写入时脱敏、留存期四要素，并指向 `agentic-principle` 的 D12 —— 满足：FR-002
+- [ ] AC-002 `AI-LLM-overlay.md` 「可观测性」项含三样东西：**可开启调试模式的要求**（留存本次推理的完整 request/response、生产默认关、写入时脱敏、定留存期）、**指向 `agentic-principle` D12 的指针**、以及**非 Agentic AI 功能读不到 D12 时的兜底地板**；且 MUST NOT 逐条列切片字段或开关粒度（与 AC-001 的全文禁令一致——两条 AC MUST NOT 互相打架）—— 满足：FR-002
 - [ ] AC-003 `测试资产纪律.md` §2 与 `步骤-8-10-测试.md` Step 8 两处都写到"有切片优先取切片、脱敏后入库、手工构造只补切片覆盖不到的维度"，且表述同源（后者是前者的指针式复述，不另立判据）—— 满足：FR-003、FR-004
 - [ ] AC-004 边界：伴生 skill **不在场**时本次改动不产生断链——overlay 里新增的指针与既有的"它不在场时"段落一致，读者被引向同一处兜底说明 —— 满足：FR-001、FR-002
 - [ ] AC-005 失败用例：`node --test test/*.test.mjs` 全绿；特别是 `wording-redline.test.mjs`（本次只增不减规范词）、`counter-word.test.mjs`（本次未引入受检计数词）、`doc-index.test.mjs`（本 spec 已收录进 `docs/index.md` 且文件名带日期前缀）—— 满足：FR-001–FR-005
