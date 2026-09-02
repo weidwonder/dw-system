@@ -1,12 +1,12 @@
 ---
 date: '2026-08-01'
-status: '待 agentic_principle 维护者评估'
+status: '待 agentic-principle 维护者评估'
 documentRole: 'report'
-audience: 'https://github.com/weidwonder/agentic_principle 的维护者'
+audience: 'https://github.com/weidwonder/agentic-principle 的维护者'
 lifecycle: active
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-08-23'
+last_confirmed: '2026-09-02'
 authority_refs:
   - '本仓库向 agentic-principle 提出的三条补充建议及其提出时的基线（v0.3.0）'
 ---
