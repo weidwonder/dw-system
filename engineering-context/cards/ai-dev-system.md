@@ -112,3 +112,20 @@
   - Lean 的步骤号与自足册节号是两套（§2=第1步 … §6=第4步 … §10=第10步），MUST NOT 拿节号当步骤号引用。
   - 给常驻篇（`用户沟通纪律.md` 等）新增一段判据要同时看两个预算：**常驻前置量 50,000**（`test/resident-budget.test.mjs`，当前余量已不足百字节）与该节是否因此**从"无 MUST"变成"含 MUST"**——后者会自动新增一条 Lean 自足册覆盖义务。
 - **确认时间**：2026-08-27（2.11.0 合入后）
+
+## 伴生 skill 同步（install.mjs）
+
+- **职责**：主安装完成后检查并保持外部伴生 skill `agentic-principle` 为最新——本体系不收录其内容，只负责"装上并保持新"；装到用户级目录，跨项目共享一份，不进目标项目、不写目标项目 `.gitignore`。
+- **对外接口**
+  - `COMPANION_SKILLS` 常量：`name` / `repo`（`https://github.com/weidwonder/agentic-principle.git`）/ `ref` / `subdir`（skill 本体在仓库的 `agentic-principle/` 子目录）/ `why` — `install.mjs:71`
+  - `syncCompanions(opt, home)` 主入口，主安装后调用（两处：`install.mjs:1458`、`:1578`）— `install.mjs:853`
+  - `fetchCompanion(spec, repo)`：浅克隆到临时目录、校验 `<subdir>/SKILL.md` 存在、读 frontmatter `metadata.version`，返回 `{srcDir, version, cleanup}` — `install.mjs:820`
+  - `companionNeedsUpdate(localVersion, remoteVersion)`：本地缺失或本地更旧才写入；**远端版本判不出时返回 false**（不覆盖已有安装）— `install.mjs:846`
+  - `companionDestDirs(home)`（用户级安装位置）`install.mjs:800`；`legacyCompanionDirs(home, name)`（≤v1.6.0 误装进 `~/.agents/skills/` 的陈旧副本提示）`:806`；`companionGuardReason(dir)`（symlink / git 工作区不自动覆盖）`:812`
+  - CLI：`--no-agentic`（同义 `--no-companions`，跳过整段）— `install.mjs:192`；`--agentic-repo=<url>` 覆盖仓库地址 — `install.mjs:209`
+  - 机器闸：`test/companion-skill.test.mjs` 用 fake remote（`:25`）跑全链路，并有一条用例按字面锁 `COMPANION_SKILLS` 的真实地址与 subdir（`:190`）
+- **陷阱项**
+  - 仓库地址在源码与文档里有多处副本：`install.mjs:71` 是权威，`AI-LLM-overlay.md` 的手动 clone 指引、`migrations/1.6.0.md`、`docs/report/2026-08-02-agentic-principle-gap-report.md` 都各写一份，改地址要一起改（2026-09-02 的仓库改名就是这么漏出来的）。
+  - skill 内容按 `DEFAULT_REF = v${SELF_VERSION}`（`install.mjs:66`）从 **tag** 取：只改 main 上的 skill 文件而不 bump `ai-dev-system/VERSION` 并推 tag，使用者默认装到的仍是旧内容；`install.mjs` 自身的改动则跟着 main 立即生效——两者节奏不同。
+  - 伴生拉取的任何失败都只降级为警告，不影响已完成的主安装（`install.mjs:876` 一段）；因此"装完没报错"不等于伴生 skill 已更新。
+- **确认时间**：2026-09-02

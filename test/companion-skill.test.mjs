@@ -20,7 +20,7 @@ function skillMd(version) {
   return `---\nname: agentic-principle\ndescription: Fixture skill for installer tests.\nmetadata:\n  version: '${version}'\n---\n\n# fixture\n`
 }
 
-// 造一个"远端" agentic_principle 仓库：skill 本体在 agentic-principle/ 子目录里，
+// 造一个"远端" agentic-principle 仓库：skill 本体在 agentic-principle/ 子目录里，
 // 与真实仓库结构一致（安装器按 subdir 取本体）。
 function makeRemote(version) {
   const root = mkdtempSync(path.join(tmpdir(), 'companion-remote-'))
@@ -187,9 +187,9 @@ test('--dry-run 只预告伴生 skill 的动作，不落盘', () => {
   })
 })
 
-test('COMPANION_SKILLS 指向真实的 agentic_principle 仓库与子目录', () => {
+test('COMPANION_SKILLS 指向真实的 agentic-principle 仓库与子目录', () => {
   const raw = readFileSync(installer, 'utf8')
-  assert.match(raw, /repo: 'https:\/\/github\.com\/weidwonder\/agentic_principle\.git'/)
+  assert.match(raw, /repo: 'https:\/\/github\.com\/weidwonder\/agentic-principle\.git'/)
   assert.match(raw, /subdir: 'agentic-principle'/)
   // 帮助里必须说明它是用户级、可跳过
   const help = spawnSync(process.execPath, [installer, '--help'], { encoding: 'utf8' })

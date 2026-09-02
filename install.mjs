@@ -71,7 +71,7 @@ const DEFAULT_REF = SELF_VERSION ? `v${SELF_VERSION}` : FALLBACK_REF;
 const COMPANION_SKILLS = [
   {
     name: 'agentic-principle',
-    repo: 'https://github.com/weidwonder/agentic_principle.git',
+    repo: 'https://github.com/weidwonder/agentic-principle.git',
     ref: 'main',
     subdir: 'agentic-principle', // skill 本体在仓库的这个子目录里
     why: 'ai-dev-workflow 判定需求为 Agentic 应用时必须加载：架构选型 / 系统提示词 / 注意力负载 / 步骤级测试与评测',
