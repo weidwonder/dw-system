@@ -38,7 +38,7 @@
 
 > **两个 skill 保持独立，MUST NOT 互相搬运内容**：本 overlay 只给指针，不复制它的判据；它的版本、结构、术语独立演进。安装器每次运行会检查并更新用户级的 `agentic-principle`（`~/.claude/skills/` 与 `~/.codex/skills/`），本地是 symlink 或 git 工作区时只报告版本、不覆盖。
 >
-> **它不在场时**：不要用本 overlay 顶替 agent 架构设计，也不要临时编一套。告知用户它缺失（提示重跑安装器，或手动 `git clone https://github.com/weidwonder/agentic_principle.git`），并在 spec 里把架构选型标为"待补"——本 overlay 能保证的只是运行期契约，保证不了架构选型本身是对的。
+> **它不在场时**：不要用本 overlay 顶替 agent 架构设计，也不要临时编一套。告知用户它缺失（提示重跑安装器，或手动 `git clone https://github.com/weidwonder/agentic-principle.git`），并在 spec 里把架构选型标为"待补"——本 overlay 能保证的只是运行期契约，保证不了架构选型本身是对的。
 
 ## 硬规则（不可协商，MUST）
 
