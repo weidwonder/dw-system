@@ -1,6 +1,6 @@
 ---
 lifecycle: active
-last_confirmed: '2026-08-26'
+last_confirmed: '2026-09-02'
 authority_refs:
   - '交付单元：两个 skill（ai-prd / ai-dev-workflow）+ ctx CLI + 安装器，装进目标项目的是 .claude/skills/ 与 .agents/skills/ 两份'
   - '安装器默认 --ref 取自安装器自带的 ai-dev-system/VERSION 对应的 tag；显式传的 --ref 取不到时硬失败，默认推出的 tag 取不到时告警回退 main'
@@ -149,7 +149,7 @@ AI coding 落不了地，通常不是因为流程不够精细，而是因为 AI 
 
 ## 明确不做什么
 
-1. **不做 Agent 系统的架构设计**。场景选型、系统提示词、工具边界、注意力与并发预算、步骤级评测属于外部伴生 skill `agentic-principle`；本体系的 `AI-LLM-overlay.md` 只管运行期 AI 契约。两边只用指针互引。
+1. **不做 Agent 系统的架构设计**。场景选型、系统提示词、工具边界、注意力与并发预算、步骤级评测、调试模式与切片留存、单环节回放属于外部伴生 skill `agentic-principle`；本体系的 `AI-LLM-overlay.md` 只管运行期 AI 契约。两边只用指针互引。
 2. **不做代码知识图谱**。符号检索、调用链、影响面由外部工具 codegraph 提供；本体系只声明"何时用它 / 它给什么 / 不可用怎么办"三句，不复制它的使用手册。
 3. **不做运行时框架、不做 IDE 插件、不做托管服务**。交付物是 markdown 判据 + 零依赖 CLI + 安装器，没有 build 步骤、没有 lint 配置、没有 npm 运行时依赖。
 4. **不替用户拍板业务口径**。`ai-prd` 只给推荐与理由，决策权在用户；兼容取舍由用户逐条拍板。
