@@ -74,7 +74,14 @@ const COMPANION_SKILLS = [
     repo: 'https://github.com/weidwonder/agentic-principle.git',
     ref: 'main',
     subdir: 'agentic-principle', // skill 本体在仓库的这个子目录里
-    why: 'ai-dev-workflow 判定需求为 Agentic 应用时必须加载：架构选型 / 系统提示词 / 注意力负载 / 步骤级测试与评测',
+    why: 'ai-dev-workflow 判定需求命中 agent 架构面时必须加载：架构选型 / 系统提示词 / 注意力负载 / 步骤级测试与评测',
+  },
+  {
+    name: 'skill-principle',
+    repo: 'https://github.com/weidwonder/skill-principle.git',
+    ref: 'main',
+    subdir: 'skill', // skill 本体在仓库的这个子目录里（仓库根是开发工程，含 dist/ docs/ 等）
+    why: 'ai-dev-workflow 判定需求命中 skill 文档面时必须加载：建设路径定 skill 的结构与 description，审查路径承担代码评审门的 skill 原则轴',
   },
 ];
 
@@ -206,12 +213,34 @@ function parseArgs(argv) {
       }
       opt.docsInGit = value;
     }
-    else if (a.startsWith('--agentic-repo=')) opt.companionRepos['agentic-principle'] = a.slice('--agentic-repo='.length);
+    else if (a.startsWith('--companion-repo=')) {
+      // 形如 --companion-repo=<name>=<url>。<name> 必须是 COMPANION_SKILLS 里的一个，
+      // 否则静默忽略会让使用者以为覆盖生效了，实际装的还是默认仓库。
+      const value = a.slice('--companion-repo='.length);
+      const eq = value.indexOf('=');
+      const names = COMPANION_SKILLS.map(c => c.name);
+      if (eq <= 0) {
+        throw new Error(`--companion-repo 的格式是 --companion-repo=<name>=<url>；<name> 可选：${names.join(' / ')}`);
+      }
+      const name = value.slice(0, eq);
+      if (!names.includes(name)) {
+        throw new Error(`--companion-repo 的 <name> 只能是：${names.join(' / ')}（收到 "${name}"）`);
+      }
+      opt.companionRepos[name] = value.slice(eq + 1);
+    }
     else if (a.startsWith('--keep=')) opt.keep.push(a.slice('--keep='.length));
     else if (a.startsWith('--repo=')) opt.repo = a.slice('--repo='.length);
     else if (a.startsWith('--ref=')) { opt.ref = a.slice('--ref='.length); opt.refExplicit = true; }
     else if (a.startsWith('--source-dir=')) opt.sourceDir = a.slice('--source-dir='.length);
-    else if (a.startsWith('-')) { console.error(`未知选项: ${a}`); process.exit(2); }
+    else if (a.startsWith('-')) {
+      console.error(`未知选项: ${a}`);
+      // 已删除的开关多给一行迁移指路：只说"未知选项"会让照着旧文档敲的人以为是自己打错字，
+      // 而真正的原因是这个开关在某个版本被换掉了。键是旧开关前缀，值是替代写法。
+      const removed = { '--agentic-repo': '--companion-repo=agentic-principle=<url>（2.15.0 起改为按名字指定伴生 skill）' };
+      const hit = Object.keys(removed).find((k) => a === k || a.startsWith(`${k}=`));
+      if (hit) console.error(`  ${hit} 已删除，请改用：${removed[hit]}`);
+      process.exit(2);
+    }
     else opt.target = a;
   }
   if (!opt.repo) throw new Error('--repo 不能为空');
@@ -238,9 +267,10 @@ function helpText() {
   --ref=<name>     安装版本：分支或标签（默认 ${DEFAULT_REF}${SELF_VERSION ? '，取自安装器自带的 VERSION' : ''}）
   --source-dir=<dir>
                    使用本地仓库源码，不从 GitHub 下载（仅开发和测试）
-  --no-agentic     跳过伴生 skill 的检查与安装（同义：--no-companions）
-  --agentic-repo=<url>
-                   覆盖 agentic-principle 的来源仓库（默认 ${COMPANION_SKILLS[0].repo}）
+  --no-companions  跳过全部伴生 skill 的检查与安装（同义：--no-agentic）
+  --companion-repo=<name>=<url>
+                   覆盖某个伴生 skill 的来源仓库，可多次；<name> 可选：
+${COMPANION_SKILLS.map(c => `                     ${c.name}（默认 ${c.repo}）`).join('\n')}
   --no-ctx-link    跳过把 skill 自带的 ctx CLI 链接成全局命令
   --no-codegraph   跳过 codegraph 的检查、安装、接线与建索引
   --docs-in-git=<yes|no>
@@ -260,7 +290,7 @@ function helpText() {
 伴生 skill（用户级，跨项目共享一份，不进目标项目）：
 ${COMPANION_SKILLS.map(c => `  - ${c.name}：${c.repo}\n      ${c.why}`).join('\n')}
   每次安装都会检查远端版本，本地更旧才更新；本地是 symlink 或 git 工作区时
-  只报告版本差异、不覆盖；拉取失败降级为警告，不影响主安装。用 --no-agentic 跳过。
+  只报告版本差异、不覆盖；拉取失败降级为警告，不影响主安装。用 --no-companions 跳过。
 
 ctx CLI（本体系自带，随 ai-dev-workflow skill 一起安装）：
   ${CTX.why}
@@ -849,10 +879,28 @@ function companionNeedsUpdate(localVersion, remoteVersion) {
   return cmpVersion(remoteVersion, localVersion) > 0;
 }
 
+// 伴生 skill 的 SKILL.md frontmatter 里没有 metadata.version 时（有的 skill 用 git tag 管版本），
+// 上面那个函数两边都读到 null，会判成"每次都要更新"——安装器于是每次运行都重写一遍那个目录，
+// 既违背"本地更旧才更新"的承诺，也让幂等这件事对这类 skill 不成立。
+// 无版本号时退化成**按内容判**：SKILL.md 逐字节相同就认为没变。只比 SKILL.md 而不比整棵树，
+// 是因为它是 skill 的入口与版本载体，references/ 随它一起改动；真要精确到每个文件，成本远高于收益。
+function companionContentSame(localDir, remoteDir) {
+  const a = path.join(localDir, 'SKILL.md');
+  const b = path.join(remoteDir, 'SKILL.md');
+  if (!fs.existsSync(a) || !fs.existsSync(b)) return false;
+  return fs.readFileSync(a).equals(fs.readFileSync(b));
+}
+
+// 两处判定点（guard 分支与普通分支）用的是同一条规则，各写一遍必然漂移。
+function companionShouldUpdate(local, remoteVersion, remoteDir) {
+  if (local.version == null && remoteVersion == null) return !companionContentSame(local.dir, remoteDir);
+  return companionNeedsUpdate(local.version, remoteVersion);
+}
+
 // 主安装完成后执行；任何失败都只降级为警告，不影响已完成的项目安装。
 function syncCompanions(opt, home) {
   if (opt.noCompanions) {
-    console.log('\n· 跳过伴生 skill 检查（--no-agentic）');
+    console.log('\n· 跳过伴生 skill 检查（--no-companions）');
     return;
   }
   for (const spec of COMPANION_SKILLS) {
@@ -880,7 +928,7 @@ function syncCompanions(opt, home) {
       console.log(`\n⚠ 伴生 skill ${spec.name}：无法访问 ${repo}（${e.message}）`);
       console.log(known.length
         ? `   本地已装 v${known[0].version || '未知'}，继续使用；联网后重跑安装器即可检查更新。`
-        : `   本地未安装。它是 Agentic 需求的必需依赖，请稍后重跑安装器，或手动 clone 到 ${dests[0]}。`);
+        : `   本地未安装。它的用途：${spec.why}。请稍后重跑安装器，或手动 clone 到 ${dests[0]}。`);
       continue;
     }
 
@@ -891,13 +939,14 @@ function syncCompanions(opt, home) {
       for (const local of locals) {
         const shown = local.exists ? `v${local.version || '未知'}` : '未安装';
         if (local.guard) {
-          const verdict = companionNeedsUpdate(local.version, remote)
+          const verdict = companionShouldUpdate(local, remote, fetched.srcDir)
             ? '有更新可用，但不自动覆盖，请自行在该仓库拉取'
             : '已是最新';
           console.log(`  · ${local.dir}：${shown}（${local.guard}）→ 保持不动；${verdict}`);
           continue;
         }
-        if (!companionNeedsUpdate(local.version, remote)) {
+        // 两边都没有版本号时按内容判，否则这类 skill 每次安装都会被无谓重写。
+        if (!companionShouldUpdate(local, remote, fetched.srcDir)) {
           console.log(`  · ${local.dir}：${shown} → 已是最新，跳过`);
           continue;
         }
@@ -1384,7 +1433,7 @@ async function main() {
     console.log('       docs/ 与 engineering-context/ 已被你自己的 .gitignore 规则忽略：不发问，也不接管这些规则');
   }
   if (opt.noCompanions) {
-    console.log('  5) 跳过伴生 skill 检查（--no-agentic）');
+    console.log('  5) 跳过伴生 skill 检查（--no-companions）');
   } else {
     console.log(`  5) 检查并更新【用户级】伴生 skill：${COMPANION_SKILLS.map(c => c.name).join('、')}`);
     console.log(`       装到 ${companionDestDirs(homedir()).join('、')}（跨项目共享，不进本项目、不写本项目 .gitignore）`);

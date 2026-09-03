@@ -54,19 +54,45 @@ test('D 是文档轴、E 是 agent 架构轴（编号让位没做一半）', () 
   assert.ok(/\|\s*\*\*D 文档轴\*\*/.test(rev), '轴表里 D 不是文档轴')
   assert.ok(/\|\s*\*\*E agent 架构轴\*\*/.test(rev), '轴表里 E 不是 agent 架构轴')
   assert.ok(!/\*\*D agent 架构轴\*\*/.test(rev), '残留旧编号 D agent 架构轴')
-  // 恒跑四条 + 条件一条：子代理数必须跟着改
-  assert.ok(/4 个并行子代理/.test(rev), '门禁未写明完整流程派 4 个')
-  assert.ok(/完整流程\s*5\s*个/.test(rev), 'Agentic 增派后完整流程的总数未跟着轴数改')
-  assert.ok(/Lean\s*2\s*个/.test(rev), 'Agentic 增派后 Lean 的总数未跟着轴数改')
+  // 2.15.0 起轴集合不再固定：它按对象面推导（P → A/B/C/D，K → S，G → E，取并集）。
+  // 因此这里不再断言"派 N 个"这类写死的数字——那正是 2.15.0 要消灭的形态；
+  // 改为断言**推导规则本身在场**，规则在则数字由它算出，规则丢了才是真的漏改。
+  assert.ok(/\|\s*\*\*S skill 原则轴\*\*/.test(rev), '轴表里没有 S skill 原则轴')
+  assert.ok(/对象面/.test(rev), '门禁未写明按对象面判轴集合')
+  for (const face of ['P', 'K', 'G']) {
+    assert.ok(
+      new RegExp(`\\|\\s*\\*\\*${face}\\*\\*\\s*\\|`).test(rev),
+      `对象面表里缺 ${face} 面——三类是闭集，缺一类就有一批改动算不出轴集合`,
+    )
+  }
+  assert.ok(/取并集/.test(rev), '门禁未写明多面命中取并集')
+  assert.ok(/至多派一个子代理|至多派一次/.test(rev), '门禁未挡住同一条轴被重复派')
 })
 
-test('D 轴恒跑，没有被设成条件触发', () => {
+test('D 轴在 P 面内恒跑，触发条件没有被放回主会话的判断', () => {
   const rev = read(wfRoot, 'references', 'core', '代码评审纪律.md')
   const outline = read(wfRoot, 'references', 'core', '00-流程总纲.md')
-  // 锁契约：两份文件都要写明"不许主会话先判要不要派"
-  for (const [name, body] of [['代码评审纪律', rev], ['00-流程总纲', outline]]) {
-    assert.ok(/恒跑/.test(body), `${name} 未写明 D 轴恒跑`)
+  const lean = read(wfRoot, 'references', 'core', '路径-lean.md')
+  // 2.15.0 把恒跑收窄成"命中 P 面时恒跑"。收窄的是**触发面**，不是那条判据本身：
+  // 主会话仍 MUST NOT 去判"本次有没有碰文档"（那是盘点，是 D 轴自己的第一步）。
+  // 因此这里既要断言收窄形态在场，也要断言原判据一字未丢——只改一半就是把门拆了。
+  for (const [name, body] of [['代码评审纪律', rev], ['00-流程总纲', outline], ['路径-lean', lean]]) {
+    // 触发条件按"它的参照物有没有可能被牵动"给出：改动含 `docs/` 下的文档、或命中 P 面。
+    // 两个条件都要在场——只留 P 面那半，纯 skill 改动动了 docs/ 就没人看；
+    // 只留 docs/ 那半，改代码却没动 docs/ 的改动会漏掉本轴。
+    assert.ok(/含 `docs\/` 下的文档[^\n]*恒跑|含 `docs\/` 下的文档、或命中 P 面/.test(body), `${name} 未写明 D 轴由 docs/ 是否被牵动触发`)
+    assert.ok(/命中 P 面/.test(body), `${name} 未保留"命中 P 面时也触发 D 轴"`)
     assert.ok(/MUST NOT 由主会话先判/.test(body), `${name} 未挡住"主会话先判要不要派"`)
+    // 零对象面必须有出口：没有它，只改 docs/ 的改动会撞进一个无退出条件的重判循环。
+    assert.ok(/三个面都不命中|三面皆不命中/.test(body), `${name} 未给零对象面一个出口`)
+    assert.ok(/MUST NOT 重判/.test(body), `${name} 未挡住"重判"这个无出口动作`)
+  }
+  // 反向：收窄 MUST NOT 退化成"主会话看着办"——三份都不许出现无条件的可选措辞。
+  for (const [name, body] of [['代码评审纪律', rev], ['00-流程总纲', outline], ['路径-lean', lean]]) {
+    assert.ok(
+      !/文档轴\s*(MAY|可选|按需)/.test(body),
+      `${name} 把文档轴写成了可选——收窄到 P 面不等于把它变成主会话的自由裁量`,
+    )
   }
 })
 
@@ -81,7 +107,7 @@ test('完成门那条已从"执行整套结算"改成"核对 D 轴报告"', () =
   // 这里再复写一遍数字就是新的漂移源。改为锁同一个契约的两半——**指名引用到位** +
   // **文档轴在场**：任一缺失都说明这条准出项没跟着轴表改。
   const reviewItem = cut(wt, '- **代码评审门已通过**', '- **兼容取舍已有用户结论**')
-  assert.ok(/§四条轴/.test(reviewItem), '代码评审门那条未指名引用 `代码评审纪律.md` §四条轴')
+  assert.ok(/§评审轴/.test(reviewItem), '代码评审门那条未指名引用 `代码评审纪律.md` §评审轴')
   assert.ok(/文档/.test(reviewItem), '代码评审门那条没列出文档轴')
 })
 
@@ -175,9 +201,11 @@ test('权威面清单只有一份，且引用它的地方数量词对得上', ()
 
 test('「待归并」例外与它修饰的判据同处（读表的人和读 prompt 的人不能得到两个结论）', () => {
   const rev = read(wfRoot, 'references', 'core', '代码评审纪律.md')
-  const row = cut(rev, '| **D 文档轴**', '| **E agent 架构轴**')
+  // 切段锚点取 D 行的**下一行**。2.15.0 在 D 与 E 之间插进了 S 行，锚点若仍写 E 行，
+  // 切出来的段会连 S 行一起吞掉，这条断言就从"D 行里有没有待归并"悄悄变成"D 与 E 之间有没有"。
+  const row = cut(rev, '| **D 文档轴**', '| **S skill 原则轴**')
   assert.ok(/待归并/.test(row), 'D 轴定义表里缺「待归并」例外——只写在 prompt 会让读表的人误报')
-  const prompt = cut(rev, '- 文档轴：', '- agent 架构轴（仅 Agentic 项目')
+  const prompt = cut(rev, '- 文档轴：', '- skill 原则轴（仅命中 K 面')
   assert.ok(/待归并/.test(prompt), 'prompt 模板里缺「待归并」例外')
 })
 

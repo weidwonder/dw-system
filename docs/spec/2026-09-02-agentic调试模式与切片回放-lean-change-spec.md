@@ -94,7 +94,7 @@ authority_refs:
 - [ ] `node --test test/*.test.mjs` —— 预期全绿（改动前先跑一次留基线）
 - [ ] `grep -n "调试模式\|切片\|回放" ai-dev-system/skills/ai-dev-workflow/references/core/AI-LLM-overlay.md` —— 预期只在分工表与可观测性项两处出现，且无判据正文
 - [ ] 回归检查点：`grep -rn "agentic-principle" ai-dev-system/skills/ai-dev-workflow/references/core/AI-LLM-overlay.md` —— 指针仍指向伴生 skill，未被本次新增内容顶替
-- [ ] **代码评审门**：派 1 个子代理跑 `references/core/代码评审纪律.md` §四条轴 的精简版（规范 / 忠实 / 残留 / 文档），报告逐轴分节写，P0/P1 修完才算过门。子代理 prompt 必须点名加载 ai-dev-workflow skill。Lean 也不豁免这道门。
+- [ ] **代码评审门**：先按 `references/core/代码评审纪律.md` §门禁 判对象面算出轴集合，再派 1 个子代理跑 §评审轴 的精简版，报告逐轴分节写，P0/P1 修完才算过门。子代理 prompt 必须点名加载 ai-dev-workflow skill。Lean 也不豁免这道门。
 
 ## 回滚方式
 

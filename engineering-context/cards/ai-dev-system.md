@@ -115,17 +115,23 @@
 
 ## 伴生 skill 同步（install.mjs）
 
-- **职责**：主安装完成后检查并保持外部伴生 skill `agentic-principle` 为最新——本体系不收录其内容，只负责"装上并保持新"；装到用户级目录，跨项目共享一份，不进目标项目、不写目标项目 `.gitignore`。
+- **职责**：主安装完成后检查并保持外部伴生 skill 为最新——本体系不收录其内容，只负责"装上并保持新"；装到用户级目录，跨项目共享一份，不进目标项目、不写目标项目 `.gitignore`。**2.15.0 起是两个**，且两个的形态并不相同。
 - **对外接口**
-  - `COMPANION_SKILLS` 常量：`name` / `repo`（`https://github.com/weidwonder/agentic-principle.git`）/ `ref` / `subdir`（skill 本体在仓库的 `agentic-principle/` 子目录）/ `why` — `install.mjs:71`
-  - `syncCompanions(opt, home)` 主入口，主安装后调用（两处：`install.mjs:1458`、`:1578`）— `install.mjs:853`
-  - `fetchCompanion(spec, repo)`：浅克隆到临时目录、校验 `<subdir>/SKILL.md` 存在、读 frontmatter `metadata.version`，返回 `{srcDir, version, cleanup}` — `install.mjs:820`
-  - `companionNeedsUpdate(localVersion, remoteVersion)`：本地缺失或本地更旧才写入；**远端版本判不出时返回 false**（不覆盖已有安装）— `install.mjs:846`
-  - `companionDestDirs(home)`（用户级安装位置）`install.mjs:800`；`legacyCompanionDirs(home, name)`（≤v1.6.0 误装进 `~/.agents/skills/` 的陈旧副本提示）`:806`；`companionGuardReason(dir)`（symlink / git 工作区不自动覆盖）`:812`
-  - CLI：`--no-agentic`（同义 `--no-companions`，跳过整段）— `install.mjs:192`；`--agentic-repo=<url>` 覆盖仓库地址 — `install.mjs:209`
-  - 机器闸：`test/companion-skill.test.mjs` 用 fake remote（`:25`）跑全链路，并有一条用例按字面锁 `COMPANION_SKILLS` 的真实地址与 subdir（`:190`）
+  - `COMPANION_SKILLS` 常量（数组，每项 `name` / `repo` / `ref` / `subdir` / `why`）— `install.mjs:71`
+    - `agentic-principle`：`https://github.com/weidwonder/agentic-principle.git`，本体在 `agentic-principle/` 子目录，**frontmatter 有 `metadata.version`**
+    - `skill-principle`：`https://github.com/weidwonder/skill-principle.git`，**本体在 `skill/` 子目录**（仓库根是开发工程，含 `dist/` `docs/` `README.md`，根目录**没有** `SKILL.md`），**frontmatter 无 `metadata.version`**（该 skill 用 git tag 管版本）— 2026-09-03 实拉 `main` @ `5d4c0bd` 核实
+  - `syncCompanions(opt, home)` 主入口，主安装后调用（两处：`install.mjs:1507`、`:1627`）— `install.mjs:901`
+  - `fetchCompanion(spec, repo)`：浅克隆到临时目录、校验 `<subdir>/SKILL.md` 存在、读 frontmatter `metadata.version`，返回 `{srcDir, version, cleanup}` — `install.mjs:850`
+  - `companionNeedsUpdate(localVersion, remoteVersion)`：本地缺失或本地更旧才写入；**远端版本判不出时返回 false**（不覆盖已有安装）— `install.mjs:876`
+  - `companionContentSame(localDir, remoteDir)` + `companionShouldUpdate(local, remoteVersion, remoteDir)`：**两边版本号都判不出时改按 `SKILL.md` 内容逐字节比对**，相同即跳过。没有它，无版本号的 skill 会命中 `companionNeedsUpdate` 的 `localVersion == null → true` 分支，**每次安装都被无谓重写**（幂等与 `--dry-run` 两条承诺同时失效）— `companionContentSame` 在 `install.mjs:887`、`companionShouldUpdate` 在 `:895`
+  - `companionDestDirs(home)`（用户级安装位置）`install.mjs:830`；`legacyCompanionDirs(home, name)`（≤v1.6.0 误装进 `~/.agents/skills/` 的陈旧副本提示）`:836`；`companionGuardReason(dir)`（symlink / git 工作区不自动覆盖）`:842`
+  - CLI：`--no-companions`（同义 `--no-agentic`，跳过整段）— `install.mjs:199`；**`--companion-repo=<name>=<url>`** 覆盖某个 skill 的来源仓库，`<name>` 不在 `COMPANION_SKILLS` 内时报错中止并列出合法值域 — `install.mjs:216`。**`--agentic-repo=<url>` 已于 2.15.0 整个删除、不留别名**（用户拍板"不兼容，直接切"），传入落进未知参数报错路径、退出码 2，且 `install.mjs:235` 的 `removed` 映射会额外打一行迁移指路（回归闸：`test/companion-skill.test.mjs` 的「已删除的 --agentic-repo= 落进未知选项路径」）
+  - 机器闸：`test/companion-skill.test.mjs`（14 用例）用 fake remote 跑全链路，装置按 `COMPANIONS` 表参数化覆盖两个 skill 的两种版本形态；另有一条用例按字面锁两个条目的真实地址、subdir 与非空 `why`，并断言源码里不再出现 `COMPANION_SKILLS[0]` 下标
 - **陷阱项**
   - 仓库地址在源码与文档里有多处副本：`install.mjs:71` 是权威，`AI-LLM-overlay.md` 的手动 clone 指引、`migrations/1.6.0.md`、`docs/report/2026-08-02-agentic-principle-gap-report.md` 都各写一份，改地址要一起改（2026-09-02 的仓库改名就是这么漏出来的）。
+  - **两个 skill 的 `subdir` 不同，MUST NOT 想当然按 `name` 推**：`agentic-principle` 的本体目录与仓库同名，`skill-principle` 的却叫 `skill`。写错 `subdir` 的表现是每次安装都报"仓库里找不到 `<subdir>/SKILL.md`"并降级为警告，**主安装照常成功**，很容易被忽略。
+  - **`metadata.version` 不是伴生 skill 的通用契约**，本体系无权要求上游加它；新增伴生 skill 时 MUST 先确认它有没有版本字段，没有就落进内容比对分支。
   - skill 内容按 `DEFAULT_REF = v${SELF_VERSION}`（`install.mjs:66`）从 **tag** 取：只改 main 上的 skill 文件而不 bump `ai-dev-system/VERSION` 并推 tag，使用者默认装到的仍是旧内容；`install.mjs` 自身的改动则跟着 main 立即生效——两者节奏不同。
-  - 伴生拉取的任何失败都只降级为警告，不影响已完成的主安装（`install.mjs:876` 一段）；因此"装完没报错"不等于伴生 skill 已更新。
-- **确认时间**：2026-09-02
+  - 伴生拉取的任何失败都只降级为警告，不影响已完成的主安装（`install.mjs:928` 一段）；因此"装完没报错"不等于伴生 skill 已更新。**失败文案按各条目的 `spec.why` 生成**，`why` 写空会打印一句没有内容的提示。
+  - **本节的 `文件:行` 在 2026-09-03 逐条实测回填过一次**：2.15.0 给 `install.mjs` 净增约 40 行，此前卡片里 11 处引用全部漂移（如 `syncCompanions` 由 `:853` 移到 `:893`）。**改动 `install.mjs` 后 MUST 回来重核本节全部行号**——`文件:行` 错了等同幻觉，而它不会报错。
+- **确认时间**：2026-09-03（2.15.0 合入前，行号已逐条实测）

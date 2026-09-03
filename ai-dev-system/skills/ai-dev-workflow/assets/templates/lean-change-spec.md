@@ -76,7 +76,7 @@ authority_refs:            # 本文冻结的权威面；准出时与本次触碰
 ## 如何验证
 - [ ] 【具体验证步骤 / 命令 + 预期结果】
 - [ ] 【回归检查点】
-- [ ] **代码评审门**：派 1 个子代理跑 `references/core/代码评审纪律.md` §四条轴 的精简版（规范 / 忠实 / 残留 / 文档），报告逐轴分节写，P0/P1 修完才算过门。子代理 prompt 必须点名加载 ai-dev-workflow skill——模板与轴定义见 `references/core/代码评审纪律.md`。Lean 也不豁免这道门。
+- [ ] **代码评审门**：先按 `references/core/代码评审纪律.md` §门禁 判对象面算出轴集合（程序代码面 → 规范/忠实/残留/文档；skill 文档面 → skill 原则轴；agent 架构面 → agent 架构轴；改动含 `docs/` 下文档时文档轴也在内；三面皆不命中时只有文档轴），再派 1 个子代理跑算出那组轴的精简版，报告逐轴分节写，P0/P1 修完才算过门。MUST NOT 按固定几条轴派。子代理 prompt 必须点名加载 ai-dev-workflow skill——模板与轴定义见 `references/core/代码评审纪律.md`。Lean 也不豁免这道门。
 
 ## 回滚方式
 【出问题怎么退：feature flag 关闭 / deploy revert / 数据回滚。一句话写清，别等出事才想。】

@@ -100,7 +100,7 @@ authority_refs:
 | FR-017 | `docs/TODO.md` 中本条待办 MUST 删除；本仓库根 `CLAUDE.md` 的门相关表述与 `docs/index.md` 同步。 |
 | FR-018 | 入口字节上限 `ENTRY_MAX_BYTES` 由 8000 上调到 **12000**。判据：UTF-8 下一个汉字占 3 字节，8000 字节仅约 2600 汉字，装不下「路由三步 + 工作区隔离门要点 + 只增不减的加载点清单」这三样必载内容。上调 MUST 同步全部**活引用点**（`test/` 下的断言与 `CLAUDE.md` 的契约条目）；`docs/spec/` 与 `docs/plan/` 下已完成文档里的 8,000 是**历史记账**，MUST NOT 改写。 |
 | FR-019 | 修掉上调时暴露的既有漏洞：①`test/cards-mandatory.test.mjs` 的入口上限断言 MUST 改为引用 `test/contract-numbers.mjs` 的 `ENTRY_MAX_BYTES`，MUST NOT 继续硬编码；②`test/contract-sync.test.mjs` 的 `CONTRACTS` MUST 为 `ENTRY_MAX_BYTES` 补上引用点清单，使文档侧的引用被盯住。 |
-| FR-020 | §8.1 第 4 条拍板的**存量豁免** MUST 有落点：`references/core/代码评审纪律.md` 的 §四条轴 D 轴职责段与 §子代理 prompt 模板 文档轴职责段 MUST 各写一条——遇到缺「过稿记录」节的存量 spec MUST 跳过、MUST NOT 报成缺陷，带到期日 2027-02-28；**豁免只针对「这一节压根不存在」**，有该节却为空或与实际过门情况不符的照常报。 |
+| FR-020 | §8.1 第 4 条拍板的**存量豁免** MUST 有落点：`references/core/代码评审纪律.md` 的 §评审轴 D 轴职责段与 §子代理 prompt 模板 文档轴职责段 MUST 各写一条——遇到缺「过稿记录」节的存量 spec MUST 跳过、MUST NOT 报成缺陷，带到期日 2027-02-28；**豁免只针对「这一节压根不存在」**，有该节却为空或与实际过门情况不符的照常报。 |
 
 **编号规则（MUST）**：格式为 `FR-###` / `AC-###`，三位零填充；**永不复用、永不重排**；删除的需求原地保留编号并改写成"**已撤销** —— 原因"。`FR-###` / `AC-###` 与 §6 的 `Invariant N:` 是两套各自独立的编号。
 
