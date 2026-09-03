@@ -134,20 +134,22 @@ test('档位判据里没有具体厂商型号被当作取值', () => {
   }
 })
 
-test('裁剪准入三条齐全，且 B / A / S 轴不可裁剪', () => {
+test('轴集合不可裁剪：算出几条派几条', () => {
+  // 2026-09-03 撤回了裁剪准入——它能把只有 {D} 的小改裁成空集，门"过"了却一个子代理都没派。
+  // 这条闸盯的是它别被悄悄加回来：省成本只能走合并派发（改怎么派），不能改派哪几条。
   for (const [name, body] of [['代码评审纪律.md', REVIEW], ['路径-lean.md', LEAN]]) {
-    assert.ok(/替换清单为空/.test(body), `${name} 缺裁剪准入第 1 条`)
-    assert.ok(/只触碰 1 个文件/.test(body), `${name} 缺裁剪准入第 2 条`)
-    assert.ok(/未触碰任何权威面/.test(body), `${name} 缺裁剪准入第 3 条`)
     assert.ok(
-      /三条全满足|全部满足/.test(body),
-      `${name} 未写明三条要同时满足——写成"任一"会让绝大多数改动都可裁剪`,
+      /轴集合 MUST NOT 被裁剪/.test(body),
+      `${name} 未写明轴集合不可裁剪——少了它，"改动很小"会重新变成少派几条轴的理由`,
     )
     assert.ok(
-      /MUST NOT 被裁剪/.test(body),
-      `${name} 未写明哪些轴不可裁剪：B 轴是验收本体，A 与 S 各是所在面唯一的质量出口`,
+      /裁成空集|裁剪成空集/.test(body),
+      `${name} 未记下撤回的原因（可能被裁成空集），下一个人会把它当冗余删掉再重新引入`,
     )
-    assert.ok(/MUST NOT 静默裁剪/.test(body), `${name} 未要求裁剪时写明依据`)
+  }
+  // 组间合并同样会架空轴集合：S/E 轴与 A/B/C/D 同处一个 prompt 会得到自相矛盾的加载指令。
+  for (const [name, body] of [['代码评审纪律.md', REVIEW], ['路径-lean.md', LEAN]]) {
+    assert.ok(/组间 MUST NOT 合并/.test(body), `${name} 未挡住跨组合并`)
   }
 })
 
@@ -155,7 +157,7 @@ test('模型档位是两档加一条下限，且没有写死厂商型号当取�
   for (const [name, body] of [['代码评审纪律.md', REVIEW], ['路径-lean.md', LEAN]]) {
     assert.ok(/普通档/.test(body) && /高档/.test(body), `${name} 缺两档档位定义`)
     assert.ok(
-      /MUST NOT 派该 harness 的最低档|MUST NOT 派该 harness 的\*\*最低档\*\*/.test(body),
+      /MUST NOT 派它的\*\*最低档\*\*|MUST NOT 派它的最低档/.test(body),
       `${name} 缺"MUST NOT 派最低档"这条下限——没有它，"尽量便宜"会一路探到最低档`,
     )
     assert.ok(

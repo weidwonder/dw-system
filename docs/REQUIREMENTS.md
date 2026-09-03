@@ -14,10 +14,10 @@ authority_refs:
   - 'ai-prd 组稿的三门顺序：用户过稿门 → 复核门 → 落盘确认门'
   - '原型注解分层：元素级说明用 data-anno 气泡、屏级说明用屏注解区、整份说明用设计说明；用户可回复 AI 说明'
   - '按次产出的 docs/spec、docs/plan、docs/report 文档文件名以 YYYY-MM-DD- 开头，常青档与索引除外'
-documentRole: 'primary-prd'
-sourceOfTruth: true
   - '代码评审门的轴集合按对象面推导（P/K/G 三类闭集，取并集；三面皆不命中时为文档轴）'
   - '不含可执行代码的纯 skill 改动 PRD 即 spec，跳过 Overview / 技术 spec / coding plan'
+documentRole: 'primary-prd'
+sourceOfTruth: true
 ---
 
 # ai-dev-system — 产品需求文档
