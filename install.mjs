@@ -232,7 +232,15 @@ function parseArgs(argv) {
     else if (a.startsWith('--repo=')) opt.repo = a.slice('--repo='.length);
     else if (a.startsWith('--ref=')) { opt.ref = a.slice('--ref='.length); opt.refExplicit = true; }
     else if (a.startsWith('--source-dir=')) opt.sourceDir = a.slice('--source-dir='.length);
-    else if (a.startsWith('-')) { console.error(`未知选项: ${a}`); process.exit(2); }
+    else if (a.startsWith('-')) {
+      console.error(`未知选项: ${a}`);
+      // 已删除的开关多给一行迁移指路：只说"未知选项"会让照着旧文档敲的人以为是自己打错字，
+      // 而真正的原因是这个开关在某个版本被换掉了。键是旧开关前缀，值是替代写法。
+      const removed = { '--agentic-repo': '--companion-repo=agentic-principle=<url>（2.15.0 起改为按名字指定伴生 skill）' };
+      const hit = Object.keys(removed).find((k) => a === k || a.startsWith(`${k}=`));
+      if (hit) console.error(`  ${hit} 已删除，请改用：${removed[hit]}`);
+      process.exit(2);
+    }
     else opt.target = a;
   }
   if (!opt.repo) throw new Error('--repo 不能为空');

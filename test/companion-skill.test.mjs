@@ -268,6 +268,20 @@ test('--companion-repo 的 name 不认识时报错中止，不静默忽略', () 
   })
 })
 
+// 2.15.0 删掉了 `--agentic-repo=<url>`（用户拍板"不兼容，直接切"），替代品是
+// `--companion-repo=<name>=<url>`。删一个开关最危险的失败形态不是"报错"而是"静默被吞"：
+// 旧命令行照旧退出 0，用户以为覆盖生效、实际装的仍是默认仓库。因此这条闸断言它落进
+// **未知选项**那条路径——非零退出码 + 报错里点名新开关，让照着旧文档敲的人当场看见迁移路径。
+test('已删除的 --agentic-repo= 落进未知选项路径，MUST NOT 被静默忽略', () => {
+  sandbox(({ home, target, args }) => {
+    const r = runInstaller(target, home, [...args, '--agentic-repo=/tmp/x'])
+    assert.notEqual(r.status, 0, '已删除的开关不得静默退出 0——那会让用户以为覆盖生效')
+    const out = r.stderr + r.stdout
+    assert.match(out, /--agentic-repo/, '报错未回显用户实际敲的那个开关')
+    assert.match(out, /--companion-repo/, '报错未指向替代开关，用户无从得知迁移路径')
+  })
+})
+
 test('--dry-run 只预告伴生 skill 的动作，不落盘', () => {
   sandbox(({ home, target, args }) => {
     const r = runInstaller(target, home, [...args, '--dry-run'])
