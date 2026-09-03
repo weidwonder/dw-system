@@ -41,9 +41,12 @@ const CHECKED_WORDS = [
   {
     word: '四轴',
     variants: ['四轴'],
-    // 四条轴（规范/忠实/残留/文档）的定义与派发规则只在这一篇里定义，别处全是引用。
-    authority: 'references/core/代码评审纪律.md',
-    rewrite: '按 `代码评审纪律.md` §四条轴 执行（指名引用小节，MUST NOT 保留数字）',
+    // 2.15.0 起轴集合不再固定为四条——它按本次改动触碰的对象面推导（P → 规范/忠实/残留/文档，
+    // K → skill 原则轴，G → agent 架构轴，取并集）。「四轴」因此降为**纯过时值**，与 `四道门`
+    // 之于 `五道门` 同性质：不再有任何文件有资格写它，**包括原先的权威文件**。
+    // authority 为 null 即表示"全仓禁用、无权威定义处"，下方反向护栏对这类词改判"全仓零出现"。
+    authority: null,
+    rewrite: '轴集合按对象面推导，改成指名引用 `代码评审纪律.md` §评审轴 或 §门禁（MUST NOT 保留数字）',
   },
   {
     word: '五道门',
@@ -126,7 +129,8 @@ test('受检计数词只出现在权威定义文件与豁免范围内', () => {
   for (const { word, variants, authority, rewrite } of CHECKED_WORDS) {
     const offenders = []
     for (const [rel, body] of FILES) {
-      if (rel === authority || isExempt(rel)) continue
+      // authority 为 null 的词是过时值：没有任何文件有资格保留它，豁免仍生效（那些文件按设计复述数字）。
+      if ((authority !== null && rel === authority) || isExempt(rel)) continue
       for (const hit of findHits(body, variants)) {
         offenders.push({ rel, ...hit })
       }
@@ -142,7 +146,9 @@ test('受检计数词只出现在权威定义文件与豁免范围内', () => {
     problems.push(
       [
         `计数词「${word}」在权威定义文件与豁免范围之外出现 ${offenders.length} 处（MUST 改成指名引用，判据 spec §4.3 / FR-007）：`,
-        `    权威定义文件（唯一允许保留数字的位置）：${authority}`,
+        authority === null
+          ? '    本词已无权威定义处（过时值）：全仓禁用，MUST NOT 在任何非豁免文件里保留'
+          : `    权威定义文件（唯一允许保留数字的位置）：${authority}`,
         `    豁免范围：${[...EXEMPT_FILES, ...EXEMPT_DIRS.map((d) => `${d}**`)].join('、')}`,
         `    应改成：${rewrite}`,
         '    逐处：',
@@ -162,7 +168,24 @@ test('受检计数词只出现在权威定义文件与豁免范围内', () => {
 test('权威定义文件映射有效：每个受检词在它的权威文件里确有定义', () => {
   // 防映射漂移：权威文件被改名或数字被搬走时，上一条检查会静默变成"到处都不许出现"，
   // 看起来更严，实际是判据丢了。这里要求权威文件必须存在且确实含该词。
+  //
+  // `authority: null` 是**显式声明**的第二类：该词已是过时值（如 2.15.0 起的 `四轴`），
+  // 全仓包括原权威文件都不许再出现。这类词不适用上面那条护栏——它本来就该"全仓禁用"，
+  // 于是改判反向的一条：原权威文件里也确实不能再有它。两类各有一条闸，MUST NOT 只留一类。
   for (const { word, variants, authority } of CHECKED_WORDS) {
+    if (authority === null) {
+      for (const [rel, body] of FILES) {
+        if (isExempt(rel)) continue
+        const hits = findHits(body, variants)
+        assert.equal(
+          hits.length,
+          0,
+          `受检词「${word}」已声明为过时值（authority: null），但 ${rel}:${hits[0]?.line} 仍在使用它。` +
+            '过时值 MUST 全仓清除；若它重新有了权威定义处，MUST 把 authority 改回具体文件而不是留 null。',
+        )
+      }
+      continue
+    }
     const full = path.join(wfRoot, ...authority.split('/'))
     assert.ok(existsSync(full), `受检词「${word}」的权威定义文件不存在：${authority}（映射需同步更新）`)
     const body = readFileSync(full, 'utf8')
