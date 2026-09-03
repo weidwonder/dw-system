@@ -87,7 +87,7 @@
 // `§四条轴们`）→ 判红并点名文件:行 + 列出最接近的标题；改回去 → 转绿。自检 MUST 用这种方式做，
 // MUST NOT 靠放宽 STOP_CHARS 或往 EXEMPT_TARGETS 里加条目让它绿。
 import assert from 'node:assert/strict'
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
@@ -177,7 +177,18 @@ function walkMarkdown(dir, out = []) {
 /** 仓库内相对路径统一正斜杠——`path.relative` 在 Windows 给反斜杠，本仓已因此栽过一次。 */
 const relPosix = (abs) => path.relative(repoRoot, abs).split(path.sep).join('/')
 
-const allMarkdown = walkMarkdown(skillsRoot)
+// 除 skill 目录外，**治理类活文档**也在扫描面内：它们描述 skill 的结构、给出"改这条链路
+// 要同改哪几处"的指引，读者会照着里面的 §小节名 跳。skill 里改了小节名而这里没跟上，得到的
+// 是一条指向不存在小节的死引用——2026-09-03 的评审门上，`CLAUDE.md` 的这类死引用被四条轴
+// 各自独立报了一次，正是"同一类问题被报到第二次就该有闸接手"的判据（`代码评审纪律.md` §门禁）。
+//
+// **`docs/spec` `docs/plan` `docs/report` 刻意不在扫描面内**：那些是带日期的历史快照，
+// 按 `文档治理.md` 的「存量不批量改名」保留写作当时的说法，把它们算进来会把历史记载判成缺陷。
+const GOVERNANCE_DOCS = ['CLAUDE.md', 'AGENTS.md', 'docs/index.md', 'docs/REQUIREMENTS.md', 'docs/TODO.md']
+  .map((rel) => path.join(repoRoot, ...rel.split('/')))
+  .filter((abs) => existsSync(abs))
+
+const allMarkdown = [...walkMarkdown(skillsRoot), ...GOVERNANCE_DOCS]
 
 /** 每个文件的标题清单（跳围栏）。 */
 function headingsOf(abs) {
