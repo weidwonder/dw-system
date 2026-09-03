@@ -104,7 +104,7 @@ authority_refs:
   - `ai-prd/references/prd质量清单.md` — 成稿前自检 gate，与新门分工（出处：本文件全文）
   - `ai-prd/references/00-prd生成流程.md` §组稿 — 落盘确认门所在（出处：`00-prd生成流程.md` §组稿 第 4 条）
   - `ai-prd/references/00-prd生成流程.md` §批 B → 现状怎么取证 — 取证顺序的唯一权威定义，乙轴引用它而非另立（出处：同文件第 71–111 行）
-  - `ai-dev-workflow/references/core/代码评审纪律.md` — 子代理评审的既有范式，本次照它的框架切轴（出处：该文件 §门禁 / §四条轴 / §子代理 prompt 模板；当时该节名为 §三条轴，2.3.0 新增文档轴后改名）
+  - `ai-dev-workflow/references/core/代码评审纪律.md` — 子代理评审的既有范式，本次照它的框架切轴（出处：该文件 §门禁 / §评审轴（2.15.0 前名为 §四条轴）/ §子代理 prompt 模板；当时该节名为 §三条轴，2.3.0 新增文档轴后改名）
   - `ai-prd/references/collab/{solo,team}.md` — 开放问题的既有结算规则，复核结论接进同一处（出处：两文件 §2）
   - `ai-prd/assets/question-bank.md` §追问触发 — `[组稿]` 批次标签的既有落点（出处：该节）
 - 本次补的卡片：无需新补（本仓库自身的 `engineering-context/` 骨架尚未建（已知缺口，本层无开关）；改动全部落在 skill markdown，事实出处已在上表逐条给出 `文件` 级定位）

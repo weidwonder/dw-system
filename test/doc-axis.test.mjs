@@ -77,8 +77,15 @@ test('D 轴在 P 面内恒跑，触发条件没有被放回主会话的判断', 
   // 主会话仍 MUST NOT 去判"本次有没有碰文档"（那是盘点，是 D 轴自己的第一步）。
   // 因此这里既要断言收窄形态在场，也要断言原判据一字未丢——只改一半就是把门拆了。
   for (const [name, body] of [['代码评审纪律', rev], ['00-流程总纲', outline], ['路径-lean', lean]]) {
-    assert.ok(/命中 P 面时[^\n]*恒跑/.test(body), `${name} 未写明 D 轴在命中 P 面时恒跑`)
+    // 触发条件按"它的参照物有没有可能被牵动"给出：改动含 `docs/` 下的文档、或命中 P 面。
+    // 两个条件都要在场——只留 P 面那半，纯 skill 改动动了 docs/ 就没人看；
+    // 只留 docs/ 那半，改代码却没动 docs/ 的改动会漏掉本轴。
+    assert.ok(/含 `docs\/` 下的文档[^\n]*恒跑|含 `docs\/` 下的文档、或命中 P 面/.test(body), `${name} 未写明 D 轴由 docs/ 是否被牵动触发`)
+    assert.ok(/命中 P 面/.test(body), `${name} 未保留"命中 P 面时也触发 D 轴"`)
     assert.ok(/MUST NOT 由主会话先判/.test(body), `${name} 未挡住"主会话先判要不要派"`)
+    // 零对象面必须有出口：没有它，只改 docs/ 的改动会撞进一个无退出条件的重判循环。
+    assert.ok(/三个面都不命中|三面皆不命中/.test(body), `${name} 未给零对象面一个出口`)
+    assert.ok(/MUST NOT 重判/.test(body), `${name} 未挡住"重判"这个无出口动作`)
   }
   // 反向：收窄 MUST NOT 退化成"主会话看着办"——三份都不许出现无条件的可选措辞。
   for (const [name, body] of [['代码评审纪律', rev], ['00-流程总纲', outline], ['路径-lean', lean]]) {

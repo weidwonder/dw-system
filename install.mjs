@@ -883,6 +883,12 @@ function companionContentSame(localDir, remoteDir) {
   return fs.readFileSync(a).equals(fs.readFileSync(b));
 }
 
+// 两处判定点（guard 分支与普通分支）用的是同一条规则，各写一遍必然漂移。
+function companionShouldUpdate(local, remoteVersion, remoteDir) {
+  if (local.version == null && remoteVersion == null) return !companionContentSame(local.dir, remoteDir);
+  return companionNeedsUpdate(local.version, remoteVersion);
+}
+
 // 主安装完成后执行；任何失败都只降级为警告，不影响已完成的项目安装。
 function syncCompanions(opt, home) {
   if (opt.noCompanions) {
@@ -925,20 +931,14 @@ function syncCompanions(opt, home) {
       for (const local of locals) {
         const shown = local.exists ? `v${local.version || '未知'}` : '未安装';
         if (local.guard) {
-          const guardNeeds = local.version == null && remote == null
-            ? !companionContentSame(local.dir, fetched.srcDir)
-            : companionNeedsUpdate(local.version, remote);
-          const verdict = guardNeeds
+          const verdict = companionShouldUpdate(local, remote, fetched.srcDir)
             ? '有更新可用，但不自动覆盖，请自行在该仓库拉取'
             : '已是最新';
           console.log(`  · ${local.dir}：${shown}（${local.guard}）→ 保持不动；${verdict}`);
           continue;
         }
         // 两边都没有版本号时按内容判，否则这类 skill 每次安装都会被无谓重写。
-        const needs = local.version == null && remote == null
-          ? !companionContentSame(local.dir, fetched.srcDir)
-          : companionNeedsUpdate(local.version, remote);
-        if (!needs) {
+        if (!companionShouldUpdate(local, remote, fetched.srcDir)) {
           console.log(`  · ${local.dir}：${shown} → 已是最新，跳过`);
           continue;
         }

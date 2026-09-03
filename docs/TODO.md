@@ -11,6 +11,8 @@
 ## 想做的功能
 
 - 2026-08-27 ｜ ai-dev-workflow ｜ 目前流程默认由本工具自身派发子代理执行 Step 7 编码，未提供"改用其他 AI coding 工具（codex / claude code / grok 等）执行编码"的选项；想在流程起始（Triage 之前或路由阶段）询问用户本次编码由谁派发，若指定外部工具，则 Step 6 Coding Plan 产出后、正式编码前须先让该外部工具 review spec 与 coding plan、有卡点则打回主代理调整，通过后再执行编码，编码完成后仍回到主代理走既有「代码评审门」；需理清与已有 `codex:codex-rescue` / `grok-build:grok-delegate` 等伴生技能委派机制的关系，避免另起一套重复的委派通道
+- 2026-09-03 ｜ ai-dev-workflow 入口 ｜ 〈加载点清单〉缺一行「本次改动含 skill 判据文档 → 取 `代码评审纪律.md` §纯 skill 改动的流程形态 + `skill-principle` 建设路径」。判据已落在 `步骤-1-7-设计与实现.md` Step 2/Step 4 与 `路径-lean.md` §4（两条路径动笔前都读得到），缺的只是入口更早一步的提示；**没加的原因是常驻前置量只剩 1 字节**（`test/resident-budget.test.mjs`），加一行约需 300 字节。下次腾预算时（下一顺位是把 `代码事实纪律.md` §4.2 按其明确触发点改标为触发式）一并补上。2026-09-03 评审门 S 轴 P1-5 报出
+- 2026-09-03 ｜ 代码事实层 ｜ `engineering-context/probe-set.md` 六行全是模板占位，`ctx probe` 恒报 NO-PROBE（退出码 1）——B 类四道零上下文交接题（`requirement-reachable` / `architecture-reachable` / `implementation-usable` / `rationale-traceable`）从未填过，防腐门禁实际不在岗。存量缺口，2026-09-03 的评审门 D 文档轴报出
 - 2026-08-26 ｜ 安装器 ｜ 标记块里的 `mode="team"` 墓碑字段计划在 3.0.0 移除，届时旧安装不再能靠它推断协作面，需要先确认存量项目都已重装过
 - 2026-08-26 ｜ ai-prd ｜ 原型的**写侧** token 负载仍未收窄：`slot --set screens` 一次替换整个 `SCREENS` 区，多屏原型改一屏也要把全部屏重写一遍，没有「只改第 N 屏」的粒度。2026-08-27 的 `extract` 与框架外置解决的是**读侧**（读一份原型从 85KB 降到约 11KB）与容器的维护成本，**产物字节数不变、写侧未触及**——原条目里「按屏拆分产出、`slot` 之外再收窄写入粒度」那一半仍然待做
 - 2026-08-26 ｜ ctx ｜ `ctx probe` 的"按权威面自动触发重扫"CI hook 仍待接，现在只能在 CI 发布或里程碑节点显式跑一次
@@ -22,7 +24,7 @@
 ## 已知风险
 
 - 2026-08-26 ｜ 安装器 ｜ 全局 `ctx` 命令指向最后一次安装的那个项目里的副本，该项目被删除或移动后全局命令会失效；目前兜底是文档里那条 `node <skill>/scripts/ctx/src/cli.js` 的调用方式
-- 2026-08-26 ｜ 安装器 ｜ codegraph 与 `agentic-principle` 是外部仓库，上游改名、改命令或下线会让安装器这两段静默降级为警告，使用者可能不知道自己没拿到检索加速面与伴生 skill
+- 2026-08-26 ｜ 安装器 ｜ codegraph 与两个伴生 skill（`agentic-principle` / `skill-principle`）是外部仓库，上游改名、改命令或下线会让安装器这两段静默降级为警告，使用者可能不知道自己没拿到检索加速面与伴生 skill
 
 ## 技术欠账
 

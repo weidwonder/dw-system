@@ -97,6 +97,40 @@ test('文档说的伴生 skill 与安装器真正会装的是同两个', () => {
       `install.mjs 的 COMPANION_SKILLS 里没有 ${name}，但判据文件要求加载它`,
     )
     assert.ok(REVIEW.includes(name), `代码评审纪律.md 未提到伴生 skill ${name}`)
+    // 拉取失败时的提示文案是按 why 生成的，缺了会打印 undefined 给使用者。
+    const entry = INSTALLER.slice(INSTALLER.indexOf(`name: '${name}'`))
+    assert.match(entry.slice(0, 600), /why: '[^']+'/, `COMPANION_SKILLS 的 ${name} 条目缺非空 why`)
+  }
+})
+
+test('D 轴由 docs/ 是否被牵动触发，且零对象面有出口', () => {
+  // 这两条是同一次修复的两半：D 轴的触发条件从"命中 P 面"改成"参照物有没有可能被牵动"，
+  // 顺带让"只改 docs/"这类三面皆不命中的改动落进 {D}，而不是撞进无退出条件的重判循环。
+  for (const [name, body] of RESTATERS) {
+    assert.ok(
+      /含 `docs\/` 下的文档/.test(body),
+      `${name} 未写明 D 轴由改动是否含 docs/ 下的文档触发`,
+    )
+    assert.ok(
+      /三个面都不命中|三面皆不命中/.test(body),
+      `${name} 未给零对象面出口——只改 docs/ 的改动会算不出轴集合`,
+    )
+    assert.ok(
+      /MUST NOT 重判/.test(body),
+      `${name} 未挡住"报判定错误并重判"——输入没变，重判必然得到同一结论`,
+    )
+  }
+})
+
+test('档位判据里没有具体厂商型号被当作取值', () => {
+  // 举例即锚：容器给了具名清单，执行者就照着填。本仓库在原型组件表上栽过同一个跟头。
+  for (const [name, body] of RESTATERS) {
+    for (const model of ['Sonnet', 'Opus', 'Haiku', 'GPT-', 'gpt-mini']) {
+      assert.ok(
+        !body.includes(model),
+        `${name} 的档位判据里出现了具体型号「${model}」——档位 MUST 按能力描述定义`,
+      )
+    }
   }
 })
 

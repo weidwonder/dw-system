@@ -1,6 +1,6 @@
 ---
 lifecycle: active
-last_confirmed: '2026-09-02'
+last_confirmed: '2026-09-03'
 authority_refs:
   - '交付单元：两个 skill（ai-prd / ai-dev-workflow）+ ctx CLI + 安装器，装进目标项目的是 .claude/skills/ 与 .agents/skills/ 两份'
   - '安装器默认 --ref 取自安装器自带的 ai-dev-system/VERSION 对应的 tag；显式传的 --ref 取不到时硬失败，默认推出的 tag 取不到时告警回退 main'
@@ -16,6 +16,8 @@ authority_refs:
   - '按次产出的 docs/spec、docs/plan、docs/report 文档文件名以 YYYY-MM-DD- 开头，常青档与索引除外'
 documentRole: 'primary-prd'
 sourceOfTruth: true
+  - '代码评审门的轴集合按对象面推导（P/K/G 三类闭集，取并集；三面皆不命中时为文档轴）'
+  - '不含可执行代码的纯 skill 改动 PRD 即 spec，跳过 Overview / 技术 spec / coding plan'
 ---
 
 # ai-dev-system — 产品需求文档
@@ -119,7 +121,7 @@ AI coding 落不了地，通常不是因为流程不够精细，而是因为 AI 
 - 幂等写入 `CLAUDE.md` 与 `AGENTS.md` 的 `<!-- ai-dev-workflow:start/end -->` 标记块：**只替换块内内容，绝不重复追加**；两个入口以 `CLAUDE.md` 为准，另一个自动补齐。两个入口允许是软链接，安装器逐层解析到实体文件再写入、保留链接本身，断链在复制任何 skill 之前就报错退出。
 - 把 skill 自带的 `ctx` 链接成**全局 `ctx` 命令**（`npm link`），随后实跑 `ctx --help` 并匹配签名串才报成功。链接失败、链完仍不在 PATH、PATH 上已有别人的同名 `ctx` 一律只降级为警告并打印 `node <skill>/scripts/ctx/src/cli.js <命令>` 兜底方式，**别人的同名命令绝不覆盖**；`--no-ctx-link` 跳过。Windows 上换项目重装时 `npm link` 会因全局命令目录里还留着上次那份 `ctx` 而报 `EEXIST`（unix 侧 npm 直接替换自己的符号链接，撞不出这条）：安装器捕获 npm 输出分辨出这一类，先判那个文件的归属——PATH 上跑得通且签名匹配，或 `npm root -g` 下的 `ctx` 包认得出是本体系的——确认是自己上次留下的才 `npm link --force` 覆盖成本次这份；判不出归属就不覆盖，改为打印该文件路径与删除方式。
 - 保持 [codegraph](https://github.com/colbymchenry/codegraph) 最新（缺失则 npm 全局安装，已有则用它自己的 `codegraph upgrade`），接线到 agent（默认项目级），并在 `.codegraph/` 不存在时建索引。整段任何失败只降级为警告，不影响已完成的 skill 安装；`--no-codegraph` 跳过。
-- 检查并安装用户级伴生 skill `agentic-principle`（`~/.claude/skills/` 与 `~/.codex/skills/`）：每次运行比对远端版本、更旧才更新；本地是 symlink 或 git 工作区时只报告不覆盖；拉取失败降级为警告。`--no-agentic` 跳过。
+- 检查并安装用户级伴生 skill（当前两个：`agentic-principle` 与 `skill-principle`，装到 `~/.claude/skills/` 与 `~/.codex/skills/`）：每次运行比对远端版本、更旧才更新；**没有 `metadata.version` 的 skill 按 `SKILL.md` 内容是否相同判**；本地是 symlink 或 git 工作区时只报告不覆盖；拉取失败降级为警告。`--no-companions`（同义 `--no-agentic`）跳过整段；`--companion-repo=<name>=<url>` 覆盖某个 skill 的来源仓库。
 - 常用开关：`--dry-run` 预演不落盘、`--yes` 跳过交互确认、`--keep=<插件短名>` 保留某个插件并撤销此前写入的禁用与约束、`--no-plugins` 只装 skill、`--source-dir=<目录>` 用本地工作区源码（仅开发测试）。
 
 ### 文档治理与三层真相源
@@ -151,6 +153,7 @@ AI coding 落不了地，通常不是因为流程不够精细，而是因为 AI 
 ## 明确不做什么
 
 1. **不做 Agent 系统的架构设计**。场景选型、系统提示词、工具边界、注意力与并发预算、步骤级评测、调试模式与切片留存、单环节回放属于外部伴生 skill `agentic-principle`；本体系的 `AI-LLM-overlay.md` 只管运行期 AI 契约。两边只用指针互引。
+1bis. **不做 Skill 写法本身的原则与审查**。description 触发质量、渐进披露结构的设计、该不该拆分册、以及代码评审门 skill 原则轴的判定项，属外部伴生 skill `skill-principle`；本体系只在流程里留触发点与指针，不复述它的原则编号与项数。
 2. **不做代码知识图谱**。符号检索、调用链、影响面由外部工具 codegraph 提供；本体系只声明"何时用它 / 它给什么 / 不可用怎么办"三句，不复制它的使用手册。
 3. **不做运行时框架、不做 IDE 插件、不做托管服务**。交付物是 markdown 判据 + 零依赖 CLI + 安装器，没有 build 步骤、没有 lint 配置、没有 npm 运行时依赖。
 4. **不替用户拍板业务口径**。`ai-prd` 只给推荐与理由，决策权在用户；兼容取舍由用户逐条拍板。

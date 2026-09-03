@@ -216,7 +216,11 @@ test('--no-agentic 仍是 --no-companions 的同义词（旧调用方不该突�
     const r = runInstaller(target, home, [...args, '--no-agentic'])
     assert.equal(r.status, 0, r.stderr || r.stdout)
     assert.match(r.stdout, /跳过伴生 skill 检查/)
-    assert.equal(existsSync(claudeSkill(home, COMPANIONS.skill.name)), false)
+    // 别名也是总闸：逐个 skill 断言，只查一个就区分不出"总闸"和"单个 skill 的开关"。
+    for (const { name } of Object.values(COMPANIONS)) {
+      assert.equal(existsSync(claudeSkill(home, name)), false, `${name} 不该被安装`)
+      assert.equal(existsSync(codexSkill(home, name)), false, `${name} 不该被安装`)
+    }
   })
 })
 

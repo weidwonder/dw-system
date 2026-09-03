@@ -1,6 +1,6 @@
 ---
 name: ai-dev-workflow
-description: "AI 辅助开发主流程：从已有 PRD 起步做需求落地、Overview、技术 spec、coding plan、测试方案，或提到'开发流程/用 AI 把需求做成代码'时使用；编码后的分轴子代理评审、清旧逻辑、兼容取舍、测试资产与覆盖度台账、扫描项目 rules/skills/agents 冲突时同样使用。从零产新 PRD 用 ai-prd。"
+description: "AI 辅助开发主流程：从已有 PRD 起步做需求落地、Overview、技术 spec、coding plan、测试方案，或提到'开发流程/用 AI 把需求做成代码'时用；编码后的分轴子代理评审、清旧逻辑、兼容取舍、测试资产与覆盖度台账、改 skill/技能文档、扫描 rules/skills/agents 冲突时同样用。从零产 PRD 用 ai-prd。"
 ---
 
 ## 工作区隔离门要点
