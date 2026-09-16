@@ -43,6 +43,7 @@
 - **CHANGELOG 条目已在**（本门**只核对、不生成**，写条目的判据在 `代码事实纪律.md` §10.1）：仓库根 `CHANGELOG.md` 的 `## 未发布` 下有本次分支写的条目（至少一条，`内部` 也算），兼容取舍表里每条"不兼容 / 兼容一段时间"在 `不兼容` 小节都有以对外接口名开头的条目。缺条目 MUST 退回实现阶段补，**MUST NOT 在本门内代写**。另 SHOULD 跑一条检查：自上一个版本 tag（`v*`）以来，目标主分支 first-parent 链上每个提交是否都触碰了 `CHANGELOG.md`——没触碰的逐个列出、一句话告知拍板人，补不补由他定；没有版本 tag 时跳过；**MUST NOT 派子代理去补写**。
 
   ```bash
+  # 先把 【目标主分支】 换成真实分支名（如 main）再执行
   last=$(git describe --tags --abbrev=0 --match 'v*' 【目标主分支】 2>/dev/null) || exit 0
   for c in $(git rev-list --first-parent "$last..【目标主分支】"); do
     git diff --name-only "$c^1" "$c" -- CHANGELOG.md | grep -q . || echo "$c 未写 CHANGELOG"

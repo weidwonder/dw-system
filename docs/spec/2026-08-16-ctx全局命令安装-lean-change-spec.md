@@ -2,7 +2,7 @@
 lifecycle: active
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-08-23'
+last_confirmed: '2026-09-16'
 authority_refs:
   - 'install.mjs 的命令行选项：--no-ctx-link'
   - 'install.mjs 中 ctx 全局链接的来源目录：<项目>/.claude/skills/ai-dev-workflow/scripts/ctx'
@@ -85,7 +85,7 @@ skill 文档（代码事实分册、`scripts/ctx/README.md`、`SKILL.md`、注�
 
 全局 `ctx` 命令的装法、验证方式与失败降级均未变。两点补充，登记在此以免生成物清单没有现行出处：
 
-- **`ctx init` 的生成物**：`engineering-context/` 下 `capability-registry.md`、`cards/`（占位 `.gitkeep`）、`scenes/README.md`、`probe-set.md`、`glossary.md`、`README.md`。
+- **`ctx init` 的生成物**：`engineering-context/` 下 `capability-registry.md`、`cards/`（占位 `.gitkeep`）、`dependencies/README.md`（2.17.0 起，依赖声明目录）、`scenes/README.md`、`probe-set.md`、`glossary.md`、`README.md`。
 - **`ctx init --minimal` 的生成物（2.0.0 新增）**：只有 `engineering-context/capability-registry.md` 一份，**不建** `cards/` / `scenes/` / `probe-set.md` / `glossary.md` / `README.md`。它服务于"先写三行权威条目就能起步"的手工场景；`cards/` 等按需再跑一次 `ctx init` 补齐。
 
   **2026-08-18 补记（2.1.0）**：`--minimal` 的**行为未变**，但它**不再是初始化的推荐路径**——skill 初始化现在一律跑完整 `ctx init`，`cards/` 目录必须从第一天就在。当时那句"启用判据是 registry 里有真实数据行"也已作废：卡片层无条件必备，registry 只剩模板占位是正常起步态，不是"未启用"。见 `2026-08-18-代码事实层强制化-eng-spec.md`。

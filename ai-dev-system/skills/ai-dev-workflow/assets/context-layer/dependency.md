@@ -1,6 +1,6 @@
 # 依赖声明：【上游名】
 
-> 每个被本项目调用的上游（SDK / 服务 / 共享库）一份，落 `engineering-context/dependencies/<上游名>.md`；文件名取依赖清单文件（`package.json` / `go.mod` / `pom.xml` 一类）里的包名 / 模块名，服务类上游取 registry 里的仓库名。
+> 每个被本项目调用的上游（SDK / 服务 / 共享库）一份，落 `engineering-context/dependencies/<上游名>.md`；文件名取依赖清单文件（`package.json` / `go.mod` / `pom.xml` 一类）里的包名 / 模块名，服务类上游取 registry 里的仓库名；文件名含 `/` 的（npm scoped 包如 `@scope/name`）把 `/` 替换成 `__`，写成 `@scope__name.md`，MUST NOT 造出子目录。
 > 它写"本项目用了上游什么"，是卡片的反向。**事实从本项目源码读出**（"我怎么用你"上游文档答不了），MUST NOT 从上游文档或 PRD 抄。
 > 升级上游时与上游仓库根 `CHANGELOG.md` 的 `不兼容` 条目按**接口名**取交集即得影响面——所以下表的接口名 MUST 与上游 CHANGELOG / 上游卡片里的名字一字不差。
 > 与卡片同一套纪律：读到或改到对该上游的调用而它还没有声明时当场补、随分支提交；只增不减，与源码不符就地修正并更新确认时间。判据与升级处置顺序见 ai-dev-workflow 的 `references/core/代码事实纪律.md` §10.2。
