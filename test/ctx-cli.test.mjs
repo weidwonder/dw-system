@@ -226,6 +226,7 @@ test('initScaffold 生成 engineering-context 骨架', () => {
     const base = path.join(tmp, 'engineering-context');
     assert.ok(fs.existsSync(path.join(base, 'capability-registry.md')));
     assert.ok(fs.existsSync(path.join(base, 'cards')));
+    assert.ok(fs.existsSync(path.join(base, 'dependencies', 'README.md')), 'dependencies/ 目录与 README 应被脚手架创建（2.17.0）');
     assert.ok(fs.existsSync(path.join(base, 'probe-set.md')));
     assert.ok(fs.existsSync(path.join(base, 'glossary.md')));
     assert.ok(fs.existsSync(path.join(base, 'scenes', 'README.md')), 'scenes/ 目录与索引 README 应被脚手架创建');

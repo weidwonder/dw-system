@@ -4,13 +4,13 @@ status: 'design-approved-pending-review'
 documentRole: 'design-spec'
 sourceOfTruth: true
 lifecycle: active
-last_confirmed: '2026-08-27'
+last_confirmed: '2026-09-16'
 authority_refs:
   - 'skill 的交付形态与目录结构：ai-dev-system/skills/<name>/{SKILL.md,references/,assets/,scripts/}'
   - 'references/ 的分层职责：core 与按维度追加的分册怎么划分（各分册的加载时机自 2.5.0 起改由 2026-08-23-渐进式披露与需求追溯-eng-spec.md 定义）'
   - 'skill 初始化把配置幂等写入目标项目 CLAUDE.md 与 AGENTS.md 标记块这一机制'
   - '注入标记块的条目集合本身（本文 §5 复刻了 config-snippets 的正文，条目一改这里就失准）'
-  - 'Engineering Context 的构成（方案 B）：capability-registry / cards / scenes / Frozen Probe Set / 新鲜度与棘轮'
+  - 'Engineering Context 的构成（方案 B）：capability-registry / cards / scenes / Frozen Probe Set / 新鲜度与棘轮（2.17.0 起另加 dependencies/ 依赖声明，见 代码事实纪律.md §10.2）'
   - '代码事实访问的交付形态：CLI（ctx）而非 MCP，及有意不实现的 MCP 方法清单'
   - 'ctx 的命令集合与跨平台硬约束（node:path / UTF-8 / 零第三方依赖）'
   - '安装形态：随项目安装为推荐路径 + 项目级禁用冲突插件（D10）'

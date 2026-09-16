@@ -87,7 +87,7 @@
    ```
 
    （`ctx` 命令不可用时改用 `node <本skill根目录>/scripts/ctx/src/cli.js init`，见
-   `core/代码事实纪律.md` §2。）它生成 `capability-registry.md`、`cards/`、`scenes/`、
+   `core/代码事实纪律.md` §2。）它生成 `capability-registry.md`、`cards/`、`dependencies/`、`scenes/`、
    `probe-set.md`、`glossary.md`、`README.md`、`.gitignore`，已存在的文件一律不覆盖。
    骨架随本次任务分支提交。
 

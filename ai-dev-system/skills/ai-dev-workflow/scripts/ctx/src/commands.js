@@ -267,6 +267,8 @@ export function initScaffold(targetDir, opts = {}) {
   }
   fs.mkdirSync(path.join(base, 'cards'), { recursive: true });
   writeIfAbsent(path.join(base, 'cards', '.gitkeep'), '');
+  fs.mkdirSync(path.join(base, 'dependencies'), { recursive: true });
+  writeIfAbsent(path.join(base, 'dependencies', 'README.md'), DEPENDENCIES_README_STUB);
   fs.mkdirSync(path.join(base, 'scenes'), { recursive: true });
   writeIfAbsent(path.join(base, 'scenes', 'README.md'), SCENES_README_STUB);
   writeIfAbsent(path.join(base, 'capability-registry.md'), REGISTRY_STUB);
@@ -279,6 +281,7 @@ export function initScaffold(targetDir, opts = {}) {
     files: [
       'capability-registry.md',
       'cards/',
+      'dependencies/README.md',
       'scenes/README.md',
       'probe-set.md',
       'glossary.md',
@@ -401,10 +404,38 @@ const GLOSSARY_STUB = `# Glossary — 领域词汇表
 | 【术语】 | 【业务定义】 | 【曾用名（弃用）】 | 【≠ 某相近概念】 | 【】 |
 `;
 
+// dependencies/README：assets/context-layer/dependency.md 的精简副本（同步约定同上）。
+const DEPENDENCIES_README_STUB = `# 依赖声明目录
+
+每个被本项目调用的上游（SDK / 服务 / 共享库）一份 \`<上游名>.md\`——文件名取依赖清单文件里的包名 / 模块名，
+服务类上游取 registry 里的仓库名；文件名含 / 的（npm scoped 包）把 / 替换成 __，MUST NOT 造出子目录。它写"本项目用了上游什么"，是卡片的反向；升级上游时与上游仓库根
+\`CHANGELOG.md\` 的 \`不兼容\` 条目按接口名取交集即得影响面。
+
+最小五项（缺一项等于没写）：上游与当前版本 / 用到的部分（接口名，与上游 CHANGELOG 同名）/
+调用点（每个接口至少一处 \`文件:行\`）/ 注意事项（没有写 无）/ 确认时间。
+事实从**本项目源码**读出，MUST NOT 从上游文档或 PRD 抄；读到或改到对某上游的调用而它还没有声明时
+当场补、随分支提交；只增不减，与源码不符就地修正并更新确认时间。
+判据与升级处置顺序见 ai-dev-workflow 的 references/core/代码事实纪律.md §10.2，
+模板见 assets/context-layer/dependency.md。
+
+\`\`\`markdown
+# 依赖声明：<上游名>
+
+- 上游与当前版本：<包名或仓库名> @ <版本>
+- 确认时间：YYYY-MM-DD
+
+## 用到的部分
+| 接口名 | 调用点（文件:行） | 注意事项 |
+|---|---|---|
+| createOrder | src/order/service.ts:41 | 依赖默认 currency=CNY，上游改成必填时这里要显式传 |
+\`\`\`
+`;
+
 const CTX_README_STUB = `# engineering-context
 
 代码事实的语义层（"信哪个"）——装了 ai-dev-workflow 的项目一律维护它。
 用 \`ctx\` 查询：discover / get-card / find-scenes / list-services；每条事实带 cite，
+本项目用了别人什么记在 dependencies/<上游名>.md（升级上游时与上游 CHANGELOG 取交集）；
 没写 freshness 的会标「未声明新鲜度」，不当作新鲜用。
 **内容渐进补齐**：要用某个模块的事实就先查卡片，查不到就读源码、读完当场补卡
 （判据与最小形态见 ai-dev-workflow 的 references/core/代码事实纪律.md §4）。
