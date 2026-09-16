@@ -217,9 +217,13 @@ test('本仓库自身的 CHANGELOG.md 在仓库根、有未发布节与五个小
   for (const h of ['### 不兼容', '### 新增', '### 变更', '### 修复', '### 内部']) {
     assert.ok(body.includes(h), `缺小节 ${h}`)
   }
+  // `## 未发布` MUST 排在所有版本节之前（发版是把它改名、再在上面新开一个空的）。
   const start = body.indexOf('## 未发布')
-  const next = body.indexOf('\n## ', start + 1)
-  const unreleased = body.slice(start, next === -1 ? undefined : next) // 到下一个版本节；没有版本节时到文件末尾
-  const entries = unreleased.split('\n').filter((l) => l.startsWith('- '))
-  assert.ok(entries.length >= 1, '未发布节下一条都没有——每次合并 MUST 至少写一条')
+  const firstVersion = body.search(/\n## \d+\.\d+\.\d+/)
+  assert.ok(firstVersion === -1 || start < firstVersion, '`## 未发布` 必须在版本节之前')
+  // 「每次合并至少写一条」由完成门的 first-parent 检查守（worktree开发纪律.md §完成与自动合并门），
+  // 不由本闸守：发版刚改完名时 `## 未发布` 合法为空（2026-09-16 发 2.17.0 当场撞出）。
+  // 本闸只断言整份文件至少有一条真实条目——空壳 CHANGELOG 才是它要挡的。
+  const entries = body.split('\n').filter((l) => l.startsWith('- '))
+  assert.ok(entries.length >= 1, 'CHANGELOG 全文一条条目都没有')
 })
