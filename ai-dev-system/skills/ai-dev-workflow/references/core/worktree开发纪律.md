@@ -40,6 +40,14 @@
   - **已登记积压**：本次走的是积压通路，改动已带 `Review-Deferred:` trailer、已一句话告知拍板人，且**合并时 MUST NOT 移动 `reviewed-through` tag**。**这条通路只对 `merge-gate="direct"` 成立**——`merge-gate="pr"` 的项目 MUST 在开 PR 之前把积压结清，带着未评审的积压开 PR 等于把未完成的门禁推给审批人。
   - **两条通路都 MUST NOT 省掉基础验证**（测试跑绿、无编译/语法错）。积压推后的只有本门，不是"不测也不审"。
 - **兼容取舍已有用户结论**：改变了既有可观察行为的每一条都有用户拍板记录（或显式声明"本次无兼容取舍"）。
+- **CHANGELOG 条目已在**（本门**只核对、不生成**，写条目的判据在 `代码事实纪律.md` §10.1）：仓库根 `CHANGELOG.md` 的 `## 未发布` 下有本次分支写的条目（至少一条，`内部` 也算），兼容取舍表里每条"不兼容 / 兼容一段时间"在 `不兼容` 小节都有以对外接口名开头的条目。缺条目 MUST 退回实现阶段补，**MUST NOT 在本门内代写**。另 SHOULD 跑一条检查：自上一个版本 tag（`v*`）以来，目标主分支 first-parent 链上每个提交是否都触碰了 `CHANGELOG.md`——没触碰的逐个列出、一句话告知拍板人，补不补由他定；没有版本 tag 时跳过；**MUST NOT 派子代理去补写**。
+
+  ```bash
+  last=$(git describe --tags --abbrev=0 --match 'v*' 【目标主分支】 2>/dev/null) || exit 0
+  for c in $(git rev-list --first-parent "$last..【目标主分支】"); do
+    git diff --name-only "$c^1" "$c" -- CHANGELOG.md | grep -q . || echo "$c 未写 CHANGELOG"
+  done
+  ```
 - **文档生命周期已结算**（本门**只核对结论，不在此重做盘点**——盘点与逐篇判定由代码评审门的 **D 文档轴**完成，见 `代码评审纪律.md` §评审轴）：
   - **D 文档轴在轴集合内时**：D 轴报告在，其中的 P0/P1 已清零，且判定结果**已落盘**；**D 轴不在轴集合内时**（纯 skill 改动的 `{S}` 等）本项写"不适用（轴集合无 D）"，MUST NOT 因此卡住完成门——失准的已完成"改 frontmatter + 插归档头注 + 移出 `index.md` 进 `index-archive.md`"三个动作，仍准确的已把 `last_confirmed` 更新为当天。**零命中也要有书面结论**（"扫了 N 篇现行文档、0 篇失准"），没有结论无法与"没扫"区分。
   - **本次新建的文档** `lifecycle` 与 `authority_refs` 两个字段齐（只看自己刚建的那几个文件；Step 8–10 新建的 test-spec 等文档在 D 轴之后产生，落在这一项里）。

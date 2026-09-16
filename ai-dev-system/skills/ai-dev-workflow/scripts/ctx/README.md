@@ -33,7 +33,7 @@ npm rm -g ctx
 
 | 命令 | 作用 | 状态 |
 |---|---|---|
-| `ctx init [--dir <目标>]` | 生成 `engineering-context/` 骨架（registry + cards/ + scenes/README + probe-set + glossary + README + `.gitignore`） | ✅ |
+| `ctx init [--dir <目标>]` | 生成 `engineering-context/` 骨架（registry + cards/ + dependencies/README + scenes/README + probe-set + glossary + README + `.gitignore`） | ✅ |
 | `ctx init --minimal [--dir <目标>]` | 只生成 `capability-registry.md` + `.gitignore`（三列即可起步；**初始化的推荐路径是完整 `ctx init`**） | ✅ 见下 |
 | `ctx discover "<意图>"` | 意图 → 应加载的 card 清单（按命中分排序）+ out-of-scope 提示 | ✅ |
 | `ctx get-card <repo> [域]` | 取某仓 card；域为 `## 段落标题` | ✅ |
