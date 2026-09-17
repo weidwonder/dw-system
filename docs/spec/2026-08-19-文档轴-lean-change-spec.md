@@ -3,12 +3,12 @@ date: '2026-08-19'
 lifecycle: 'active'
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-09-03'
+last_confirmed: '2026-09-17'
 authority_refs:
-  - 'ai-dev-system/skills/ai-dev-workflow/references/core/代码评审纪律.md#评审轴分开查分开报'
-  - 'ai-dev-system/skills/ai-dev-workflow/references/core/worktree开发纪律.md#完成与自动合并门'
-  - 'ai-dev-system/skills/ai-dev-workflow/references/core/文档治理.md#3-归档触发按权威面不按日期'
-  - 'ai-dev-system/skills/ai-dev-workflow/references/core/00-流程总纲.md#代码评审门编码完成后强制执行'
+  - 'dw-system/skills/dw-review-gate/references/评审轴.md#评审轴分开查分开报'
+  - 'dw-system/skills/dw-worktree/references/worktree开发纪律.md#完成与自动合并门'
+  - 'dw-system/skills/dw-doc-governance/references/文档生命周期.md#3-归档触发按权威面不按日期'
+  - 'dw-system/skills/dw-workflow/references/00-流程总纲.md#代码评审门'
 ---
 
 # 文档轴（代码评审门新增 D 轴，完成门改为核对报告）
@@ -48,7 +48,7 @@ D 轴编号从 agent 架构轴让给文档轴，理由是恒跑与条件跑各�
 
 ### B. D 轴查什么（范围已按 `ctx probe` 收窄）
 
-参照物 = **`docs/` 的现行文档与真相源**，与其余各轴均不重叠。只查三件 probe 判不了的事：
+参照物 = **`docs/` 的现行文档与真相源**，与其余各轴均不重叠。只查三件 probe 判不了的事：（3.0.0 起 D 轴另查第四件：同一事实有没有两个家，范围里有卡片改动时跑 `ctx lint-cards`；现行职责见 `dw-review-gate` 的 `评审轴.md` §评审轴。）
 
 | # | 查什么 | 为什么 probe 判不了 |
 |---|---|---|
@@ -157,7 +157,7 @@ D 轴 MUST 每次都派（**2.15.0 起收窄为：改动范围含 `docs/` 下的
 ## 验收标准（可判定，含边界/失败用例）
 
 - [x] 正常路径：跑完一次编码后，代码评审门派出 **4 个**并行子代理，D 轴返回一份独立报告，报告里对本次触碰的权威面逐条给出"仍准确 / 已失准"判定。
-- [ ] 边界用例（**本次未实测**：本次触碰了第 8 类权威面，构造不出零命中场景）：**前置——本次的轴集合里已含 D**（2.15.0 起 D 轴的触发条件是「改动范围含 `docs/` 下的文档、命中 P 面、或三面皆不命中」，见 `代码评审纪律.md` §评审轴；轴集合里没有 D 的场景不适用本条）。此前置成立时，即使本次改动**没有触碰任何权威面**，D 轴仍 MUST 被派出，并返回"扫了 N 篇现行文档、0 篇失准"的书面结论——**MUST NOT 因为主会话判断"没碰文档"就不派**。
+- [ ] 边界用例（**本次未实测**：本次触碰了第 8 类权威面，构造不出零命中场景）：**前置——本次的轴集合里已含 D**（2.15.0 起 D 轴的触发条件是「改动范围含 `docs/` 下的文档、命中 P 面、或三面皆不命中」，见 `dw-review-gate` 的 `评审轴.md` §评审轴；轴集合里没有 D 的场景不适用本条）。此前置成立时，即使本次改动**没有触碰任何权威面**，D 轴仍 MUST 被派出，并返回"扫了 N 篇现行文档、0 篇失准"的书面结论——**MUST NOT 因为主会话判断"没碰文档"就不派**。
 - [ ] 边界用例（**本次未实测**：本仓库有 `docs/index.md`）：项目没有 `docs/index.md`（个人项目常见）时，D 轴 MUST NOT 报"无法执行"，改为按 `文档治理.md` §3 第 2 步的兜底（`grep -rn -A5 "^authority_refs:" docs/`）取全部声明。
 - [x] 边界用例：`ctx probe` 跑不起来（未装 `ctx` / 项目无 `engineering-context/`）时，D 轴照常执行人判部分，MUST NOT 标"未执行"。
 - [ ] 失败用例（**本次未实测**：本仓库无 `engineering-context/`，probe 直接 GATE-BROKEN，绿不了）：`ctx probe` 全绿但某篇现行 spec 的正文与代码已经背离时，D 轴 MUST 报出该篇——**probe 绿 MUST NOT 被读成本轴无发现**。

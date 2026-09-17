@@ -39,7 +39,7 @@
     },
     {
       "file": "docs/index-archive.md",
-      "entryPattern": "^- ",
+      "entryPattern": "^\\| \\[",
       "maxBytes": 360
     }
   ],

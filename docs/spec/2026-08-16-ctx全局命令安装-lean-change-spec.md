@@ -2,12 +2,12 @@
 lifecycle: active
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-09-16'
+last_confirmed: '2026-09-17'
 authority_refs:
   - 'install.mjs 的命令行选项：--no-ctx-link'
-  - 'install.mjs 中 ctx 全局链接的来源目录：<项目>/.claude/skills/ai-dev-workflow/scripts/ctx'
+  - 'install.mjs 中 ctx 全局链接的来源目录：<项目>/.claude/skills/dw-code-facts/scripts/ctx'
   - 'ctx 可用性的判定方式：实跑 ctx --help 并匹配签名串 "Engineering Context CLI"'
-  - 'assets/config-snippets/base.md 注入目标项目 CLAUDE.md/AGENTS.md 的 ctx 调用那一条'
+  - 'dw-system/skills/dw-workflow/assets/config-snippets/base.md 注入目标项目 CLAUDE.md/AGENTS.md 的 ctx 调用那一条'
   - 'ctx 不可用时的兜底调用方式：node <skill>/scripts/ctx/src/cli.js <命令>，且 MUST NOT 退回 grep'
   - 'ctx init 与 ctx init --minimal 各自的生成物清单'
 ---
@@ -24,7 +24,7 @@ authority_refs:
 
 现状：`ctx` 随 `ai-dev-workflow` skill 复制进目标项目，但安装器对它**完全没有处理**——从不进 PATH。装完 `which ctx` 是空的。
 
-期望：安装器在 skill 复制完成后，在 `<项目>/.claude/skills/ai-dev-workflow/scripts/ctx` 下 `npm link`，把 `ctx` 变成全局命令，并**实跑 `ctx --help` 验证**后才报成功；失败一律降级为警告 + 打印 `node <skill>/scripts/ctx/src/cli.js <命令>` 兜底方式。
+期望：安装器在 skill 复制完成后，在 `<项目>/.claude/skills/ai-dev-workflow/scripts/ctx` 下 `npm link`，把 `ctx` 变成全局命令，并**实跑 `ctx --help` 验证**后才报成功；失败一律降级为警告 + 打印 `node <skill>/scripts/ctx/src/cli.js <命令>` 兜底方式。（3.0.0 起 `ctx` 随 skill `dw-code-facts` 落盘，来源目录为 `<项目>/.claude/skills/dw-code-facts/scripts/ctx`。）
 
 ## 为什么
 
@@ -79,7 +79,7 @@ skill 文档（代码事实分册、`scripts/ctx/README.md`、`SKILL.md`、注�
 - [x] `node --test test/` 全绿（58 项，其中 ctx 链路 7 项）。
 - [x] `cd ai-dev-system/skills/ai-dev-workflow/scripts/ctx && node --test` 全绿（31 项）。
 - [x] 真机实链：`npm link` 后 `which ctx` → `/opt/homebrew/bin/ctx`；在 myclaws 项目里 `ctx list-services` 正确列出 6 个服务。
-- [ ] **代码评审门**：待跑。**续跑时按现行口径**：先按 `references/core/代码评审纪律.md` §门禁 判对象面算出轴集合，再按 §评审轴 逐轴跑（2.15.0 起轴集合按对象面推导，不再固定为四条）。（评审门口径 2.5.0 已变，续跑时按现行口径走：忠实轴 MUST 出需求覆盖矩阵，且缺陷表增列「偏离类型」，取值是 `漏做` / `做一半` / `做反了` / `越界` / `镀金` 五个的闭集；本 lean spec 是 `FR-###` 编号之前的存量文档、没有编号，故忠实轴 MUST 走降级契约——退回自然语言逐条对照，并在报告首行原样输出 `本次未跑覆盖矩阵：spec 无编号`，MUST NOT 因此报缺陷或阻断门禁。判据见 `ai-dev-workflow/references/core/代码评审纪律.md` §评审轴 与 §子代理 prompt 模板 内的〈返回格式〉段。）
+- [ ] **代码评审门**：待跑。**续跑时按现行口径**：先按 `dw-review-gate` 的 `评审门禁.md` §门禁 判对象面算出轴集合，再按 `评审轴.md` §评审轴 逐轴跑（2.15.0 起轴集合按对象面推导，不再固定为四条）。（评审门口径 2.5.0 已变，续跑时按现行口径走：忠实轴 MUST 出需求覆盖矩阵，且缺陷表增列「偏离类型」，取值是 `漏做` / `做一半` / `做反了` / `越界` / `镀金` 五个的闭集；本 lean spec 是 `FR-###` 编号之前的存量文档、没有编号，故忠实轴 MUST 走降级契约——退回自然语言逐条对照，并在报告首行原样输出 `本次未跑覆盖矩阵：spec 无编号`，MUST NOT 因此报缺陷或阻断门禁。判据见 `ai-dev-workflow/references/core/代码评审纪律.md` §评审轴 与 §子代理 prompt 模板 内的〈返回格式〉段。）
 
 ## 后续变化（2026-08-17 补记，随 2.0.0）
 

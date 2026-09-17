@@ -19,7 +19,7 @@
 // spec §1「不做什么」划定的范围，不是漏网：`dw-prd` 待后续版本另开一次收敛。MUST NOT 把
 // 本闸全绿读成"全仓计数词已收敛"。
 //
-// spec：docs/spec/2026-08-23-渐进式披露与需求追溯-eng-spec.md §4.3 / §6 Invariant 5
+// 规则的家：dw-system/skills/AGENTS.md〈数字只在它的家〉。当初的 spec（已归档）：docs/spec/2026-08-23-渐进式披露与需求追溯-eng-spec.md §4.3
 import assert from 'node:assert/strict'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'

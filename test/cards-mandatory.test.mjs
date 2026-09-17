@@ -5,7 +5,8 @@
 // 变更里**机器可判**的那部分锁住：删除是否彻底、路径改名是否同步、无条件表述有没有
 // 退回条件式、骨架是否真的生成 cards/。
 //
-// spec：docs/spec/2026-08-18-代码事实层强制化-eng-spec.md
+// 现行口径：docs/REQUIREMENTS.md §必备的代码事实层 与 docs/decisions/0005-卡片按业务域分.md
+// （当初的设计依据 docs/spec/2026-08-18-代码事实层强制化-eng-spec.md 已归档）。
 import assert from 'node:assert/strict'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'

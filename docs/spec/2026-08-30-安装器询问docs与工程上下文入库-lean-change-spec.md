@@ -2,10 +2,10 @@
 lifecycle: active
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-08-30'
+last_confirmed: '2026-09-17'
 authority_refs:
   - '安装器在交互安装时问一次 docs/ 与 engineering-context/ 是否提交进 git'
-  - '决定以 # ai-dev-system:project-docs-in-git=yes|no 记在 .gitignore 标记块内，重装沿用不再问'
+  - '决定以 # dw-system:project-docs-in-git=yes|no 记在 .gitignore 标记块内，重装沿用不再问'
   - '交互默认（回车）与非交互（--yes、--dry-run、非 TTY）取同一个默认值 no'
   - '不发问路径：已有记号 / 非交互 / 显式 --docs-in-git；块外已有使用者自己的忽略规则时既不问也不接管'
 ---
@@ -27,8 +27,8 @@ authority_refs:
 **本次功能需求**：
 
 - FR-001 — 交互安装（TTY、未传 `--yes` / `--dry-run`）时，安装器在打印改动计划**之前**问一次 `docs/` 与 `engineering-context/` 要不要提交进 git，**默认取值（直接回车）为"不提交"**。
-- FR-002 — 答"不提交"时，`/docs/` 与 `/engineering-context/` MUST 写进既有的 `# ai-dev-system:gitignore:start/end` 标记块【内】；答"提交"时 MUST NOT 写入任何忽略规则。
-- FR-003 — 两种答案都 MUST 以 `# ai-dev-system:project-docs-in-git=yes|no` 记在块内；下次安装读到该记号即沿用，MUST NOT 再问。
+- FR-002 — 答"不提交"时，`/docs/` 与 `/engineering-context/` MUST 写进既有的 `# ai-dev-system:gitignore:start/end` 标记块【内】；答"提交"时 MUST NOT 写入任何忽略规则。（3.0.0 起块名为 `# dw-system:gitignore:start/end`；旧块由安装器升级时改写。）
+- FR-003 — 两种答案都 MUST 以 `# ai-dev-system:project-docs-in-git=yes|no` 记在块内；下次安装读到该记号即沿用，MUST NOT 再问。（3.0.0 起记号为 `# dw-system:project-docs-in-git=yes|no`；旧记号只在 `install.mjs` 的 `LEGACY` 表里被读取，决定原样带入新块、不再发问。）
 - FR-004 — `--yes` / `--dry-run` / 非 TTY MUST 取与回车相同的默认值 `no` 一次落定并记进块内：交互与自动化 MUST NOT 各用一个默认值。
 - FR-006 — `.gitignore` 标记块**外**已有使用者自己写的这两个目录的忽略规则时，MUST NOT 发问，也 MUST NOT 把这些规则接管进标记块（否则同一条规则在文件里出现两份）；此时块内不写记号。
 - FR-005 — `--docs-in-git` 只接受 `yes` / `no`，其余取值硬失败（非零退出码），MUST NOT 静默按默认值继续。

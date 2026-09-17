@@ -3,12 +3,12 @@ date: '2026-08-25'
 lifecycle: 'active'
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-08-27'
+last_confirmed: '2026-09-17'
 authority_refs:
-  - 'ai-dev-system/skills/ai-prd/references/00-prd生成流程.md#组稿'
-  - 'ai-dev-system/skills/ai-prd/references/prd复核纪律.md#门禁'
-  - 'ai-dev-system/skills/ai-prd/references/UI原型纪律.md'
-  - 'ai-dev-system/skills/ai-prd/SKILL.md#关键纪律每次都遵守'
+  - 'dw-system/skills/dw-prd/references/00-prd生成流程.md#组稿'
+  - 'dw-system/skills/dw-prd/references/prd复核纪律.md#门禁'
+  - 'dw-system/skills/dw-prd/references/UI原型纪律.md#2-交付-html-高保真交互页（过稿期原型以项目外预览副本交付那一条）'
+  - 'dw-system/skills/dw-prd/SKILL.md#关键纪律每次都遵守'
 ---
 
 # 用户过稿门（复核门前移到用户定稿之后）

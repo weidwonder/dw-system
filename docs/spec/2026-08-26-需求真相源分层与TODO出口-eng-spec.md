@@ -2,12 +2,12 @@
 lifecycle: active
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-08-26'
+last_confirmed: '2026-09-17'
 authority_refs:
-  - '需求真相源的定位与承载形态（文档治理.md §三层真相源 需求层那一行）'
-  - '准出归并动作的落点集合（文档治理.md §6 / 00-prd生成流程.md §PRD 生命周期 第 1 步 / 路径-lean.md §10.6）'
-  - '项目级输出目录约定（文档治理.md §硬规则 的目录表与 docs/ 根例外清单）'
-  - '整品 PRD 模板的章节集合（assets/templates/product-prd.md）'
+  - '需求真相源的定位与承载形态（dw-system/skills/dw-doc-governance/references/文档治理.md §三层真相源 需求层那一行）'
+  - '准出归并动作的落点集合（dw-system/skills/dw-doc-governance/references/文档生命周期.md §6 / dw-system/skills/dw-prd/references/00-prd生成流程.md §PRD 生命周期 / dw-system/skills/dw-workflow/references/路径-lean.md §顺序 第 11 步）'
+  - '项目级输出目录约定（dw-system/skills/dw-doc-governance/references/文档治理.md §硬规则 的 docs/ 根例外清单）'
+  - '整品 PRD 模板的章节集合（dw-system/skills/dw-prd/assets/templates/product-prd.md）'
   - 'docs/TODO.md 的存在、章节划分与陈旧提醒阈值'
 ---
 

@@ -1,11 +1,13 @@
 ---
-lifecycle: active
+lifecycle: merged
 superseded_by: ''
-archived: ''
+archived: '2026-09-17'
 last_confirmed: '2026-08-27'
 authority_refs:
   - '本 plan 的 Interfaces 节冻结了：加载点清单的列结构、FR-###/AC-### 编号格式、忠实轴返回格式的增列方式'
 ---
+
+> **已归档（2026-09-17）｜lifecycle: merged**：任务已随 2.5.0 执行并合入，口径已归并至 `docs/REQUIREMENTS.md`；本文冻结的〈加载点清单〉列结构已在 3.0.0 取消，来历见 `docs/decisions/0004`。未勾选项保持原样，不代表待办。与现行文档冲突时**以现行为准**，MUST NOT 据本文实施。
 
 # 渐进式披露与需求追溯 Coding Plan
 

@@ -98,6 +98,8 @@ export function checkBudgets(root, manifest) {
     }
     const re = new RegExp(rule.entryPattern)
     const entries = fs.readFileSync(path.join(root, rule.file), 'utf8').split(/\r?\n/).filter(l => re.test(l))
+    // 一条都匹配不到 = 这条规则在空跑（索引换了行形态而 entryPattern 没跟上），MUST 判红。
+    if (!entries.length) failures.push(`单条上限空跑：${rule.file} 里没有任何一行匹配 ${rule.entryPattern}`)
     let worst = 0
     for (const line of entries) {
       const size = Buffer.byteLength(line, 'utf8')

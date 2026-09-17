@@ -2,7 +2,7 @@
 lifecycle: active
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-08-27'
+last_confirmed: '2026-09-17'
 authority_refs:
   - 'ui-prototype.html ANNO-FRAMEWORK:CSS 区 [data-anno-host] 与 .anno-pin 的定位与层级规则'
   - 'ANNO-FRAMEWORK:JS 区 attach() 施加 data-anno-host 的条件'

@@ -2,10 +2,10 @@
 lifecycle: active
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-08-26'
+last_confirmed: '2026-09-17'
 authority_refs:
   - 'install.mjs 中 npm link 失败后的分支判定：EEXIST 与其余失败分开处置'
-  - 'EEXIST 之后的归属判定方式：PATH 上的 ctx 签名匹配，或 npm root -g 下 ctx 包的符号链接目标含 ai-dev-workflow / 入口脚本含签名串'
+  - 'EEXIST 之后的归属判定方式：PATH 上的 ctx 签名匹配，或 npm root -g 下 ctx 包的符号链接目标含 dw-code-facts 或旧名 ai-dev-workflow / 入口脚本含签名串'
   - '确认归属后才执行 npm link --force；判不出归属时一个字节都不动'
   - 'npm link 的输出由安装器捕获，失败时回显末尾若干行'
 ---
@@ -26,7 +26,7 @@ authority_refs:
 **本次功能需求**：
 
 - FR-001 — `npm link` 的输出由安装器捕获并据此分辨失败类型：`EEXIST`（全局目录已有同名文件）与其余失败（写权限等）走不同分支，失败时 npm 自己的原文 MUST 回显给用户。
-- FR-002 — 撞到 `EEXIST` 时先判定那个已存在文件的归属：PATH 上跑得通且签名匹配，或 `npm root -g` 下的 `ctx` 包认得出是本体系的（符号链接目标含 `ai-dev-workflow`，或入口脚本含签名串），二者任一成立即为"本体系上次留下的"。
+- FR-002 — 撞到 `EEXIST` 时先判定那个已存在文件的归属：PATH 上跑得通且签名匹配，或 `npm root -g` 下的 `ctx` 包认得出是本体系的（符号链接目标含 `ai-dev-workflow`，或入口脚本含签名串），二者任一成立即为"本体系上次留下的"。（3.0.0 起符号链接目标同时认 `dw-code-facts` 与旧名 `ai-dev-workflow`：`install.mjs` 的 `CTX.skill` 加 `LEGACY.ctxSkills`。）
 - FR-003 — 归属确认后用 `npm link --force` 覆盖成本次安装的这份，随后仍走既有的实跑 `ctx --help` 验证才报成功。
 - FR-004 — 归属判不出时 MUST NOT 覆盖，改为打印该文件的完整路径、可自行删除或 `npm rm -g ctx` 后重跑、以及 `--no-ctx-link` 跳过这一段，并给出 `node <skill>/scripts/ctx/src/cli.js <命令>` 兜底调用方式；安装器退出码仍为 0。
 

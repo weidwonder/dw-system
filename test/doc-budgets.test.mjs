@@ -38,6 +38,9 @@ test('自检：超限、点名文件缺失、glob 零命中各判红', () => {
   assert.match(missing.failures[0], /不存在/)
   const empty = checkBudgets(dir, { classes: [{ glob: 'b/**/*.md', max: 10 }] })
   assert.match(empty.failures[0], /零命中/)
+  // 单条上限的 entryPattern 一行都匹配不到：索引换了行形态，这条规则在空跑。
+  const idle = checkBudgets(dir, { lines: [{ file: 'a/small.md', entryPattern: '^- ', maxBytes: 10 }] })
+  assert.match(idle.failures[0], /空跑/)
 })
 
 test('自检：files 优先于 classes，合计按路径段分组并认 overrides，单条按行判', () => {

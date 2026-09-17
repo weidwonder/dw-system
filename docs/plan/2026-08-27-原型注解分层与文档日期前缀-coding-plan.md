@@ -1,7 +1,7 @@
 ---
-lifecycle: active
+lifecycle: merged
 superseded_by: ''
-archived: ''
+archived: '2026-09-17'
 last_confirmed: '2026-08-27'
 authority_refs:
   - 'window.setScreenState(screenEl, nextState) 的签名与语义：纯状态表达，不认识按钮'
@@ -10,6 +10,8 @@ authority_refs:
   - '批注数据 replies[] 的字段集合'
   - '.screen-notes 的 DOM 契约与 CUSTOM-JS / SCREEN-SCRIPT 两个标记名'
 ---
+
+> **已归档（2026-09-17）｜lifecycle: merged**：任务已随当期版本执行并合入，口径已归并至 `docs/REQUIREMENTS.md` 与同期 `docs/spec/2026-08-27-原型注解分层与文档日期前缀-eng-spec.md`；未勾选项里的 `wording-redline` / `lean-selfcontained` / `resident-budget` 三个测试、〈加载点清单〉与 Lean 自足册已在 3.0.0 退役。未勾选项保持原样，不代表待办，MUST NOT 照它续跑。与现行文档冲突时**以现行为准**，MUST NOT 据本文实施。
 
 # 原型注解分层与文档日期前缀 Coding Plan
 
