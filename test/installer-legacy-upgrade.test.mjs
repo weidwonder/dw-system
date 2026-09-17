@@ -249,3 +249,22 @@ test('全局 ctx 的归属判定同时认新旧两个 skill 路径段（AC-008�
   assert.match(src, /ctxSkills:\s*\[[^\]]*'ai-dev-workflow'/)
   assert.match(src, /\[CTX\.skill,\s*\.\.\.LEGACY\.ctxSkills\]/)
 })
+
+test('skills 树里旧名字只出现一处：dw-workflow 入口路由表识别 3.0 之前安装的那一行', () => {
+  // 这项兼容要能一刀移除：识别旧块的文字散到第二个文件，移除时就得全树找。
+  const skillsRoot = path.join(repoRoot, 'dw-system', 'skills')
+  const hits = []
+  const walk = dir => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const abs = path.join(dir, e.name)
+      if (e.isDirectory()) { walk(abs); continue }
+      if (!/\.(md|mjs|js|json|html|css)$/.test(e.name)) continue
+      fs.readFileSync(abs, 'utf8').split('\n').forEach((line, i) => {
+        if (LEGACY_TOKENS.some(t => line.includes(t))) hits.push(`${path.relative(skillsRoot, abs).split(path.sep).join('/')}:${i + 1}`)
+      })
+    }
+  }
+  walk(skillsRoot)
+  assert.equal(hits.length, 1, `旧名字出现在：\n  ${hits.join('\n  ')}`)
+  assert.match(hits[0], /^dw-workflow\/SKILL\.md:\d+$/)
+})

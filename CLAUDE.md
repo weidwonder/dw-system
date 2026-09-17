@@ -67,7 +67,7 @@ engineering-context/        本仓库自己的代码事实层
 - **改 skill 文档前 MUST 加载 `skill-principle` 与 `dw-prose`**，并读 `dw-system/skills/AGENTS.md`。
 - **新增或改动机器闸前读 `test/AGENTS.md`**。每条新闸 MUST 做反向自检：植入一个它该拦的样本确认判红，撤掉确认转绿。
 - **伴生 skill（`agentic-principle`、`skill-principle`）与 `codegraph` 是外部资产**，MUST NOT 把它们的内容搬进本仓库；本仓库只负责安装、接线与点名加载。
-- **旧名字**（`ai-dev-system`、`ai-dev-workflow`、`ai-prd`）只许出现在 `install.mjs` 的 `LEGACY` 表、迁移指南、CHANGELOG 既有条目与历史文档里。
+- **旧名字**（`ai-dev-system`、`ai-dev-workflow`、`ai-prd`）只许出现在 `install.mjs` 的 `LEGACY` 表、迁移指南、CHANGELOG 既有条目与历史文档里；skills 树里只许一处——`dw-workflow/SKILL.md` 路由表里识别 3.0 之前安装的那一行（`test/installer-legacy-upgrade.test.mjs` 守）。移除这项兼容时删那一行与 `LEGACY` 表即可。
 - **历史文档不回改**：`docs/spec`、`docs/plan`、`docs/report` 的存量文档、`dw-system/migrations/` 既有指南、`CHANGELOG.md` 既有条目，记录的是当时的事实。口径失准的按 `dw-doc-governance` 归档，MUST NOT 改写成现在的说法。
 - **兼容取舍每次由拍板人定**，AI MUST NOT 默认向后兼容，也 MUST NOT 默认不兼容。
 - **跨平台**：安装器与两个 CLI 在 macOS、Linux、Windows 上都要能跑。路径比较前统一成正斜杠；MUST NOT 依赖 shell 特性；符号链接只读链接字符串、不解引用后再删除。
