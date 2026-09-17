@@ -585,7 +585,8 @@ function resolveWorkflowSettings(parsed) {
     mergeGate,
     worktreeDir,
     isNewFormat: declared !== null,
-    // 任一字段是补出来的就要走迁移改写（并打印前后对照）
+    inferred: declared === null || parsed['merge-gate'] == null || parsed['worktree-dir'] == null,
+    // 任一字段是补出来的、或旧块里还带着 mode，就要走改写并打印前后对照
     migrated: declared === null || parsed['merge-gate'] == null || parsed['worktree-dir'] == null
       || parsed.mode !== null,
   };
@@ -1586,12 +1587,16 @@ async function main() {
     console.log(`\n${HL}  ⚠ dw-workflow 配置标记块将改写为新字段（改写前后对照）：${HL_END}`);
     console.log(`       旧：${workflowFieldSummary(existingModeBlock)}`);
     console.log(`       新：${workflowFieldLine(workflowSettings)}`);
-    console.log(`       · 协作面沿用推断结果：${workflowSettings.collaboration === 'team'
-      ? '存在其他人类协作方（collaboration="team"）'
-      : '没有其他人类协作方（collaboration="solo"）'}。`);
-    console.log(`       · 合并方式沿用推断结果：${workflowSettings.mergeGate === 'pr'
-      ? '推送 + PR + 平台自动合并（merge-gate="pr"）'
-      : '本地非快进合并（merge-gate="direct"）'}；如需改为另一种，改这一行即可。`);
+    if (workflowSettings.inferred) {
+      console.log(`       · 协作面沿用推断结果：${workflowSettings.collaboration === 'team'
+        ? '存在其他人类协作方（collaboration="team"）'
+        : '没有其他人类协作方（collaboration="solo"）'}。`);
+      console.log(`       · 合并方式沿用推断结果：${workflowSettings.mergeGate === 'pr'
+        ? '推送 + PR + 平台自动合并（merge-gate="pr"）'
+        : '本地非快进合并（merge-gate="direct"）'}；如需改为另一种，改这一行即可。`);
+    } else {
+      console.log('       · 三个字段原样保留，只去掉 mode。');
+    }
     console.log('       · 代码事实一律走 engineering-context 卡片层，与这份声明无关；'
       + '有没有代码图谱索引则由每次唤起时探测得出。');
   }
