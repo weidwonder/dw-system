@@ -10,7 +10,7 @@
 // 所以这里锁的是"纪律与容器之间的一致性"，不锁 CSS/JS 的具体写法。
 //
 // 另一半锁**跨文件接线**：出口写在纪律里而流程步骤不提，agent 永远走不到它；用户批注的
-// 读法只写在 ai-prd 侧而 ai-dev-workflow 读原型时不知道，下游就漏掉气泡里的行为契约。
+// 读法只写在 dw-prd 侧而 dw-workflow 读原型时不知道，下游就漏掉气泡里的行为契约。
 //
 // spec：docs/spec/2026-08-25-原型批注框架-lean-change-spec.md
 import assert from 'node:assert/strict'
@@ -18,11 +18,11 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { composeTemplate } from '../ai-dev-system/skills/ai-prd/scripts/preview.mjs'
+import { composeTemplate } from '../dw-system/skills/dw-prd/scripts/preview.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const skillsRoot = path.join(repoRoot, 'ai-dev-system', 'skills')
-const prdRoot = path.join(skillsRoot, 'ai-prd')
+const skillsRoot = path.join(repoRoot, 'dw-system', 'skills')
+const prdRoot = path.join(skillsRoot, 'dw-prd')
 const read = (...seg) => readFileSync(path.join(...seg), 'utf8')
 
 const template = await composeTemplate()
@@ -246,7 +246,7 @@ test('容器里 JS 动态引用的图标 id 都已定义', () => {
   assert.deepEqual(missing, [], `引用了未定义的图标：${missing.join(' ')}`)
 })
 
-test('ai-prd 侧接线：纪律 §7/§8 立判据，流程两步与质量清单都提到它', () => {
+test('dw-prd 侧接线：纪律 §7/§8 立判据，流程两步与质量清单都提到它', () => {
   assert.match(discipline, /##\s*7\.\s*界面批注框架/, 'UI原型纪律 必须有批注框架一节')
   assert.match(discipline, /##\s*8\.\s*怎么往容器里填内容/, 'UI原型纪律 必须有插槽契约一节')
 
@@ -269,11 +269,11 @@ test('ai-prd 侧接线：纪律 §7/§8 立判据，流程两步与质量清单�
   const checklist = read(prdRoot, 'references', 'prd质量清单.md')
   assert.match(checklist, /preview\.mjs check/, '质量清单必须要求跑 check')
   assert.match(checklist, /固定实现区\*{0,2}全部\*{0,2}未被改写/, '质量清单必须验固定实现区完整')
-  assert.match(read(prdRoot, 'SKILL.md'), /原型批注框架/, 'ai-prd SKILL.md 的关键纪律必须收录本条')
+  assert.match(read(prdRoot, 'SKILL.md'), /原型批注框架/, 'dw-prd SKILL.md 的关键纪律必须收录本条')
 })
 
-test('ai-dev-workflow 侧接线：下游读原型时被告知连元素批注一起读', () => {
-  const wf = path.join(skillsRoot, 'ai-dev-workflow')
+test('dw-workflow 侧接线：下游读原型时被告知连元素批注一起读', () => {
+  const wf = path.join(skillsRoot, 'dw-workflow')
   for (const rel of [
     ['references', 'core', '00-流程总纲.md'],
     ['references', 'core', '路径-lean.md'],
@@ -286,8 +286,8 @@ test('ai-dev-workflow 侧接线：下游读原型时被告知连元素批注一�
 
 // 真正打开原型的是这几个执行点。判据只写在总纲/自足册里，等于写给一个当时不在场的读者：
 // Step 1 是完整路径上第一次打开原型的地方，Step 4 落 spec，Step 8 落测试用例。
-test('ai-dev-workflow 侧接线：每个真打开原型的执行点都给出了取批注的命令', () => {
-  const wf = path.join(skillsRoot, 'ai-dev-workflow')
+test('dw-workflow 侧接线：每个真打开原型的执行点都给出了取批注的命令', () => {
+  const wf = path.join(skillsRoot, 'dw-workflow')
   const POINTS = [
     [['references', 'core', '00-流程总纲.md'], null],
     [['references', 'core', '路径-lean.md'], null],
@@ -461,7 +461,7 @@ test('图钉的层级高于原型内容、低于批注框架自身的每一层',
   // 三处各记一个数就会漂，所以按容器的实际取值逐处比对。
   ;[
     ['UI原型纪律 §8.4', discipline],
-    ['engineering-context/cards/ai-dev-system.md', read(repoRoot, 'engineering-context', 'cards', 'ai-dev-system.md')],
+    ['engineering-context/cards/dw-system.md', read(repoRoot, 'engineering-context', 'cards', 'dw-system.md')],
     ['docs/REQUIREMENTS.md', read(repoRoot, 'docs', 'REQUIREMENTS.md')],
   ].forEach(([where, body]) => {
     // 只查 body.includes(pin) 太弱——文件别处出现过这个数就恒真，写上限那句写错了照样绿。

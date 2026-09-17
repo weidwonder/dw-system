@@ -14,9 +14,9 @@
 // 计数词（如把某处指名引用改回"按四轴执行"）→ 本检查判红并逐处点名；改回指名引用 → 转绿。
 // 自检 MUST 用这种方式做，MUST NOT 靠放宽词表或扩大豁免清单让它绿。
 //
-// 作用域：只遍历 `ai-dev-workflow/`（下方 wfRoot）。姊妹 skill `ai-prd/` **尚未收敛**——
-// `ai-prd/references/prd复核纪律.md` 里仍有 `四轴`×2，另有 `四问`×1。这是
-// spec §1「不做什么」划定的范围，不是漏网：`ai-prd` 待后续版本另开一次收敛。MUST NOT 把
+// 作用域：只遍历 `dw-workflow/`（下方 wfRoot）。姊妹 skill `dw-prd/` **尚未收敛**——
+// `dw-prd/references/prd复核纪律.md` 里仍有 `四轴`×2，另有 `四问`×1。这是
+// spec §1「不做什么」划定的范围，不是漏网：`dw-prd` 待后续版本另开一次收敛。MUST NOT 把
 // 本闸全绿读成"全仓计数词已收敛"。
 //
 // spec：docs/spec/2026-08-23-渐进式披露与需求追溯-eng-spec.md §4.3 / §6 Invariant 5
@@ -31,7 +31,7 @@ import { fileURLToPath } from 'node:url'
 import { EXEMPT_DIRS, EXEMPT_FILES } from './counter-word-exempt.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const wfRoot = path.join(repoRoot, 'ai-dev-system', 'skills', 'ai-dev-workflow')
+const wfRoot = path.join(repoRoot, 'dw-system', 'skills', 'dw-workflow')
 
 // 受检词表（闭集，spec §4.3）。`variants` 覆盖同一个词的引号写法差异：仓库现用直引号，
 // 但弯引号 / 直角引号是中文写作里等价的常见变体，漏掉等于留了一条绕过通道。
@@ -85,7 +85,7 @@ const CHECKED_WORDS = [
 const isExempt = (rel) =>
   EXEMPT_FILES.includes(rel) || EXEMPT_DIRS.some((dir) => rel.startsWith(dir))
 
-/** 递归收集 ai-dev-workflow/ 下的文本文件，返回 [相对 wfRoot 的路径（正斜杠）, 内容]。 */
+/** 递归收集 dw-workflow/ 下的文本文件，返回 [相对 wfRoot 的路径（正斜杠）, 内容]。 */
 function collectFiles() {
   const out = []
   const walk = (dir) => {

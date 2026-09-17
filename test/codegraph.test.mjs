@@ -262,8 +262,8 @@ test('codegraph 装不上：只警告并给手动命令，skill 安装仍然成�
     assert.match(r.stdout, /⚠ 安装失败，本次跳过接线与建索引/)
     assert.match(r.stdout, new RegExp(`手动安装：npm install -g ${PKG.replace('/', '\\/')}`))
     // 主安装的产物必须完好
-    assert.ok(existsSync(path.join(target, '.claude', 'skills', 'ai-dev-workflow', 'SKILL.md')))
-    assert.ok(existsSync(path.join(target, '.agents', 'skills', 'ai-prd', 'SKILL.md')))
+    assert.ok(existsSync(path.join(target, '.claude', 'skills', 'dw-workflow', 'SKILL.md')))
+    assert.ok(existsSync(path.join(target, '.agents', 'skills', 'dw-prd', 'SKILL.md')))
   })
 })
 

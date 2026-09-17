@@ -52,7 +52,7 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const wfRoot = path.join(repoRoot, 'ai-dev-system', 'skills', 'ai-dev-workflow')
+const wfRoot = path.join(repoRoot, 'dw-system', 'skills', 'dw-workflow')
 
 // 常驻六份（spec §4.1 判定结果 / FR-002）：入口 + core 四篇 + collab 一份。
 // collab 那一份二选一，所以这里列成两个候选，下面各算一遍取较大值。

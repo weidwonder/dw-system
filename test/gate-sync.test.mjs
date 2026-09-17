@@ -28,7 +28,7 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const wfRoot = path.join(repoRoot, 'ai-dev-system', 'skills', 'ai-dev-workflow')
+const wfRoot = path.join(repoRoot, 'dw-system', 'skills', 'dw-workflow')
 const read = (...rel) => readFileSync(path.join(wfRoot, ...rel), 'utf8')
 
 // 中文数字 → 阿拉伯数字。总表标题写的是「五道门」这类计数词。
@@ -107,7 +107,7 @@ test('贯穿门：每道门在必须复述它的文件里都在场', () => {
     for (const name of names) {
       if (!body.includes(name)) {
         problems.push(
-          `【${label}】缺少贯穿门「${name}」（${path.join('ai-dev-workflow', ...file)}）\n` +
+          `【${label}】缺少贯穿门「${name}」（${path.join('dw-workflow', ...file)}）\n` +
             '    总纲声明了这道门，而这里一次都没提到它。走这条路径的 agent 因此永远不知道有这道门，' +
             '且不会有任何报错。MUST 在该文件里补上，MUST NOT 从总表里删掉这道门来让本闸转绿。',
         )

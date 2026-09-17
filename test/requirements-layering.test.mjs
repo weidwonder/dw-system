@@ -21,9 +21,9 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const skillsRoot = path.join(repoRoot, 'ai-dev-system', 'skills')
-const wfRoot = path.join(skillsRoot, 'ai-dev-workflow')
-const prdRoot = path.join(skillsRoot, 'ai-prd')
+const skillsRoot = path.join(repoRoot, 'dw-system', 'skills')
+const wfRoot = path.join(skillsRoot, 'dw-workflow')
+const prdRoot = path.join(skillsRoot, 'dw-prd')
 const read = (...seg) => readFileSync(path.join(...seg), 'utf8')
 
 // 切段取子串。锚点找不到当场红——indexOf 返回 -1 时 slice 会静默退化成整个文件，
@@ -94,11 +94,11 @@ test('归并落点是一张按口径类型分派的表，三处同源且都带"�
   // 三处都要有这条反读警告，缺任一处那条路径就会照旧收工
   const WARN = /「功能清单没变化」MUST NOT 被读成「无需归并」/
   assert.match(g6, WARN, '文档治理 §6 缺反读警告')
-  assert.match(prdFlow, WARN, 'ai-prd §PRD 生命周期 缺反读警告')
+  assert.match(prdFlow, WARN, 'dw-prd §PRD 生命周期 缺反读警告')
   assert.match(lean, WARN, 'Lean 自足册 §10.6 缺反读警告')
 
   // 两处投影 MUST 指名引用权威处，MUST NOT 各写一份判据
-  assert.match(prdFlow, /文档治理\.md` §6/, 'ai-prd 没指名引用 文档治理 §6')
+  assert.match(prdFlow, /文档治理\.md` §6/, 'dw-prd 没指名引用 文档治理 §6')
 })
 
 test('归并时机统一：真相源在准出门才更新，"最后才是 spec"那条已删干净', () => {
@@ -146,7 +146,7 @@ test('TODO 有准入门槛与日期要求，且 AI 不得自行删条目', () =>
   assert.match(g7, /改个变量名|清掉一行死代码|补一个测试/, '§7 缺"不收什么"的反例')
   assert.match(g7, /3 个月/, '§7 缺默认陈旧阈值')
   // 阈值同样只在权威处
-  assert.doesNotMatch(prdFlow, /3 个月/, 'ai-prd 复制了陈旧阈值数字')
+  assert.doesNotMatch(prdFlow, /3 个月/, 'dw-prd 复制了陈旧阈值数字')
 })
 
 test('docs/ 根例外清单三处一致：真相源两份 + TODO.md', () => {
@@ -157,16 +157,16 @@ test('docs/ 根例外清单三处一致：真相源两份 + TODO.md', () => {
   }
 })
 
-test('两份新模板存在，且入口清单与 ai-prd 分流都指向它们', () => {
+test('两份新模板存在，且入口清单与 dw-prd 分流都指向它们', () => {
   for (const f of ['requirements-module.md', 'todo.md']) {
     assert.ok(existsSync(path.join(prdRoot, 'assets', 'templates', f)), `模板缺失：${f}`)
   }
   const prdSkill = read(prdRoot, 'SKILL.md')
-  assert.match(prdSkill, /requirements-module/, 'ai-prd SKILL.md 没指向子模块模板')
-  assert.match(prdSkill, /todo/, 'ai-prd SKILL.md 没指向 todo 模板')
+  assert.match(prdSkill, /requirements-module/, 'dw-prd SKILL.md 没指向子模块模板')
+  assert.match(prdSkill, /todo/, 'dw-prd SKILL.md 没指向 todo 模板')
   // 没有加载点的分册永远不会被读到，只是死文件
   const wfSkill = read(wfRoot, 'SKILL.md')
-  assert.match(wfSkill, /TODO/, 'ai-dev-workflow 加载点清单里没有 TODO 的触发行')
+  assert.match(wfSkill, /TODO/, 'dw-workflow 加载点清单里没有 TODO 的触发行')
 })
 
 test('整品 PRD 模板已按新定位收敛：规划类章节全部移出', () => {
@@ -185,13 +185,13 @@ test('「以后想做」与「明确不做」分家：产 PRD 的三个落点都
   // 与本次要堵的漏洞完全同构。三处缺任一处，那条路径上就会漏。
   const changeTpl = read(prdRoot, 'assets', 'templates', 'change-prd.md')
   const prdSkill = read(prdRoot, 'SKILL.md')
-  for (const [label, text] of [['change-prd 模板', changeTpl], ['ai-prd SKILL.md', prdSkill], ['00-prd生成流程.md', prdFlow]]) {
+  for (const [label, text] of [['change-prd 模板', changeTpl], ['dw-prd SKILL.md', prdSkill], ['00-prd生成流程.md', prdFlow]]) {
     assert.match(text, /docs\/TODO\.md/, `${label} 没提 docs/TODO.md`)
     assert.match(text, /以后想做/, `${label} 缺"以后想做"与"明确不做"的分流判据`)
   }
   // 非目标那一侧要说清它写的是"当前边界"，否则两类还是会混
   assert.match(changeTpl, /当前边界/, 'change-prd 非目标节没说清它写的是当前边界')
-  assert.match(prdSkill, /MUST NOT 塞进非目标|MUST NOT 写进这里/, 'ai-prd SKILL.md 缺"不许塞进非目标"的禁令')
+  assert.match(prdSkill, /MUST NOT 塞进非目标|MUST NOT 写进这里/, 'dw-prd SKILL.md 缺"不许塞进非目标"的禁令')
 })
 
 test('本仓库自身不再是特例：真相源与 TODO 都在', () => {

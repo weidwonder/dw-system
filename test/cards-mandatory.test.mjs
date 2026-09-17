@@ -13,14 +13,14 @@ import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
-import { initScaffold } from '../ai-dev-system/skills/ai-dev-workflow/scripts/ctx/src/commands.js'
+import { initScaffold } from '../dw-system/skills/dw-workflow/scripts/ctx/src/commands.js'
 // 计数词豁免清单的唯一定义处，两条机器闸共用一份（详见该文件抬头）。
 import { EXEMPT_DIRS, EXEMPT_FILES } from './counter-word-exempt.mjs'
 import { ENTRY_MAX_BYTES, LOADING_POINT_MIN } from './contract-numbers.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const skillsRoot = path.join(repoRoot, 'ai-dev-system', 'skills')
-const workflowRoot = path.join(skillsRoot, 'ai-dev-workflow')
+const skillsRoot = path.join(repoRoot, 'dw-system', 'skills')
+const workflowRoot = path.join(skillsRoot, 'dw-workflow')
 const read = (...parts) => readFileSync(path.join(...parts), 'utf8')
 
 /** 递归收集 skills/ 下的所有文本文件（markdown + js），返回 [仓库相对路径（正斜杠）, 内容] 对。 */
@@ -232,8 +232,8 @@ test('注入片段里的 ctx 条目是无条件的，没有退回条件式', () 
     'base.md 的 ctx 条目 MUST NOT 再是条件式——卡片层是必备的',
   )
   // 标记块本身不许被动过
-  assert.ok(base.startsWith('<!-- ai-dev-workflow:start -->'))
-  assert.ok(base.trimEnd().endsWith('<!-- ai-dev-workflow:end -->'))
+  assert.ok(base.startsWith('<!-- dw-workflow:start -->'))
+  assert.ok(base.trimEnd().endsWith('<!-- dw-workflow:end -->'))
   assert.match(base, /collaboration="solo\|team" merge-gate="direct\|pr" worktree-dir=/)
 })
 
@@ -326,14 +326,14 @@ test('ctx CLI 的对外契约没有被这次变更碰到', () => {
 test('VERSION 不低于 2.1.0（卡片必备自此版起）并带配套迁移指南', () => {
   // 不写死当前版本：这条锁的是"卡片必备的起始版本 + VERSION 与 migrations 必须配套"，
   // 写死会让此后每一次无关的 bump 都在这里假红。
-  const version = read(repoRoot, 'ai-dev-system', 'VERSION').trim()
+  const version = read(repoRoot, 'dw-system', 'VERSION').trim()
   const [maj, min] = version.split('.').map(Number)
   assert.ok(maj > 2 || (maj === 2 && min >= 1), `卡片必备自 2.1.0 起，VERSION 不应低于它：${version}`)
   // 盯的是**本特性落地的那个版本**的指南（2.1.0），不是当前 VERSION。
   // 写 `${version}.md` 会隐含要求「每个版本都有迁移指南」——那从来不是成文判据，
   // 只是历史上恰好每次 bump 都需要用户动作。2.5.0 是第一个零手动动作的 bump，
   // 它把这个隐含假设顶了出来。指向 2.1.0 则永不过期：卡片必备的指南永远是 2.1.0 那一份。
-  const migration = path.join(repoRoot, 'ai-dev-system', 'migrations', '2.1.0.md')
+  const migration = path.join(repoRoot, 'dw-system', 'migrations', '2.1.0.md')
   assert.ok(existsSync(migration), `缺迁移指南：${migration}`)
   const body = readFileSync(migration, 'utf8')
   // 安装器会高亮全文打印，指南必须保持一屏内
@@ -358,10 +358,10 @@ const GUARDRAIL_AUTHORITY = 'references/core/00-流程总纲.md'
 // 复述，config-snippets/ 被注入目标项目、读它的 AI 没有本 skill 的文件可跳转。此前两份各写
 // 一遍、只靠注释"保持一致"手工同步，两边写法还不同，漂了不会报任何错——同一份判据 MUST 只有
 // 一处定义。
-// 共用清单的基准是 `ai-dev-workflow/`，这里的 skillFiles 相对 repoRoot 且**含姊妹 skill
-// `ai-prd/`**，所以 MUST 补回 `ai-dev-workflow/` 前缀再匹配：直接拿裸的 `SKILL.md` 去
-// `includes`，会把 `ai-prd/SKILL.md` 一起豁免掉，静默放宽检查面。
-const GUARDRAIL_EXEMPT = [...EXEMPT_FILES, ...EXEMPT_DIRS].map((x) => `ai-dev-workflow/${x}`)
+// 共用清单的基准是 `dw-workflow/`，这里的 skillFiles 相对 repoRoot 且**含姊妹 skill
+// `dw-prd/`**，所以 MUST 补回 `dw-workflow/` 前缀再匹配：直接拿裸的 `SKILL.md` 去
+// `includes`，会把 `dw-prd/SKILL.md` 一起豁免掉，静默放宽检查面。
+const GUARDRAIL_EXEMPT = [...EXEMPT_FILES, ...EXEMPT_DIRS].map((x) => `dw-workflow/${x}`)
 
 test('"不裁剪护栏"的条数只在总纲里出现，且与实际条目数一致', () => {
   const outline = read(workflowRoot, 'references', 'core', '00-流程总纲.md')

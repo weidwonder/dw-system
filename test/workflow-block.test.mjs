@@ -1,4 +1,4 @@
-// ai-dev-workflow 标记块的字段模型与迁移改写。
+// dw-workflow 标记块的字段模型与迁移改写。
 // 契约来源：docs/spec/2026-08-18-代码事实层强制化-eng-spec.md
 // （它取代了已归档的 2026-08-16-项目真相源与context-tier重构-eng-spec.md §5 / §6.1 / §8.3 / §9）。
 //
@@ -15,8 +15,8 @@ import { fileURLToPath } from 'node:url'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const installer = path.join(repoRoot, 'install.mjs')
 
-const START = '<!-- ai-dev-workflow:start -->'
-const END = '<!-- ai-dev-workflow:end -->'
+const START = '<!-- dw-workflow:start -->'
+const END = '<!-- dw-workflow:end -->'
 
 const install = (target, ...args) =>
   spawnSync(
@@ -28,9 +28,9 @@ const install = (target, ...args) =>
 const read = (...parts) => readFileSync(path.join(...parts), 'utf8')
 const write = (file, body) => writeFileSync(file, body)
 
-const legacyBlock = mode => `# Fixture\n\n${START}\n> **本项目采用 ai-dev-workflow** (mode="${mode}")\n${END}\n`
+const legacyBlock = mode => `# Fixture\n\n${START}\n> **本项目采用 dw-workflow** (mode="${mode}")\n${END}\n`
 const newBlock = (collaboration, mergeGate, worktreeDir = './.worktrees/') =>
-  `# Fixture\n\n${START}\n> **本项目采用 ai-dev-workflow**\n`
+  `# Fixture\n\n${START}\n> **本项目采用 dw-workflow**\n`
   + `> (mode="team" collaboration="${collaboration}" merge-gate="${mergeGate}" worktree-dir="${worktreeDir}")\n${END}\n`
 
 function blockOf(text) {
@@ -45,7 +45,7 @@ function blockOf(text) {
 const fieldNames = block => [...block.matchAll(/([a-z][a-z-]*)="[^"]*"/g)].map(m => m[1]).sort()
 
 function withTarget(prefix, fn) {
-  const target = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-' + prefix + '-'))
+  const target = mkdtempSync(path.join(tmpdir(), 'dw-system-' + prefix + '-'))
   try {
     return fn(target)
   } finally {
@@ -70,7 +70,7 @@ test('新格式标记块被原样识别，且重复安装幂等', () => {
     const second = install(target)
     assert.equal(second.status, 0, second.stderr || second.stdout)
     assert.equal(read(target, 'CLAUDE.md'), afterFirst, '重复安装必须字节级幂等')
-    assert.equal((read(target, 'CLAUDE.md').match(/ai-dev-workflow:start/g) || []).length, 1)
+    assert.equal((read(target, 'CLAUDE.md').match(/dw-workflow:start/g) || []).length, 1)
     assert.doesNotMatch(second.stdout, /改写前后对照/)
   })
 })
@@ -262,7 +262,7 @@ test('标记块存在但读不出任何已知字段 → 报错中止', () => {
 
     const result = install(target)
     assert.notEqual(result.status, 0)
-    assert.match(result.stdout + result.stderr, /ai-dev-workflow/)
+    assert.match(result.stdout + result.stderr, /dw-workflow/)
     assert.equal(existsSync(path.join(target, '.claude', 'skills')), false)
   })
 })
@@ -282,7 +282,7 @@ test('已装 skill stamp 早于 2.0.0 而标记块已是新格式 → 显式报�
     write(path.join(target, 'CLAUDE.md'), newBlock('solo', 'direct'))
     for (const dir of [path.join(target, '.claude', 'skills'), path.join(target, '.agents', 'skills')]) {
       mkdirSync(dir, { recursive: true })
-      writeFileSync(path.join(dir, 'ai-dev-system.version'), '1.0.0\n')
+      writeFileSync(path.join(dir, 'dw-system.version'), '1.0.0\n')
     }
 
     const result = install(target)

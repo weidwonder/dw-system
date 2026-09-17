@@ -17,7 +17,7 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const wfRoot = path.join(repoRoot, 'ai-dev-system', 'skills', 'ai-dev-workflow')
+const wfRoot = path.join(repoRoot, 'dw-system', 'skills', 'dw-workflow')
 const read = (...p) => readFileSync(path.join(...p), 'utf8')
 
 const REVIEW = read(wfRoot, 'references', 'core', '代码评审纪律.md')
@@ -66,7 +66,7 @@ test('面 → 轴的映射三处一致，且写明多面命中取并集', () => 
 })
 
 test('两条伴生轴都写明加载伴生 skill 而不是本 skill', () => {
-  // 这两轴的价值全在"换一套判据来看"。子代理若加载了 ai-dev-workflow，
+  // 这两轴的价值全在"换一套判据来看"。子代理若加载了 dw-workflow，
   // 交回来的会是一份别的轴已经给过的报告，而它看上去完全正常。
   for (const [name, body] of [['代码评审纪律.md', REVIEW], ['路径-lean.md', LEAN]]) {
     assert.ok(
@@ -78,8 +78,8 @@ test('两条伴生轴都写明加载伴生 skill 而不是本 skill', () => {
       `${name} 未写明 E 轴加载 agentic-principle`,
     )
     assert.ok(
-      /不是本 skill|而不是本 skill|不加载\s*\n?\s*ai-dev-workflow/.test(body),
-      `${name} 未挡住"这两轴也加载 ai-dev-workflow"`,
+      /不是本 skill|而不是本 skill|不加载\s*\n?\s*dw-workflow/.test(body),
+      `${name} 未挡住"这两轴也加载 dw-workflow"`,
     )
     assert.ok(
       /整体不在场/.test(body),

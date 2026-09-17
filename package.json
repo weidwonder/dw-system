@@ -1,22 +1,22 @@
 {
-  "name": "ai-dev-system",
+  "name": "dw-system",
   "version": "0.0.0",
-  "description": "Project installer for the ai-dev-workflow and ai-prd skills",
+  "description": "Project installer for the dw-workflow and dw-prd skills",
   "private": true,
   "type": "module",
   "bin": {
-    "ai-dev-system": "./install.mjs"
+    "dw-system": "./install.mjs"
   },
   "files": [
     "install.mjs",
-    "ai-dev-system/VERSION"
+    "dw-system/VERSION"
   ],
   "engines": {
     "node": ">=20"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/weidwonder/ai-dev-system.git"
+    "url": "git+https://github.com/weidwonder/dw-system.git"
   },
   "license": "UNLICENSED"
 }

@@ -193,7 +193,7 @@ test('伴生仓库不可达时降级为警告，主安装照常完成', () => {
     assert.match(r.stdout, /本地未安装。它的用途：/)
     assert.ok(!/它是 Agentic 需求的必需依赖/.test(r.stdout), '拉取失败文案仍写死单个 skill 的语义')
     // 主安装的产物必须完好
-    assert.ok(existsSync(path.join(target, '.claude', 'skills', 'ai-dev-workflow', 'SKILL.md')))
+    assert.ok(existsSync(path.join(target, '.claude', 'skills', 'dw-workflow', 'SKILL.md')))
     assert.match(r.stdout, /完成。下一步：/)
   })
 })

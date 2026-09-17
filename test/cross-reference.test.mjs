@@ -65,7 +65,7 @@
 // ── 四、目标文件怎么解析 ───────────────────────────────────────────────────────────
 //
 // 引用路径写法五花八门：裸文件名（`代码事实纪律.md`）、相对目录（`core/代码事实纪律.md`）、
-// 带占位符（`<skills 根>/ai-dev-workflow/references/core/…`）、上跳（`../../references/core/…`）、
+// 带占位符（`<skills 根>/dw-workflow/references/core/…`）、上跳（`../../references/core/…`）、
 // 花括号（`collab/{solo,team}.md`）。解析规则：丢掉 `.`/`..`/含 `<>` 的占位段后，剩下的段
 // 必须是某个真实文件路径的**结尾片段**；命中多个时按"引用方所在的那个 skill"收敛（`solo.md`
 // 在两个 skill 下各有一份，引用方读的显然是自己那份）。
@@ -93,7 +93,7 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const skillsRoot = path.join(repoRoot, 'ai-dev-system', 'skills')
+const skillsRoot = path.join(repoRoot, 'dw-system', 'skills')
 
 /**
  * 举例用的文件名豁免：正文里为了讲清判据而虚构的文档名，不是断链。
@@ -245,7 +245,7 @@ function resolveTarget(refPath, fromAbs) {
   if (hits.length === 0) return { missing: true }
   if (hits.length === 1) return { abs: hits[0] }
   // 同名多份（`SKILL.md` / `solo.md` 在两个 skill 下各一份）：收敛到引用方所在的 skill。
-  // 相对仓库根的路径形如 ai-dev-system/skills/<skill>/…，skill 名在第 3 段（下标 2）。
+  // 相对仓库根的路径形如 dw-system/skills/<skill>/…，skill 名在第 3 段（下标 2）。
   const skillOf = (abs) => relPosix(abs).split('/')[2]
   const fromSkill = skillOf(fromAbs)
   const sameSkill = hits.filter((abs) => skillOf(abs) === fromSkill)
@@ -321,7 +321,7 @@ test('每条交叉引用的目标文件与目标小节都真实存在', () => {
 
       if (target.missing) {
         problems.push(
-          `${where}\n    引用：${quoted}\n    目标文件：**不存在**（在 ai-dev-system/skills/ 下按结尾片段找不到 ${refPath}）\n    上下文：${ref.context}`,
+          `${where}\n    引用：${quoted}\n    目标文件：**不存在**（在 dw-system/skills/ 下按结尾片段找不到 ${refPath}）\n    上下文：${ref.context}`,
         )
         continue
       }

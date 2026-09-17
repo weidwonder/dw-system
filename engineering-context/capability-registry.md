@@ -1,6 +1,6 @@
 # Capability Registry — 产品能力到权威代码实体的映射
 
-> 精简骨架；完整字段说明与填写指南见 ai-dev-workflow skill 的 assets/context-layer/capability-registry.md。
+> 精简骨架；完整字段说明与填写指南见 dw-workflow skill 的 assets/context-layer/capability-registry.md。
 > 代码事实层（"信哪个"）的核心资产，**每个装了本体系的项目都维护它**。人工确认。
 > 事实以源码为准，PRD 仅作 scope + 业务语境。每条带 freshness 与理由链。
 > 只剩【】占位行是**正常起步态**：内容按任务渐进补齐（见 references/core/代码事实纪律.md §4），
@@ -19,8 +19,8 @@
 | Capability | 业务含义 | 权威仓库 | 权威接口(含版本) | 废弃/中间产物替代 | 兼容窗口 | owner | 测试入口 | freshness(最近确认) | 理由链 |
 |---|---|---|---|---|---|---|---|---|---|
 | 【能力】 | 【含义】 | 【repo】 | 【POST /v2/xxx】 | 【旧接口不可用】 | 【切点】 | 【owner】 | 【测试入口】 | 【YYYY-MM-DD / PR】 | 【诞生压力】 |
-| 原型容器与批注框架 | 原型的唯一容器：分区标记 + 设计系统 + 图标库 + 批注框架 | ai-dev-system | `ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html` | 无 | — | 本人 | `test/prototype-annotations.test.mjs` | 2026-08-27 | 容器里放示例会锚定产出 |
-| 原型产出与改稿工具 | init/screen/slot/extract/annotations/check/serve 七条子命令 | ai-dev-system | `ai-dev-system/skills/ai-prd/scripts/preview.mjs` | 手工编辑原型文件（会抹掉批注锚点，明令禁止） | — | 本人 | `test/prototype-preview.test.mjs` | 2026-08-27 | 手工改稿会让用户批注失联 |
-| 文档命名与生命周期 | 产出文档的目录、命名、lifecycle/authority_refs 与索引门控 | ai-dev-system | `ai-dev-system/skills/ai-dev-workflow/references/core/文档治理.md` §默认命名 | 字段名 `status`（已被 lean-change-spec 的「写作进度」占用） | — | 本人 | `test/doc-index.test.mjs` | 2026-08-27 | 索引与真相源要可机检 |
-| 原型纪律（结构/自检/批注/写回） | 原型的产出、结构、自检、批注框架与写回路径的权威判据 | ai-dev-system | `ai-dev-system/skills/ai-prd/references/UI原型纪律.md` | 无 | — | 本人 | `test/prototype-annotations.test.mjs` | 2026-08-27 | 结构知识靠记必漏，收进 check |
-| 流程门禁契约 | 完整流程与 Lean 共用的贯穿门与条件门：每道门插在哪、判据在哪一节、谁拍板 | ai-dev-system | `ai-dev-system/skills/ai-dev-workflow/references/core/00-流程总纲.md` §五道门 | 计数词 `四道门`（2.11.0 起过时；旧表述仍留在 migrations 历史指南里，那是记账不是残留） | — | 本人 | `test/gate-sync.test.mjs` | 2026-08-27 | 门的复述散在九个文件，漏改一处不报错 |
+| 原型容器与批注框架 | 原型的唯一容器：分区标记 + 设计系统 + 图标库 + 批注框架 | dw-system | `dw-system/skills/dw-prd/assets/templates/ui-prototype.html` | 无 | — | 本人 | `test/prototype-annotations.test.mjs` | 2026-08-27 | 容器里放示例会锚定产出 |
+| 原型产出与改稿工具 | init/screen/slot/extract/annotations/check/serve 七条子命令 | dw-system | `dw-system/skills/dw-prd/scripts/preview.mjs` | 手工编辑原型文件（会抹掉批注锚点，明令禁止） | — | 本人 | `test/prototype-preview.test.mjs` | 2026-08-27 | 手工改稿会让用户批注失联 |
+| 文档命名与生命周期 | 产出文档的目录、命名、lifecycle/authority_refs 与索引门控 | dw-system | `dw-system/skills/dw-workflow/references/core/文档治理.md` §默认命名 | 字段名 `status`（已被 lean-change-spec 的「写作进度」占用） | — | 本人 | `test/doc-index.test.mjs` | 2026-08-27 | 索引与真相源要可机检 |
+| 原型纪律（结构/自检/批注/写回） | 原型的产出、结构、自检、批注框架与写回路径的权威判据 | dw-system | `dw-system/skills/dw-prd/references/UI原型纪律.md` | 无 | — | 本人 | `test/prototype-annotations.test.mjs` | 2026-08-27 | 结构知识靠记必漏，收进 check |
+| 流程门禁契约 | 完整流程与 Lean 共用的贯穿门与条件门：每道门插在哪、判据在哪一节、谁拍板 | dw-system | `dw-system/skills/dw-workflow/references/core/00-流程总纲.md` §五道门 | 计数词 `四道门`（2.11.0 起过时；旧表述仍留在 migrations 历史指南里，那是记账不是残留） | — | 本人 | `test/gate-sync.test.mjs` | 2026-08-27 | 门的复述散在九个文件，漏改一处不报错 |

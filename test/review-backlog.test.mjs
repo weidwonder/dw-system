@@ -20,7 +20,7 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const wfRoot = path.join(repoRoot, 'ai-dev-system', 'skills', 'ai-dev-workflow')
+const wfRoot = path.join(repoRoot, 'dw-system', 'skills', 'dw-workflow')
 const read = (...p) => readFileSync(path.join(...p), 'utf8')
 
 const REVIEW = read(wfRoot, 'references', 'core', '代码评审纪律.md')

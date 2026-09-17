@@ -55,11 +55,11 @@ const CONTRACTS = [
     ],
   },
   {
-    name: 'ai-prd 入口 SKILL.md 字节上限',
+    name: 'dw-prd 入口 SKILL.md 字节上限',
     value: PRD_ENTRY_MAX_BYTES,
     // 与上一条是两个量（两个 skill 的入口结构不同，判据见 `contract-numbers.mjs`）。
-    // 锚点串刻意带上 `ai-prd`，否则会命中上一条那三个锚点里的同形句子。
-    refs: [{ file: 'CLAUDE.md', anchor: '`ai-prd` 的入口 `SKILL.md` 上限是' }],
+    // 锚点串刻意带上 `dw-prd`，否则会命中上一条那三个锚点里的同形句子。
+    refs: [{ file: 'CLAUDE.md', anchor: '`dw-prd` 的入口 `SKILL.md` 上限是' }],
   },
 ]
 

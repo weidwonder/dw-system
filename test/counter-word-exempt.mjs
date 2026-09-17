@@ -3,13 +3,13 @@
 // 为什么单独一个文件：这份清单同时被两条机器闸用到——`counter-word.test.mjs` 管"别处还有
 // 没有残留数字"，`cards-mandatory.test.mjs` 的护栏取值闸管"权威文件里的数字对不对"。此前两边
 // 各抄了一份、只靠注释「保持一致」手工同步，两边写法还不同（`SKILL.md` vs
-// `ai-dev-workflow/SKILL.md`），漂了不会报任何错。同一份判据 MUST 只有一处定义。
+// `dw-workflow/SKILL.md`），漂了不会报任何错。同一份判据 MUST 只有一处定义。
 //
 // 文件名**刻意不带 `.test.`**：`node --test test/*.test.mjs` 按这个后缀收集用例，带上就会被
 // 当成一份空测试文件；而如果把常量放在某个 `.test.mjs` 里再 import，另一个进程会把那份文件的
 // 用例一并注册，同一批测试跑两遍。
 //
-// 路径基准是 `ai-dev-workflow/`（`counter-word.test.mjs` 的 wfRoot）。以仓库根为基准的调用方
+// 路径基准是 `dw-workflow/`（`counter-word.test.mjs` 的 wfRoot）。以仓库根为基准的调用方
 // （`cards-mandatory.test.mjs`）用 `includes` 匹配，前缀差异不影响判定。
 //
 // spec：docs/spec/2026-08-23-渐进式披露与需求追溯-eng-spec.md §4.3

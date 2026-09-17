@@ -9,10 +9,10 @@ import assert from 'node:assert/strict'
 import { readFileSync, existsSync, readdirSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { composeTemplate, FRAMEWORK, FRAMEWORK_DIR, FRAMEWORK_PRE, FRAMEWORK_POST } from '../ai-dev-system/skills/ai-prd/scripts/preview.mjs'
+import { composeTemplate, FRAMEWORK, FRAMEWORK_DIR, FRAMEWORK_PRE, FRAMEWORK_POST } from '../dw-system/skills/dw-prd/scripts/preview.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const container = path.join(repoRoot, 'ai-dev-system/skills/ai-prd/assets/templates/ui-prototype.html')
+const container = path.join(repoRoot, 'dw-system/skills/dw-prd/assets/templates/ui-prototype.html')
 
 function markRange(h, m) {
   const b = h.indexOf(`<!-- ${m}:BEGIN`); if (b < 0) return null
@@ -90,8 +90,8 @@ test('缺框架源文件时 init 报错退出且不留残页', async () => {
   const { tmpdir } = await import('node:os')
   const dir = mkdtempSync(path.join(tmpdir(), 'proto-missing-'))
   // 在临时副本中删文件，避免测试并发时短暂改名共享源码，干扰其他测试读装配表。
-  const skillCopy = path.join(dir, 'ai-prd')
-  cpSync(path.join(repoRoot, 'ai-dev-system/skills/ai-prd'), skillCopy, { recursive: true })
+  const skillCopy = path.join(dir, 'dw-prd')
+  cpSync(path.join(repoRoot, 'dw-system/skills/dw-prd'), skillCopy, { recursive: true })
   const script = path.join(skillCopy, 'scripts/preview.mjs')
   const victim = path.join(skillCopy, 'assets/templates/ui-prototype-framework', FRAMEWORK[0].files[0])
   const target = path.join(dir, 'p.html')

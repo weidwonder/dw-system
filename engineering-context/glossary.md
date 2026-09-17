@@ -1,6 +1,6 @@
 # Glossary — 领域词汇表
 
-> 精简骨架；完整维护说明见 ai-dev-workflow skill 的 assets/context-layer/glossary.md。
+> 精简骨架；完整维护说明见 dw-workflow skill 的 assets/context-layer/glossary.md。
 > 纯词汇表，禁实现细节：glossary 管说法一致，card 管事实权威，registry 管能力落点。
 > 条目里出现表/接口/类名即为越界，移去 card。同义词列供 synonyms.md 参考。
 

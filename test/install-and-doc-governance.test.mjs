@@ -8,8 +8,8 @@ import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const installer = path.join(repoRoot, 'install.mjs')
-const workflowRoot = path.join(repoRoot, 'ai-dev-system', 'skills', 'ai-dev-workflow')
-const prdRoot = path.join(repoRoot, 'ai-dev-system', 'skills', 'ai-prd')
+const workflowRoot = path.join(repoRoot, 'dw-system', 'skills', 'dw-workflow')
+const prdRoot = path.join(repoRoot, 'dw-system', 'skills', 'dw-prd')
 
 const read = (...parts) => readFileSync(path.join(...parts), 'utf8')
 // --no-agentic：本组测试不涉及伴生 skill，且必须避免安装器联网并写入
@@ -45,11 +45,11 @@ function fakeCodex(binDir, logFile) {
 }
 
 test('installer writes the Codex guard and backfills the workflow mode', () => {
-  const target = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-install-'))
+  const target = mkdtempSync(path.join(tmpdir(), 'dw-system-install-'))
   try {
     writeFileSync(
       path.join(target, 'CLAUDE.md'),
-      '# Fixture\n\n<!-- ai-dev-workflow:start -->\nmode="personal"\n<!-- ai-dev-workflow:end -->\n',
+      '# Fixture\n\n<!-- dw-workflow:start -->\nmode="personal"\n<!-- dw-workflow:end -->\n',
     )
 
     const result = spawnSync(process.execPath, localInstallArgs(target, '--yes'), {
@@ -60,8 +60,8 @@ test('installer writes the Codex guard and backfills the workflow mode', () => {
     assert.equal(result.status, 0, result.stderr || result.stdout)
     assert.match(result.stdout, /superpowers@openai-api-curated/)
     const agents = read(target, 'AGENTS.md')
-    assert.match(agents, /ai-dev-system:codex-conflicts:start/)
-    assert.match(agents, /ai-dev-workflow:start/)
+    assert.match(agents, /dw-system:codex-conflicts:start/)
+    assert.match(agents, /dw-workflow:start/)
     // 旧 mode="personal" 被迁移改写成协作字段（详见 workflow-block.test.mjs）
     assert.match(agents, /collaboration="solo"/)
     assert.match(agents, /merge-gate="direct"/)
@@ -76,16 +76,16 @@ test('installer writes the Codex guard and backfills the workflow mode', () => {
     })
     assert.equal(rerun.status, 0, rerun.stderr || rerun.stdout)
     const rerunAgents = read(target, 'AGENTS.md')
-    assert.equal((rerunAgents.match(/ai-dev-system:codex-conflicts:start/g) || []).length, 1)
-    assert.equal((rerunAgents.match(/ai-dev-workflow:start/g) || []).length, 1)
+    assert.equal((rerunAgents.match(/dw-system:codex-conflicts:start/g) || []).length, 1)
+    assert.equal((rerunAgents.match(/dw-workflow:start/g) || []).length, 1)
   } finally {
     rmSync(target, { recursive: true, force: true })
   }
 })
 
 test('explicit Codex uninstall removes the global plugin and the project guard', () => {
-  const target = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-codex-uninstall-'))
-  const binDir = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-fake-codex-'))
+  const target = mkdtempSync(path.join(tmpdir(), 'dw-system-codex-uninstall-'))
+  const binDir = mkdtempSync(path.join(tmpdir(), 'dw-system-fake-codex-'))
   const logFile = path.join(binDir, 'removed.log')
   try {
     const result = spawnSync(process.execPath, localInstallArgs(target, '--yes', '--codex-conflicts=uninstall'), {
@@ -104,8 +104,8 @@ test('explicit Codex uninstall removes the global plugin and the project guard',
 })
 
 test('Codex uninstall failure leaves the target project untouched', () => {
-  const target = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-codex-remove-failure-'))
-  const binDir = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-fake-codex-remove-failure-'))
+  const target = mkdtempSync(path.join(tmpdir(), 'dw-system-codex-remove-failure-'))
+  const binDir = mkdtempSync(path.join(tmpdir(), 'dw-system-fake-codex-remove-failure-'))
   const logFile = path.join(binDir, 'removed.log')
   try {
     const env = { ...fakeCodex(binDir, logFile), CODEX_FAKE_REMOVE_STATUS: '7' }
@@ -126,8 +126,8 @@ test('Codex uninstall failure leaves the target project untouched', () => {
 })
 
 test('invalid Codex plugin output aborts before target changes', () => {
-  const target = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-codex-list-invalid-'))
-  const binDir = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-fake-codex-list-invalid-'))
+  const target = mkdtempSync(path.join(tmpdir(), 'dw-system-codex-list-invalid-'))
+  const binDir = mkdtempSync(path.join(tmpdir(), 'dw-system-fake-codex-list-invalid-'))
   const logFile = path.join(binDir, 'removed.log')
   try {
     const env = { ...fakeCodex(binDir, logFile), CODEX_FAKE_LIST_MODE: 'schema' }
@@ -147,8 +147,8 @@ test('invalid Codex plugin output aborts before target changes', () => {
 })
 
 test('missing Codex CLI aborts global uninstall before target changes', () => {
-  const target = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-codex-cli-missing-'))
-  const binDir = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-empty-codex-bin-'))
+  const target = mkdtempSync(path.join(tmpdir(), 'dw-system-codex-cli-missing-'))
+  const binDir = mkdtempSync(path.join(tmpdir(), 'dw-system-empty-codex-bin-'))
   try {
     const result = spawnSync(process.execPath, localInstallArgs(target, '--yes', '--codex-conflicts=uninstall'), {
       cwd: repoRoot,
@@ -166,8 +166,8 @@ test('missing Codex CLI aborts global uninstall before target changes', () => {
 })
 
 test('third-party superpowers marketplace entries are not globally removed', () => {
-  const target = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-codex-third-party-'))
-  const binDir = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-fake-codex-third-party-'))
+  const target = mkdtempSync(path.join(tmpdir(), 'dw-system-codex-third-party-'))
+  const binDir = mkdtempSync(path.join(tmpdir(), 'dw-system-fake-codex-third-party-'))
   const logFile = path.join(binDir, 'removed.log')
   try {
     const env = { ...fakeCodex(binDir, logFile), CODEX_FAKE_PLUGIN_ID: 'superpowers@third-party' }
@@ -187,7 +187,7 @@ test('third-party superpowers marketplace entries are not globally removed', () 
 })
 
 test('installer appends installed skill ignore rules to .gitignore idempotently', () => {
-  const target = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-gitignore-'))
+  const target = mkdtempSync(path.join(tmpdir(), 'dw-system-gitignore-'))
   try {
     writeFileSync(path.join(target, '.gitignore'), 'node_modules/\n')
 
@@ -196,22 +196,22 @@ test('installer appends installed skill ignore rules to .gitignore idempotently'
 
     const gitignore = read(target, '.gitignore')
     assert.match(gitignore, /node_modules\//)
-    assert.match(gitignore, /# ai-dev-system:gitignore:start/)
-    assert.match(gitignore, /\/\.claude\/skills\/ai-dev-workflow\//)
-    assert.match(gitignore, /\/\.claude\/skills\/ai-prd\//)
-    assert.match(gitignore, /\/\.agents\/skills\/ai-dev-workflow\//)
-    assert.match(gitignore, /\/\.agents\/skills\/ai-prd\//)
-    assert.match(gitignore, /\/\.claude\/skills\/ai-dev-system\.version/)
-    assert.match(gitignore, /\/\.agents\/skills\/ai-dev-system\.version/)
+    assert.match(gitignore, /# dw-system:gitignore:start/)
+    assert.match(gitignore, /\/\.claude\/skills\/dw-workflow\//)
+    assert.match(gitignore, /\/\.claude\/skills\/dw-prd\//)
+    assert.match(gitignore, /\/\.agents\/skills\/dw-workflow\//)
+    assert.match(gitignore, /\/\.agents\/skills\/dw-prd\//)
+    assert.match(gitignore, /\/\.claude\/skills\/dw-system\.version/)
+    assert.match(gitignore, /\/\.agents\/skills\/dw-system\.version/)
 
     const rerun = spawnSync(process.execPath, localInstallArgs(target, '--yes'), { cwd: repoRoot, encoding: 'utf8' })
     assert.equal(rerun.status, 0, rerun.stderr || rerun.stdout)
     const rerunGitignore = read(target, '.gitignore')
-    assert.equal((rerunGitignore.match(/# ai-dev-system:gitignore:start/g) || []).length, 1)
+    assert.equal((rerunGitignore.match(/# dw-system:gitignore:start/g) || []).length, 1)
     assert.match(rerunGitignore, /node_modules\//)
 
     runGit(target, 'init', '-b', 'main')
-    const check = spawnSync('git', ['check-ignore', '.claude/skills/ai-dev-workflow/SKILL.md'], {
+    const check = spawnSync('git', ['check-ignore', '.claude/skills/dw-workflow/SKILL.md'], {
       cwd: target,
       encoding: 'utf8',
     })
@@ -222,7 +222,7 @@ test('installer appends installed skill ignore rules to .gitignore idempotently'
 })
 
 test('--keep=superpowers removes a guard and Claude disable left by a previous install', () => {
-  const target = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-keep-'))
+  const target = mkdtempSync(path.join(tmpdir(), 'dw-system-keep-'))
   try {
     const first = spawnSync(process.execPath, localInstallArgs(target, '--yes'), { cwd: repoRoot, encoding: 'utf8' })
     assert.equal(first.status, 0, first.stderr || first.stdout)
@@ -235,16 +235,16 @@ test('--keep=superpowers removes a guard and Claude disable left by a previous i
 
     const settings = JSON.parse(read(target, '.claude', 'settings.local.json'))
     assert.equal(settings.enabledPlugins['superpowers@claude-plugins-official'], undefined)
-    assert.doesNotMatch(read(target, 'AGENTS.md'), /ai-dev-system:codex-conflicts:start/)
+    assert.doesNotMatch(read(target, 'AGENTS.md'), /dw-system:codex-conflicts:start/)
   } finally {
     rmSync(target, { recursive: true, force: true })
   }
 })
 
 test('malformed Claude settings abort before installed skills are replaced', () => {
-  const target = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-invalid-settings-'))
+  const target = mkdtempSync(path.join(tmpdir(), 'dw-system-invalid-settings-'))
   try {
-    const sentinel = path.join(target, '.agents', 'skills', 'ai-dev-workflow', 'sentinel.txt')
+    const sentinel = path.join(target, '.agents', 'skills', 'dw-workflow', 'sentinel.txt')
     mkdirSync(path.dirname(sentinel), { recursive: true })
     mkdirSync(path.join(target, '.claude'), { recursive: true })
     writeFileSync(sentinel, 'preserve me')
@@ -259,15 +259,15 @@ test('malformed Claude settings abort before installed skills are replaced', () 
 })
 
 test('a valid AGENTS block wins when the CLAUDE block is malformed', () => {
-  const target = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-mode-fallback-'))
+  const target = mkdtempSync(path.join(tmpdir(), 'dw-system-mode-fallback-'))
   try {
     writeFileSync(
       path.join(target, 'CLAUDE.md'),
-      '<!-- ai-dev-workflow:start -->\nmode="invalid"\n<!-- ai-dev-workflow:end -->\n',
+      '<!-- dw-workflow:start -->\nmode="invalid"\n<!-- dw-workflow:end -->\n',
     )
     writeFileSync(
       path.join(target, 'AGENTS.md'),
-      '<!-- ai-dev-workflow:start -->\nmode="personal"\n<!-- ai-dev-workflow:end -->\n',
+      '<!-- dw-workflow:start -->\nmode="personal"\n<!-- dw-workflow:end -->\n',
     )
 
     const result = spawnSync(process.execPath, localInstallArgs(target, '--yes'), { cwd: repoRoot, encoding: 'utf8' })
@@ -295,11 +295,11 @@ function trySymlink(linkTargetPath, linkPath, t) {
 const countMatches = (text, pattern) => (text.match(pattern) || []).length
 
 test('an AGENTS.md symlinked to CLAUDE.md keeps the link and is written only once', (t) => {
-  const target = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-symlink-entry-'))
+  const target = mkdtempSync(path.join(tmpdir(), 'dw-system-symlink-entry-'))
   try {
     writeFileSync(
       path.join(target, 'CLAUDE.md'),
-      '# Fixture\n\n<!-- ai-dev-workflow:start -->\nmode="personal"\n<!-- ai-dev-workflow:end -->\n\nkeep me\n',
+      '# Fixture\n\n<!-- dw-workflow:start -->\nmode="personal"\n<!-- dw-workflow:end -->\n\nkeep me\n',
     )
     if (!trySymlink('CLAUDE.md', path.join(target, 'AGENTS.md'), t)) return
 
@@ -308,8 +308,8 @@ test('an AGENTS.md symlinked to CLAUDE.md keeps the link and is written only onc
     assert.equal(result.status, 0, result.stderr || result.stdout)
     assert.equal(lstatSync(path.join(target, 'AGENTS.md')).isSymbolicLink(), true, 'the symlink must survive the install')
     const shared = read(target, 'CLAUDE.md')
-    assert.equal(countMatches(shared, /ai-dev-workflow:start/g), 1)
-    assert.equal(countMatches(shared, /ai-dev-system:codex-conflicts:start/g), 1)
+    assert.equal(countMatches(shared, /dw-workflow:start/g), 1)
+    assert.equal(countMatches(shared, /dw-system:codex-conflicts:start/g), 1)
     assert.match(shared, /keep me/)
   } finally {
     rmSync(target, { recursive: true, force: true })
@@ -317,12 +317,12 @@ test('an AGENTS.md symlinked to CLAUDE.md keeps the link and is written only onc
 })
 
 test('both entries symlinked to one shared file receive a single set of blocks', (t) => {
-  const root = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-shared-guide-'))
+  const root = mkdtempSync(path.join(tmpdir(), 'dw-system-shared-guide-'))
   const target = path.join(root, 'proj')
   try {
     mkdirSync(target)
     const shared = path.join(root, 'shared-guide.md')
-    writeFileSync(shared, '# Shared\n\n<!-- ai-dev-workflow:start -->\nmode="team"\n<!-- ai-dev-workflow:end -->\n')
+    writeFileSync(shared, '# Shared\n\n<!-- dw-workflow:start -->\nmode="team"\n<!-- dw-workflow:end -->\n')
     if (!trySymlink(path.join('..', 'shared-guide.md'), path.join(target, 'CLAUDE.md'), t)) return
     if (!trySymlink(path.join('..', 'shared-guide.md'), path.join(target, 'AGENTS.md'), t)) return
 
@@ -332,8 +332,8 @@ test('both entries symlinked to one shared file receive a single set of blocks',
     assert.equal(lstatSync(path.join(target, 'CLAUDE.md')).isSymbolicLink(), true)
     assert.equal(lstatSync(path.join(target, 'AGENTS.md')).isSymbolicLink(), true)
     const guide = readFileSync(shared, 'utf8')
-    assert.equal(countMatches(guide, /ai-dev-workflow:start/g), 1)
-    assert.equal(countMatches(guide, /ai-dev-system:codex-conflicts:start/g), 1)
+    assert.equal(countMatches(guide, /dw-workflow:start/g), 1)
+    assert.equal(countMatches(guide, /dw-system:codex-conflicts:start/g), 1)
     assert.match(guide, /mode="team"/)
   } finally {
     rmSync(root, { recursive: true, force: true })
@@ -341,7 +341,7 @@ test('both entries symlinked to one shared file receive a single set of blocks',
 })
 
 test('a broken symlink entry aborts before the target project is touched', (t) => {
-  const target = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-broken-link-'))
+  const target = mkdtempSync(path.join(tmpdir(), 'dw-system-broken-link-'))
   try {
     writeFileSync(path.join(target, 'CLAUDE.md'), '# Fixture\n')
     if (!trySymlink(path.join('..', 'nowhere', 'shared.md'), path.join(target, 'AGENTS.md'), t)) return
@@ -359,10 +359,10 @@ test('a broken symlink entry aborts before the target project is touched', (t) =
 })
 
 test('installer obtains skills from the selected Git repository and ref', () => {
-  const source = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-source-'))
-  const target = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-remote-install-'))
+  const source = mkdtempSync(path.join(tmpdir(), 'dw-system-source-'))
+  const target = mkdtempSync(path.join(tmpdir(), 'dw-system-remote-install-'))
   try {
-    const fixtureSkill = path.join(source, 'ai-dev-system', 'skills', 'remote-fixture')
+    const fixtureSkill = path.join(source, 'dw-system', 'skills', 'remote-fixture')
     mkdirSync(fixtureSkill, { recursive: true })
     writeFileSync(path.join(fixtureSkill, 'SKILL.md'), '---\nname: remote-fixture\ndescription: Remote fixture.\n---\n')
     runGit(source, 'init', '-b', 'main')
@@ -381,7 +381,7 @@ test('installer obtains skills from the selected Git repository and ref', () => 
     assert.match(result.stdout, /安装源：.*main/)
     assert.equal(existsSync(path.join(target, '.agents', 'skills', 'remote-fixture', 'SKILL.md')), true)
     assert.equal(existsSync(path.join(target, '.claude', 'skills', 'remote-fixture', 'SKILL.md')), true)
-    assert.equal(existsSync(path.join(target, '.agents', 'skills', 'ai-dev-workflow')), false)
+    assert.equal(existsSync(path.join(target, '.agents', 'skills', 'dw-workflow')), false)
   } finally {
     rmSync(source, { recursive: true, force: true })
     rmSync(target, { recursive: true, force: true })
@@ -389,7 +389,7 @@ test('installer obtains skills from the selected Git repository and ref', () => 
 })
 
 test('source download failure leaves the target project unchanged', () => {
-  const target = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-source-failure-'))
+  const target = mkdtempSync(path.join(tmpdir(), 'dw-system-source-failure-'))
   try {
     const sentinel = path.join(target, '.agents', 'skills', 'existing', 'sentinel.txt')
     mkdirSync(path.dirname(sentinel), { recursive: true })
@@ -412,7 +412,7 @@ test('source download failure leaves the target project unchanged', () => {
 test('installer help documents the default GitHub source and version controls', () => {
   const result = spawnSync(process.execPath, [installer, '--help'], { cwd: repoRoot, encoding: 'utf8' })
   assert.equal(result.status, 0, result.stderr || result.stdout)
-  assert.match(result.stdout, /https:\/\/github\.com\/weidwonder\/ai-dev-system\.git/)
+  assert.match(result.stdout, /https:\/\/github\.com\/weidwonder\/dw-system\.git/)
   assert.match(result.stdout, /--repo=/)
   assert.match(result.stdout, /--ref=/)
   assert.match(result.stdout, /--codex-conflicts=<mode>/)
@@ -464,7 +464,7 @@ test('the distribution repository uses tool-neutral document paths', () => {
   assert.doesNotMatch(readme, /superpowers@openai-curated`/)
 })
 
-test('ai-dev-workflow keeps user communication at the business level', () => {
+test('dw-workflow keeps user communication at the business level', () => {
   const communication = read(workflowRoot, 'references', 'core', '用户沟通纪律.md')
   assert.match(communication, /所有与用户的沟通.*业务语言/)
   assert.match(communication, /大架构.*必须.*用户确认/)
@@ -481,7 +481,7 @@ test('ai-dev-workflow keeps user communication at the business level', () => {
   assert.match(overview, /用户确认摘要（业务语言）/)
 })
 
-test('ai-dev-workflow uses worktrees for the whole development lifecycle and merges automatically', () => {
+test('dw-workflow uses worktrees for the whole development lifecycle and merges automatically', () => {
   const discipline = read(workflowRoot, 'references', 'core', 'worktree开发纪律.md')
   // 强制性不再挂在 mode 上：无论协作面与项目资产如何，worktree 都不豁免（T3）
   assert.match(discipline, /强制执行/)
@@ -523,7 +523,7 @@ test('ai-dev-workflow uses worktrees for the whole development lifecycle and mer
   assert.match(codingPlan, /自动合并/)
 })
 
-test('ai-prd questions and deliverables use business language only', () => {
+test('dw-prd questions and deliverables use business language only', () => {
   const discipline = read(prdRoot, 'references', '业务语言纪律.md')
   assert.match(discipline, /对话、问题和 PRD 成稿.*业务语言/)
   assert.match(discipline, /不得要求用户理解.*程序实现/)
@@ -544,18 +544,18 @@ test('ai-prd questions and deliverables use business language only', () => {
 // docs/ 与 engineering-context/ 是目标项目自己的产物，入不入库没有唯一答案，
 // 所以由安装器问一次并把结果记进标记块。下面这组守的是"只问一次"与"非交互零改动"。
 test('installer records the docs/engineering-context in-git decision once', () => {
-  const target = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-docsgit-'))
+  const target = mkdtempSync(path.join(tmpdir(), 'dw-system-docsgit-'))
   try {
     writeFileSync(path.join(target, '.gitignore'), 'node_modules/\n')
 
     const first = spawnSync(process.execPath, localInstallArgs(target, '--yes', '--docs-in-git=no'), { cwd: repoRoot, encoding: 'utf8' })
     assert.equal(first.status, 0, first.stderr || first.stdout)
     const gitignore = read(target, '.gitignore')
-    assert.match(gitignore, /^# ai-dev-system:project-docs-in-git=no$/m)
+    assert.match(gitignore, /^# dw-system:project-docs-in-git=no$/m)
     assert.match(gitignore, /^\/docs\/$/m)
     assert.match(gitignore, /^\/engineering-context\/$/m)
     // 两条规则必须落在标记块【内】，否则下次安装的幂等改写会把它们留成孤儿。
-    const block = gitignore.slice(gitignore.indexOf('# ai-dev-system:gitignore:start'), gitignore.indexOf('# ai-dev-system:gitignore:end'))
+    const block = gitignore.slice(gitignore.indexOf('# dw-system:gitignore:start'), gitignore.indexOf('# dw-system:gitignore:end'))
     assert.match(block, /^\/docs\/$/m)
     assert.match(block, /^\/engineering-context\/$/m)
 
@@ -577,15 +577,15 @@ test('installer records the docs/engineering-context in-git decision once', () =
 })
 
 test('installer keeps docs/ tracked when the user says yes, and falls back to the default otherwise', () => {
-  const yesTarget = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-docsgit-yes-'))
-  const quietTarget = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-docsgit-quiet-'))
-  const ownTarget = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-docsgit-own-'))
+  const yesTarget = mkdtempSync(path.join(tmpdir(), 'dw-system-docsgit-yes-'))
+  const quietTarget = mkdtempSync(path.join(tmpdir(), 'dw-system-docsgit-quiet-'))
+  const ownTarget = mkdtempSync(path.join(tmpdir(), 'dw-system-docsgit-own-'))
   try {
     // 选"提交"：只留决定记号，不写任何忽略规则——记号是把"选过提交"与"从没问过"分开的唯一依据。
     const yes = spawnSync(process.execPath, localInstallArgs(yesTarget, '--yes', '--docs-in-git=yes'), { cwd: repoRoot, encoding: 'utf8' })
     assert.equal(yes.status, 0, yes.stderr || yes.stdout)
     const yesGitignore = read(yesTarget, '.gitignore')
-    assert.match(yesGitignore, /^# ai-dev-system:project-docs-in-git=yes$/m)
+    assert.match(yesGitignore, /^# dw-system:project-docs-in-git=yes$/m)
     assert.doesNotMatch(yesGitignore, /^\/docs\/$/m)
     assert.doesNotMatch(yesGitignore, /^\/engineering-context\/$/m)
 
@@ -593,7 +593,7 @@ test('installer keeps docs/ tracked when the user says yes, and falls back to th
     const quiet = spawnSync(process.execPath, localInstallArgs(quietTarget, '--yes'), { cwd: repoRoot, encoding: 'utf8' })
     assert.equal(quiet.status, 0, quiet.stderr || quiet.stdout)
     const quietGitignore = read(quietTarget, '.gitignore')
-    assert.match(quietGitignore, /^# ai-dev-system:project-docs-in-git=no$/m)
+    assert.match(quietGitignore, /^# dw-system:project-docs-in-git=no$/m)
     assert.match(quietGitignore, /^\/docs\/$/m)
     assert.match(quietGitignore, /^\/engineering-context\/$/m)
 
@@ -604,7 +604,7 @@ test('installer keeps docs/ tracked when the user says yes, and falls back to th
     assert.match(own.stdout, /不发问，也不接管这些规则/)
     const ownGitignore = read(ownTarget, '.gitignore')
     assert.doesNotMatch(ownGitignore, /project-docs-in-git/)
-    const ownBlock = ownGitignore.slice(ownGitignore.indexOf('# ai-dev-system:gitignore:start'))
+    const ownBlock = ownGitignore.slice(ownGitignore.indexOf('# dw-system:gitignore:start'))
     assert.doesNotMatch(ownBlock, /^docs\/$/m)
 
     // 非法取值硬失败，不静默按默认走。

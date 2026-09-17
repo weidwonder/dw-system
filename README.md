@@ -1,10 +1,10 @@
-# ai-dev-system — Ship With AI, Reliably
+# dw-system — Ship With AI, Reliably
 
 **English** | [中文](./README_zh.md)
 
 ![Node ≥20](https://img.shields.io/badge/Node-%E2%89%A520-brightgreen) ![Zero runtime dependencies](https://img.shields.io/badge/dependencies-zero-blue) ![Claude Code · Codex](https://img.shields.io/badge/works%20with-Claude%20Code%20%C2%B7%20Codex-8A2BE2) ![Cross platform](https://img.shields.io/badge/platform-macOS%20%C2%B7%20Linux%20%C2%B7%20Windows-lightgrey)
 
-**The methodology layer your AI coding stack is missing.** Prompting harder doesn't make AI coding reliable — engineering does. ai-dev-system decomposes a raw requirement, layer by layer, into tasks so well-specified that **a zero-context AI agent can execute them dependably** — through Triage, top-level design, engineering specs, coding plans, coding, and tests.
+**The methodology layer your AI coding stack is missing.** Prompting harder doesn't make AI coding reliable — engineering does. dw-system decomposes a raw requirement, layer by layer, into tasks so well-specified that **a zero-context AI agent can execute them dependably** — through Triage, top-level design, engineering specs, coding plans, coding, and tests.
 
 This is not a whiteboard framework. It is distilled from an AI-assisted development system **proven in real production across 50–60 brownfield repositories under bi-weekly, high-velocity iteration**, condensed into two skills.
 
@@ -40,14 +40,14 @@ On top of that foundation, exactly two things vary:
 │   ├── spec/                  # PRD / requirements / overview / spec / design / contracts
 │   ├── plan/                  # coding plans / implementation & migration plans
 │   └── report/                # execution / verification / test / audit reports
-└── ai-dev-system/
+└── dw-system/
     └── skills/                 # two skills (shared by Claude Code + Codex)
-        ├── ai-prd/             # PRD authoring: batched questioning + staged elicitation
+        ├── dw-prd/             # PRD authoring: batched questioning + staged elicitation
         │   ├── SKILL.md        # entry: read collaboration surface → PRD type routing → 4 question batches
         │   ├── references/     # generation flow / business-language & writing discipline / UI prototype discipline / quality gate / review gate
         │   │   └── collab/     # solo.md / team.md (one of the two, by collaboration surface)
         │   └── assets/         # templates: change-prd (primary) / lite-issue-prd / product-prd
-        └── ai-dev-workflow/    # the main pipeline, starting from an existing PRD
+        └── dw-workflow/    # the main pipeline, starting from an existing PRD
             ├── SKILL.md        # entry: detect code graph → read collaboration surface → load; first call → initialization
             ├── references/
             │   ├── core/       # shared kernel: process / code facts / worktree / communication / writing / AI overlay / doc governance
@@ -57,11 +57,11 @@ On top of that foundation, exactly two things vary:
             └── scripts/ctx/    # ctx CLI (Node.js, cross-platform): query code facts, no MCP required
 ```
 
-> **How the two skills divide the work**: `ai-prd` turns a raw idea into a PRD → that PRD is the input of `ai-dev-workflow` Step 1 → the workflow carries on with Overview / Spec / Coding Plan / tests. To invoke `ai-prd`, just say "write me a PRD / turn this requirement into a requirements doc".
+> **How the two skills divide the work**: `dw-prd` turns a raw idea into a PRD → that PRD is the input of `dw-workflow` Step 1 → the workflow carries on with Overview / Spec / Coding Plan / tests. To invoke `dw-prd`, just say "write me a PRD / turn this requirement into a requirements doc".
 
-> **Communication boundary**: all user-facing communication uses business language. Users confirm the big architecture; module-level design is constrained through business questions only; detailed program design is completed autonomously by AI and engineering. `ai-prd` conversations and deliverables never require the user to understand implementation details.
+> **Communication boundary**: all user-facing communication uses business language. Users confirm the big architecture; module-level design is constrained through business questions only; detailed program design is completed autonomously by AI and engineering. `dw-prd` conversations and deliverables never require the user to understand implementation details.
 >
-> **Development isolation**: once inside `ai-dev-workflow`, every document or code change lands in a dedicated git worktree first — Lean changes included. After all work and gates complete, the branch auto-merges into main; on failure the worktree is preserved, the user's uncommitted changes in the main working tree are never touched, and PR / CI / protected-branch rules are never bypassed.
+> **Development isolation**: once inside `dw-workflow`, every document or code change lands in a dedicated git worktree first — Lean changes included. After all work and gates complete, the branch auto-merges into main; on failure the worktree is preserved, the user's uncommitted changes in the main working tree are never touched, and PR / CI / protected-branch rules are never bypassed.
 
 Design and implementation docs: `docs/spec/2026-07-06-ai-dev-system-design.md` and `docs/plan/2026-07-06-ai-dev-system.md` (in Chinese).
 
@@ -73,48 +73,48 @@ Design and implementation docs: `docs/spec/2026-07-06-ai-dev-system-design.md` a
 
 ```bash
 # Run at the target project root — macOS, Linux, Windows:
-npx --yes git+https://github.com/weidwonder/ai-dev-system.git .
+npx --yes git+https://github.com/weidwonder/dw-system.git .
 
 # Dry-run first, nothing written:
-npx --yes git+https://github.com/weidwonder/ai-dev-system.git . --dry-run
+npx --yes git+https://github.com/weidwonder/dw-system.git . --dry-run
 
 # Pin one release end to end — installer entry and skill source at the same tag:
-npx --yes git+https://github.com/weidwonder/ai-dev-system.git#v2.4.0 . --ref=v2.4.0
+npx --yes git+https://github.com/weidwonder/dw-system.git#v2.4.0 . --ref=v2.4.0
 
 # Follow the development branch instead:
-npx --yes git+https://github.com/weidwonder/ai-dev-system.git . --ref=main
+npx --yes git+https://github.com/weidwonder/dw-system.git . --ref=main
 ```
 
-> Use the `git+https://` form rather than the `github:weidwonder/ai-dev-system` shorthand. The shorthand makes npm download a codeload tarball, which returns 404 in some environments (known on Windows + npm 12); `git+https://` goes through `git clone` and avoids that path.
+> Use the `git+https://` form rather than the `github:weidwonder/dw-system` shorthand. The shorthand makes npm download a codeload tarball, which returns 404 in some environments (known on Windows + npm 12); `git+https://` goes through `git clone` and avoids that path.
 
-The installer's default `--ref` is the tag matching its own bundled `ai-dev-system/VERSION`, so the npx package version and the installed skill version always agree. If you pass `--ref` explicitly and that ref cannot be fetched, the installer fails with a non-zero exit code rather than silently installing something else.
+The installer's default `--ref` is the tag matching its own bundled `dw-system/VERSION`, so the npx package version and the installed skill version always agree. If you pass `--ref` explicitly and that ref cannot be fetched, the installer fails with a non-zero exit code rather than silently installing something else.
 
-Common flags: `--shared` commits the Claude Code project settings for the whole team; `--keep=<plugin-short-name>` keeps a specific conflicting plugin; `--no-plugins` installs skills only; `--yes` skips the installer's own confirmation; `--docs-in-git=yes|no` decides up front whether `docs/` and `engineering-context/` are committed to git (asked once interactively otherwise, defaulting to `no`); `--no-codegraph` skips the codegraph step; `--codegraph-location=global` wires codegraph into every project instead of just this one. See all flags with `npx --yes git+https://github.com/weidwonder/ai-dev-system.git --help`.
+Common flags: `--shared` commits the Claude Code project settings for the whole team; `--keep=<plugin-short-name>` keeps a specific conflicting plugin; `--no-plugins` installs skills only; `--yes` skips the installer's own confirmation; `--docs-in-git=yes|no` decides up front whether `docs/` and `engineering-context/` are committed to git (asked once interactively otherwise, defaulting to `no`); `--no-codegraph` skips the codegraph step; `--codegraph-location=global` wires codegraph into every project instead of just this one. See all flags with `npx --yes git+https://github.com/weidwonder/dw-system.git --help`.
 
-> The leading `npx --yes` only skips npm's download prompt; the installer still asks once before modifying your project. For fully unattended installs, pass `--yes` again after the target directory: `npx --yes git+https://github.com/weidwonder/ai-dev-system.git . --yes`.
+> The leading `npx --yes` only skips npm's download prompt; the installer still asks once before modifying your project. For fully unattended installs, pass `--yes` again after the target directory: `npx --yes git+https://github.com/weidwonder/dw-system.git . --yes`.
 
 **Option B: local script install (repo maintenance & troubleshooting)**
 
 ```bash
 # With this repo already cloned:
-node /path/to/ai-dev-system/install.mjs .
+node /path/to/dw-system/install.mjs .
 
 # Windows wrapper also works:
-#   \path\to\ai-dev-system\install.cmd .
+#   \path\to\dw-system\install.cmd .
 
 # Only for developing/testing unpublished changes of this repo:
-node /path/to/ai-dev-system/install.mjs . --source-dir=/path/to/ai-dev-system
+node /path/to/dw-system/install.mjs . --source-dir=/path/to/dw-system
 ```
 
 What the installer does:
 
 1. Fetches the `--ref` version of the `--repo` repository from GitHub and verifies it contains at least one valid skill; if download or verification fails, the target project is left untouched;
-2. Copies **all** skills of that version (by default `ai-prd` + `ai-dev-workflow` with the `ctx` CLI) → `<project>/.claude/skills/` for Claude Code;
+2. Copies **all** skills of that version (by default `dw-prd` + `dw-workflow` with the `ctx` CLI) → `<project>/.claude/skills/` for Claude Code;
 3. Copies the same skills → `<project>/.agents/skills/` for Codex;
 4. Appends an idempotent marker block to the target `.gitignore` that ignores the installed skill directories and the version stamp; it also **asks once** whether `docs/` and `engineering-context/` should be committed to git — **the default (just press enter) is "no"**, which adds both directories to that same block; answer "yes" and they are left completely untouched. The answer is recorded as a comment line inside the block, so re-installs reuse it and **never ask again**. `--yes` and non-interactive terminals (CI, unattended npx) settle on the same default `no`; if your `.gitignore` already ignores those directories itself, the installer neither asks nor takes those rules over. `--docs-in-git=yes|no` overrides all of the above and is also how you change your mind later;
 5. Merges (never overwrites) Claude Code's `enabledPlugins`, disabling conflicting plugins **for this project only**;
 6. Prompts how to handle conflicting Codex skills: project-level `AGENTS.md` auto-trigger constraints (default), or explicit global uninstall through the Codex CLI; if either entry file already has a workflow marker block, both `CLAUDE.md` and `AGENTS.md` are reconciled;
-7. Links the bundled `ctx` CLI as a **global `ctx` command** (`npm link` inside `<project>/.claude/skills/ai-dev-workflow/scripts/ctx`) and verifies it by actually running `ctx --help`. If linking fails (no write permission, npm global bin not on PATH, somebody else's `ctx` command already on PATH), it degrades to a warning and prints the `node <skill>/scripts/ctx/src/cli.js <command>` fallback. On Windows, re-installing from a different project makes `npm link` fail with `EEXIST` because the global command directory still holds the `ctx` left by the previous install; the installer then checks whether that file is ours and, if so, overwrites it with `npm link --force` — if ownership cannot be established it touches nothing and prints the file path plus how to remove it — the CLI itself ships with the skill, so **a missing command never means ctx is unavailable**. Skip with `--no-ctx-link`;
+7. Links the bundled `ctx` CLI as a **global `ctx` command** (`npm link` inside `<project>/.claude/skills/dw-workflow/scripts/ctx`) and verifies it by actually running `ctx --help`. If linking fails (no write permission, npm global bin not on PATH, somebody else's `ctx` command already on PATH), it degrades to a warning and prints the `node <skill>/scripts/ctx/src/cli.js <command>` fallback. On Windows, re-installing from a different project makes `npm link` fail with `EEXIST` because the global command directory still holds the `ctx` left by the previous install; the installer then checks whether that file is ours and, if so, overwrites it with `npm link --force` — if ownership cannot be established it touches nothing and prints the file path plus how to remove it — the CLI itself ships with the skill, so **a missing command never means ctx is unavailable**. Skip with `--no-ctx-link`;
 8. Keeps [codegraph](https://github.com/colbymchenry/codegraph) (local code knowledge graph CLI) up to date — `npm install -g @colbymchenry/codegraph` when missing, `codegraph upgrade` when outdated — then wires it into your agents (`--location=local` by default, this project only) and builds the project index with `codegraph init` unless `.codegraph/` already exists. Every failure here degrades to a warning; skip the whole step with `--no-codegraph`. Codex CLI has no project-local MCP config, so project-level wiring skips it and the installer prints the manual global command.
 
 | Plugin | Why it conflicts with this pipeline |
@@ -129,13 +129,13 @@ What the installer does:
 >
 > Codex installs default to a project-level `AGENTS.md` auto-trigger constraint instead of editing `~/.codex/config.toml`, so installing skills for one project never affects the others. During an interactive install, you may explicitly choose global uninstall; use `--codex-conflicts=uninstall` for automation. Global uninstall requires the Codex CLI and affects all projects for the current user.
 >
-> ⚠ Two prerequisites: ① a project-level `.claude/settings.json` triggers a **workspace trust** dialog on first open — it takes effect after you trust it; ② settings / `AGENTS.md` changes take effect on the **next start** of Claude Code / Codex, not the current session. To undo, delete the corresponding `false` entries in the project settings, or remove the `ai-dev-system:codex-conflicts` block from `AGENTS.md`.
+> ⚠ Two prerequisites: ① a project-level `.claude/settings.json` triggers a **workspace trust** dialog on first open — it takes effect after you trust it; ② settings / `AGENTS.md` changes take effect on the **next start** of Claude Code / Codex, not the current session. To undo, delete the corresponding `false` entries in the project settings, or remove the `dw-system:codex-conflicts` block from `AGENTS.md`.
 
 **Option C: one-time global install** — shared by all projects, but you must weigh the conflicting plugins yourself (globally installed means globally active, which may interfere with this pipeline).
 
 ```bash
-cp -r ai-dev-system/skills/ai-prd ai-dev-system/skills/ai-dev-workflow ~/.claude/skills/
-cp -r ai-dev-system/skills/ai-prd ai-dev-system/skills/ai-dev-workflow ~/.codex/skills/
+cp -r dw-system/skills/dw-prd dw-system/skills/dw-workflow ~/.claude/skills/
+cp -r dw-system/skills/dw-prd dw-system/skills/dw-workflow ~/.codex/skills/
 ```
 
 Then invoke the skill in any project (mentioning "AI-assisted development / dev workflow / generate a spec / coding plan" triggers it). The first call runs a one-time **initialization**: it asks exactly one question — **is anyone else developing this project with you** — writes the answer into the project root `CLAUDE.md` and `AGENTS.md`, and never asks again. Whether to maintain the code-fact layer is **never asked** — it is mandatory, and initialization scaffolds it inside the task worktree. Whether the project has a code-graph index is **never asked either**; it is detected at every run.

@@ -8,7 +8,7 @@
 node_modules/
 npm-debug.log*
 
-# ai-dev-workflow isolated task worktrees
+# dw-workflow isolated task worktrees
 /.worktrees/
 
 # ctx 语义索引 / probe 历史（本地生成，任意层级，勿提交）

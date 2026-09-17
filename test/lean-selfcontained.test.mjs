@@ -23,14 +23,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const SKILL_ROOT = path.join(REPO_ROOT, 'ai-dev-system', 'skills', 'ai-dev-workflow');
+const SKILL_ROOT = path.join(REPO_ROOT, 'dw-system', 'skills', 'dw-workflow');
 
 /** 仓库内路径统一写正斜杠，落到文件系统时再按平台拼接。 */
 const toAbs = (rel) => path.join(SKILL_ROOT, ...rel.split('/'));
 const baseName = (rel) => rel.slice(rel.lastIndexOf('/') + 1);
 
 // ---------------------------------------------------------------------------
-// 来源清单：十个文件，相对 ai-dev-system/skills/ai-dev-workflow/
+// 来源清单：十个文件，相对 dw-system/skills/dw-workflow/
 // solo 与 team **取并集**——自足册要同时服务两种协作面，装了本体系的项目只会加载其中一份，
 // 但自足册这一册两边都要用，所以两边直管 Lean 的 MUST 都得在里面。
 // ---------------------------------------------------------------------------

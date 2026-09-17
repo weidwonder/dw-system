@@ -17,8 +17,8 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const skillsRoot = path.join(repoRoot, 'ai-dev-system', 'skills')
-const wfRoot = path.join(skillsRoot, 'ai-dev-workflow')
+const skillsRoot = path.join(repoRoot, 'dw-system', 'skills')
+const wfRoot = path.join(skillsRoot, 'dw-workflow')
 const read = (...seg) => readFileSync(path.join(...seg), 'utf8')
 
 // 切段取子串。**锚点找不到必须当场红**：indexOf 返回 -1 时 slice 会静默退化成"整个文件"，
@@ -210,14 +210,14 @@ test('「待归并」例外与它修饰的判据同处（读表的人和读 prom
 })
 
 test('VERSION 不低于 2.3.0（文档轴自此版起）并带一屏内的迁移指南', () => {
-  const version = read(repoRoot, 'ai-dev-system', 'VERSION').trim()
+  const version = read(repoRoot, 'dw-system', 'VERSION').trim()
   const [maj, min] = version.split('.').map(Number)
   assert.ok(maj > 2 || (maj === 2 && min >= 3), `文档轴自 2.3.0 起，VERSION 不应低于它：${version}`)
   // 盯的是**本特性落地的那个版本**的指南（2.3.0），不是当前 VERSION。
   // 写 `${version}.md` 会隐含要求「每个版本都有迁移指南」——那从来不是成文判据，
   // 只是历史上恰好每次 bump 都需要用户动作。2.5.0 是第一个零手动动作的 bump，
   // 它把这个隐含假设顶了出来。指向 2.3.0 则永不过期：文档轴的指南永远是 2.3.0 那一份。
-  const migration = path.join(repoRoot, 'ai-dev-system', 'migrations', '2.3.0.md')
+  const migration = path.join(repoRoot, 'dw-system', 'migrations', '2.3.0.md')
   assert.ok(existsSync(migration), `缺迁移指南：${migration}`)
   assert.ok(readFileSync(migration, 'utf8').split('\n').length <= 45, '迁移指南要保持一屏内（≤45 行）')
 })

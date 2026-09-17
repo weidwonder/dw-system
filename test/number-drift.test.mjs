@@ -90,7 +90,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const BUDGET_GATE_REL = path.join('test', 'resident-budget.test.mjs')
 
 // 扫描范围（任务规定）：仓库根 CLAUDE.md + docs/ 全部 md + 两个 skill 的全部 md。
-const SCAN_ROOTS = ['CLAUDE.md', 'docs', path.join('ai-dev-system', 'skills')]
+const SCAN_ROOTS = ['CLAUDE.md', 'docs', path.join('dw-system', 'skills')]
 
 // 见文首〈口径〉。改这两个数等于改管辖范围，MUST 同步文首注释与白名单。
 const BAND_LO = 40000

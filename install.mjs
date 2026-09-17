@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// ai-dev-workflow 项目安装器（跨平台，需要 Node.js 与 Git）
+// dw-system 安装器（跨平台，需要 Node.js 与 Git）
 //
 // 作用：
 //   1) 从 GitHub 获取指定版本，把所有 skill 复制进
@@ -51,17 +51,17 @@ import { spawnSync } from 'node:child_process';
 import { tmpdir, homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
-const DEFAULT_REPO = 'https://github.com/weidwonder/ai-dev-system.git';
+const DEFAULT_REPO = 'https://github.com/weidwonder/dw-system.git';
 
-// 安装器自身所在目录。npm 包（package.json 的 files 带上 ai-dev-system/VERSION）与 git 检出里，
-// install.mjs 都与 ai-dev-system/ 同级，所以同一条相对路径在两种形态下都成立。
+// 安装器自身所在目录。npm 包（package.json 的 files 带上 dw-system/VERSION）与 git 检出里，
+// install.mjs 都与 dw-system/ 同级，所以同一条相对路径在两种形态下都成立。
 const SELF_DIR = path.dirname(fileURLToPath(import.meta.url));
 
 // 默认安装版本【绑定到安装器自带的 VERSION】：npx 拉到哪个版本的 install.mjs，
 // 就默认装哪个版本的 skill。此前默认 main 会让"npx 包版本"与"技能源版本"各走各的——
 // 用旧包能装到新技能、用新包也可能装到尚未发布的 main HEAD，版本 stamp 与实际内容对不上。
 // 读不到 VERSION（例如把 install.mjs 单独拷了出来）时退回 main。
-const SELF_VERSION = readVersionFile(path.join(SELF_DIR, 'ai-dev-system', 'VERSION'));
+const SELF_VERSION = readVersionFile(path.join(SELF_DIR, 'dw-system', 'VERSION'));
 const FALLBACK_REF = 'main';
 const DEFAULT_REF = SELF_VERSION ? `v${SELF_VERSION}` : FALLBACK_REF;
 
@@ -74,18 +74,18 @@ const COMPANION_SKILLS = [
     repo: 'https://github.com/weidwonder/agentic-principle.git',
     ref: 'main',
     subdir: 'agentic-principle', // skill 本体在仓库的这个子目录里
-    why: 'ai-dev-workflow 判定需求命中 agent 架构面时必须加载：架构选型 / 系统提示词 / 注意力负载 / 步骤级测试与评测',
+    why: 'dw-workflow 判定需求命中 agent 架构面时必须加载：架构选型 / 系统提示词 / 注意力负载 / 步骤级测试与评测',
   },
   {
     name: 'skill-principle',
     repo: 'https://github.com/weidwonder/skill-principle.git',
     ref: 'main',
     subdir: 'skill', // skill 本体在仓库的这个子目录里（仓库根是开发工程，含 dist/ docs/ 等）
-    why: 'ai-dev-workflow 判定需求命中 skill 文档面时必须加载：建设路径定 skill 的结构与 description，审查路径承担代码评审门的 skill 原则轴',
+    why: 'dw-workflow 判定需求命中 skill 文档面时必须加载：建设路径定 skill 的结构与 description，审查路径承担代码评审门的 skill 原则轴',
   },
 ];
 
-// ctx：本体系自带的 Engineering Context 查询 CLI，随 ai-dev-workflow skill 一起复制进目标项目。
+// ctx：本体系自带的 Engineering Context 查询 CLI，随 dw-workflow skill 一起复制进目标项目。
 // 它是零依赖 Node 脚本，复制完就能用——但只有 `node <路径>/src/cli.js` 一种调用方式。
 // 而 skill 的文档（references/core/代码事实纪律.md、engineering-context设计.md / SKILL.md / config-snippet）
 // 通篇写 `ctx <命令>`：命令不在 PATH 上时，使用者（尤其是 AI agent）极易把"which ctx 为空"
@@ -94,7 +94,7 @@ const COMPANION_SKILLS = [
 // 链接失败绝不能让安装失败：ctx 本体已经随 skill 落盘，降级为打印 node 兜底调用方式即可。
 const CTX = {
   bin: 'ctx',
-  skill: 'ai-dev-workflow',          // ctx 属于这个 skill；只装 ai-prd 的场景下没有它
+  skill: 'dw-workflow',          // ctx 属于这个 skill；只装 dw-prd 的场景下没有它
   subdir: path.join('scripts', 'ctx'),
   // `ctx --help` 首行的固定串。`ctx` 是很常见的命令名，必须据此确认 PATH 上那个确实是本体系的，
   // 既避免 npm link 悄悄顶掉用户自己的同名命令，也避免把别人的 ctx 当成"验证通过"谎报成功。
@@ -140,23 +140,23 @@ const CODEX_PLUGIN_IDS = new Set([
 ]);
 
 // 版本 stamp 文件名：安装时写入目标项目的两个 skills 目录，升级时据此判断是否需要迁移提示。
-const VERSION_STAMP = 'ai-dev-system.version';
+const VERSION_STAMP = 'dw-system.version';
 // 显式版本化之前的旧安装（有 skill 无 stamp）一律按该版本处理。
 const LEGACY_VERSION = '1.0.0';
 
-const CODEX_GUARD_START = '<!-- ai-dev-system:codex-conflicts:start -->';
-const CODEX_GUARD_END = '<!-- ai-dev-system:codex-conflicts:end -->';
+const CODEX_GUARD_START = '<!-- dw-system:codex-conflicts:start -->';
+const CODEX_GUARD_END = '<!-- dw-system:codex-conflicts:end -->';
 // .gitignore 标记块：# 开头对 git 是注释行，机器可精确定位、可幂等替换。
-const GITIGNORE_START = '# ai-dev-system:gitignore:start';
-const GITIGNORE_END = '# ai-dev-system:gitignore:end';
+const GITIGNORE_START = '# dw-system:gitignore:start';
+const GITIGNORE_END = '# dw-system:gitignore:end';
 // 由用户拍板是否入库的两个目录：docs/（本流程产出的 spec / plan / report）与
 // engineering-context/（代码事实层）。它们是项目自己的产物，不像 skill 目录那样有唯一答案。
 const PROJECT_DOCS_DIRS = ['/docs/', '/engineering-context/'];
 // 决定记在 .gitignore 标记块内的一行注释里：# 开头对 git 是注释、无副作用，
 // 且能把"上次选了提交"与"从来没问过"区分开——只看有没有忽略规则是分不开这两者的。
-const PROJECT_DOCS_MARK = '# ai-dev-system:project-docs-in-git=';
-const WORKFLOW_MODE_START = '<!-- ai-dev-workflow:start -->';
-const WORKFLOW_MODE_END = '<!-- ai-dev-workflow:end -->';
+const PROJECT_DOCS_MARK = '# dw-system:project-docs-in-git=';
+const WORKFLOW_MODE_START = '<!-- dw-workflow:start -->';
+const WORKFLOW_MODE_END = '<!-- dw-workflow:end -->';
 // CLAUDE.md / AGENTS.md 软链接的解析跳数上限，用来在成环时给出明确报错而不是死循环。
 const MAX_LINK_HOPS = 32;
 
@@ -250,7 +250,7 @@ function parseArgs(argv) {
 }
 
 function helpText() {
-  return `ai-dev-workflow 项目安装器
+  return `dw-system 安装器
 
 用法：
   node install.mjs [目标目录] [选项]   （或 ./install.mjs [目标目录]）
@@ -292,7 +292,7 @@ ${COMPANION_SKILLS.map(c => `  - ${c.name}：${c.repo}\n      ${c.why}`).join('\
   每次安装都会检查远端版本，本地更旧才更新；本地是 symlink 或 git 工作区时
   只报告版本差异、不覆盖；拉取失败降级为警告，不影响主安装。用 --no-companions 跳过。
 
-ctx CLI（本体系自带，随 ai-dev-workflow skill 一起安装）：
+ctx CLI（本体系自带，随 dw-workflow skill 一起安装）：
   ${CTX.why}
   安装后在 ${path.join('.claude', 'skills', CTX.skill, CTX.subdir)} 下执行 npm link，
   把它变成全局 ctx 命令，并用 ctx --help 验证真的可用。链接失败（权限、npm 全局 bin
@@ -389,9 +389,9 @@ function entryLabel(file, resolved, target) {
 function codexGuardBlock(conflicts) {
   const names = conflicts.map(c => c.skillPrefix || c.short || c.key).join('、');
   return `${CODEX_GUARD_START}
-## ai-dev-system: Codex 冲突技能约束
+## dw-system: Codex 冲突技能约束
 
-本项目使用 ai-dev-workflow。不要自动加载或主动触发 ${names} 等与本流程冲突的技能；仅当用户在当前对话中明确要求使用对应技能时才可加载。
+本项目使用 dw-workflow。不要自动加载或主动触发 ${names} 等与本流程冲突的技能；仅当用户在当前对话中明确要求使用对应技能时才可加载。
 
 ${CODEX_GUARD_END}`;
 }
@@ -486,7 +486,7 @@ function assertCodexGuard(raw, conflicts, file) {
   }
 }
 
-// ── ai-dev-workflow 标记块的字段模型 ───────────────────────────────────────────
+// ── dw-workflow 标记块的字段模型 ───────────────────────────────────────────
 // 契约来源：docs/spec/2026-08-18-代码事实层强制化-eng-spec.md
 // （它取代了已归档的 2026-08-16-项目真相源与context-tier重构-eng-spec.md §5 / §6.1 / §8.3）
 //（该 spec 已于 2.1.0 转归档，但字段模型这部分未被取代；现行口径见 CLAUDE.md §安装器的关键设计）。
@@ -525,11 +525,11 @@ function parseWorkflowBlock(block, label) {
     if (raw === null) continue;
     if (field.values && !field.values.includes(raw)) {
       throw new Error(
-        `安装校验失败：${label} 的 ai-dev-workflow 标记块 ${field.key}="${raw}" 不是合法值`
+        `安装校验失败：${label} 的 dw-workflow 标记块 ${field.key}="${raw}" 不是合法值`
         + `（合法值：${field.values.map(v => `"${v}"`).join(' | ')}）`);
     }
     if (!field.values && !raw.trim()) {
-      throw new Error(`安装校验失败：${label} 的 ai-dev-workflow 标记块 ${field.key} 不能为空`);
+      throw new Error(`安装校验失败：${label} 的 dw-workflow 标记块 ${field.key} 不能为空`);
     }
     parsed[field.key] = raw;
     known++;
@@ -571,7 +571,7 @@ function workflowFieldSummary(block) {
 }
 
 function workflowHeaderBody(settings) {
-  return `> **本项目采用 ai-dev-workflow**\n> (${workflowFieldLine(settings)})`;
+  return `> **本项目采用 dw-workflow**\n> (${workflowFieldLine(settings)})`;
 }
 
 function blockInner(block) {
@@ -591,7 +591,7 @@ function applyWorkflowFields(body, settings) {
 
 // 组装要写进 CLAUDE.md / AGENTS.md 的标记块：base.md（公共正文）+ collab-<协作面>.md。
 function buildWorkflowBlock(skillsRoot, settings, existingBlock) {
-  const dir = path.join(skillsRoot, 'ai-dev-workflow', 'assets', 'config-snippets');
+  const dir = path.join(skillsRoot, 'dw-workflow', 'assets', 'config-snippets');
   const parts = ['base.md', `collab-${settings.collaboration}.md`]
     .map(name => readTextIfExists(path.join(dir, name)))
     .map(text => blockInner(getMarkedBlock(text, WORKFLOW_MODE_START, WORKFLOW_MODE_END)) || text.trim())
@@ -751,7 +751,7 @@ function discoverSkills(skillsRoot) {
 function acquireSource(opt) {
   if (opt.sourceDir) {
     const repoRoot = path.resolve(opt.sourceDir);
-    const pkgRoot = path.join(repoRoot, 'ai-dev-system');
+    const pkgRoot = path.join(repoRoot, 'dw-system');
     const skillsRoot = path.join(pkgRoot, 'skills');
     const skills = discoverSkills(skillsRoot);
     return {
@@ -763,7 +763,7 @@ function acquireSource(opt) {
     };
   }
 
-  const tempRoot = fs.mkdtempSync(path.join(tmpdir(), 'ai-dev-system-download-'));
+  const tempRoot = fs.mkdtempSync(path.join(tmpdir(), 'dw-system-download-'));
   const checkout = path.join(tempRoot, 'repo');
   const clone = ref => spawnSync(
     'git',
@@ -797,7 +797,7 @@ function acquireSource(opt) {
   }
 
   try {
-    const pkgRoot = path.join(checkout, 'ai-dev-system');
+    const pkgRoot = path.join(checkout, 'dw-system');
     const skillsRoot = path.join(pkgRoot, 'skills');
     const skills = discoverSkills(skillsRoot);
     return {
@@ -1329,7 +1329,7 @@ async function main() {
   const claudeSkillsDestDir = path.join(target, '.claude', 'skills');
   const codexSkillsDestDir = path.join(target, '.agents', 'skills');
 
-  // 版本与迁移：源版本来自 ai-dev-system/VERSION；已装版本来自目标 stamp，
+  // 版本与迁移：源版本来自 dw-system/VERSION；已装版本来自目标 stamp，
   // 无 stamp 但已存在源同名 skill 的旧安装按 LEGACY_VERSION 处理；全新安装无需迁移。
   const sourceVersion = readVersionFile(path.join(pkgRoot, 'VERSION'));
   const stampFiles = [path.join(claudeSkillsDestDir, VERSION_STAMP), path.join(codexSkillsDestDir, VERSION_STAMP)];
@@ -1370,7 +1370,7 @@ async function main() {
   const claudeParsed = parseWorkflowBlock(claudeModeBlock, entryLabel(claudeFile, claudeEntry, target));
   const agentsParsed = parseWorkflowBlock(agentsModeBlock, entryLabel(codexAgentsFile, agentsEntry, target));
   if ((claudeModeBlock || agentsModeBlock) && !claudeParsed && !agentsParsed) {
-    throw new Error('安装校验失败：CLAUDE.md / AGENTS.md 的 ai-dev-workflow 标记块读不出任何已知字段'
+    throw new Error('安装校验失败：CLAUDE.md / AGENTS.md 的 dw-workflow 标记块读不出任何已知字段'
       + `（已知字段：mode / ${WORKFLOW_FIELDS.map(f => f.key).join(' / ')}）`);
   }
   const existingModeBlock = claudeParsed ? claudeModeBlock : agentsModeBlock;
@@ -1390,7 +1390,7 @@ async function main() {
   const projectDocsInGit = await chooseProjectDocsInGit(opt, gitignoreRaw);
 
   // 计划
-  console.log('\nai-dev-workflow 安装器');
+  console.log('\ndw-system 安装器');
   console.log('目标项目：' + target);
   console.log('安装源：' + source.label + (sourceVersion ? `（v${sourceVersion}）` : ''));
   if (installedVersion) console.log('已安装版本：v' + installedVersion + (installedVersion === LEGACY_VERSION && !readVersionFile(stampFiles[0]) && !readVersionFile(stampFiles[1]) ? '（旧安装无版本 stamp，按此版本处理）' : ''));
@@ -1461,7 +1461,7 @@ async function main() {
   if (migrations.length) {
     console.log(`\n${HL}  ━━━━ ⚠ 版本升级 v${installedVersion} → v${sourceVersion}：检测到 ${migrations.length} 份迁移指南，继续前请阅读 ━━━━${HL_END}`);
     for (const m of migrations) {
-      console.log(`${HL}  ▶ 升级到 v${m.version} 的迁移指南（源仓库 ai-dev-system/migrations/${m.version}.md）：${HL_END}`);
+      console.log(`${HL}  ▶ 升级到 v${m.version} 的迁移指南（源仓库 dw-system/migrations/${m.version}.md）：${HL_END}`);
       const body = fs.readFileSync(m.file, 'utf8').trimEnd();
       console.log(body.split('\n').map(l => '    │ ' + l).join('\n'));
     }
@@ -1474,7 +1474,7 @@ async function main() {
 
   // 标记块迁移：改写前打印前后对照（spec §8.3 边界 2）。dry-run 同样展示。
   if (workflowSettings?.migrated) {
-    console.log(`\n${HL}  ⚠ ai-dev-workflow 配置标记块将改写为新字段（改写前后对照）：${HL_END}`);
+    console.log(`\n${HL}  ⚠ dw-workflow 配置标记块将改写为新字段（改写前后对照）：${HL_END}`);
     console.log(`       旧：${workflowFieldSummary(existingModeBlock)}`);
     console.log(`       新：${workflowFieldLine(workflowSettings)}`);
     console.log(`       · 协作面沿用推断结果：${workflowSettings.collaboration === 'team'
@@ -1603,8 +1603,8 @@ async function main() {
       assertMarkedBlock(readTextIfExists(entry), WORKFLOW_MODE_START, WORKFLOW_MODE_END, entry);
     }
     console.log(sharedEntry
-      ? `✓ 已同步并校验 ${path.relative(target, claudeEntry) || claudeEntry} 的 ai-dev-workflow 配置标记块（CLAUDE.md 与 AGENTS.md 共用此文件）`
-      : '✓ 已同步并校验 CLAUDE.md / AGENTS.md 的 ai-dev-workflow 配置标记块');
+      ? `✓ 已同步并校验 ${path.relative(target, claudeEntry) || claudeEntry} 的 dw-workflow 配置标记块（CLAUDE.md 与 AGENTS.md 共用此文件）`
+      : '✓ 已同步并校验 CLAUDE.md / AGENTS.md 的 dw-workflow 配置标记块');
   }
 
   if (codexMode === 'uninstall' && codexToDisable.length) {

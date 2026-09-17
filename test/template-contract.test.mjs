@@ -11,12 +11,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { discover, initScaffold } from '../ai-dev-system/skills/ai-dev-workflow/scripts/ctx/src/commands.js';
-import { diagnoseRegistry } from '../ai-dev-system/skills/ai-dev-workflow/scripts/ctx/src/cards.js';
-import { loadProbes, answerProbe } from '../ai-dev-system/skills/ai-dev-workflow/scripts/ctx/src/probe.js';
+import { discover, initScaffold } from '../dw-system/skills/dw-workflow/scripts/ctx/src/commands.js';
+import { diagnoseRegistry } from '../dw-system/skills/dw-workflow/scripts/ctx/src/cards.js';
+import { loadProbes, answerProbe } from '../dw-system/skills/dw-workflow/scripts/ctx/src/probe.js';
 
 const repo = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const skill = path.join(repo, 'ai-dev-system', 'skills', 'ai-dev-workflow');
+const skill = path.join(repo, 'dw-system', 'skills', 'dw-workflow');
 const layer = path.join(skill, 'assets', 'context-layer');
 const templates = path.join(skill, 'assets', 'templates');
 const ctxReadme = path.join(skill, 'scripts', 'ctx', 'README.md');

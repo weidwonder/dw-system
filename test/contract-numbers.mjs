@@ -39,9 +39,9 @@ export const ENTRY_MAX_BYTES = 12000
 export const RESIDENT_BUDGET = 50000
 
 /**
- * `ai-prd` 入口 `SKILL.md` 的字节上限。**与 `ENTRY_MAX_BYTES` 是两个量**：后者管
- * `ai-dev-workflow` 的入口，两个 skill 的入口结构不同（workflow 走渐进式披露、判据下沉到
- * 分册；ai-prd 的路由第 2 步无条件加载三份 references，入口自带完整纪律），**MUST NOT 合并
+ * `dw-prd` 入口 `SKILL.md` 的字节上限。**与 `ENTRY_MAX_BYTES` 是两个量**：后者管
+ * `dw-workflow` 的入口，两个 skill 的入口结构不同（workflow 走渐进式披露、判据下沉到
+ * 分册；dw-prd 的路由第 2 步无条件加载三份 references，入口自带完整纪律），**MUST NOT 合并
  * 成一个数**。
  *
  * 定为 20000 的判据：本值是**防回涨的棘轮，不是精简目标**。2026-08-30 实测入口 19,579 字节、
