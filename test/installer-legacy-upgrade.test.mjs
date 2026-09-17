@@ -235,6 +235,20 @@ test('新旧 .gitignore 块并存且新块没有决定行：沿用旧块里的�
   })
 })
 
+test('两个入口字段不一致：按 CLAUDE.md 统一，并打印 AGENTS.md 原来的字段——不说的话用户不会有任何察觉', () => {
+  withTarget('entry-mismatch', target => {
+    fs.writeFileSync(path.join(target, 'CLAUDE.md'), legacyWorkflowBlock('mode="personal"') + '\n')
+    fs.writeFileSync(path.join(target, 'AGENTS.md'),
+      '<!-- dw-workflow:start -->\n> (collaboration="team" merge-gate="pr" worktree-dir="./wt/")\n<!-- dw-workflow:end -->\n')
+    const r = install(target)
+    assert.equal(r.status, 0, r.stderr || r.stdout)
+    assert.match(r.stdout, /两个入口的 dw-workflow 配置不一致/)
+    assert.match(r.stdout, /AGENTS\.md 原为：.*collaboration="team"/)
+    assert.match(fs.readFileSync(path.join(target, 'AGENTS.md'), 'utf8'), /collaboration="solo"/)
+    assert.doesNotMatch(install(target).stdout, /配置不一致/, '统一之后第二次运行不再提示')
+  })
+})
+
 test('安装器里旧名字只出现在 LEGACY 表内（FR-002）', () => {
   const src = fs.readFileSync(installer, 'utf8')
   const start = src.indexOf('const LEGACY = Object.freeze({')
