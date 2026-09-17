@@ -41,6 +41,9 @@ export function sectionsOf(raw) {
   return out
 }
 
+/** 清单单元格整格包在反引号里，解析时去掉了；标题自带的反引号同样去掉再比。 */
+const plain = heading => heading.replace(/`/g, '')
+
 const normativeCount = raw => (raw.match(/\bMUST\b|\bSHOULD\b/g) || []).length
 
 /** 解析去向清单里的全部表行。 */
@@ -90,7 +93,8 @@ export function unresolved(baseSections, ledger, hasHeading, fileExists) {
   }
   for (const s of baseSections) {
     const label = `${s.file} § ${s.heading}`
-    if (exact.has(label)) { checkDest(label, exact.get(label), s.heading); continue }
+    const key = label.replace(/`/g, '') // 清单单元格用反引号包住整格，解析时已去掉；标题自带的反引号同样去掉再比
+    if (exact.has(key)) { checkDest(label, exact.get(key), s.heading); continue }
     if (fileRows.has(s.file)) { checkDest(label, fileRows.get(s.file), s.heading); continue }
     const prefix = prefixRows.find(r => s.file.startsWith(r.from.slice(0, -2)))
     const mapped = prefix ? prefix.to.slice(0, -2) + s.file.slice(prefix.from.length - 2) : s.file
@@ -130,13 +134,13 @@ test('分支起点里每个含规范词的小节都有去处', () => {
   const headingsOf = file => {
     if (!cache.has(file)) {
       const abs = path.join(repoRoot, file)
-      cache.set(file, fs.existsSync(abs) ? new Set(sectionsOf(fs.readFileSync(abs, 'utf8')).map(s => s.heading)) : null)
+      cache.set(file, fs.existsSync(abs) ? new Set(sectionsOf(fs.readFileSync(abs, 'utf8')).map(s => plain(s.heading))) : null)
     }
     return cache.get(file)
   }
   const failures = unresolved(
     baseSections, ledger,
-    (file, heading) => headingsOf(file)?.has(heading) ?? false,
+    (file, heading) => headingsOf(file)?.has(plain(heading)) ?? false,
     file => headingsOf(file) !== null,
   )
   console.log(`# 起点含规范词的小节 ${baseSections.length} 个；去向清单 ${ledger.length} 行`)

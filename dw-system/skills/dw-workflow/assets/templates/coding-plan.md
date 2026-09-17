@@ -1,5 +1,5 @@
 ---
-lifecycle: active          # active | merged | superseded | obsolete，见 references/core/文档治理.md §文档生命周期与索引门控；plan 的常态是任务全部执行完并合入后、准出时转 merged（口径已落进代码）
+lifecycle: active          # active | merged | superseded | obsolete，见 dw-doc-governance 的 references/文档生命周期.md §1；plan 的常态是任务全部执行完并合入后、准出时转 merged（口径已落进代码）
 superseded_by: ''
 archived: ''
 last_confirmed: ''       # 最近一次被权威面触发复核、判定仍准确的日期；新建时填当天
@@ -10,8 +10,8 @@ authority_refs:            # 本 plan 的 Interfaces 节冻结了哪些权威面
 # 【功能名】Coding Plan
 
 > 把 spec 拆成"执行者对代码库零上下文"也能做的 bite-sized 任务。每步一个动作（2–5 分钟）。DRY / YAGNI / TDD / 勤 commit。
-> 输出：`docs/plan/YYYY-MM-DD-<feature>-coding-plan.md`。按 `references/core/步骤-1-7-设计与实现.md` Step 7 逐任务"加载→批判性 review→实现→跑验证→commit"，每 2–3 个任务过一次 checkpoint。
-> **垂直切片**：每个任务是一条端到端细流（最小场景从入口到出口、可独立验证），不做水平分层（先全部模型再全部逻辑）；确需宽幅重构用"先扩后收"显式例外。任务间信息只通过本 plan 的 Interfaces 传递，不依赖会话记忆——上下文变重时在 checkpoint 处交给新会话/子 agent 从下一任务继续（见 `references/core/上下文卫生.md`）。
+> 输出：`docs/plan/YYYY-MM-DD-<feature>-coding-plan.md`。按 `步骤-1-7-设计与实现.md` Step 7 逐任务"加载→批判性 review→实现→跑验证→commit"，每 2–3 个任务过一次 checkpoint。
+> **垂直切片**：每个任务是一条端到端细流（最小场景从入口到出口、可独立验证），不做水平分层（先全部模型再全部逻辑）；确需宽幅重构用"先扩后收"显式例外。任务间信息只通过本 plan 的 Interfaces 传递，不依赖会话记忆——上下文变重时在 checkpoint 处交给新会话/子 agent 从下一任务继续（见 `上下文卫生.md`）。
 > **测试只挂稳定缝（seam）**：任务内的测试断言挂在 spec/接口契约上，不挂在预期会重构的内部实现上；禁止"用实现的算法重算一遍当预期值"的同义反复断言。
 
 **Goal:** 【一句话，这个 plan 建成什么】
@@ -73,7 +73,7 @@ authority_refs:            # 本 plan 的 Interfaces 节冻结了哪些权威面
 
 ## 完成与自动合并
 
-- [ ] **代码评审门通过**：按 `references/core/代码评审纪律.md` §门禁 先判对象面算出轴集合，再按 §评审轴 逐轴跑；算出的那组轴的子代理报告齐全，P0/P1 已清零。本文件只在有可执行代码改动（命中程序代码面）时才产出，故轴集合至少含规范/忠实/残留/文档四条；改动同时含 skill 判据文档时另加 skill 原则轴。MUST NOT 按固定几条轴核对
+- [ ] **代码评审门通过**：按 `评审门禁.md` §门禁 先判对象面算出轴集合，再按 §评审轴 逐轴跑；算出的那组轴的子代理报告齐全，P0/P1 已清零。本文件只在有可执行代码改动（命中程序代码面）时才产出，故轴集合至少含规范/忠实/残留/文档四条；改动同时含 skill 判据文档时另加 skill 原则轴。MUST NOT 按固定几条轴核对
 - [ ] **需求覆盖核销**：spec 的每条 `FR-###` 都至少被一个 Task 的 `满足:` 引用（零引用 = 漏做），每个 Task 的 `满足:` 都指向 spec 里真实存在的编号（指不到 = 镀金，MUST 补进 spec 或删掉该任务）
 - [ ] 替换清单逐条核销：该删的引用数为 0 且已删，保留项带理由与到期日
 - [ ] 需求范围、文档、代码和测试全部完成

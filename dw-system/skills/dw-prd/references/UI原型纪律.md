@@ -53,7 +53,7 @@
 
 ## 4.5 原型被取代时：加横幅，不删文件
 
-原型是**现行界面依据**，会被后续需求接替。HTML 写不了 frontmatter，所以生命周期状态用页面顶部的可见横幅表达（姊妹 skill 的 `<skills 根>/dw-workflow/references/core/文档治理.md` §4 的 HTML 变体；`<skills 根>` 定义见 `00-prd生成流程.md` §批 B → 现状怎么取证）：
+原型是**现行界面依据**，会被后续需求接替。HTML 写不了 frontmatter，所以生命周期状态用页面顶部的可见横幅表达（姊妹 skill 的 `<skills 根>/dw-doc-governance/references/文档生命周期.md` §4 的 HTML 变体；`<skills 根>` 定义见 `00-prd生成流程.md` §批 B → 现状怎么取证）：
 
 - 界面被后续需求改掉时，MUST 在旧原型 `<body>` 的**第一个可见元素**位置插入横幅，内容为：`已被 <新原型文件名> 取代（YYYY-MM-DD）。本页仅存档，不代表现行界面。`
 - 横幅 MUST 是页面打开就能看到的可见元素，MUST NOT 只写 HTML 注释——注释挡不住任何人（包括 AI）照着旧图实现。

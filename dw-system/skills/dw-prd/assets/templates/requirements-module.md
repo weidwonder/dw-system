@@ -11,7 +11,7 @@ documentRole: 'requirements-module'
 > **本文是需求真相源的一级子模块**，从属主文档 `docs/REQUIREMENTS.md`（落进目标项目后 MUST 在此写成指向它的相对链接），与主文档冲突时**以主文档为准**。
 > 只写 main 分支上**已经实现**的现状。**MUST NOT 出现**历史与演进、改动前后对比、技术选型、尚未实现的规划——尚未实现的去 `docs/TODO.md`。
 > **MUST NOT 再往下分层**：本文不得再拆出 `docs/requirements/<域>/<模块>.md` 这样的二级目录。
-> 判据在 `<skills 根>/dw-workflow/references/core/文档治理.md` §需求真相源写什么、怎么分层。
+> 判据在 `<skills 根>/dw-doc-governance/references/文档治理.md` §需求真相源写什么、怎么分层。
 
 ## 这个模块是什么
 

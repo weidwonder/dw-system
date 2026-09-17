@@ -87,14 +87,14 @@ const COMPANION_SKILLS = [
 
 // ctx：本体系自带的 Engineering Context 查询 CLI，随 dw-workflow skill 一起复制进目标项目。
 // 它是零依赖 Node 脚本，复制完就能用——但只有 `node <路径>/src/cli.js` 一种调用方式。
-// 而 skill 的文档（references/core/代码事实纪律.md、engineering-context设计.md / SKILL.md / config-snippet）
+// 而 skill 的文档（dw-code-facts 的 SKILL.md 与 references、注入目标项目的标记块）
 // 通篇写 `ctx <命令>`：命令不在 PATH 上时，使用者（尤其是 AI agent）极易把"which ctx 为空"
 // 误判成"Engineering Context 不可用"，退化成裸 grep 旧代码——任何项目里都明令禁止这么干。
 // 所以安装器把它 npm link 成全局命令。
 // 链接失败绝不能让安装失败：ctx 本体已经随 skill 落盘，降级为打印 node 兜底调用方式即可。
 const CTX = {
   bin: 'ctx',
-  skill: 'dw-workflow',          // ctx 属于这个 skill；只装 dw-prd 的场景下没有它
+  skill: 'dw-code-facts',        // ctx 随这个 skill 落盘
   subdir: path.join('scripts', 'ctx'),
   // `ctx --help` 首行的固定串。`ctx` 是很常见的命令名，必须据此确认 PATH 上那个确实是本体系的，
   // 既避免 npm link 悄悄顶掉用户自己的同名命令，也避免把别人的 ctx 当成"验证通过"谎报成功。
@@ -167,7 +167,7 @@ const LEGACY = Object.freeze({
   codexGuardMarkers: ['<!-- ai-dev-system:codex-conflicts:start -->', '<!-- ai-dev-system:codex-conflicts:end -->'],
   gitignoreMarkers: ['# ai-dev-system:gitignore:start', '# ai-dev-system:gitignore:end'],
   projectDocsMark: '# ai-dev-system:project-docs-in-git=',
-  ctxSkills: ['ai-dev-workflow', 'dw-workflow'],
+  ctxSkills: ['ai-dev-workflow'],
 });
 // CLAUDE.md / AGENTS.md 软链接的解析跳数上限，用来在成环时给出明确报错而不是死循环。
 const MAX_LINK_HOPS = 32;

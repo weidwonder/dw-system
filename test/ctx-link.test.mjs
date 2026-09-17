@@ -87,7 +87,7 @@ function sandbox(state, fn) {
       // npm link 的产物：指向某个项目里 skill 副本的符号链接，且目标已经不存在
       // （项目被删/改名，正是 Windows 上 EEXIST 的成因之一）。安装器只读链接字符串。
       mkdirSync(path.join(fake, 'globalroot'), { recursive: true })
-      symlinkSync(path.join(fake, 'gone', '.claude', 'skills', 'dw-workflow', 'scripts', 'ctx'), pkg)
+      symlinkSync(path.join(fake, 'gone', '.claude', 'skills', 'dw-code-facts', 'scripts', 'ctx'), pkg)
     } else {
       mkdirSync(path.join(pkg, 'src'), { recursive: true })
       writeFileSync(path.join(pkg, 'src', 'cli.js'),
@@ -121,7 +121,7 @@ function sandbox(state, fn) {
   }
 }
 
-const ctxPkgDir = target => path.join(target, '.claude', 'skills', 'dw-workflow', 'scripts', 'ctx')
+const ctxPkgDir = target => path.join(target, '.claude', 'skills', 'dw-code-facts', 'scripts', 'ctx')
 const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 test('本机没有 ctx：在安装好的 ctx 目录里 npm link，并实跑 --help 验证', () => {
@@ -129,7 +129,7 @@ test('本机没有 ctx：在安装好的 ctx 目录里 npm link，并实跑 --he
     const r = run()
     assert.equal(r.status, 0, r.stderr || r.stdout)
     // 只断言 cwd 的尾部：macOS 的 tmpdir 是 /var→/private/var 的软链，子进程读到的是解析后的实路径。
-    assert.match(r.calls, new RegExp(`^npm link @ .*${esc(path.join('.claude', 'skills', 'dw-workflow', 'scripts', 'ctx'))}$`, 'm'))
+    assert.match(r.calls, new RegExp(`^npm link @ .*${esc(path.join('.claude', 'skills', 'dw-code-facts', 'scripts', 'ctx'))}$`, 'm'))
     assert.match(r.calls, /^ctx --help$/m)
     assert.match(r.stdout, /✓ ctx 已全局可用（已实跑 ctx --help 验证）/)
   })

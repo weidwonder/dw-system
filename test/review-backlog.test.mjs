@@ -1,63 +1,45 @@
-// 评审门的「什么时候跑」与「配套测试算不算 P 面」两条契约（2.16.0，
-// spec `docs/spec/2026-09-14-评审门积压通路与测试面收窄-eng-spec.md` §2.1 / FR-001~FR-016）。
+// 评审门的「什么时候跑」（积压通路）与「配套测试算不算 P 面」。
 //
-// 为什么要有这份测试：这两条改的都是**门禁的成立条件**，而成立条件被复述在六个文件里——
-// 主会话读 `代码评审纪律.md`，Lean 只读 `路径-lean.md`，完整流程的骨架读 `00-流程总纲.md`，
-// 合并时读 `worktree开发纪律.md`，solo 项目另读 `collab/solo.md`，目标项目拿到的是
-// `config-snippets/base.md`。漏改任一处，那条路径上的 agent 会按另一套条件决定跑不跑门，
-// 而六份文件**各自读起来都自洽**——没有任何一条既有闸会报错。
+// 两条判据的家都是 dw-review-gate：`积压通路.md` 与 `评审门禁.md`。总纲、Lean 一页、注入块只指过去；
+// 完成门的准出项在 dw-worktree，solo 分册只留护栏那一句。
 //
-// 失败模式排第一的那个：**把「积压」读成「豁免」**。它与 2026-09-03 撤回的裁剪准入长得很像，
-// 区别全在几句话上（tag 不移动 / trailer 必写 / 结算时连同积压一起评 / 轴一条不裁）。
-// 那几句话一旦在某一处被"精简"掉，那条路径上的积压就再也不会被评到，且永远静默。
+// 最要防的读法是把「积压」读成「豁免」。区别在几句话上：tag 不移动、trailer 必写、结算时连同积压
+// 一起评、轴一条不裁。其中任一句被精简掉，那批积压就再也不会被评到，且没有任何报错。
 //
-// 作用域：只查**机械可判**的那一半——判据在不在场、阈值有没有漂、禁令有没有被删。
-// 规则定得合不合理是判断题，归代码评审门自己。MUST NOT 把本闸全绿读成"这两条契约描述正确"。
+// 只查机械可判的那一半：判据在不在场、阈值与比较方向有没有漂、禁令有没有被删。
+// 规则定得合不合理归评审门自己；本闸全绿 MUST NOT 被读成描述正确。
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
+import { readSkillFile, skillCorpus } from './skill-files.mjs'
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const wfRoot = path.join(repoRoot, 'dw-system', 'skills', 'dw-workflow')
 const read = (...p) => readFileSync(path.join(...p), 'utf8')
 
-const REVIEW = read(wfRoot, 'references', 'core', '代码评审纪律.md')
-const LEAN = read(wfRoot, 'references', 'core', '路径-lean.md')
-const OUTLINE = read(wfRoot, 'references', 'core', '00-流程总纲.md')
-const WORKTREE = read(wfRoot, 'references', 'core', 'worktree开发纪律.md')
-const SOLO = read(wfRoot, 'references', 'collab', 'solo.md')
+// 评审门的判据只住在 dw-review-gate：积压通路在 `积压通路.md`，判面推轴在 `评审门禁.md`。
+const REVIEW = skillCorpus('dw-review-gate')
+const REVIEW_GATE = readSkillFile('积压通路.md') + '\n' + readSkillFile('评审门禁.md')
+const LEAN = readSkillFile('路径-lean.md')
+const OUTLINE = readSkillFile('00-流程总纲.md')
+const WORKTREE = readSkillFile('worktree开发纪律.md')
+const SOLO = readSkillFile('dw-workflow/references/collab/solo.md')
 const SNIPPET = read(wfRoot, 'assets', 'config-snippets', 'base.md')
 
-/**
- * 按小节切段，而不是拿整篇去 `includes`。
- *
- * 写这条闸时的反向自检当场撞出过：同一句 MUST（"MUST NOT 移动 reviewed-through tag"）
- * 在 `路径-lean.md` 的 §9 与 §11 各出现一次，把 §9 那处整条删掉，全文匹配照样全绿。
- * 判据住在哪一节是它能不能在**那一刻**被读到的全部，所以匹配 MUST 跟着节走。
- */
-const cut = (body, from, to) => {
-  const i = body.indexOf(from)
-  assert.notEqual(i, -1, `锚点失效（文档已改写，断言需同步）：${from}`)
-  const j = body.indexOf(to, i + from.length)
-  assert.notEqual(j, -1, `锚点失效（文档已改写，断言需同步）：${to}`)
-  return body.slice(i, j)
-}
+const FULL_RESTATERS = [['dw-review-gate（积压通路.md + 评审门禁.md）', REVIEW_GATE]]
 
-/** Lean 的评审门一节：积压通路的全部判据都 MUST 落在这里，读到 §9 才轮得到它。 */
-const LEAN_REVIEW = cut(LEAN, '## 9. 第 9 步：代码评审门', '## 10. 第 10 步')
-/** Lean 的完成与合并门一节：准出项那两条通路落在这里。 */
-const LEAN_MERGE = cut(LEAN, '## 11. ', '## 12. ')
-/** 主会话的门禁一节：第零步住在 §门禁 下，与 §评审轴 之后的内容分开。 */
-const REVIEW_GATE = cut(REVIEW, '## 门禁', '## 评审轴')
-
-/** 三处完整复述积压通路：主会话 §门禁 / Lean §9 / 目标项目。总纲与 solo 只复述要点，另表。 */
-const FULL_RESTATERS = [
-  ['代码评审纪律.md §门禁', REVIEW_GATE],
-  ['路径-lean.md §9', LEAN_REVIEW],
-  ['config-snippets/base.md', SNIPPET],
-]
+test('阈值只在 dw-review-gate 一处：总纲、Lean 一页、注入块不复述数字', () => {
+  // 阈值抄到第二处，某一处被顺手调宽时那条路径上的门就松了，而各份文件读起来都自洽。
+  for (const [name, body] of [['00-流程总纲.md', OUTLINE], ['路径-lean.md', LEAN], ['config-snippets/base.md', SNIPPET]]) {
+    assert.ok(body.includes('dw-review-gate'), `${name} 未指向 dw-review-gate`)
+    for (const value of ['20 行', '40 行', '100 行', '200 行', '14 天']) {
+      assert.ok(!body.includes(value), `${name} 复述了积压阈值「${value}」——它的家是 dw-review-gate 的 积压通路.md`)
+    }
+  }
+})
 
 // ---------------------------------------------------------------------------
 // 一、配套测试不单独构成 P 面（FR-001 ~ FR-004）
@@ -95,10 +77,6 @@ test('例外的反向条款在场：混进一个非测试可执行文件，整�
       `${name} 缺"轴是按面派的不是按文件派的"——它是上一条的理由，删了理由就会被当成可商量的`,
     )
   }
-  assert.ok(
-    /整个范围照常按 P 面处理/.test(OUTLINE),
-    '00-流程总纲.md 缺反向条款',
-  )
 })
 
 test('例外命中时轴集合是 {S, A}，且 A 轴在此另查哑闸', () => {
@@ -108,9 +86,7 @@ test('例外命中时轴集合是 {S, A}，且 A 轴在此另查哑闸', () => {
   for (const [name, body] of FULL_RESTATERS) {
     assert.ok(/恒绿/.test(body), `${name} 缺 A 轴在测试文件在场时的加重职责（查哑闸 / 恒绿）`)
   }
-  assert.ok(/`\{S, A\}`/.test(REVIEW_GATE), '代码评审纪律.md §门禁 未写明该场景的轴集合是 {S, A}')
-  assert.ok(/`\{S, A\}`/.test(LEAN_REVIEW), '路径-lean.md §9 未写明该场景的轴集合是 {S, A}')
-  assert.ok(/恒绿/.test(OUTLINE), '00-流程总纲.md 缺 A 轴查哑闸这一条')
+  assert.ok(/`\{S, A\}`/.test(REVIEW_GATE), '评审门禁.md 未写明该场景的轴集合是 {S, A}')
 })
 
 test('例外 MUST NOT 被读成"测试文件可以不评"', () => {
@@ -147,7 +123,7 @@ test('五个阈值的取值与比较方向，在四处完整复述里都一致',
     ['200 行', '>', '<', '累计封顶失效：攒多少文档积压都不会强制结算'],
     ['14 天', '>', '<', '时间封顶失效：积压可以无限期不结算'],
   ]
-  const SCOPE = [...FULL_RESTATERS, ['00-流程总纲.md §代码评审门', OUTLINE]]
+  const SCOPE = FULL_RESTATERS
   for (const [name, body] of SCOPE) {
     for (const [value, dir, wrongDir, consequence] of NUMERIC) {
       assert.ok(
@@ -167,7 +143,7 @@ test('派给子代理的〈评审对象〉用的是评审基点，不是目标�
   // 这一行是真正被复制进子代理 prompt 的那句话。它若还写着 `git diff 【目标主分支】...HEAD`，
   // 结算积压那次子代理拿到的范围就退化成"本次任务分支"，此前积压的改动整批漏出评审范围——
   // 直接违反 spec Invariant 1，而其余所有断言都照样绿（评审门 C 残留轴实测报出）。
-  for (const [name, body] of [['代码评审纪律.md §子代理 prompt 模板', REVIEW], ['路径-lean.md §9.3', LEAN_REVIEW]]) {
+  for (const [name, body] of [['子代理模板.md', readSkillFile('子代理模板.md')]]) {
     assert.ok(
       /改动范围：`git diff 【评审基点】\.\.\.HEAD`|\*\*评审对象\*\*：`git diff 【评审基点】\.\.\.HEAD`/.test(body),
       `${name} 的〈评审对象〉未用【评审基点】——结算积压那次会把积压整批漏出评审范围`,
@@ -208,7 +184,7 @@ test('禁止积压清单三类齐全，且写明不看行数', () => {
   // 第②类是自指的：改门禁判据的改动不能用它自己新造的通路给自己开口子。
   assert.ok(
     /MUST NOT 用它自己新造的通路给自己开口子/.test(REVIEW_GATE),
-    '代码评审纪律.md §门禁 缺第②类的自指说明',
+    '积压通路.md 缺第②类的自指说明',
   )
 })
 
@@ -260,8 +236,8 @@ test('结算路径：按含住积压的那个范围判面，过门并合并成�
     )
   }
   assert.ok(
-    /含此前全部积压/.test(REVIEW_GATE) && /MUST NOT 只按本次任务分支算/.test(LEAN_REVIEW),
-    '结算时"对象面按整个范围算"这条在权威处或 Lean 侧缺失',
+    /含此前全部积压/.test(REVIEW_GATE),
+    '结算时"对象面按整个范围算"这条缺失',
   )
 })
 
@@ -278,8 +254,7 @@ test('tag 缺失与失效都是降级不是错误', () => {
       `${name} 缺"tag 是本地资产、MUST NOT 要求推送到远端"`,
     )
   }
-  assert.ok(/基点失效已退回主分支/.test(REVIEW_GATE), '代码评审纪律.md §门禁 缺 tag 失效的降级')
-  assert.ok(/基点失效已退回主分支/.test(LEAN_REVIEW), '路径-lean.md §9 缺 tag 失效的降级')
+  assert.ok(/基点失效已退回主分支/.test(REVIEW_GATE), '积压通路.md 缺 tag 失效的降级')
 })
 
 test('积压 MUST NOT 被读成裁剪：轴一条不裁，且与 2026-09-03 撤回的那条准入划清界限', () => {
@@ -291,8 +266,6 @@ test('积压 MUST NOT 被读成裁剪：轴一条不裁，且与 2026-09-03 撤�
       `${name} 缺"积压 MUST NOT 使轴集合为空、MUST NOT 使任何一轴被裁剪"`,
     )
   }
-  assert.ok(/2026-09-03/.test(REVIEW_GATE), '代码评审纪律.md §门禁 未与撤回的裁剪准入划清界限')
-  assert.ok(/2026-09-03/.test(LEAN_REVIEW), '路径-lean.md §9 未与撤回的裁剪准入划清界限')
   // 反向护栏：撤回的那条准入 MUST NOT 以任何形态残留。
   for (const [name, body] of [['代码评审纪律.md', REVIEW], ['路径-lean.md', LEAN], ['config-snippets/base.md', SNIPPET], ['00-流程总纲.md', OUTLINE], ['worktree开发纪律.md', WORKTREE]]) {
     assert.ok(
@@ -349,7 +322,7 @@ test('旧措辞"就一个子代理都不派"全仓零残留', () => {
 // ---------------------------------------------------------------------------
 
 test('完成门准出项已放宽为两条通路，且 pr 那一条明确不放宽', () => {
-  for (const [name, body] of [['worktree开发纪律.md', WORKTREE], ['路径-lean.md §11', LEAN_MERGE]]) {
+  for (const [name, body] of [['worktree开发纪律.md', WORKTREE]]) {
     assert.ok(
       /已登记积压/.test(body),
       `${name} 的完成门准出项未放宽——积压路径会永远卡在这道门上`,

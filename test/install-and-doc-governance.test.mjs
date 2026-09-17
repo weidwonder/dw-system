@@ -8,7 +8,8 @@ import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const installer = path.join(repoRoot, 'install.mjs')
-const workflowRoot = path.join(repoRoot, 'dw-system', 'skills', 'dw-workflow')
+const skillsRoot = path.join(repoRoot, 'dw-system', 'skills')
+const workflowRoot = path.join(skillsRoot, 'dw-workflow')
 const prdRoot = path.join(repoRoot, 'dw-system', 'skills', 'dw-prd')
 
 const read = (...parts) => readFileSync(path.join(...parts), 'utf8')
@@ -420,14 +421,14 @@ test('installer help documents the default GitHub source and version controls', 
 })
 
 test('skills enforce the shared spec plan and report directories', () => {
-  const governance = read(workflowRoot, 'references', 'core', '文档治理.md')
+  const governance = read(skillsRoot, 'dw-doc-governance', 'references', '文档治理.md')
   assert.match(governance, /docs\/spec\//)
   assert.match(governance, /docs\/plan\//)
   assert.match(governance, /docs\/report\//)
   assert.match(governance, /不得.*docs\/superpowers\//)
 
   // 旧 company/mode-team.md 的目录约定已随 mode 外壳删除，落点改为常驻内核（T2）。
-  const flow = read(workflowRoot, 'references', 'core', '00-流程总纲.md')
+  const flow = read(workflowRoot, 'references', '00-流程总纲.md')
   // 这里判的是**语义不是子串**：旧约定"把 spec 放项目根"MUST NOT 复活，但总纲把
   // `文档治理.md` 的结论行收进来之后，正当地写着"MUST NOT 把 spec 或 plan 放项目根"
   // ——同一个子串，意思正好相反。子串黑名单会把禁止条款误判成规定条款，所以逐行判：
@@ -466,13 +467,13 @@ test('the distribution repository uses tool-neutral document paths', () => {
 })
 
 test('dw-workflow keeps user communication at the business level', () => {
-  const communication = read(workflowRoot, 'references', 'core', '用户沟通纪律.md')
+  const communication = read(workflowRoot, 'references', '用户沟通纪律.md')
   assert.match(communication, /所有与用户的沟通.*业务语言/)
   assert.match(communication, /大架构.*必须.*用户确认/)
   assert.match(communication, /模块内.*业务问题/)
   assert.match(communication, /详细程序设计.*无需.*用户确认/)
 
-  const flow = read(workflowRoot, 'references', 'core', '00-流程总纲.md')
+  const flow = read(workflowRoot, 'references', '00-流程总纲.md')
   assert.match(flow, /大架构确认门/)
   assert.match(flow, /业务语言摘要/)
   assert.match(flow, /内部技术自检/)
@@ -483,7 +484,7 @@ test('dw-workflow keeps user communication at the business level', () => {
 })
 
 test('dw-workflow uses worktrees for the whole development lifecycle and merges automatically', () => {
-  const discipline = read(workflowRoot, 'references', 'core', 'worktree开发纪律.md')
+  const discipline = read(skillsRoot, 'dw-worktree', 'references', 'worktree开发纪律.md')
   // 强制性不再挂在 mode 上：无论协作面与项目资产如何，worktree 都不豁免（T3）
   assert.match(discipline, /强制执行/)
   assert.doesNotMatch(discipline, /个人版|团队版/)
@@ -496,12 +497,14 @@ test('dw-workflow uses worktrees for the whole development lifecycle and merges 
   assert.match(discipline, /不得绕过.*保护分支|保护分支.*不得绕过/)
   assert.match(discipline, /合并失败.*保留.*worktree/)
 
-  const skill = read(workflowRoot, 'SKILL.md')
+  // 两道 worktree 门的入口是 dw-worktree；dw-workflow 入口只把这一步指过去。
+  const skill = read(skillsRoot, 'dw-worktree', 'SKILL.md')
   assert.match(skill, /worktree开发纪律\.md/)
   assert.match(skill, /全程使用独立 worktree/)
-  assert.match(skill, /完成后自动合并主分支/)
+  assert.match(skill, /完成与自动合并门/)
+  assert.match(read(workflowRoot, 'SKILL.md'), /`dw-worktree`/)
 
-  const flow = read(workflowRoot, 'references', 'core', '00-流程总纲.md')
+  const flow = read(workflowRoot, 'references', '00-流程总纲.md')
   assert.match(flow, /工作区隔离门/)
   assert.match(flow, /完成与自动合并门/)
 

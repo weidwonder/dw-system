@@ -4,9 +4,9 @@ import path from 'node:path';
 import os from 'node:os';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { loadCards, loadRegistry } from '../dw-system/skills/dw-workflow/scripts/ctx/src/cards.js';
-import { loadProbes, classifyEntity, answerProbe, selfCheck, evaluateGate, handoffKind } from '../dw-system/skills/dw-workflow/scripts/ctx/src/probe.js';
-import { initScaffold } from '../dw-system/skills/dw-workflow/scripts/ctx/src/commands.js';
+import { loadCards, loadRegistry } from '../dw-system/skills/dw-code-facts/scripts/ctx/src/cards.js';
+import { loadProbes, classifyEntity, answerProbe, selfCheck, evaluateGate, handoffKind } from '../dw-system/skills/dw-code-facts/scripts/ctx/src/probe.js';
+import { initScaffold } from '../dw-system/skills/dw-code-facts/scripts/ctx/src/commands.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ctxDir = path.join(here, 'fixtures', 'ctx-engineering-context');

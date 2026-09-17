@@ -1,26 +1,14 @@
-// 贯穿门同步闸（FR-013 / AC-012）。
+// 贯穿门同步闸。
 //
-// 病史：贯穿门的清单被**复述**在至少三处——总纲的总表（权威定义处）、Lean 自足册 §1.3 的
-// 门全景、入口 `SKILL.md` 的加载点清单。2.11.0 新增 spec 过稿门时，实测要改的文件有九个，
-// 其中任何一处漏掉都**不会报错**：Lean 侧漏了，走 Lean 的 agent 就永远不知道有这道门；
-// 入口漏了，判据在触发那一刻取不到。`counter-word.test.mjs` 只盯**数字**（四道门/五道门），
-// 盯不到"数字对了但某个文件里少了一行"。按 `代码评审纪律.md` §门禁「同一类问题被报到
-// 第二次就该有闸接手」的判据，上本闸。
+// 总纲的门全景表是贯穿门清单的家。两条判据：
+//  1. 表里的每个门名，在 Lean 一页的 §顺序 表里字面在场——漏一行，走 Lean 的 agent 不知道有这道门，
+//     且不会有任何报错。`counter-word.test.mjs` 只盯数字，盯不到"数字对了但少了一行"。
+//  2. 表的行数与该节标题里的计数词一致（`五道门` → 5 行）。
 //
-// 判据两条：
-//  1. 总表里的每个门名，在 `路径-lean.md` §1.3 与入口 `SKILL.md` 里都**字面在场**。
-//  2. 总表的**行数**与该节标题里的计数词一致（`五道门` → 5 行），防"加了行忘了改标题"
-//     或"改了标题忘了加行"。
-//
-// 设计取舍（三条，都是为了不让本闸变成另一处硬编码或哑闸）：
-//  - **门名从总纲现场解析，不在本文件里写死清单**。写死等于把同一份清单抄到第四个地方，
-//    正是本闸要消灭的形态；加一道门时本闸自动跟着变严，不需要有人记得来改它。
-//  - **只查"在不在场"，不查上下文写得对不对**。后者是代码评审门文档轴的判断题，机器判不了；
-//    本闸只守住机械可判的那一半——**MUST NOT 把本闸全绿读成"各处对这道门的描述都正确"**。
-//  - **有 `section` 的复述点 MUST 只在那一节里找，MUST NOT 退回全文匹配**。这条是写本闸时
-//    做反向自检当场撞出来的：起初对 `路径-lean.md` 用全文 `includes`，把 §1.3 门全景表里的
-//    那一行整条抽掉，本闸照样全绿——因为同一个门名在 §6.3、§14 等处还出现着。要防的是
-//    "**门全景表漏了一行**"，全文匹配防不住它，只会给出一个恒绿的假保证。
+// 门名从总纲现场解析，不在本文件里写死：写死等于把同一份清单再抄一处。
+// 只查"在不在场"；描述得对不对由评审门文档轴判，本闸全绿 MUST NOT 被读成各处描述都正确。
+// 有 `section` 的核对点只在那一节里找，MUST NOT 退回全文匹配：同一个门名在别的小节也出现，
+// 全文匹配对"§顺序 表漏了一行"恒绿。
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -63,13 +51,15 @@ export function parseGateTable(overview) {
 // `section` 给定时只在该节正文里找（节 = 从这个标题到下一个同级或更高级标题之间）。
 // 入口没有 `section`：贯穿门在入口的复述形态本就不统一——工作区隔离门是独立小节，
 // 其余门散在加载点清单的行里，切节反而会漏。
+// 总纲的门全景表是门名的家。Lean 走的是另一页步骤顺序（`路径-lean.md` §顺序），那张表 MUST 给
+// 每道贯穿门排一行：漏一行，走 Lean 的 agent 就不知道有这道门，且不会有任何报错。
+// 这里核对的是"排了没有"，判据本身只在各门自己的 skill 里。
 const MUST_RESTATE = [
   {
-    label: 'Lean 自足册 §1.3 门的全景',
-    file: ['references', 'core', '路径-lean.md'],
-    section: '### 1.3 ',
+    label: 'Lean 一页 §顺序',
+    file: ['references', '路径-lean.md'],
+    section: '## 顺序',
   },
-  { label: '入口 SKILL.md', file: ['SKILL.md'] },
 ]
 
 /** 取出以 `heading` 开头的那一节正文；`heading` 为空则返回全文。 */
@@ -89,7 +79,7 @@ function sliceSection(body, heading) {
 }
 
 test('贯穿门：总表行数与标题里的计数词一致', () => {
-  const { declared, names } = parseGateTable(read('references', 'core', '00-流程总纲.md'))
+  const { declared, names } = parseGateTable(read('references', '00-流程总纲.md'))
   assert.equal(
     names.length,
     declared,
@@ -100,7 +90,7 @@ test('贯穿门：总表行数与标题里的计数词一致', () => {
 })
 
 test('贯穿门：每道门在必须复述它的文件里都在场', () => {
-  const { names } = parseGateTable(read('references', 'core', '00-流程总纲.md'))
+  const { names } = parseGateTable(read('references', '00-流程总纲.md'))
   const problems = []
   for (const { label, file, section } of MUST_RESTATE) {
     const body = sliceSection(read(...file), section)
@@ -120,6 +110,6 @@ test('贯穿门：每道门在必须复述它的文件里都在场', () => {
 test('护栏：复述清单非空，且每个门名不是空串', () => {
   // 防退化：MUST_RESTATE 清空后第二条测试恒绿，看着在盯实际没盯。
   assert.ok(MUST_RESTATE.length > 0, 'MUST_RESTATE 是空的——本闸的第二条已不再检查任何文件')
-  const { names } = parseGateTable(read('references', 'core', '00-流程总纲.md'))
+  const { names } = parseGateTable(read('references', '00-流程总纲.md'))
   for (const name of names) assert.ok(name.length > 0, '解析出空门名，表格首列格式可能变了')
 })

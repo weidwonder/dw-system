@@ -275,8 +275,8 @@ test('dw-prd 侧接线：纪律 §7/§8 立判据，流程两步与质量清单�
 test('dw-workflow 侧接线：下游读原型时被告知连元素批注一起读', () => {
   const wf = path.join(skillsRoot, 'dw-workflow')
   for (const rel of [
-    ['references', 'core', '00-流程总纲.md'],
-    ['references', 'core', '路径-lean.md'],
+    ['references', '00-流程总纲.md'],
+    ['references', '路径-lean.md'],
   ]) {
     const body = read(wf, ...rel)
     assert.match(body, /MUST 连元素批注一起读|MUST 连元素批注/, `${rel.join('/')} 必须要求连元素批注一起读`)
@@ -289,11 +289,11 @@ test('dw-workflow 侧接线：下游读原型时被告知连元素批注一起�
 test('dw-workflow 侧接线：每个真打开原型的执行点都给出了取批注的命令', () => {
   const wf = path.join(skillsRoot, 'dw-workflow')
   const POINTS = [
-    [['references', 'core', '00-流程总纲.md'], null],
-    [['references', 'core', '路径-lean.md'], null],
-    [['references', 'core', '步骤-1-7-设计与实现.md'], 'Step 1'],
-    [['references', 'core', '步骤-1-7-设计与实现.md'], 'Step 4'],
-    [['references', 'core', '步骤-8-10-测试.md'], 'Step 8'],
+    [['references', '00-流程总纲.md'], null],
+    [['references', '路径-lean.md'], null],
+    [['references', '步骤-1-7-设计与实现.md'], 'Step 1'],
+    [['references', '步骤-1-7-设计与实现.md'], 'Step 4'],
+    [['references', '步骤-8-10-测试.md'], 'Step 8'],
   ]
   for (const [rel, step] of POINTS) {
     const body = read(wf, ...rel)

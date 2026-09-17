@@ -11,15 +11,17 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { discover, initScaffold } from '../dw-system/skills/dw-workflow/scripts/ctx/src/commands.js';
-import { diagnoseRegistry } from '../dw-system/skills/dw-workflow/scripts/ctx/src/cards.js';
-import { loadProbes, answerProbe } from '../dw-system/skills/dw-workflow/scripts/ctx/src/probe.js';
+import { discover, initScaffold } from '../dw-system/skills/dw-code-facts/scripts/ctx/src/commands.js';
+import { diagnoseRegistry } from '../dw-system/skills/dw-code-facts/scripts/ctx/src/cards.js';
+import { lintCards } from '../dw-system/skills/dw-code-facts/scripts/ctx/src/lint.js';
+import { loadProbes, answerProbe } from '../dw-system/skills/dw-code-facts/scripts/ctx/src/probe.js';
 
 const repo = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const skill = path.join(repo, 'dw-system', 'skills', 'dw-workflow');
-const layer = path.join(skill, 'assets', 'context-layer');
+const codeFacts = path.join(repo, 'dw-system', 'skills', 'dw-code-facts');
+const layer = path.join(codeFacts, 'assets', 'context-layer');
 const templates = path.join(skill, 'assets', 'templates');
-const ctxReadme = path.join(skill, 'scripts', 'ctx', 'README.md');
+const ctxReadme = path.join(codeFacts, 'scripts', 'ctx', 'README.md');
 
 /** 造一个临时目录，回调结束后清掉。 */
 function withTmp(prefix, fn) {
@@ -58,7 +60,8 @@ function withCard(body, fn) {
   }
 }
 
-const cardTemplate = () => fs.readFileSync(path.join(layer, 'card.md'), 'utf8');
+// 废弃项、新鲜度这两条契约落在域卡模板上：陷阱与确认日期都写在域卡里。
+const cardTemplate = () => fs.readFileSync(path.join(layer, 'card-domain.md'), 'utf8');
 
 test('card 模板：原样新建的 card MUST NOT 输出看起来可信的新鲜度', () => {
   withCard(cardTemplate(), (dir) => {
@@ -205,10 +208,24 @@ test('缺分隔行的 registry 真的整张表被忽略（上一条文档要求�
 
 // ---- card 模板 ↔ cards.js ----
 
-test('card 模板 MUST 写明存放路径与「文件名即 service 名」', () => {
-  const raw = fs.readFileSync(path.join(layer, 'card.md'), 'utf8');
-  assert.match(raw, /engineering-context\/cards\/<repo>\.md/, 'loadCards 只扫这个目录，模板 MUST 说出来');
-  assert.match(raw, /文件名即 service 名/, 'ctx get-card <repo> 的 <repo> 就是文件名，模板 MUST 说出来');
+test('两份卡片模板 MUST 写明存放路径与名字契约', () => {
+  const map = fs.readFileSync(path.join(layer, 'card-map.md'), 'utf8');
+  assert.match(map, /engineering-context\/cards\/<repo>\.md/, 'loadCards 只扫这个目录，地图卡模板 MUST 说出来');
+  assert.match(map, /文件名即 service 名/, 'ctx get-card <repo> 的 <repo> 就是文件名，模板 MUST 说出来');
+  const domain = fs.readFileSync(path.join(layer, 'card-domain.md'), 'utf8');
+  assert.match(domain, /engineering-context\/cards\/<repo>\/<域>\.md/, 'loadDomainCards 只扫这个目录，域卡模板 MUST 说出来');
+  assert.match(domain, /业务域地图/, '域名 MUST 先登记在地图卡里，模板 MUST 说出来');
+});
+
+test('两份卡片模板原样落盘后，lint-cards 只报不出任何小节类违规', () => {
+  withTmp('tpl-lint-', (tmp) => {
+    const base = path.join(tmp, 'engineering-context');
+    fs.mkdirSync(path.join(base, 'cards', 'svc'), { recursive: true });
+    fs.copyFileSync(path.join(layer, 'card-map.md'), path.join(base, 'cards', 'svc.md'));
+    fs.copyFileSync(path.join(layer, 'card-domain.md'), path.join(base, 'cards', 'svc', '订单导出.md'));
+    const { violations } = lintCards(base);
+    assert.deepEqual(violations, [], `模板自己就违规，照模板写的卡永远过不了体检：\n${violations.join('\n')}`);
+  });
 });
 
 test('registry 的「权威仓库」写得与 card 文件名不一致时静默失去加权（上一条文档要求的由来）', () => {

@@ -1,63 +1,85 @@
 ---
 name: dw-workflow
-description: "AI 辅助开发主流程：从已有 PRD 起步做需求落地、Overview、技术 spec、coding plan、测试方案，或提到'开发流程/用 AI 把需求做成代码'时用；编码后的分轴子代理评审、清旧逻辑、兼容取舍、测试资产与覆盖度台账、改 skill/技能文档、扫描 rules/skills/agents 冲突时同样用。从零产 PRD 用 dw-prd。"
+description: "AI 辅助开发主流程：从已有 PRD 起步做需求落地、分流（Triage）、Overview、技术 spec、coding plan、测试方案，或提到'开发流程 / 用 AI 把需求做成代码 / 走一下流程'时用；兼容取舍拍板、spec 过稿、改 skill 文档、首次初始化项目、扫描 rules/skills/agents 冲突时同样用。它定两条总纲与步骤顺序，每道门的判据在各自的 skill：评审用 dw-review-gate，建 worktree 与合并用 dw-worktree，查代码事实用 dw-code-facts，修 bug 用 dw-bug-diagnosis，文档去留用 dw-doc-governance，文字怎么写用 dw-prose。从零产 PRD 用 dw-prd。"
 ---
 
-## 工作区隔离门要点
+# dw-workflow：总纲、路由与步骤顺序
 
-- **必须建 worktree**：路由与初始化**对话**做完后、**任何**文件落盘前（含标记块），MUST 已从最新主分支建出并**全程使用独立 worktree**；Lean 不豁免，MUST NOT 中途切回主工作树落盘；多仓每仓一个，MUST NOT 共用。
-- **目录取自 `worktree-dir`**：未声明默认仓库根 `./.worktrees/`。每次创建前重新读，MUST NOT 沿用上次会话记住的路径。
-- **过不了就中止**：主工作树有未提交改动、不是 Git 仓库、或建不出 worktree，MUST 中止并用业务语言说明；MUST NOT 替用户 stash / reset / checkout / 删未知文件，MUST NOT 降级为直接改当前目录。
-- **进门之后**：先结清初始化挂账（标记块、冲突处置、缺 registry 跑 `ctx init`）；门禁全过后按 `merge-gate` **完成后自动合并主分支**。
+本 skill 管**两条总纲、路由与初始化、Triage 分流、两条路径的步骤顺序、两道确认门、用户沟通、spec 写作、上下文卫生、测试阶段、AI 运行期契约**。每道门的判据住在它自己的 skill（见〈到哪一步用哪个 skill〉），本 skill 只定顺序。按 RFC 2119 解释规范词。
 
-  来源：`worktree开发纪律.md` §工作区隔离门
+## 两条总纲
 
-## 路由逻辑（每次调用先做）
+dw 体系的每个 skill、注入目标项目的标记块、以及按本体系产出的文档与卡片，都受这两条约束。**这两条的展开只在本节**；别处只点名并指到这里。
 
-**1. 【探测】** **项目根**下 `.codegraph/codegraph.db` 存在 → 加载 `references/capability/graph.md`。MUST 在路由阶段做完，MUST NOT 塞进流程门内部，路径 MUST NOT 按 cwd 解释。探测不到或失败按没有算，结构检索外包子代理：MUST NOT 阻断流程、MUST NOT 反复重试、MUST NOT 改问用户"有没有代码图谱"。**本步 MUST NOT 探测 engineering-context**——缺骨架隔离门内补建，缺条目按 `代码事实纪律.md` §4 补齐；MUST NOT 因"registry 是空的"判定可以直读代码，也 MUST NOT 因此告警。
+**一、一个事实只有一个家，别处只放链接。** 写任何规则、数字、清单之前，先按〈归属表〉找到它的家。家以外的地方写「名字 + 指针」；读者在那个位置非知道不可的关键一句 MAY 就地重复，但展开、例子、例外只在家里。同一事实两处展开必然写岔，读者无从判断信哪份。
 
-**2. 【读标记块】** 只读、只对话，**MUST NOT 落盘**。MUST 把项目根 CLAUDE.md 与 AGENTS.md **两个入口都读**（以 CLAUDE.md 为准，MUST NOT 读到一个就停），取标记块 `<!-- dw-workflow:start/end -->` 内的 `collaboration` / `merge-gate` / `worktree-dir`：
+**二、规范文本有体积上限，超限按固定顺序处置。** ① **搬走**：不属于这里的内容搬回它的家，留一行指针；② **压缩**：属于这里但能更短的，按 `dw-prose` 的完整命题规则压缩——每条命题（谁、做什么、什么条件、模态、反向保证、失败后果）都 MUST 留住；③ **抬上限**：内容确实需要这么多空间，才抬，MUST 经拍板人同意并写一句理由。MUST NOT 跳过 ① ② 直接抬上限，MUST NOT 为了过上限丢命题。上限是护栏，不是削减指标。
 
-- **2a 有 `collaboration`** → 直接用；另一入口缺失、无块或不一致时按 `references/init-初始化.md` §幂等规则 以 CLAUDE.md 为准补齐，MUST 多说一句被覆盖的是什么。
-- **2b 只有旧版 `mode`** → team → team + pr，其余 → solo + direct；MUST 一句话告知用户、允许当场改，再幂等回写两入口。MUST NOT 由旧值推出别的东西，MUST NOT 因旧值改变分流默认倾向。
-- **2c 都无块** → 初始化（`references/init-初始化.md`）：先跑 `references/环境冲突扫描.md`，只问协作面 + 一条待拍板的 merge-gate 建议，按 `assets/config-snippets/` 注入两入口。**MUST NOT 问"要不要建 engineering-context"**。
-- **2d 缺省/非法值**：`merge-gate` 缺失 → 判据见下表同名行；`worktree-dir` 缺失 → `./.worktrees/`；`collaboration` 不是 solo/team → 报错中止并列出合法值域，MUST NOT 猜测。
-- **2e 用户要"扫描/体检 dw 体系"** → 跑 ↑ 2c 那份扫描，冲突逐项交用户决断。
+**理由留下，来历搬走**：省略后会导致误用的理由留在规则旁，用现在时写；哪一版改的、出过什么事、试过哪些方案，进决策记录（`dw-doc-governance` 的 `文档治理.md` §决策记录）。
 
-**3. 【分流前只取三份】** **常驻只有六份**：本入口 + `core/`（=`references/core/`）的 `00-流程总纲.md`、`代码事实纪律.md`、`用户沟通纪律.md`、`上下文卫生.md` + `references/collab/` 二选一，**分两批取**：此刻 MUST 只取下表〈每次唤起（分流前）〉行那三份 + 探测到的 `graph.md`；余下三份与总纲其余各节 **MUST NOT 在此刻取**。常驻**也不整篇读**：按每节的〈何时读本节〉到点再取；分册只**追加**、MUST NOT 削减常驻。
+## 归属表
 
-**4.** 过隔离门 → 按 §Step 0 过 Triage → 按下表两个 Triage 行定分支、**只补该支要的**。
+| 事实类别 | 它的家 | 这里不该放什么 |
+|---|---|---|
+| 两条总纲、步骤顺序、Triage 与默认倾向、不裁剪护栏 | 本入口、`references/00-流程总纲.md` | 任何一道门的判据 |
+| 兼容取舍确认门、spec 过稿门 | `references/确认门.md` | — |
+| 大架构判据、与用户说话的口径 | `references/用户沟通纪律.md` | — |
+| 标记块字段、取值与缺省 | `references/init-初始化.md` | — |
+| 工作区隔离门、完成与自动合并门、`merge-gate` 的推导 | `dw-worktree` | 评审范围与积压 |
+| 对象面、评审轴、档位、积压通路、子代理模板、替换清单 | `dw-review-gate` | 文档去留的判据 |
+| 输出目录、三层真相源、生命周期、**权威面清单**、归档、TODO 出口、决策记录、命名 | `dw-doc-governance` | 散文怎么写 |
+| 卡片形态、cite、`ctx` 调用、补卡与刷卡、变更日志、依赖声明、代码图谱 | `dw-code-facts` | — |
+| 查重、红回路、可证伪假设、防回归 | `dw-bug-diagnosis` | — |
+| 一段文字该写什么、该删什么 | `dw-prose` | 文档放哪、何时归档 |
+| 从零产 PRD、UI 原型与批注 | `dw-prd` | 已有 PRD 之后的事 |
+| 体积上限的数值 | 本体系仓库的 `test/doc-budgets.json` | — |
 
-## 加载点清单（MUST 在触发时才取、只取那节；MUST NOT 提前预读，MUST NOT 凭记忆代替取用）
+目标项目自己的产物（需求真相源、索引、spec、卡片）各放什么、不放什么，见 `dw-doc-governance` 的 `文档治理.md` §归属表。
 
-| 触发条件 | 加载对象 | 为什么此刻需要 | 适用路径 |
-|---|---|---|---|
-| 每次唤起（分流前）| 本入口全文 + `core/用户沟通纪律.md` + `core/00-流程总纲.md` §Step 0 | 隔离门与第 2 步问答都在 Triage 之前，手里没别的文件 | 两条 |
-| `merge-gate` 缺省 | `core/worktree开发纪律.md` §完成与自动合并门 | 判据只在那节定义 | 两条 |
-| 要建 worktree | `core/worktree开发纪律.md` §工作区隔离门 | 入口要点只够判过不过 | 两条 |
-| Triage 四问全否 | **Lean 分支**：`core/路径-lean.md` **前置节**（含 §1.2 = §默认倾向 投影，判升级用它、MUST NOT 再取原节）+ `collab/` 一份 + lean 模板 | 自足册含直管 Lean 的 MUST，MUST NOT 整篇预读、MUST NOT 再补余下三份 | Lean |
-| Triage 任一为是（或 §默认倾向 判升级）| **完整分支**：补齐常驻余下三份 + `core/00-流程总纲.md` 其余前置节，再取 `core/步骤-1-7-设计与实现.md` | 只有完整流程用得上，分流前取 = Lean 白付 | 完整 |
-| 红回路门命中（bug / 回归 / 异常行为）| `core/bug诊断纪律.md` (L§3bis) | 改代码前 MUST 先造复现回路 | 两条 |
-| `ctx` 敲不动、返回空或术语对不上 | `core/代码事实纪律.md` §2 (L§3.2) | 兜底调用与"在哪跑"的陷阱 | 两条 |
-| 要 clone 外仓取证／碰权威面要判刷不刷卡 | `core/代码事实纪律.md` §7 或 §8 (L§3.8/§3.9) | 取证顺序、补卡义务与刷卡判据 | 两条 |
-| spec 定稿前要拍板兼容取舍 | `core/00-流程总纲.md` §兼容取舍确认门 (L§6.1) | 清单、三选项、落盘口径 | 两条 |
-| spec 定稿后要过 spec 过稿门 | `core/00-流程总纲.md` §spec 过稿门 (L§6.3) | 摆什么、三条定稿判据、跳过只认用户显式表态、当场留痕 | 两条 |
-| 登记替换清单 | `core/代码评审纪律.md` §替换清单 (L§4.3) | spec 要登记被取代物 | 两条 |
-| 需求跨 ≥2 个边界／大 PRD 要拆切片／要定 PR 粒度 | `core/00-流程总纲.md` §按边界拆 四节 | 粒度判据只在那里 | 完整 |
-| 要落笔写一张卡片，或要改/处置一张既有卡片 | `core/代码事实纪律.md` §4.1 + §4.2 (L§3.4/§3.5) | 最小四项形态缺一不可；卡片库只增不减、与源码不符就地修正、被删实现进陷阱项 | 两条 |
-| 实现阶段要写本次的 CHANGELOG 条目 | `core/代码事实纪律.md` §10.1 (L§3.11) | 五类闭集、不兼容条目三项必填、来源是兼容取舍表；写在评审门之前忠实轴才对得上 | 两条 |
-| 要把某个上游升到新版本／读到或改到了对某个上游的调用 | `core/代码事实纪律.md` §10.2 (L§3.12) | 声明五项与补写义务；升级顺序是读声明 → 读上游 CHANGELOG 取交集，子代理只在两个兜底出现 | 两条 |
-| 过代码评审门 | `core/代码评审纪律.md` §门禁 + §评审轴 + §子代理 prompt 模板 + §处置、`core/00-流程总纲.md` §代码评审门 (L§9) | 先定范围与通路（够小可登记积压）、派几个子代理、文档轴恒跑、MUST 替换占位符、P0/P1 口径 | 两条 |
-| 进入测试阶段 | `core/步骤-8-10-测试.md` | 测试阶段步骤 | 完整 |
-| 有真实数据／凭证／要挂覆盖度台账 | `core/测试资产纪律.md` (L§8) | 真实输入固化与台账 | 两条 |
-| 要给新建文档起名落盘／要判文档去留、归档、索引分层 | `core/文档治理.md` (L§10bis) | 生命周期与索引门控 | 两条 |
-| 要往需求真相源或 TODO 写东西 | `core/文档治理.md` (L§10.5–10.7) | 真相源只写现状，尚未实现的去 TODO | 两条 |
-| 过完成与自动合并门 | `core/worktree开发纪律.md` 与 `core/00-流程总纲.md` 各的 §完成与自动合并门 (L§11) | 首次加载可能已随交接失效 | 两条 |
-| 动笔写 spec | `core/spec写作纪律.md` (L§4.2) | 零上下文可动手、RFC2119、无占位符 | 两条 |
-| 出现过载信号要交接 | `core/spec写作纪律.md` (L§4.2) | 交接文档遵循它，读者零上下文 | 两条 |
+## 路由（每次唤起先做；只读、只对话，MUST NOT 落盘）
 
-**Lean 是替代不是叠加**：〈加载对象〉带 `(L§x)` 的行，完整流程取该加载对象，Lean **改取**自足册 `core/路径-lean.md` §x、**MUST NOT 两份都读**；只有该节自己写明的"要展开/要细则"条件命中，才再取本行原篇。其余行两条路径都取本行。含 AI/LLM 按 `core/AI-LLM-overlay.md` 叠加契约，判为 Agentic 应用 MUST 加载独立 skill `agentic-principle`。
+1. **探测代码图谱**：项目根下 `.codegraph/codegraph.db` 存在 → 记下，要做结构检索时读 `dw-code-facts` 的 `graph.md`。探测不到或失败按没有算，MUST NOT 阻断流程、MUST NOT 反复重试、MUST NOT 改问用户。本步 MUST NOT 探测 `engineering-context/`：缺骨架在隔离门内补建，缺条目按 `dw-code-facts` 补齐。
+2. **读标记块**：项目根 `CLAUDE.md` 与 `AGENTS.md` **两个入口都读**（以 `CLAUDE.md` 为准），取 `<!-- dw-workflow:start/end -->` 内的 `collaboration` / `merge-gate` / `worktree-dir`。
 
-## 关键纪律
+   | 读到什么 | 怎么办 |
+   |---|---|
+   | 有 `collaboration` | 直接用；另一入口缺块或不一致 → 按 `references/init-初始化.md` §幂等规则 补齐，MUST 说一句被覆盖的是什么 |
+   | 只有旧名字的块 `<!-- ai-dev-workflow:start -->` | 项目装的是 3.0 之前的版本。MUST 停下，请用户在项目根重跑安装命令（安装器自动迁移字段并清理旧残留），MUST NOT 手工改写标记块，MUST NOT 按旧块继续 |
+   | 两个入口都无块 | 初始化：读 `references/init-初始化.md`，先跑 `references/环境冲突扫描.md`。MUST NOT 问"要不要建 engineering-context" |
+   | `collaboration` 不是 `solo` / `team` | 报错中止并列出合法值，MUST NOT 猜 |
+   | 用户要"扫描 / 体检 dw 体系" | 跑 `references/环境冲突扫描.md`，冲突逐项交用户决断 |
 
-**`engineering-context/` 必备、没有开关**（`core/代码事实纪律.md`）。`ctx` 敲不到 **MUST NOT 读成"这一层不可用"**：改用 `node <skill>/scripts/ctx/src/cli.js`，MUST NOT 裸 grep 权威实体、MUST NOT 顺延补卡。
+3. **过工作区隔离门**（`dw-worktree`）→ 读 `references/00-流程总纲.md` §Step 0 过 Triage → 按下表取该分支要的文件。
+
+## 读取条件（到点才读、只读那一节；MUST NOT 预读，MUST NOT 凭记忆代替）
+
+| 什么时候 | 读什么 |
+|---|---|
+| 每次唤起，分流前 | 本入口 + `references/用户沟通纪律.md` + `references/00-流程总纲.md` §Step 0 |
+| Triage 的判定问题全否 | `references/路径-lean.md` + `references/collab/` 里协作面那一份 |
+| Triage 任一为是，或 §默认倾向 判升级 | `references/00-流程总纲.md` 其余各节 + `references/上下文卫生.md` + `references/collab/` 那一份 + `references/步骤-1-7-设计与实现.md` |
+| 本次改动不含可执行代码文件 | `references/纯skill改动.md` |
+| 动笔写 spec；出现过载信号要写交接文档 | `references/spec写作纪律.md` |
+| spec 定稿前后 | `references/确认门.md` |
+| 开始实现 | `references/实现纪律.md` |
+| 需求跨 ≥2 个边界、大 PRD 要拆切片、要定 PR 粒度 | `references/00-流程总纲.md` §按边界拆 |
+| 进入测试阶段 | `references/步骤-8-10-测试.md` |
+| 有真实数据或凭证、要挂覆盖度台账 | `references/测试资产纪律.md` |
+| 项目含 AI / LLM 调用 | `references/AI-LLM-overlay.md`；判为 Agentic 应用 MUST 另加载 `agentic-principle` |
+| 长会话出现过载信号 | `references/上下文卫生.md` |
+
+## 到哪一步用哪个 skill
+
+| 到了这一步 | 加载 |
+|---|---|
+| 任何文件落盘前；全部门禁通过要合并 | `dw-worktree` |
+| 要知道某能力的权威实现、跨服务影响面；要补卡、刷卡；要写变更日志条目；要升级上游 | `dw-code-facts` |
+| 需求是 bug、回归或异常行为 | `dw-bug-diagnosis` |
+| 写 spec 要登记被取代物；编码完成要过评审门 | `dw-review-gate` |
+| 要给文档定目录与命名、判去留、归档、往需求真相源或 TODO 写东西、立决策记录 | `dw-doc-governance` |
+| 要写或精简规范文本、注释、卡片、提示词 | `dw-prose` |
+| 要新建或改动 skill | `skill-principle`（伴生 skill） |
+
+被加载的 skill 未能按名字唤起时，直接读它的文件：与本 skill 同级的 `<skill 名>/SKILL.md`。
+
+`engineering-context/` 必备、没有开关。`ctx` 命令敲不到 MUST NOT 读成"这一层不可用"：按 `dw-code-facts` 入口的兜底调用执行，MUST NOT 裸 grep 找权威实现。

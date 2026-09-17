@@ -16,9 +16,15 @@ import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
+import { readSkillFile, skillCorpus } from './skill-files.mjs'
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const skillsRoot = path.join(repoRoot, 'dw-system', 'skills')
 const wfRoot = path.join(skillsRoot, 'dw-workflow')
+// 评审门的判据分住在 dw-review-gate 的几份分册里，文档去留的判据分住在 dw-doc-governance 的两份里；
+// 断言问的是「这条判据在它的家里」，不问它在哪一份分册。
+const reviewGate = () => skillCorpus('dw-review-gate')
+const docGovernance = () => readSkillFile('文档治理.md') + '\n' + readSkillFile('文档生命周期.md')
 const read = (...seg) => readFileSync(path.join(...seg), 'utf8')
 
 // 切段取子串。**锚点找不到必须当场红**：indexOf 返回 -1 时 slice 会静默退化成"整个文件"，
@@ -50,7 +56,7 @@ test('轴数计数词全仓一致：skill 侧不得残留"三轴"', () => {
 })
 
 test('D 是文档轴、E 是 agent 架构轴（编号让位没做一半）', () => {
-  const rev = read(wfRoot, 'references', 'core', '代码评审纪律.md')
+  const rev = reviewGate()
   assert.ok(/\|\s*\*\*D 文档轴\*\*/.test(rev), '轴表里 D 不是文档轴')
   assert.ok(/\|\s*\*\*E agent 架构轴\*\*/.test(rev), '轴表里 E 不是 agent 架构轴')
   assert.ok(!/\*\*D agent 架构轴\*\*/.test(rev), '残留旧编号 D agent 架构轴')
@@ -69,35 +75,24 @@ test('D 是文档轴、E 是 agent 架构轴（编号让位没做一半）', () 
   assert.ok(/至多派一个子代理|至多派一次/.test(rev), '门禁未挡住同一条轴被重复派')
 })
 
-test('D 轴在 P 面内恒跑，触发条件没有被放回主会话的判断', () => {
-  const rev = read(wfRoot, 'references', 'core', '代码评审纪律.md')
-  const outline = read(wfRoot, 'references', 'core', '00-流程总纲.md')
-  const lean = read(wfRoot, 'references', 'core', '路径-lean.md')
-  // 2.15.0 把恒跑收窄成"命中 P 面时恒跑"。收窄的是**触发面**，不是那条判据本身：
-  // 主会话仍 MUST NOT 去判"本次有没有碰文档"（那是盘点，是 D 轴自己的第一步）。
-  // 因此这里既要断言收窄形态在场，也要断言原判据一字未丢——只改一半就是把门拆了。
-  for (const [name, body] of [['代码评审纪律', rev], ['00-流程总纲', outline], ['路径-lean', lean]]) {
-    // 触发条件按"它的参照物有没有可能被牵动"给出：改动含 `docs/` 下的文档、或命中 P 面。
-    // 两个条件都要在场——只留 P 面那半，纯 skill 改动动了 docs/ 就没人看；
-    // 只留 docs/ 那半，改代码却没动 docs/ 的改动会漏掉本轴。
-    assert.ok(/含 `docs\/` 下的文档[^\n]*恒跑|含 `docs\/` 下的文档、或命中 P 面/.test(body), `${name} 未写明 D 轴由 docs/ 是否被牵动触发`)
-    assert.ok(/命中 P 面/.test(body), `${name} 未保留"命中 P 面时也触发 D 轴"`)
-    assert.ok(/MUST NOT 由主会话先判/.test(body), `${name} 未挡住"主会话先判要不要派"`)
-    // 零对象面必须有出口：没有它，只改 docs/ 的改动会撞进一个无退出条件的重判循环。
-    assert.ok(/三个面都不命中|三面皆不命中/.test(body), `${name} 未给零对象面一个出口`)
-    assert.ok(/MUST NOT 重判/.test(body), `${name} 未挡住"重判"这个无出口动作`)
-  }
-  // 反向：收窄 MUST NOT 退化成"主会话看着办"——三份都不许出现无条件的可选措辞。
-  for (const [name, body] of [['代码评审纪律', rev], ['00-流程总纲', outline], ['路径-lean', lean]]) {
-    assert.ok(
-      !/文档轴\s*(MAY|可选|按需)/.test(body),
-      `${name} 把文档轴写成了可选——收窄到 P 面不等于把它变成主会话的自由裁量`,
-    )
+test('D 轴在 P 面内恒跑，触发条件没有被放回主会话的判断；判据只在评审门一处', () => {
+  const rev = reviewGate()
+  assert.ok(/含 `docs\/` 下的文档[^\n]*恒跑|含 `docs\/` 下的文档、或命中 P 面/.test(rev), '评审门未写明 D 轴由 docs/ 是否被牵动触发')
+  assert.ok(/命中 P 面/.test(rev), '评审门未保留"命中 P 面时也触发 D 轴"')
+  assert.ok(/MUST NOT 由主会话先判/.test(rev), '评审门未挡住"主会话先判要不要派"')
+  assert.ok(/三个面都不命中|三面皆不命中/.test(rev), '评审门未给零对象面一个出口')
+  assert.ok(/MUST NOT 重判/.test(rev), '评审门未挡住"重判"这个无出口动作')
+  assert.ok(!/文档轴\s*(MAY|可选|按需)/.test(rev), '评审门把文档轴写成了可选')
+  // 总纲与 Lean 一页只指过去：在这两处再展开一份，两份必然写岔。
+  for (const name of ['00-流程总纲.md', '路径-lean.md']) {
+    const body = read(wfRoot, 'references', name)
+    assert.ok(/dw-review-gate/.test(body), `${name} 未指向 dw-review-gate`)
+    assert.ok(!/MUST NOT 由主会话先判/.test(body), `${name} 又展开了一份 D 轴触发判据`)
   }
 })
 
 test('完成门那条已从"执行整套结算"改成"核对 D 轴报告"', () => {
-  const wt = read(wfRoot, 'references', 'core', 'worktree开发纪律.md')
+  const wt = readSkillFile('worktree开发纪律.md')
   const item = cut(wt, '- **文档生命周期已结算**', '- 已吸收最新主分支')
   assert.ok(/只核对结论/.test(item), '完成门那条仍是执行式表述')
   assert.ok(/D 轴报告/.test(item), '完成门那条未指向 D 轴报告')
@@ -107,12 +102,12 @@ test('完成门那条已从"执行整套结算"改成"核对 D 轴报告"', () =
   // 这里再复写一遍数字就是新的漂移源。改为锁同一个契约的两半——**指名引用到位** +
   // **文档轴在场**：任一缺失都说明这条准出项没跟着轴表改。
   const reviewItem = cut(wt, '- **代码评审门已通过', '- **兼容取舍已有用户结论**')
-  assert.ok(/§评审轴/.test(reviewItem), '代码评审门那条未指名引用 `代码评审纪律.md` §评审轴')
+  assert.ok(/§评审轴/.test(reviewItem), '代码评审门那条未指名引用 `评审轴.md` §评审轴')
   assert.ok(/文档/.test(reviewItem), '代码评审门那条没列出文档轴')
 })
 
 test('文档治理 §3 的触发点已改挂到评审门，判定与落盘的执行者都写死了', () => {
-  const gov = read(wfRoot, 'references', 'core', '文档治理.md')
+  const gov = docGovernance()
   assert.ok(/触发点挂在既有的代码评审门上/.test(gov), '§3 触发点未改挂到代码评审门')
   assert.ok(!/触发点挂在既有的完成与自动合并门上/.test(gov), '§3 残留旧触发点')
   assert.ok(/判据仍在本节/.test(gov), '§3 未说明判据仍归本节、D 轴只是执行者')
@@ -125,35 +120,34 @@ test('文档治理 §3 的触发点已改挂到评审门，判定与落盘的执
   // 上面两条仍不够：引导段横跨三小段，删掉"判定与落盘分属两个角色"那段后，
   // "主会话""落盘"还能在相邻段命中。锁这条关键禁止句——它只出现在角色切分段里。
   assert.ok(/MUST NOT 把落盘挂在/.test(lead), '§3 未挡住"把落盘挂在 P0/P1 口径下"（那样它永远轮不到执行）')
-  const rev = read(wfRoot, 'references', 'core', '代码评审纪律.md')
+  const rev = reviewGate()
   assert.ok(/不受 P0\/P1 口径限制/.test(rev), '§处置 未把文档落盘排除在 P0/P1 口径之外')
 })
 
 test('probe 的定位只有一处权威定义，另一处是指针（不重复堆叠）', () => {
   // 曾经在两个文件里各写了一遍完整定位，而 代码评审纪律 自己刚立过
   // "判据不在本文重复定义"的规矩——测试当时还把这份重复锁死了。
-  const gov = read(wfRoot, 'references', 'core', '文档治理.md')
-  const rev = read(wfRoot, 'references', 'core', '代码评审纪律.md')
+  const gov = docGovernance()
+  const rev = reviewGate()
   const authoritative = cut(gov, '是这三步的辅助')
   assert.ok(/MUST NOT/.test(authoritative.slice(0, 500)), 'probe 权威定位段未挡住"绿了就算过"')
   assert.ok(/probe/.test(rev), '代码评审纪律 未提 probe')
-  assert.ok(/文档治理\.md` §3/.test(cut(rev, 'D 轴与 `ctx probe` 的分工').slice(0, 400)),
+  assert.ok(/文档生命周期\.md` §3/.test(cut(rev, 'D 轴与 `ctx probe` 的分工').slice(0, 400)),
     '代码评审纪律 的 probe 段未指向权威定义')
 })
 
-test('总纲的完成门也已改成核对形态（曾漏改，且当时测试只锁了 worktree开发纪律）', () => {
-  // 总纲是常驻骨架，读到它的主会话会在完成门重做一遍盘点——本次变更的核心目的当场失效。
-  const outline = read(wfRoot, 'references', 'core', '00-流程总纲.md')
-  const sec = cut(outline, '## 完成与自动合并门')
-  assert.ok(/只核对/.test(sec), '总纲完成门段仍是执行式表述')
-  assert.ok(/MUST NOT 在此重做盘点/.test(sec), '总纲完成门段未挡住"在此重做盘点"')
-  assert.ok(!/本门同时结算文档生命周期/.test(outline), '总纲残留旧的执行式表述')
+test('总纲的完成门只指向 dw-worktree，不在此重做文档盘点', () => {
+  const outline = read(wfRoot, 'references', '00-流程总纲.md')
+  const sec = cut(outline, '## 完成与自动合并门', '## 七条')
+  assert.ok(/dw-worktree/.test(sec), '总纲完成门段未指向 dw-worktree')
+  assert.ok(/MUST NOT 复述/.test(sec), '总纲完成门段未声明判据不在此处')
+  assert.ok(!/本门同时结算文档生命周期/.test(outline), '总纲残留执行式表述')
 })
 
 test('新判据落在 D 轴真正会读的那一段里（不是只出现在文件某处）', () => {
   // 上一版这三条是**整文件级**正则：判据写在类目表、而 D 轴执行的 §3 第 1 步里没有，
   // 断言照样绿——C1 那个 P0 就是这么溜过去的。现在切到使用该判据的段内再断言。
-  const gov = read(wfRoot, 'references', 'core', '文档治理.md')
+  const gov = docGovernance()
   const step1 = cut(gov, '1. **盘点本次触碰的权威面**', '2. **比对')
   const step2 = cut(gov, '2. **比对', '3. **逐篇判定')
   const step3 = cut(gov, '3. **逐篇判定')
@@ -178,7 +172,7 @@ test('新判据落在 D 轴真正会读的那一段里（不是只出现在文�
 test('权威面清单只有一份，且引用它的地方数量词对得上', () => {
   // 曾经两份枚举并存且内容不一致（一份有"对外契约"、另一份有"废弃标记/兼容窗口"），
   // 于是加第七类时只加进了没人读的那一份，还引出"七类/前六类/实际6条"三个数字打架。
-  const gov = read(wfRoot, 'references', 'core', '文档治理.md')
+  const gov = docGovernance()
   const step1 = cut(gov, '1. **盘点本次触碰的权威面**', '2. **比对')
   const rows = [...step1.matchAll(/^\s*\| \d+ \| /gm)].length
   assert.ok(rows >= 6, `第 1 步的权威面表只解析出 ${rows} 行，断言本身可能已失效`)
@@ -200,7 +194,7 @@ test('权威面清单只有一份，且引用它的地方数量词对得上', ()
 })
 
 test('「待归并」例外与它修饰的判据同处（读表的人和读 prompt 的人不能得到两个结论）', () => {
-  const rev = read(wfRoot, 'references', 'core', '代码评审纪律.md')
+  const rev = reviewGate()
   // 切段锚点取 D 行的**下一行**。2.15.0 在 D 与 E 之间插进了 S 行，锚点若仍写 E 行，
   // 切出来的段会连 S 行一起吞掉，这条断言就从"D 行里有没有待归并"悄悄变成"D 与 E 之间有没有"。
   const row = cut(rev, '| **D 文档轴**', '| **S skill 原则轴**')

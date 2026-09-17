@@ -5,7 +5,7 @@ description: "规范文本、文档、注释与提示词的写作标准：删改
 
 # dw-prose：把话写全，再把多余的删掉
 
-本 skill 管**一段文字该写什么、该删什么**：规范文本、文档、代码与测试注释、提示词、报错与界面文案。文档放哪、生命周期与归档归 `dw-doc-governance`；skill 的结构与触发归 `skill-principle`；spec 的章节与零上下文要求归 `dw-workflow` 的 `references/core/spec写作纪律.md`。本 skill 是判断标准，不是逐条勾选的清单。
+本 skill 管**一段文字该写什么、该删什么**：规范文本、文档、代码与测试注释、提示词、报错与界面文案。文档放哪、生命周期与归档归 `dw-doc-governance`；skill 的结构与触发归 `skill-principle`；spec 的章节与零上下文要求归 `dw-workflow` 的 `spec写作纪律.md`。本 skill 是判断标准，不是逐条勾选的清单。
 
 ## 输入
 

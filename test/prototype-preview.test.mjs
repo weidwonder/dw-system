@@ -922,7 +922,7 @@ test('正常放行把已约定的条目从真批注块里清掉', () => {
 
 test('文档按次产出范式带日期前缀', () => {
   const docs = [
-    'dw-system/skills/dw-workflow/references/core/文档治理.md',
+    'dw-system/skills/dw-doc-governance/references/文档治理.md',
     'dw-system/skills/dw-prd/references/00-prd生成流程.md',
   ]
   docs.forEach((rel) => {

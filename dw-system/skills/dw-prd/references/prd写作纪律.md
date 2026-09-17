@@ -26,7 +26,7 @@
 - **无 card 依据的 cite 视为幻觉**：`discover`/`find-scenes` 对本次意图零命中时，MUST 转去读源码并按表标注，**MUST NOT 编造 cite**、MUST NOT 凭空写现状。零命中只说明这个模块的卡片还没建，MUST NOT 读成"这个项目没有卡片层"。
 - **绝不把意图/愿景写成现状**。PRD 描述的"想要的样子"与线上"已落地的事实"常背离；把二者混写会误导后续设计。显式分区：现状 = 事实，目标 = 意图。
 - PRD 意图与代码事实冲突时，标为**待人工复核**，不替产品拍板。
-- **MUST NOT 从 PRD 生成 card 事实**：PRD 在代码事实链路上只做 scope 约束与业务语境补充；本次现读源码搞清楚的模块按 `00-prd生成流程.md` §批 B 第 3 步标出来，由 `dw-workflow` 回到源码补卡。呼应姊妹 skill 的 `<skills 根>/dw-workflow/references/core/代码事实纪律.md` §9（`<skills 根>` 的定义见 `00-prd生成流程.md` §批 B → 现状怎么取证）。
+- **MUST NOT 从 PRD 生成 card 事实**：PRD 在代码事实链路上只做 scope 约束与业务语境补充；本次现读源码搞清楚的模块按 `00-prd生成流程.md` §批 B 第 3 步标出来，由 `dw-workflow` 回到源码补卡。呼应姊妹 skill 的 `<skills 根>/dw-code-facts/references/代码事实纪律.md` §9（`<skills 根>` 的定义见 `00-prd生成流程.md` §批 B → 现状怎么取证）。
 
 ## 5. 无占位符成稿
 

@@ -1,15 +1,12 @@
 {
   "files": {
-    "CLAUDE.md": 102633,
-    "dw-system/skills/dw-prd/SKILL.md": 19507,
-    "dw-system/skills/dw-prd/references/00-prd生成流程.md": 45593,
-    "dw-system/skills/dw-prd/references/UI原型纪律.md": 43610,
-    "dw-system/skills/dw-workflow/references/core/00-流程总纲.md": 36980,
-    "dw-system/skills/dw-workflow/references/core/代码评审纪律.md": 53431,
-    "dw-system/skills/dw-workflow/references/core/文档治理.md": 35656,
-    "dw-system/skills/dw-workflow/references/core/步骤-1-7-设计与实现.md": 24837,
-    "dw-system/skills/dw-workflow/references/core/路径-lean.md": 121967,
-    "dw-system/skills/dw-workflow/assets/config-snippets/base.md": 15909
+    "CLAUDE.md": 12000,
+    "dw-system/skills/dw-workflow/assets/config-snippets/base.md": 4800,
+    "dw-system/skills/dw-workflow/assets/config-snippets/collab-solo.md": 1400,
+    "dw-system/skills/dw-workflow/assets/config-snippets/collab-team.md": 1400,
+    "dw-system/skills/dw-prd/SKILL.md": 18998,
+    "dw-system/skills/dw-prd/references/00-prd生成流程.md": 45536,
+    "dw-system/skills/dw-prd/references/UI原型纪律.md": 43601
   },
   "classes": [
     {
@@ -29,8 +26,8 @@
       "groupBy": 2,
       "max": 75000,
       "overrides": {
-        "dw-workflow": 419684,
-        "dw-prd": 135470
+        "dw-workflow": 130247,
+        "dw-prd": 135359
       }
     }
   ],

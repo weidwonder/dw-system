@@ -13,7 +13,7 @@ import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
-import { initScaffold } from '../dw-system/skills/dw-workflow/scripts/ctx/src/commands.js'
+import { initScaffold } from '../dw-system/skills/dw-code-facts/scripts/ctx/src/commands.js'
 // 计数词豁免清单的唯一定义处，两条机器闸共用一份（详见该文件抬头）。
 import { EXEMPT_DIRS, EXEMPT_FILES } from './counter-word-exempt.mjs'
 
@@ -94,107 +94,59 @@ test('skills/ 下 markdown 里的相对链接都指向真实存在的文件', ()
   assert.deepEqual(broken, [], '断链：\n' + broken.join('\n'))
 })
 
-// 常驻集合自 2.4.x 的渐进式披露改造起由九篇缩到六份（spec §4.1 判定结果 / FR-002）：
-// 入口 + core 四篇 + collab 一份。`文档治理.md` / `spec写作纪律.md` / `worktree开发纪律.md`
-// 三篇移出常驻，文件仍在，改由 SKILL.md 的〈加载点清单〉在触发时才取。
-const RESIDENT_CORE = ['00-流程总纲.md', '代码事实纪律.md', '用户沟通纪律.md', '上下文卫生.md']
-const MOVED_OUT_OF_RESIDENT = ['文档治理.md', 'spec写作纪律.md', 'worktree开发纪律.md']
+const SKILLS = [
+  'dw-workflow', 'dw-prd', 'dw-review-gate', 'dw-doc-governance',
+  'dw-code-facts', 'dw-bug-diagnosis', 'dw-worktree', 'dw-prose',
+]
 
-test('SKILL.md 声明的常驻集合是六份，移出的三篇不再算常驻', () => {
-  const skill = read(workflowRoot, 'SKILL.md')
-  assert.match(skill, /常驻只有六份/, 'SKILL.md 必须声明常驻只有六份（入口 + core 四篇 + collab 一份）')
-  assert.doesNotMatch(
-    skill,
-    /常驻 core 七篇|常驻七篇|常驻九篇/,
-    '旧的"常驻 core 七篇"表述 MUST 已删除（spec §8.2 替换清单）',
-  )
-  for (const name of RESIDENT_CORE) {
-    assert.ok(skill.includes(name), `常驻分册未在入口点名：${name}`)
-    assert.ok(
-      existsSync(path.join(workflowRoot, 'references', 'core', name)),
-      `常驻分册缺失：${name}`,
-    )
+test('每个 skill 都有入口；dw-workflow 入口点名其余每一个，供流程走到那一步时加载', () => {
+  const entry = read(workflowRoot, 'SKILL.md')
+  for (const name of SKILLS) {
+    assert.ok(existsSync(path.join(skillsRoot, name, 'SKILL.md')), `缺 skill 入口：${name}/SKILL.md`)
+    if (name !== 'dw-workflow') assert.ok(entry.includes(`\`${name}\``), `dw-workflow 入口没有点名 ${name}`)
   }
-  // 第六份是 collab/ 二选一，入口必须指出这件事
-  assert.match(skill, /collab\/[^\n]*二选一/, '入口必须写明 collab/ 必加载一份')
-  for (const f of ['solo.md', 'team.md']) {
-    assert.ok(existsSync(path.join(workflowRoot, 'references', 'collab', f)), `collab 分册缺失：${f}`)
-  }
-  // 移出常驻的三篇：文件仍在（按加载点取），但 MUST NOT 再被算进常驻集合
-  for (const name of MOVED_OUT_OF_RESIDENT) {
-    assert.ok(
-      existsSync(path.join(workflowRoot, 'references', 'core', name)),
-      `移出常驻 ≠ 删除文件，缺失：${name}`,
-    )
-    assert.ok(skill.includes(name), `移出常驻的分册必须出现在加载点清单里：${name}`)
-  }
-  // engineering-context设计.md 是条件加载，但必须存在（代码事实纪律引用它）
-  assert.ok(existsSync(path.join(workflowRoot, 'references', 'core', 'engineering-context设计.md')))
-  // capability/ 只剩代码图谱一篇
-  const capability = readdirSync(path.join(workflowRoot, 'references', 'capability'))
-  assert.deepEqual(capability.sort(), ['graph.md'], 'capability/ 应只剩 graph.md')
+  const onDisk = readdirSync(skillsRoot).filter(d => existsSync(path.join(skillsRoot, d, 'SKILL.md'))).sort()
+  assert.deepEqual(onDisk, [...SKILLS].sort(), 'skills/ 下的 skill 集合与本清单不一致')
 })
 
-test('入口自带工作区隔离门要点：建不建、目录取哪个字段、过不了怎么办（AC-004）', () => {
-  // 这道门在 Triage 之前，那一刻 worktree开发纪律.md 还没加载，要点只能驻留入口。
-  const skill = read(workflowRoot, 'SKILL.md')
+test('工作区隔离门的要点在 dw-worktree 入口：建不建、目录取哪个字段、过不了怎么办', () => {
+  // 这道门在读任何分册之前就要判过不过，要点必须在入口里。
+  const skill = read(skillsRoot, 'dw-worktree', 'SKILL.md')
   assert.match(skill, /全程使用独立 worktree/, '入口必须给出"必须建 worktree"')
   assert.match(skill, /worktree-dir/, '入口必须点名目录取自哪个字段')
   assert.match(skill, /\.\/\.worktrees\//, '入口必须给出 worktree-dir 缺省值')
   assert.match(skill, /MUST NOT 替用户 stash/, '入口必须写明主工作树不干净时中止而不是替用户 stash/reset')
 })
 
-test('加载点清单每行四个字段齐全', () => {
-  const skill = read(workflowRoot, 'SKILL.md')
-  const table = skill.slice(skill.indexOf('## 加载点清单'))
-  assert.ok(table.length > 0, '找不到〈加载点清单〉节')
-  const rows = table
-    .split('\n')
-    .filter(l => l.startsWith('| ') && !/^\|\s*-+/.test(l) && !l.startsWith('| 触发条件'))
-  // 每行四个 REQUIRED 字段齐（触发条件 / 加载对象 / 为什么此刻需要 / 适用路径）
-  for (const row of rows) {
-    const cells = row.replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim())
-    assert.equal(cells.length, 4, `加载点行的字段数不是 4：${row}`)
-    for (const c of cells) assert.ok(c.length > 0, `加载点行有空字段：${row}`)
-    assert.match(cells[3], /^(Lean|完整|两条)$/, `适用路径取值非法（Lean/完整/两条）：${row}`)
+test('每个 skill 入口点名的 references 文件都存在，且每份 references 都被入口点名', () => {
+  const problems = []
+  for (const name of SKILLS) {
+    const root = path.join(skillsRoot, name)
+    const entry = read(root, 'SKILL.md')
+    const refDir = path.join(root, 'references')
+    if (!existsSync(refDir)) continue
+    // 前面带 `/` 的是指向别的 skill 的路径（`<skills 根>/dw-x/references/…`），不归本入口核对。
+    for (const m of entry.matchAll(/(?<![\/\w])(references\/[^`\s)(\]]+\.md)/g)) {
+      if (!existsSync(path.join(root, ...m[1].split('/')))) problems.push(`${name}/SKILL.md 点名了不存在的 ${m[1]}`)
+    }
+    for (const f of readdirSync(refDir)) {
+      if (!f.endsWith('.md')) continue
+      if (!entry.includes(f)) problems.push(`${name}/references/${f} 没有被入口点名（读者无从知道何时读它）`)
+    }
   }
-  // 十四个触发条件的锚点词（spec §7，稳定标识是触发条件文本本身）
-  for (const anchor of [
-    '每次唤起',
-    'merge-gate` 缺省',
-    '要建 worktree',
-    'Triage 四问全否',
-    'Triage 任一为是',
-    '红回路门命中',
-    '动笔写 spec',
-    '登记替换清单',
-    '过代码评审门',
-    '进入测试阶段',
-    '覆盖度台账',
-    '索引分层',
-    '过完成与自动合并门',
-    '过载信号',
-  ]) {
-    assert.ok(table.includes(anchor), `加载点清单缺少触发条件：${anchor}`)
-  }
+  assert.deepEqual(problems, [], problems.join('\n'))
 })
 
-test('路由不再探测 engineering-context——它是必备资产，不参与分档', () => {
+test('路由不探测 engineering-context——它是必备资产，不参与分档', () => {
   const skill = read(workflowRoot, 'SKILL.md')
-  const routing = skill.slice(skill.indexOf('## 路由逻辑'), skill.indexOf('## 关键纪律'))
-  assert.ok(routing.length > 0, '找不到 §路由逻辑 段')
+  const routing = skill.slice(skill.indexOf('## 路由'), skill.indexOf('## 读取条件'))
+  assert.ok(routing.length > 0, '找不到 §路由 段')
   assert.match(
     routing,
-    /MUST NOT 探测 engineering-context/,
+    /MUST NOT 探测 `engineering-context\/`/,
     '路由第 1 步必须显式禁止把 engineering-context 当探测开关',
   )
-  // 探测段里 capability-registry 不该作为判据出现
-  const detect = routing.slice(0, routing.indexOf('2. 【读标记块】'))
-  assert.doesNotMatch(
-    detect.replace(/MUST NOT 探测 engineering-context[\s\S]*/, ''),
-    /capability-registry\.md 存在/,
-    '探测步骤 MUST NOT 再把 registry 是否有数据行当判据',
-  )
+  assert.doesNotMatch(routing, /capability-registry\.md 存在/, '探测步骤 MUST NOT 把 registry 是否有数据行当判据')
 })
 
 test('注入片段里的 ctx 条目是无条件的，没有退回条件式', () => {
@@ -204,7 +156,7 @@ test('注入片段里的 ctx 条目是无条件的，没有退回条件式', () 
   assert.match(base, /MUST NOT 退回 grep/, 'base.md 必须保留"不退回 grep"这条底线')
   assert.match(
     base,
-    /查不到卡片[\s\S]{0,200}?补上/,
+    /查不到卡片[\s\S]{0,200}?补[上卡]/,
     'base.md 必须写明"查不到卡片就读源码并当场补卡"',
   )
   // 2.0.0 的条件式措辞：本项目若存在 …… 且其中至少有一行不含【】的真实数据行
@@ -232,7 +184,7 @@ test('初始化会建完整骨架，且明令禁止用 --minimal', () => {
 })
 
 test('分流默认倾向是无条件的，不再由任何东西分档', () => {
-  const outline = read(workflowRoot, 'references', 'core', '00-流程总纲.md')
+  const outline = read(workflowRoot, 'references', '00-流程总纲.md')
   const section = outline.slice(
     outline.indexOf('### 默认倾向'),
     outline.indexOf('## 完整流程步骤索引'),
@@ -256,7 +208,7 @@ test('分流默认倾向是无条件的，不再由任何东西分档', () => {
 })
 
 test('总纲的不裁剪护栏含"补卡不裁剪"这一条', () => {
-  const outline = read(workflowRoot, 'references', 'core', '00-流程总纲.md')
+  const outline = read(workflowRoot, 'references', '00-流程总纲.md')
   assert.match(outline, /七条"不裁剪"护栏/, '护栏从六条增至七条')
   assert.match(outline, /7\. \*\*补卡不裁剪。\*\*/, '第 7 条必须是补卡不裁剪')
   // 导航行也要同步，否则读者按目录跳不过去
@@ -264,13 +216,15 @@ test('总纲的不裁剪护栏含"补卡不裁剪"这一条', () => {
 })
 
 test('代码事实纪律给出了补一张卡片的最小形态，且四项齐全', () => {
-  const disc = read(workflowRoot, 'references', 'core', '代码事实纪律.md')
+  const disc = read(skillsRoot, 'dw-code-facts', 'references', '代码事实纪律.md')
   assert.match(disc, /### 4\.1 补一张卡片的最小形态/)
-  for (const field of ['职责', '对外接口', '陷阱项', '确认时间']) {
-    assert.match(disc, new RegExp(`\\| ${field} \\|`), `最小形态缺字段：${field}`)
+  for (const field of ['职责', '权威实现与对外接口', '陷阱项', '确认']) {
+    assert.match(disc, new RegExp(`\\| ${field} \\|`), `域卡最小形态缺小节：${field}`)
   }
   assert.match(disc, /MUST NOT 顺延/, '必须写明补卡不许顺延')
-  assert.match(disc, /只增不减/, '必须写明卡片库只增不减')
+  assert.match(disc, /事实不丢/, '必须写明卡片事实不丢')
+  assert.match(disc, /MUST NOT 被读成"卡片可以无限长"/, '"事实不丢"必须带着体积上限一起出现')
+  assert.match(disc, /新开域 MUST 先改地图卡/, '必须写明新开域先改地图卡')
 })
 
 test('ctx init 生成的完整骨架含 cards/ 目录（初始化依赖这一点）', () => {
@@ -288,9 +242,9 @@ test('ctx init 生成的完整骨架含 cards/ 目录（初始化依赖这一点
 
 test('ctx CLI 的对外契约没有被这次变更碰到', () => {
   // spec §8 明确：命令、参数、输出格式完全兼容，不改。安装器还靠 HELP 首行做签名校验。
-  const cli = read(workflowRoot, 'scripts', 'ctx', 'src', 'cli.js')
+  const cli = read(skillsRoot, 'dw-code-facts', 'scripts', 'ctx', 'src', 'cli.js')
   assert.match(cli, /ctx — Engineering Context CLI/, 'HELP 首行签名串 MUST NOT 变（install.mjs 靠它判定）')
-  const pkg = JSON.parse(read(workflowRoot, 'scripts', 'ctx', 'package.json'))
+  const pkg = JSON.parse(read(skillsRoot, 'dw-code-facts', 'scripts', 'ctx', 'package.json'))
   assert.equal(pkg.name, 'ctx')
   assert.ok(pkg.bin && pkg.bin.ctx, 'bin.ctx MUST NOT 变（npm link 依赖它）')
   // --minimal 仍然可用，只是不再是初始化的推荐路径
@@ -335,18 +289,13 @@ const CN_NUM = { 一: 1, 二: 2, 两: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7,
 // 分工：`test/counter-word.test.mjs` 管"别处还有没有残留数字"（受检词表是闭集，含豁免清单）；
 // 这里只管 `counter-word` 管不到的那一半——**权威文件里写的那个数字与实际条目数是否一致**。
 // 两条缺一不可：只查取值，数字会被复制到别处；只查出现位置，权威处写错数字照样全绿。
-const GUARDRAIL_AUTHORITY = 'references/core/00-流程总纲.md'
-// 豁免清单**从 counter-word-exempt.mjs 取**，不在这里另抄一份：入口与 Lean 自足册按设计必须
-// 复述，config-snippets/ 被注入目标项目、读它的 AI 没有本 skill 的文件可跳转。此前两份各写
-// 一遍、只靠注释"保持一致"手工同步，两边写法还不同，漂了不会报任何错——同一份判据 MUST 只有
-// 一处定义。
-// 共用清单的基准是 `dw-workflow/`，这里的 skillFiles 相对 repoRoot 且**含姊妹 skill
-// `dw-prd/`**，所以 MUST 补回 `dw-workflow/` 前缀再匹配：直接拿裸的 `SKILL.md` 去
-// `includes`，会把 `dw-prd/SKILL.md` 一起豁免掉，静默放宽检查面。
-const GUARDRAIL_EXEMPT = [...EXEMPT_FILES, ...EXEMPT_DIRS].map((x) => `dw-workflow/${x}`)
+const GUARDRAIL_AUTHORITY = 'dw-workflow/references/00-流程总纲.md'
+// 豁免清单从 counter-word-exempt.mjs 取，不在这里另抄一份。它的路径基准是 `dw-system/skills/`，
+// 这里的 skillFiles 相对仓库根，所以补上前缀再比。
+const GUARDRAIL_EXEMPT = [...EXEMPT_FILES, ...EXEMPT_DIRS].map((x) => `dw-system/skills/${x}`)
 
 test('"不裁剪护栏"的条数只在总纲里出现，且与实际条目数一致', () => {
-  const outline = read(workflowRoot, 'references', 'core', '00-流程总纲.md')
+  const outline = read(workflowRoot, 'references', '00-流程总纲.md')
   const start = outline.indexOf('"不裁剪"护栏\n')
   assert.ok(start > 0, '找不到护栏小节')
   const section = outline.slice(start, outline.indexOf('\n## ', start))
@@ -378,7 +327,7 @@ test('"不裁剪护栏"的条数只在总纲里出现，且与实际条目数一
 })
 
 test('"N 个固定文件名例外"的计数词与文档治理里实际登记的个数一致', () => {
-  const gov = read(workflowRoot, 'references', 'core', '文档治理.md')
+  const gov = read(skillsRoot, 'dw-doc-governance', 'references', '文档治理.md')
   // 权威值 = 文档治理里被点名的固定文件名账本，逐个数出来
   const named = new Set(
     [...gov.matchAll(/`(bug修复历史\.md|测试场景覆盖度\.md|资产补建信号\.md)`/g)].map(m => m[1]),

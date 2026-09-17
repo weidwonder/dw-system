@@ -1,7 +1,7 @@
 # 文档索引（现行口径）
 
 > **本索引只列 `lifecycle: active` 的文档。** 已归并 / 被取代 / 已废弃的进 [归档索引](./index-archive.md)，文件仍在原路径，只是不再代表现行口径。
-> 规则见 `dw-system/skills/dw-workflow/references/core/文档治理.md` §文档生命周期与索引门控。创建、归档或重命名文档后**必须**同步本索引与归档索引。
+> 规则见 `dw-system/skills/dw-doc-governance/references/文档生命周期.md` §文档生命周期与索引门控。创建、归档或重命名文档后**必须**同步本索引与归档索引。
 
 ## 需求真相源与还没做的事（`docs/` 根）
 
