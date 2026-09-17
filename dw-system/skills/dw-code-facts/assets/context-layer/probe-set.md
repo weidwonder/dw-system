@@ -77,7 +77,7 @@
 | # | 类型 | 输入 | 期望 | severity | weight | status | authority_refs |
 |---|---|---|---|---|---|---|---|
 | 1 | capability-mapping | 【能力名，如 背单词记录】 | 【repo :: POST /v2/xxx；最小 schema 只写 POST /v2/xxx】 | scored | 1 | | 【capability-registry.md#能力名】 |
-| 2 | deprecated-trap | 【废弃接口，如 POST /v1/xxx】 | deprecated | blocking | 1 | | 【cards/<repo>.md#废弃 / 中间产物标记】 |
+| 2 | deprecated-trap | 【废弃接口，如 POST /v1/xxx】 | deprecated | blocking | 1 | | 【cards/<repo>/<域>.md#陷阱项】 |
 | 3 | requirement-reachable | 【需求真相源，如 docs/index.md 或 README.md#需求】 | ≤2 跳 | blocking | 1 | | 【README.md 的入口链接结构】 |
 | 4 | architecture-reachable | 【架构真相源，如 README.md#架构与边界】 | ≤2 跳 | blocking | 1 | | 【README.md#架构与边界】 |
 | 5 | implementation-usable | 【架构节，如 README.md#架构与边界】 | usable | scored | 2 | | 【架构节列出的模块路径】 |

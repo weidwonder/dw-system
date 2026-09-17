@@ -52,7 +52,7 @@ function isProseLine(line) {
   return false;
 }
 
-/** 取 card 中"废弃/中间产物标记 ★防误用"段落的真实条目（跳过占位与说明行）。 */
+/** 取 card 中〈陷阱项〉（旧模板为"废弃 / 中间产物标记"）段落的真实条目，跳过占位与说明行。 */
 function deprecationMarkers(card) {
   const key = Object.keys(card.sections).find(isDeprecationSectionTitle);
   if (!key) return [];
@@ -67,7 +67,7 @@ function deprecationMarkers(card) {
  * 匹配 card 全文与 registry 行，按命中分排序。
  * **registry 单独出结果**：最小合法 schema 只有三列、常常一张 card 都没有（"三行 registry 即可起步"），
  * 若只在 card 命中时才返回，registry-only 的项目会永远收到"未命中任何 card"。
- * out-of-scope 警告（"哪些是陷阱、别当权威用"）来自：命中 card 的废弃/中间产物标记段，
+ * out-of-scope 警告（"哪些是陷阱、别当权威用"）来自：命中 card 的〈陷阱项〉段，
  * 与 registry 中命中能力的"陷阱项（废弃或中间产物）"列——这是本层的立身之本，不能只在零命中时给。
  * @returns {{cards:Array, capabilities:Array, outOfScope:string[]}}
  */

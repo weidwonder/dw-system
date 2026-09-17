@@ -26,6 +26,9 @@
 
 ## 技术欠账
 
+- 2026-09-17 ｜ dw-workflow ｜ `references/` 合计约 130KB，目标 75KB，上限暂冻结在实测值（`test/doc-budgets.json` 的 `overrides`）。下一步候选：测试阶段三篇（`步骤-8-10-测试.md`、`测试资产纪律.md`）与 `AI-LLM-overlay.md` 是否各自成 skill，由拍板人定
+- 2026-09-17 ｜ dw-prd ｜ 入口约 19KB（目标 12KB）、`00-prd生成流程.md` 与 `UI原型纪律.md` 各约 45KB（目标 24KB）、`references/` 合计约 135KB（目标 75KB），上限暂冻结在实测值。3.0 只给它改了名，没有按两条总纲重组
+- 2026-09-17 ｜ 跨模块 ｜ 三个已装项目（myclaws、agent_fs、aiudit_platform）的存量卡片是按任务追加的单文件大卡，需各自跑 `ctx lint-cards --init-baseline` 后按业务域拆成地图卡加域卡
 
 - 2026-08-27 ｜ dw-prd ｜ 下次真跑一遍完整产 PRD 流程时回看：产出的原型里“写进屏幕内容的说明文字”是否为零、每屏该说的话是否都在自己的注解区里
 - 2026-08-27 ｜ dw-prd ｜ 批注图钉在**祖先已建立层叠上下文**（`transform` / `filter` / `opacity<1` / 带 `z-index` 的定位祖先）的画布里仍可能被遮挡：`z-index: 880` 只在最近的层叠上下文内有效，拉多高都出不去。彻底解法是把图钉挂到 body 下的覆盖层按 `getBoundingClientRect()` 定位（缺陷报告的修法 C），需处理滚动、resize 与 `serialize()` 剥离；2026-08-27 那次已按修法 A+B 修掉定位改写与 `overflow` 裁切两项，见 `docs/spec/2026-08-27-原型批注框架绝对定位与图钉可见性-lean-change-spec.md`
