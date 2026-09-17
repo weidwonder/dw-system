@@ -1,6 +1,6 @@
 <!-- dw-workflow:start -->
 > **本项目采用 dw-workflow**
-> (mode="team" collaboration="solo|team" merge-gate="direct|pr" worktree-dir="./.worktrees/")
+> (collaboration="solo|team" merge-gate="direct|pr" worktree-dir="./.worktrees/")
 >
 > - 唤起 `dw-workflow` / `dw-prd` skill 时按本块字段路由，MUST NOT 再问一次；本项目有没有代码图谱索引由 skill 每次运行时探测得出，MUST NOT 写死在本块里。
 > - 文档目录固定：spec → `docs/spec/`，plan → `docs/plan/`，report → `docs/report/`。

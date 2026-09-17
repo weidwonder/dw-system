@@ -28,10 +28,13 @@ const install = (target, ...args) =>
 const read = (...parts) => readFileSync(path.join(...parts), 'utf8')
 const write = (file, body) => writeFileSync(file, body)
 
-const legacyBlock = mode => `# Fixture\n\n${START}\n> **本项目采用 dw-workflow** (mode="${mode}")\n${END}\n`
+// 1.x 旧块：旧名字的起止行 + 只有 mode 一个字段。
+const LEGACY_START = '<!-- ai-dev-workflow:start -->'
+const LEGACY_END = '<!-- ai-dev-workflow:end -->'
+const legacyBlock = mode => `# Fixture\n\n${LEGACY_START}\n> **本项目采用 ai-dev-workflow** (mode="${mode}")\n${LEGACY_END}\n`
 const newBlock = (collaboration, mergeGate, worktreeDir = './.worktrees/') =>
   `# Fixture\n\n${START}\n> **本项目采用 dw-workflow**\n`
-  + `> (mode="team" collaboration="${collaboration}" merge-gate="${mergeGate}" worktree-dir="${worktreeDir}")\n${END}\n`
+  + `> (collaboration="${collaboration}" merge-gate="${mergeGate}" worktree-dir="${worktreeDir}")\n${END}\n`
 
 function blockOf(text) {
   const start = text.indexOf(START)
@@ -87,9 +90,9 @@ test('旧 mode="personal" 迁移为 collaboration="solo" / merge-gate="direct"',
       assert.match(block, /collaboration="solo"/, entry)
       assert.match(block, /merge-gate="direct"/, entry)
       assert.match(block, /worktree-dir="\.\/\.worktrees\/"/, entry)
-      // 墓碑字段：旧 skill 读到不硬失败；新 skill 完全忽略（spec §8.3）
-      assert.match(block, /mode="team"/, entry)
-      assert.doesNotMatch(block, /mode="personal"/, entry)
+      // 新块不含 mode；旧名字的块随同一次写入删除
+      assert.doesNotMatch(block, /mode="/, entry)
+      assert.doesNotMatch(read(target, entry), /ai-dev-workflow/, entry)
       // §8.1 第 1 条拍板"不兼容"：标记块正文里不得再出现旧概念
       assert.doesNotMatch(block, /个人版|团队版/, entry)
     }
@@ -113,8 +116,8 @@ test('旧 mode="team" 只映射协作维度，MUST NOT 推出别的任何东西'
     assert.match(block, /merge-gate="pr"/)
 
     // 旧 team 声明只映射协作维度，对别的任何东西零效力。
-    // 字段面：除四个已定义字段外不得多出任何字段。
-    assert.deepEqual(fieldNames(block), ['collaboration', 'merge-gate', 'mode', 'worktree-dir'])
+    // 字段面：除三个已定义字段外不得多出任何字段。
+    assert.deepEqual(fieldNames(block), ['collaboration', 'merge-gate', 'worktree-dir'])
     // 内容面：不得**声明**这个项目已经有代码图谱索引——那是每次唤起时探测出来的。
     assert.doesNotMatch(block, /(启用了?|已有|具备|已建)\s*(代码图谱|\.codegraph)/)
     // 2.1.0 起 ctx 指令**必须是无条件的**：代码事实层是必备资产，不再有"若存在 registry 才用 ctx"

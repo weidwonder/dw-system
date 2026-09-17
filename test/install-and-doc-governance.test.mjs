@@ -49,7 +49,7 @@ test('installer writes the Codex guard and backfills the workflow mode', () => {
   try {
     writeFileSync(
       path.join(target, 'CLAUDE.md'),
-      '# Fixture\n\n<!-- dw-workflow:start -->\nmode="personal"\n<!-- dw-workflow:end -->\n',
+      '# Fixture\n\n<!-- ai-dev-workflow:start -->\nmode="personal"\n<!-- ai-dev-workflow:end -->\n',
     )
 
     const result = spawnSync(process.execPath, localInstallArgs(target, '--yes'), {
@@ -263,11 +263,11 @@ test('a valid AGENTS block wins when the CLAUDE block is malformed', () => {
   try {
     writeFileSync(
       path.join(target, 'CLAUDE.md'),
-      '<!-- dw-workflow:start -->\nmode="invalid"\n<!-- dw-workflow:end -->\n',
+      '<!-- ai-dev-workflow:start -->\nmode="invalid"\n<!-- ai-dev-workflow:end -->\n',
     )
     writeFileSync(
       path.join(target, 'AGENTS.md'),
-      '<!-- dw-workflow:start -->\nmode="personal"\n<!-- dw-workflow:end -->\n',
+      '<!-- ai-dev-workflow:start -->\nmode="personal"\n<!-- ai-dev-workflow:end -->\n',
     )
 
     const result = spawnSync(process.execPath, localInstallArgs(target, '--yes'), { cwd: repoRoot, encoding: 'utf8' })
@@ -299,7 +299,7 @@ test('an AGENTS.md symlinked to CLAUDE.md keeps the link and is written only onc
   try {
     writeFileSync(
       path.join(target, 'CLAUDE.md'),
-      '# Fixture\n\n<!-- dw-workflow:start -->\nmode="personal"\n<!-- dw-workflow:end -->\n\nkeep me\n',
+      '# Fixture\n\n<!-- ai-dev-workflow:start -->\nmode="personal"\n<!-- ai-dev-workflow:end -->\n\nkeep me\n',
     )
     if (!trySymlink('CLAUDE.md', path.join(target, 'AGENTS.md'), t)) return
 
@@ -322,7 +322,7 @@ test('both entries symlinked to one shared file receive a single set of blocks',
   try {
     mkdirSync(target)
     const shared = path.join(root, 'shared-guide.md')
-    writeFileSync(shared, '# Shared\n\n<!-- dw-workflow:start -->\nmode="team"\n<!-- dw-workflow:end -->\n')
+    writeFileSync(shared, '# Shared\n\n<!-- ai-dev-workflow:start -->\nmode="team"\n<!-- ai-dev-workflow:end -->\n')
     if (!trySymlink(path.join('..', 'shared-guide.md'), path.join(target, 'CLAUDE.md'), t)) return
     if (!trySymlink(path.join('..', 'shared-guide.md'), path.join(target, 'AGENTS.md'), t)) return
 
@@ -334,7 +334,8 @@ test('both entries symlinked to one shared file receive a single set of blocks',
     const guide = readFileSync(shared, 'utf8')
     assert.equal(countMatches(guide, /dw-workflow:start/g), 1)
     assert.equal(countMatches(guide, /dw-system:codex-conflicts:start/g), 1)
-    assert.match(guide, /mode="team"/)
+    assert.match(guide, /collaboration="team"/)
+    assert.doesNotMatch(guide, /ai-dev-workflow|mode="/)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
