@@ -83,7 +83,7 @@ test('packed npm command launches the installer help', () => {
     )
 
     assert.equal(executed.status, 0, executed.stderr || executed.stdout)
-    assert.match(executed.stdout, /dw-workflow 项目安装器/)
+    assert.match(executed.stdout, /dw-system 安装器/)
     assert.match(executed.stdout, /github\.com\/weidwonder\/dw-system\.git/)
 
     const dryRun = runNpm(
