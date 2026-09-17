@@ -6,9 +6,11 @@
 
 **The methodology layer your AI coding stack is missing.** Prompting harder doesn't make AI coding reliable — engineering does. dw-system decomposes a raw requirement, layer by layer, into tasks so well-specified that **a zero-context AI agent can execute them dependably** — through Triage, top-level design, engineering specs, coding plans, coding, and tests.
 
-This is not a whiteboard framework. It is distilled from an AI-assisted development system **proven in real production across 50–60 brownfield repositories under bi-weekly, high-velocity iteration**, condensed into two skills.
+This is not a whiteboard framework. It is distilled from an AI-assisted development system **proven in real production across 50–60 brownfield repositories under bi-weekly, high-velocity iteration**, condensed into eight single-purpose skills that load only when the workflow reaches their step.
 
-Every project that installs it maintains one **mandatory foundation**: the `engineering-context/` **code-fact layer** (a capability registry + one card per repo). No tiers, no switch, regardless of project size or headcount. Initialization scaffolds it; from then on the rule is *need a fact about a module? Check the card first. No card? Read the source, then write the card on the spot* — committed with the same task branch, never deferred.
+The whole system follows **two governing principles**, which are also what it teaches your project: **every fact has exactly one home — everywhere else only links to it**; **normative text has a size budget — when over budget, relocate first, condense second, raise the ceiling last**.
+
+Every project that installs it maintains one **mandatory foundation**: the `engineering-context/` **code-fact layer** (a capability registry + one map card per repo + one domain card per business domain). No tiers, no switch, regardless of project size or headcount. Initialization scaffolds it; from then on the rule is *need a fact about a module? Check the card first. No card? Read the source, then write the card on the spot* — committed with the same task branch, never deferred.
 
 On top of that foundation, exactly two things vary:
 
@@ -20,7 +22,7 @@ On top of that foundation, exactly two things vary:
 **Why teams pick it:**
 
 - 🎯 **One-command install** into any project — Claude Code and Codex at the same time. Exactly one question (is anyone else developing with you); the code-fact layer is scaffolded for you, so there is no "tier" to pick.
-- 🧠 **Engineering Context as the moat** — capability registry, per-repo codebase cards, end-to-end scene blueprints, a frozen probe set as an anti-rot gate. Every fact cited (`path#anchor @confirmed-date`); **no cite = treated as hallucination**.
+- 🧠 **Engineering Context as the moat** — capability registry, fact cards split by business domain, end-to-end scene blueprints, a card health check (`ctx lint-cards`), a frozen probe set as an anti-rot gate. Every fact cited (`path#anchor @confirmed-date`); **no cite = treated as hallucination**.
 - 🪶 **Zero runtime dependencies** — pure Node.js standard library + markdown. No build step, no lockfile drift, nothing to babysit.
 - 🔒 **Discipline built in, not bolted on** — mandatory git-worktree isolation for every change, auto-merge only after all gates pass, business-language-only user communication, RFC2119 spec writing with zero placeholders.
 - ⚖️ **Right-sized process** — a 4-question Triage routes small changes to a one-page Lean Spec and real risk (AI behavior, security, cross-service, irreversibility, external commitments) to the full pipeline. No cargo-cult ceremony.
@@ -41,29 +43,26 @@ On top of that foundation, exactly two things vary:
 │   ├── plan/                  # coding plans / implementation & migration plans
 │   └── report/                # execution / verification / test / audit reports
 └── dw-system/
-    └── skills/                 # two skills (shared by Claude Code + Codex)
-        ├── dw-prd/             # PRD authoring: batched questioning + staged elicitation
-        │   ├── SKILL.md        # entry: read collaboration surface → PRD type routing → 4 question batches
-        │   ├── references/     # generation flow / business-language & writing discipline / UI prototype discipline / quality gate / review gate
-        │   │   └── collab/     # solo.md / team.md (one of the two, by collaboration surface)
-        │   └── assets/         # templates: change-prd (primary) / lite-issue-prd / product-prd
-        └── dw-workflow/    # the main pipeline, starting from an existing PRD
-            ├── SKILL.md        # entry: detect code graph → read collaboration surface → load; first call → initialization
-            ├── references/
-            │   ├── core/       # shared kernel: process / code facts / worktree / communication / writing / AI overlay / doc governance
-            │   ├── collab/     # solo.md / team.md (exactly one is always loaded)
-            │   └── capability/ # graph.md (loaded only when a code-graph index is detected; may be none)
-            ├── assets/         # templates: spec / plan / test / config snippets / cards
-            └── scripts/ctx/    # ctx CLI (Node.js, cross-platform): query code facts, no MCP required
+    ├── VERSION                 # current version
+    ├── migrations/             # per-version migration guides, printed by the installer on upgrade
+    └── skills/                 # eight skills (shared by Claude Code + Codex); each = SKILL.md + references/ + assets/ + scripts/
+        ├── dw-workflow/        # the two governing principles, routing & initialization, Triage, step order of both paths, confirmation gates, spec writing, test phase
+        ├── dw-prd/             # PRD authoring from scratch: batched questioning + three templates + HTML prototype (scripts/preview.mjs)
+        ├── dw-worktree/        # workspace isolation gate and completion/merge gate
+        ├── dw-code-facts/      # code-fact layer, the ctx CLI (scripts/ctx/), changelog & dependency declarations, code graph
+        ├── dw-bug-diagnosis/   # duplicate lookup, red loop, falsifiable hypotheses, regression guard
+        ├── dw-review-gate/     # code review gate: scope & backlog, object surfaces, review axes, sub-agent template, replacement ledger
+        ├── dw-doc-governance/  # where documents live, how long they live, how they retire; decision records
+        └── dw-prose/           # how to write normative text, comments, cards and prompts
 ```
 
-> **How the two skills divide the work**: `dw-prd` turns a raw idea into a PRD → that PRD is the input of `dw-workflow` Step 1 → the workflow carries on with Overview / Spec / Coding Plan / tests. To invoke `dw-prd`, just say "write me a PRD / turn this requirement into a requirements doc".
+> **How the skills divide the work**: `dw-prd` turns a raw idea into a PRD → that PRD is the input of `dw-workflow` Step 1 → the workflow fixes the order and loads each gate's own skill when it gets there. Every skill's entry states what it owns and which neighbour owns the rest. To invoke `dw-prd`, just say "write me a PRD / turn this requirement into a requirements doc".
 
 > **Communication boundary**: all user-facing communication uses business language. Users confirm the big architecture; module-level design is constrained through business questions only; detailed program design is completed autonomously by AI and engineering. `dw-prd` conversations and deliverables never require the user to understand implementation details.
 >
 > **Development isolation**: once inside `dw-workflow`, every document or code change lands in a dedicated git worktree first — Lean changes included. After all work and gates complete, the branch auto-merges into main; on failure the worktree is preserved, the user's uncommitted changes in the main working tree are never touched, and PR / CI / protected-branch rules are never bypassed.
 
-Design and implementation docs: `docs/spec/2026-07-06-ai-dev-system-design.md` and `docs/plan/2026-07-06-ai-dev-system.md` (in Chinese).
+Current design docs are indexed in [`docs/index.md`](docs/index.md); rationale and rejected alternatives live in `docs/decisions/` (in Chinese).
 
 ---
 
@@ -109,12 +108,12 @@ node /path/to/dw-system/install.mjs . --source-dir=/path/to/dw-system
 What the installer does:
 
 1. Fetches the `--ref` version of the `--repo` repository from GitHub and verifies it contains at least one valid skill; if download or verification fails, the target project is left untouched;
-2. Copies **all** skills of that version (by default `dw-prd` + `dw-workflow` with the `ctx` CLI) → `<project>/.claude/skills/` for Claude Code;
+2. Copies **all** skills of that version (the eight `dw-*` skills; the `ctx` CLI ships with `dw-code-facts`, the prototype tool with `dw-prd`) → `<project>/.claude/skills/` for Claude Code. When upgrading from a pre-3.0 install it first removes the old-named skill directories and version stamp and rewrites the old marker blocks under the new names, keeping the fields you configured verbatim;
 3. Copies the same skills → `<project>/.agents/skills/` for Codex;
 4. Appends an idempotent marker block to the target `.gitignore` that ignores the installed skill directories and the version stamp; it also **asks once** whether `docs/` and `engineering-context/` should be committed to git — **the default (just press enter) is "no"**, which adds both directories to that same block; answer "yes" and they are left completely untouched. The answer is recorded as a comment line inside the block, so re-installs reuse it and **never ask again**. `--yes` and non-interactive terminals (CI, unattended npx) settle on the same default `no`; if your `.gitignore` already ignores those directories itself, the installer neither asks nor takes those rules over. `--docs-in-git=yes|no` overrides all of the above and is also how you change your mind later;
 5. Merges (never overwrites) Claude Code's `enabledPlugins`, disabling conflicting plugins **for this project only**;
 6. Prompts how to handle conflicting Codex skills: project-level `AGENTS.md` auto-trigger constraints (default), or explicit global uninstall through the Codex CLI; if either entry file already has a workflow marker block, both `CLAUDE.md` and `AGENTS.md` are reconciled;
-7. Links the bundled `ctx` CLI as a **global `ctx` command** (`npm link` inside `<project>/.claude/skills/dw-workflow/scripts/ctx`) and verifies it by actually running `ctx --help`. If linking fails (no write permission, npm global bin not on PATH, somebody else's `ctx` command already on PATH), it degrades to a warning and prints the `node <skill>/scripts/ctx/src/cli.js <command>` fallback. On Windows, re-installing from a different project makes `npm link` fail with `EEXIST` because the global command directory still holds the `ctx` left by the previous install; the installer then checks whether that file is ours and, if so, overwrites it with `npm link --force` — if ownership cannot be established it touches nothing and prints the file path plus how to remove it — the CLI itself ships with the skill, so **a missing command never means ctx is unavailable**. Skip with `--no-ctx-link`;
+7. Links the bundled `ctx` CLI as a **global `ctx` command** (`npm link` inside `<project>/.claude/skills/dw-code-facts/scripts/ctx`) and verifies it by actually running `ctx --help`. If linking fails (no write permission, npm global bin not on PATH, somebody else's `ctx` command already on PATH), it degrades to a warning and prints the `node <skill>/scripts/ctx/src/cli.js <command>` fallback. On Windows, re-installing from a different project makes `npm link` fail with `EEXIST` because the global command directory still holds the `ctx` left by the previous install; the installer then checks whether that file is ours and, if so, overwrites it with `npm link --force` — if ownership cannot be established it touches nothing and prints the file path plus how to remove it — the CLI itself ships with the skill, so **a missing command never means ctx is unavailable**. Skip with `--no-ctx-link`;
 8. Keeps [codegraph](https://github.com/colbymchenry/codegraph) (local code knowledge graph CLI) up to date — `npm install -g @colbymchenry/codegraph` when missing, `codegraph upgrade` when outdated — then wires it into your agents (`--location=local` by default, this project only) and builds the project index with `codegraph init` unless `.codegraph/` already exists. Every failure here degrades to a warning; skip the whole step with `--no-codegraph`. Codex CLI has no project-local MCP config, so project-level wiring skips it and the installer prints the manual global command.
 
 | Plugin | Why it conflicts with this pipeline |
@@ -134,8 +133,8 @@ What the installer does:
 **Option C: one-time global install** — shared by all projects, but you must weigh the conflicting plugins yourself (globally installed means globally active, which may interfere with this pipeline).
 
 ```bash
-cp -r dw-system/skills/dw-prd dw-system/skills/dw-workflow ~/.claude/skills/
-cp -r dw-system/skills/dw-prd dw-system/skills/dw-workflow ~/.codex/skills/
+cp -r dw-system/skills/dw-* ~/.claude/skills/
+cp -r dw-system/skills/dw-* ~/.codex/skills/
 ```
 
 Then invoke the skill in any project (mentioning "AI-assisted development / dev workflow / generate a spec / coding plan" triggers it). The first call runs a one-time **initialization**: it asks exactly one question — **is anyone else developing this project with you** — writes the answer into the project root `CLAUDE.md` and `AGENTS.md`, and never asks again. Whether to maintain the code-fact layer is **never asked** — it is mandatory, and initialization scaffolds it inside the task worktree. Whether the project has a code-graph index is **never asked either**; it is detected at every run.
@@ -183,8 +182,9 @@ A local **code graph** (a code-graph index; the installer already handles this s
 |---|---|---|
 | `ctx init` | Scaffold the engineering-context directory | ✅ |
 | `ctx discover "<intent>"` | Intent → cards to load + out-of-scope warnings | ✅ |
-| `ctx get-card <repo> [section]` | Fetch a repo's Codebase Card | ✅ |
+| `ctx get-card <repo> [domain]` | Fetch a repo's map card; with a domain, reads the domain card `cards/<repo>/<domain>.md` first | ✅ |
 | `ctx find-scenes <keywords>` | End-to-end business scene blueprints | ✅ |
-| `ctx list-services` | List registered repos/capabilities | ✅ |
+| `ctx list-services` | List registered repos (with their domains) / capabilities | ✅ |
+| `ctx lint-cards` | Card health check: fixed sections, size budget, resolvable cites and four more rules; existing violations go into a shrink-only baseline | ✅ |
 | `ctx search-semantic "<q>"` | Semantic fallback when discover misses (local vector similarity) | ✅ |
 | `ctx probe` | Run the Frozen Probe Set anti-rot gate (self-check + ratchet + decay report) | ✅ |

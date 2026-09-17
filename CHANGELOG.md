@@ -1,6 +1,6 @@
 # CHANGELOG
 
-> 每次合并到主分支写一条；`不兼容` 条目以对外接口名开头，含旧调用方式 / 新调用方式 / 迁移步骤。规则见 `ai-dev-system/skills/ai-dev-workflow/references/core/代码事实纪律.md` §10.1。
+> 每次合并到主分支写一条；`不兼容` 条目以对外接口名开头，含旧调用方式 / 新调用方式 / 迁移步骤。规则见 `dw-system/skills/dw-code-facts/references/代码事实纪律.md` §10.1。
 > 2.17.0 之前的历史不回填：按版本看 git tag `v<版本>`，按设计依据看 `docs/spec/`。
 
 ## 未发布
@@ -14,6 +14,41 @@
 ### 修复
 
 ### 内部
+
+## 3.0.0 — 2026-09-17
+
+迁移指南：`dw-system/migrations/3.0.0.md`。
+
+### 不兼容
+- `ai-dev-workflow` / `ai-prd`（skill 名与安装目录）—— 旧：`.claude/skills/ai-dev-workflow/`、`.claude/skills/ai-prd/`（`.agents/` 同）；新：`dw-workflow`、`dw-prd` 及另外六个 `dw-*` skill；迁移：重跑安装器，旧目录与旧版本戳由它删除。
+- `<!-- ai-dev-workflow:start/end -->`（标记块起止行，Codex 约束块与 `.gitignore` 块同理）—— 旧：`ai-dev-workflow` / `ai-dev-system` 前缀；新：`dw-workflow` / `dw-system` 前缀；迁移：重跑安装器，三个字段与 `docs/` 入库决定逐字带入。
+- `mode`（标记块字段）—— 旧：新块仍写 `mode` 墓碑字段，skill 侧可据它推断协作面；新：新块不写 `mode`，skill 读到旧名字的块即请用户重跑安装器，推断只由安装器做；迁移：重跑安装器。
+- `ctx`（兜底调用路径与全局链接归属）—— 旧：`<skills 目录>/ai-dev-workflow/scripts/ctx/src/cli.js`；新：`<skills 目录>/dw-code-facts/scripts/ctx/src/cli.js`；迁移：重跑安装器重链全局命令，脚本里写死的路径手工改。
+- `路径-lean.md`（Lean 自足册）—— 旧：Lean 全程只读这一册，各篇判据在册内各有一份；新：一页步骤顺序，每一步的判据在对应 skill；迁移：无需动作。
+- `dw-workflow` 的 `references/core/`、`references/capability/`（分册路径）—— 旧：判据分册都在 `dw-workflow` 名下；新：评审门、文档治理、代码事实层、bug 诊断、worktree 纪律分属 `dw-review-gate`、`dw-doc-governance`、`dw-code-facts`、`dw-bug-diagnosis`、`dw-worktree`，`代码评审纪律.md` 拆为七篇、`文档治理.md` 拆出 `文档生命周期.md`；迁移：自己文档里写死了旧路径的手工改，逐小节去向见 `docs/report/2026-09-17-dw-3.0-规范去向清单.md`。
+- `assets/context-layer/card.md`（卡片模板）—— 旧：每仓一张单文件卡；新：地图卡 `card-map.md` + 域卡 `card-domain.md`，小节名固定；迁移：存量卡片仍读得出，跑一次 `ctx lint-cards --init-baseline`，之后碰到哪个域搬哪个域。
+- 注入标记块（正文）—— 旧：约 16KB，判据就地写全；新：约 5KB，只留常驻规则与指针；迁移：重跑安装器。
+- GitHub 仓库与 npm 包名 —— 旧：`weidwonder/ai-dev-system`；新：`weidwonder/dw-system`；迁移：安装命令改用新地址。
+
+### 新增
+- 两条总纲与〈归属表〉（`dw-workflow/SKILL.md`）：一个事实只有一个家；规范文本有体积上限，超限先搬走、再压缩、最后才抬上限。目标项目侧的归属表在 `文档治理.md`。
+- skill `dw-prose`：完整命题规则、各类文本必须写什么、只写现状、清理推理残留。
+- skill `dw-review-gate`、`dw-doc-governance`、`dw-code-facts`、`dw-bug-diagnosis`、`dw-worktree`：各带入口与〈读取条件〉表。
+- `文档治理.md` §决策记录：来历与被否决方案的唯一去处；索引每条一行。
+- `ctx lint-cards`：卡片体检七条规则（固定小节、体积、带日期的小节名、cite、域名近似重复、registry 指针、陷阱项噪音）与只减不增的基线 `cards-lint-baseline.json`。
+- `ctx` 域卡：`get-card <repo> <域>` 先读 `cards/<repo>/<域>.md`；`discover`、`search-semantic`、`probe` 覆盖域卡；`list-services` 输出带 `domains`。
+- `ctx probe` 题型 `authority-unique`（别名〈权威面唯一〉）。
+- 安装器：旧版残留清理（计划输出单列一段，`--dry-run` 同样打印）；旧名字集中在 `LEGACY` 表。
+- 评审门文档轴与 skill 原则轴的"同一事实有没有两个家"检查项。
+
+### 变更
+- 代码事实纪律 §4.2「只增不减」改为「事实不丢，体积有上限」：地图卡 8,000、域卡 16,000、registry 单格 300 字节，超限先搬来历再按域拆。
+- 卡片里指向源码的 cite 以 `路径#符号` 为主，行号可附。
+- `ctx` 读最近确认日期的顺序：〈确认〉小节 → 〈Freshness / Provenance〉小节 → 全文第一个日期；标题含"陷阱"的小节整节按误用警告处理。
+
+### 内部
+- 机器闸换代：`wording-redline`、`resident-budget`、`number-drift`、`contract-sync`、`lean-selfcontained` 退役；新增体积清单闸 `doc-budgets`、规范去向清单闸 `rule-destinations`、规范句重复检测闸 `single-home`、`installer-legacy-upgrade`、`ctx-domain-cards`。契约测试改问"判据在它的家里"，计数词闸扫描面扩到整棵 skills 树。
+- 仓库 `CLAUDE.md` 重写为常驻规则（约 7KB），细则下沉到 `dw-system/skills/AGENTS.md` 与 `test/AGENTS.md`。
 - `test/change-awareness.test.mjs` 最后一条断言改为「`## 未发布` 在版本节之前 + 全文至少一条条目」：发版刚改完名时 `未发布` 合法为空，原断言会判红；「每次合并至少写一条」由完成门的 first-parent 检查守。
 
 ## 2.17.0 — 2026-09-16

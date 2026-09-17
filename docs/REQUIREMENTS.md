@@ -1,8 +1,11 @@
 ---
 lifecycle: active
-last_confirmed: '2026-09-14'
+last_confirmed: '2026-09-17'
 authority_refs:
-  - '交付单元：两个 skill（dw-prd / dw-workflow）+ ctx CLI + 安装器，装进目标项目的是 .claude/skills/ 与 .agents/skills/ 两份'
+  - '交付单元：八个 dw-* skill + ctx CLI + 原型工具 + 安装器，装进目标项目的是 .claude/skills/ 与 .agents/skills/ 两份'
+  - '两条总纲：一个事实只有一个家；规范文本有体积上限，超限先搬走、再压缩、最后才抬上限'
+  - '安装器升级时自动清理 3.0 之前的旧名字残留（旧 skill 目录、旧版本戳、三处旧标记块），字段与入库决定逐字带入'
+  - '卡片按业务域分：地图卡 cards/<repo>.md + 域卡 cards/<repo>/<域>.md，ctx lint-cards 体检，基线只减不增'
   - '安装器默认 --ref 取自安装器自带的 dw-system/VERSION 对应的 tag；显式传的 --ref 取不到时硬失败，默认推出的 tag 取不到时告警回退 main'
   - '安装器只在目标项目级禁用冲突插件，不改用户级全局配置'
   - '标记块 <!-- dw-workflow:start/end --> 的字段集：collaboration / merge-gate / worktree-dir，幂等只替换块内内容'
@@ -31,14 +34,24 @@ sourceOfTruth: true
 
 ## 这是什么
 
-dw-system 是一个**AI 辅助开发方法论的分发包**，不是一个可运行的应用。它把一份原始需求逐层降解成"零上下文 AI agent 也能可靠执行"的任务，交付物是四件东西：
+dw-system 是一个**AI 辅助开发方法论的分发包**，不是一个可运行的应用。它把一份原始需求逐层降解成"零上下文 AI agent 也能可靠执行"的任务，交付物是四样：
 
-- **`dw-prd`** —— 从零产出 PRD 的 skill：批量提问澄清，按三类模板成稿，涉及界面时一并产出可离线打开的 HTML 高保真交互原型。
-- **`dw-workflow`** —— 从已有 PRD 起步的主流程 skill：Triage 分流 → Overview → 技术 spec → coding plan → 编码 → 测试，全程贯穿贯通两条路径的那组门禁（清单见 `00-流程总纲.md` 的流程总览图）。
+- **八个 skill**，流程走到哪一步才加载哪一个：
+  - `dw-prd` —— 从零产出 PRD：批量提问澄清，按三类模板成稿，涉及界面时一并产出可离线打开的 HTML 高保真交互原型。
+  - `dw-workflow` —— 从已有 PRD 起步的主流程：两条总纲、路由与初始化、Triage 分流、两条路径的步骤顺序、兼容取舍与 spec 过稿两道确认门、spec 写作、测试阶段。
+  - `dw-worktree` —— 工作区隔离门与完成合并门。
+  - `dw-code-facts` —— 代码事实层 `engineering-context/` 与 `ctx`、变更日志与依赖声明、代码图谱。
+  - `dw-bug-diagnosis` —— bug 的查重、红回路、可证伪假设与防回归。
+  - `dw-review-gate` —— 编码后的代码评审门与替换清单。
+  - `dw-doc-governance` —— 文档放哪、活多久、怎么退场。
+  - `dw-prose` —— 规范文本、注释、卡片、提示词怎么写。
 - **`ctx`** —— 零第三方依赖的 Node.js CLI，读项目本地的 `engineering-context/` 代码事实层，回答"这件事的权威实现在哪、我该信哪一个"。
-- **`install.mjs`** —— 一条命令把上面三件装进任意项目，同时给 Claude Code 与 Codex 两套目录。
+- **`preview.mjs`** —— `dw-prd` 的原型工具：建原型、取界面内容与批注、交付前自检、起本机预览服务。
+- **`install.mjs`** —— 一条命令把上面几样装进任意项目，同时给 Claude Code 与 Codex 两套目录，并清理旧版本留下的东西。
 
-两个 skill 松耦合：`dw-prd` 的产物正是 `dw-workflow` Step 1 的输入。使用者是**装了这套体系的开发者与在其中干活的 AI agent**，他们感知到的就是"唤起 skill 之后会发生什么、安装器会动我项目里的什么、`ctx` 各命令给我什么"。
+整套体系受**两条总纲**约束：**一个事实只有一个家，别处只放链接**；**规范文本有体积上限，超限先搬走、再压缩，最后才抬上限**。它们同时是体系教给目标项目的写法——需求真相源、卡片、spec 各有各的家，来历进决策记录。
+
+`dw-prd` 的产物正是 `dw-workflow` Step 1 的输入，两者松耦合。使用者是**装了这套体系的开发者与在其中干活的 AI agent**，他们感知到的就是"唤起 skill 之后会发生什么、安装器会动我项目里的什么、`ctx` 各命令给我什么"。
 
 ## 为什么做
 
@@ -66,14 +79,14 @@ AI coding 落不了地，通常不是因为流程不够精细，而是因为 AI 
 - 全程只用业务语言：对话、提问与成稿都不要求用户理解程序实现。
 - 按次产出的 spec、plan、report 文档文件名统一以 `YYYY-MM-DD-` 开头；需求真相源、TODO、索引与固定账本等常青档保持固定名称。
 
-### 从 PRD 到代码：`dw-workflow`
+### 从 PRD 到代码：`dw-workflow` 与各道门的 skill
 
-技术栈无关的主流程，从一份已有 PRD 走到测试完成、分支合并。
+技术栈无关的主流程，从一份已有 PRD 走到测试完成、分支合并。`dw-workflow` 定顺序，每道门的判据在它自己的 skill 里。
 
-- 每次唤起先走路由：探测项目根 `.codegraph/codegraph.db` 决定要不要加载代码图谱分册 → 读两个入口的标记块取协作面 → 按渐进式披露只加载此刻用得上的判据。**代码图谱只探测不发问**，探测不到就把重探索外包给子代理，MUST NOT 阻断流程、MUST NOT 退回裸 grep。
+- 每次唤起先走路由：探测项目根 `.codegraph/codegraph.db` 决定要不要用代码图谱 → 读两个入口的标记块取协作面 → 按入口的〈读取条件〉只读此刻用得上的那一份。读到 3.0 之前的旧名字标记块时停下，请用户重跑安装命令，MUST NOT 手工改写、MUST NOT 按旧块继续。**代码图谱只探测不发问**，探测不到就把重探索外包给子代理，MUST NOT 阻断流程、MUST NOT 退回裸 grep。
 - 首次调用触发**初始化**：只问一个问题（除你之外还有没有人一起开发）+ 一条待拍板的 merge-gate 建议，答案写进项目根 `CLAUDE.md` 与 `AGENTS.md` 的标记块，此后不再问。**要不要维护代码事实层不问**（必备），**有没有代码图谱也不问**（探测得出）。
 - **Step 0 Triage 分流**：按 `00-流程总纲.md` §Step 0 的判定问题过一遍，全否走一页 Lean Change Spec 直接实现，任一为是升级回完整流程。全否时还有一条无条件的默认倾向：影响面说不清时仍 MUST 升级出 Overview，跨仓需求一律升级（判据在 `00-流程总纲.md` §默认倾向）。
-- **Lean 路径读的是自足册** `路径-lean.md`：Lean 全程只读它 + 协作面分册一份 + lean spec 模板，不读常驻篇也不读总纲，因此适用于 Lean 的每一条 MUST 都在册内各有一份。
+- **Lean 路径读一页步骤顺序** `路径-lean.md`：它只定顺序与 Lean 特有的几条，每一步的判据在对应 skill 里，到那一步才读。走到一半命中升级条件时这一页当场失效，改走完整流程。
 - **完整路径**走 Overview → 技术 spec → coding plan → 编码 → 测试；含 AI/LLM 功能时叠加 `AI-LLM-overlay.md` 的运行期 AI 契约，判定为 Agentic 应用时另加载外部伴生 skill `agentic-principle`。
 - 门禁贯穿两条路径，**Lean 不豁免**，位置见 `00-流程总纲.md` 的流程总览图：
   - **工作区隔离门**（skill `dw-worktree`）——路由与初始化对话做完后、任何文件落盘前，MUST 已从最新主分支建出并全程使用独立 worktree；目录取标记块的 `worktree-dir`，未声明默认 `./.worktrees/`；主工作树有未提交改动、不是 Git 仓库或建不出 worktree 时 MUST 中止并用业务语言说明，MUST NOT 替用户 stash / reset / checkout。
@@ -82,18 +95,20 @@ AI coding 落不了地，通常不是因为流程不够精细，而是因为 AI 
   - **代码评审门**（skill `dw-review-gate`）——编码后派子代理分轴复核，**轴集合按本次改动触碰的对象面推导**（`评审门禁.md` §门禁）：程序代码面 → 规范 / 忠实 / 残留 / 文档，skill 文档面 → skill 原则轴（加载伴生 skill `skill-principle`），agent 架构面 → agent 架构轴（加载 `agentic-principle`），多面命中取并集。命中程序代码面时文档轴恒跑、不由主会话先判要不要派；忠实轴的返回表比其余各轴多一列「偏离类型」，取值是闭集。评审子代理默认派普通档模型，MUST NOT 派最低档。
     - **配套测试不单独构成程序代码面**：改动范围里的可执行代码文件全部是测试文件（位于既有测试目录内或名字匹配 `*.test.*` 一类，**且**不被任何非测试代码加载）时不把该面拉起来，与 skill 文档面同时命中时只跑 skill 原则轴 + 规范轴，规范轴在此另查这条闸会不会恒绿。只要范围里有一个可执行文件不满足那两条，整个范围照常按程序代码面处理。
     - **本门有两条通路**：够小的改动（本次任务分支代码 <20 行且文档 <40 行）MAY 登记 `Review-Deferred:` commit trailer **延到下一次门一并评**，其余当场跑。评审范围的基点是可移动的 `reviewed-through` tag，tag 不存在时退回目标主分支且不报错；积压路径 MUST NOT 移动它，过门并合并成功后才移动。封顶为自基点累计代码 >100 行、文档 >200 行或最早积压 >14 天，三类改动（安全与鉴权面 / 流程与门禁判据本身 / 对外契约变更）无论多小一律不许积压。**积压是推后不是取消**：轴一条不裁，结算时按含住全部积压的范围判面。走不走由执行者按行数机械判定、不逐次征求拍板人同意，但 MUST 一句话告知。
-  - **完成与自动合并门**（`00-流程总纲.md` §完成与自动合并门）——全部门禁通过后按 `merge-gate` 自动合并主分支；失败保留 worktree，MUST NOT 处理主工作树的用户改动、MUST NOT 绕过保护分支。其中代码评审门那条准出项按上述两条通路判定（已过门**或**积压已按判据登记），**放宽只对 `merge-gate="direct"` 成立**——`pr` 的项目 MUST 在开 PR 之前把积压结清。
+  - **完成与自动合并门**（skill `dw-worktree`）——全部门禁通过后按 `merge-gate` 自动合并主分支；失败保留 worktree，MUST NOT 处理主工作树的用户改动、MUST NOT 绕过保护分支。其中代码评审门那条准出项按上述两条通路判定（已过门**或**积压已按判据登记），**放宽只对 `merge-gate="direct"` 成立**——`pr` 的项目 MUST 在开 PR 之前把积压结清。
 - spec 的每条功能需求编 `FR-###`、每条验收项编 `AC-###`，同一套编号贯通 spec → coding plan 的核销表 → 评审门忠实轴的覆盖矩阵 → test-spec 的追溯矩阵；编号永不复用、永不重排，删除的原地保留并改写成"已撤销"。
 - **不含可执行代码的纯 skill 改动不出 spec 与 coding plan**：PRD 即 spec，动手前加载 `skill-principle` 的建设路径定结构。跳过的是产物不是门——工作区隔离门、兼容取舍确认门、spec 过稿门照旧，结论落在 PRD 或改动清单里。改动范围一旦含可执行代码文件，代码那部分照常写 spec。
-- 判据按**渐进式披露**加载：入口 `SKILL.md` 带一张〈加载点清单〉，每行写清触发条件 / 加载对象 / 为什么此刻需要 / 适用路径；常驻的那几份也不整篇读，每个小节自带一行 `> **何时读本节**` 标注前置还是触发式。
+- 判据按 skill 拆分、按需加载：每个 skill 的入口带一张〈读取条件〉表（什么时候读哪一份），`dw-workflow` 入口另有一张〈到哪一步用哪个 skill〉。注入项目入口文件的标记块只留每个会话都要知道的规则与指针。
+- 写或精简规范文本、注释、卡片、提示词时用 `dw-prose`：删改前逐条列出命题并全部保住，只写现状，来历搬进 `docs/decisions/`。
 - 用户沟通只用业务语言：大架构交给用户确认，模块内设计只问业务问题，详细程序设计不要求用户确认。
 
 ### 必备的代码事实层：`engineering-context/`
 
 装了本体系的项目**一律维护**这一层，不分项目大小、不分协作面、没有开关。
 
-- 目录由初始化时在 worktree 内跑 `ctx init` 建出整套骨架：能力 registry + 逐仓 cards + 逐上游 dependencies（依赖声明）+ 端到端 scenes + 冻结探针集 + 术语表 + README。骨架里只有模板占位行是**正常的起步状态**，不告警、不因此改变分流。
+- 目录由初始化时在 worktree 内跑 `ctx init` 建出整套骨架：能力 registry + cards + 逐上游 dependencies（依赖声明）+ 端到端 scenes + 冻结探针集 + 术语表 + README。骨架里只有模板占位行是**正常的起步状态**，不告警、不因此改变分流。
 - 取事实的顺序固定：未限定单仓时先 `ctx find-scenes <关键词>` 取端到端全景，再 `ctx discover "<意图>"` 按结果读 card。**每条来自 card 的事实必须附 cite（`path#anchor @确认时间`），无 cite 视为幻觉。**
+- **卡片按业务域分**：每个仓库一张地图卡 `cards/<repo>.md`（职责 + 业务域地图），每个业务域一张域卡 `cards/<repo>/<域>.md`（职责 / 权威实现与对外接口 / 陷阱项 / 确认，小节名固定）。域的切法只写在地图卡里，并与需求真相源的子模块用同一套切法。卡片只写现状、只记判断：不出现带日期的小节与累积清单，不照抄签名与依赖清单；指向源码的 cite 以 `路径#符号` 为主。仍成立的事实不丢，但体积有上限（地图卡 8,000、域卡 16,000、registry 单格 300 字节），超限先搬来历再按域拆。存量的单文件卡片仍读得出，碰到哪个域搬哪个域。
 - 查不到不等于"这个项目不用卡片"，只意味着该模块的卡片还没建：读源码（有代码图谱走图谱，没有就外包子代理）+ **读完当场补卡**，随本次任务分支提交，MUST NOT 顺延。评审门的残留轴把"读过源码却没补卡"判为残留。
 - 卡片事实**以合入后的源码为准**，MUST NOT 从 PRD 生成。新鲜度按是否触碰 Authority Surface 触发，不按变更行数。
 - 代码图谱与这一层不同级也不互相替代：图谱答"找得到吗"，是可选的检索加速面；卡片答"信哪个"，是无条件必备的地基，两者冲突时以卡片为准。
@@ -107,13 +122,14 @@ AI coding 落不了地，通常不是因为流程不够精细，而是因为 AI 
 |---|---|
 | `ctx init` | 生成整套 engineering-context 骨架；`--minimal` 只落一份 registry |
 | `ctx discover "<意图>"` | 意图 → 该读哪几张 card + out-of-scope 警告 |
-| `ctx get-card <repo> [section]` | 取某个仓库的 Codebase Card（按小节切段） |
+| `ctx get-card <repo> [域]` | 取某个仓库的地图卡；给了域先读域卡文件，没有才读地图卡里的同名小节 |
 | `ctx find-scenes <关键词>` | 端到端业务场景蓝图 |
-| `ctx list-services` | 列出已登记的仓库与能力 |
+| `ctx list-services` | 列出已登记的仓库（带它名下的域）与能力 |
+| `ctx lint-cards` | 卡片体检：固定小节、体积、带日期的小节名、cite 能否解析、域名近似重复、registry 指针、陷阱项噪音。新增违规退出 1；存量违规经 `--init-baseline` 记入基线，基线只许经 `--prune-baseline` 变短 |
 | `ctx search-semantic "<q>"` | discover 未命中时的语义兜底（本地向量相似，结果带 freshness 与 cite） |
 | `ctx probe` | 跑冻结探针集防腐门禁：机器可判题型 + 门禁自检 + 棘轮 + 衰减报告 |
 
-`ctx probe` 的题型分两类：**读 cards/registry 的**（`capability-mapping` / `deprecated-trap`）与**读项目自身文件的**（`requirement-reachable` / `architecture-reachable` / `implementation-usable` / `rationale-traceable`）。后者不依赖代码事实层，所以卡片还空着的起步态项目同样跑得起来；`--json` 的退出码供 CI 使用，RED 与 GATE-BROKEN 以 1 结束。
+`ctx probe` 的题型分两类：**读 cards/registry 的**（`capability-mapping` / `deprecated-trap`）与**读项目自身文件的**（`requirement-reachable` / `architecture-reachable` / `implementation-usable` / `rationale-traceable` / `authority-unique`——现行区任意两份文档不得声明同一条 `authority_refs`）。后者不依赖代码事实层，所以卡片还空着的起步态项目同样跑得起来；`--json` 的退出码供 CI 使用，RED 与 GATE-BROKEN 以 1 结束。
 
 ### 安装器：`install.mjs`
 
@@ -127,6 +143,7 @@ AI coding 落不了地，通常不是因为流程不够精细，而是因为 AI 
 - 把 skill 自带的 `ctx` 链接成**全局 `ctx` 命令**（`npm link`），随后实跑 `ctx --help` 并匹配签名串才报成功。链接失败、链完仍不在 PATH、PATH 上已有别人的同名 `ctx` 一律只降级为警告并打印 `node <skill>/scripts/ctx/src/cli.js <命令>` 兜底方式，**别人的同名命令绝不覆盖**；`--no-ctx-link` 跳过。Windows 上换项目重装时 `npm link` 会因全局命令目录里还留着上次那份 `ctx` 而报 `EEXIST`（unix 侧 npm 直接替换自己的符号链接，撞不出这条）：安装器捕获 npm 输出分辨出这一类，先判那个文件的归属——PATH 上跑得通且签名匹配，或 `npm root -g` 下的 `ctx` 包认得出是本体系的——确认是自己上次留下的才 `npm link --force` 覆盖成本次这份；判不出归属就不覆盖，改为打印该文件路径与删除方式。
 - 保持 [codegraph](https://github.com/colbymchenry/codegraph) 最新（缺失则 npm 全局安装，已有则用它自己的 `codegraph upgrade`），接线到 agent（默认项目级），并在 `.codegraph/` 不存在时建索引。整段任何失败只降级为警告，不影响已完成的 skill 安装；`--no-codegraph` 跳过。
 - 检查并安装用户级伴生 skill（当前两个：`agentic-principle` 与 `skill-principle`，装到 `~/.claude/skills/` 与 `~/.codex/skills/`）：每次运行比对远端版本、更旧才更新；**没有 `metadata.version` 的 skill 按 `SKILL.md` 内容是否相同判**；本地是 symlink 或 git 工作区时只报告不覆盖；拉取失败降级为警告。`--no-companions`（同义 `--no-agentic`）跳过整段；`--companion-repo=<name>=<url>` 覆盖某个 skill 的来源仓库。
+- **升级 3.0 之前的安装时自动清理旧名字残留**：删除两个 skills 目录下的 `ai-dev-workflow`、`ai-prd` 与旧版本戳（符号链接只删链接本身）；把两个入口的旧标记块、`AGENTS.md` 的旧 Codex 约束块、`.gitignore` 的旧块改写成新名字，`collaboration` / `merge-gate` / `worktree-dir` 与 `docs/` 入库决定逐字带入、不再询问；只有旧 `mode` 的块由安装器推断协作面与合并方式并打印推断结果，新块不写 `mode`；全局 `ctx` 重链到 `dw-code-facts`。计划输出单列"旧版残留清理"一段，`--dry-run` 打印同样内容且磁盘无变化，第二次运行无残留、无改写。
 - 常用开关：`--dry-run` 预演不落盘、`--yes` 跳过交互确认、`--keep=<插件短名>` 保留某个插件并撤销此前写入的禁用与约束、`--no-plugins` 只装 skill、`--source-dir=<目录>` 用本地工作区源码（仅开发测试）。
 
 ### 文档治理与三层真相源
@@ -136,6 +153,7 @@ AI coding 落不了地，通常不是因为流程不够精细，而是因为 AI 
 - **输出目录固定**：spec / PRD / Overview / 契约 → `docs/spec/`，coding plan 与交接文档 → `docs/plan/`，各类报告 → `docs/report/`。`docs/` 根只放三个固定文件：需求真相源 `REQUIREMENTS.md`、架构真相源 `ARCHITECTURE.md`、`TODO.md`；需求真相源的一级子模块住 `docs/requirements/`。不得创建工具专属产物目录。
 - **三层真相源**（需求 / 架构 / 实现）MUST 能从 README 或 `docs/index.md` 出发 ≤2 跳到达。承载形态随项目已有资产变化，小项目用 README 的一节就合规；发现缺口时**只报告、不阻断**，也不代用户自动创建。
 - **需求真相源只写现状**：MUST NOT 包含历史演进、前后对比、技术选型、需求调整过程；尚未实现的一切去 `docs/TODO.md`，主文档里 MUST NOT 留"计划中"小节。承载分两层（主文档 + 一级子模块），MUST NOT 再往下分目录；拆不拆看 `文档治理.md` §需求真相源写什么、怎么分层 的阈值。
+- **每类事实只有一个家**（`文档治理.md` §归属表）：已实现的行为规则在需求真相源，权威实现与陷阱在卡片，本次要做什么在 spec，还没做的在 TODO，来历与被否决的方案在 `docs/decisions/`（决策记录：Context / Decision / Alternatives Considered / Consequences 四节，现行的跟着事实改，被取代的另写一篇），对下游可见的变化在仓库根 `CHANGELOG.md`。`docs/index.md` 每条一行，不放规则与数字。同一条 `authority_refs` MUST NOT 被两份现行文档同时声明。
 - **`docs/TODO.md` 是还没做的事的唯一出口**：章节按类型分且是闭集，每条带提出日期，只收会改变用户可感知行为、会新增或去掉一个功能、会动模块边界的条目；陈旧条目只提醒、AI MUST NOT 自行删除。
 - **文档生命周期**：每份新建文档的 frontmatter 必带 `lifecycle` 与 `authority_refs`；`docs/index.md` 只索引现行口径，已归并 / 被取代 / 已废弃的进 `docs/index-archive.md`。真相源的**更新在准出门完成**——开发前定稿的是意图，开发后归并的才是现状。
 
@@ -149,7 +167,7 @@ AI coding 落不了地，通常不是因为流程不够精细，而是因为 AI 
 
 **第一次唤起 workflow**：在项目里描述一个需求，skill 走完路由发现没有标记块，于是问唯一那个问题——除你之外还有没有人一起开发——并给出一条待拍板的 merge-gate 建议。答完即写进两个入口的标记块，此后不再问。紧接着它建出独立 worktree，在里面跑 `ctx init` 建好 `engineering-context/` 骨架。
 
-**做一次小改动**：描述需求 → Triage 判定全否且影响面说得清 → 走 Lean 自足册，先查卡片取事实（没卡就读源码并当场补卡）→ 写一页 Lean Change Spec → **用户在同一批里表态一次**（兼容取舍 + 这一页 spec 过稿，命中大架构判据时还附一份业务语言摘要）→ 实现 → 派子代理跑代码评审 → 文档落位 → 按 `merge-gate` 自动合并、清理 worktree。全程用户只需要在那一批表态一次。
+**做一次小改动**：描述需求 → Triage 判定全否且影响面说得清 → 走 Lean 一页，先查卡片取事实（没卡就读源码并当场补卡）→ 写一页 Lean Change Spec → **用户在同一批里表态一次**（兼容取舍 + 这一页 spec 过稿，命中大架构判据时还附一份业务语言摘要）→ 实现 → 派子代理跑代码评审 → 文档落位 → 按 `merge-gate` 自动合并、清理 worktree。全程用户只需要在那一批表态一次。
 
 **做一次大改动**：Triage 任一为是（或影响面说不清）→ 升级完整流程，先出 Overview 交用户确认大架构 → 技术 spec（需求编号 `FR-###` / 验收项 `AC-###`）→ 拍板兼容取舍 → **拍板人过稿** → coding plan → 编码 → 评审门分轴复核 → 测试 → 合并。
 
@@ -192,7 +210,7 @@ AI coding 落不了地，通常不是因为流程不够精细，而是因为 AI 
 | 降级语义 | `ctx` 链接、codegraph、伴生 skill 三段的任何失败只降级为警告并给出兜底方式，不影响已完成的 skill 安装 |
 | 权限边界 | 冲突插件只在目标项目级禁用；用户级全局配置只有在用户明确选择时才改动 |
 | 版本可回溯 | 每次版本变更合入 main 后打 annotated tag `v<版本>`，与 `dw-system/VERSION` 始终一致，供 `--ref=v<版本>` 锁版本安装 |
-| 上下文预算 | 唤起 skill 只加载当次真正用得到的判据：分流前只取三份，其余按加载点在触发时才取；常驻前置量与入口体积各有字节门槛把守（门槛值与实测以 `node --test test/resident-budget.test.mjs` 的输出为准） |
+| 上下文预算 | 唤起 skill 只读当次真正用得到的那一份；每个 skill 入口、单篇分册、单个 skill 的分册合计、注入标记块、仓库说明各有字节上限，超限先搬走、再压缩、最后才抬上限（上限值与实测以 `node --test test/doc-budgets.test.mjs` 的输出为准） |
 
 ## UI 原型（如适用）
 

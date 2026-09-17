@@ -135,13 +135,13 @@ authority_refs:
 {
   "files":   { "<仓库相对路径>": <字节上限> },
   "classes": [ { "glob": "<模式>", "max": <字节上限>, "note": "<一句话>" } ],
-  "totals":  [ { "glob": "<模式>", "groupBy": "<路径段序号>", "max": <字节上限> } ],
+  "totals":  [ { "glob": "<模式>", "groupBy": "<路径段序号>", "max": <字节上限>, "overrides": { "<组名>": <字节上限> } } ],
   "lines":   [ { "file": "<路径>", "entryPattern": "<正则>", "maxBytes": <单条上限> } ],
   "blockExcluded": { "file": "CLAUDE.md", "start": "<!-- dw-workflow:start -->", "end": "<!-- dw-workflow:end -->" }
 }
 ```
 
-`files` 优先于 `classes`；同一文件被多个 `classes` 命中取最先一条。
+`files` 优先于 `classes`；同一文件被多个 `classes` 命中取最先一条。 `totals` 按路径的第 `groupBy` 段分组求和；`overrides` 给个别组单独的上限，用来把超目标的组冻结在实测值。
 
 ## 3. 接口契约
 
