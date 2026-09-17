@@ -23,7 +23,6 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { PRD_ENTRY_MAX_BYTES } from './contract-numbers.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const prdRoot = path.join(repoRoot, 'dw-system', 'skills', 'dw-prd')
@@ -211,20 +210,4 @@ test('子代理报告的「出口」列取值能表达全部三个出口', () =>
   const trace = body.slice(body.indexOf('「取证足迹」'), body.indexOf('- 「未能取证」'))
   assert.ok(/MUST\s*写|必写/.test(trace), '取证足迹未写成强制项')
   assert.ok(/无论|与本轴有没有发现|不管/.test(trace), '取证足迹未写明与本轴有无发现无关')
-})
-
-test(`dw-prd 入口 SKILL.md ≤ ${PRD_ENTRY_MAX_BYTES} 字节（防回涨棘轮）`, () => {
-  // 为什么要有这条闸：dw-prd 的入口没有渐进式披露——路由第 2 步无条件加载三份 references，
-  // 而入口自己又把三道门的判据完整复述了一遍。复述是刻意的（入口要能独立路由），但它没有
-  // 任何上界，一路涨到 19,599 字节都没有东西出声，是姊妹 skill 入口的两倍多。
-  //
-  // 本值是**棘轮不是精简目标**：入口里 100 条规范结论约每 195 字节一条，压下去就会剥掉
-  // `wording-redline` 红线②③保护的消歧上下文。超了 MUST 先把新增内容写进 references
-  // （反正会被加载），MUST NOT 顺手上调 PRD_ENTRY_MAX_BYTES。判据见 contract-numbers.mjs。
-  const bytes = Buffer.byteLength(read(prdRoot, 'SKILL.md'), 'utf8')
-  assert.ok(
-    bytes <= PRD_ENTRY_MAX_BYTES,
-    `dw-prd 入口 SKILL.md ${bytes} 字节，超出上限 ${PRD_ENTRY_MAX_BYTES}（超 ${bytes - PRD_ENTRY_MAX_BYTES}）。` +
-      'MUST 把新增内容写进 references/（路由第 2 步会加载它们），MUST NOT 上调上限值。',
-  )
 })

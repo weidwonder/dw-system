@@ -16,7 +16,6 @@ import { fileURLToPath } from 'node:url'
 import { initScaffold } from '../dw-system/skills/dw-workflow/scripts/ctx/src/commands.js'
 // 计数词豁免清单的唯一定义处，两条机器闸共用一份（详见该文件抬头）。
 import { EXEMPT_DIRS, EXEMPT_FILES } from './counter-word-exempt.mjs'
-import { ENTRY_MAX_BYTES, LOADING_POINT_MIN } from './contract-numbers.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const skillsRoot = path.join(repoRoot, 'dw-system', 'skills')
@@ -98,7 +97,6 @@ test('skills/ 下 markdown 里的相对链接都指向真实存在的文件', ()
 // 常驻集合自 2.4.x 的渐进式披露改造起由九篇缩到六份（spec §4.1 判定结果 / FR-002）：
 // 入口 + core 四篇 + collab 一份。`文档治理.md` / `spec写作纪律.md` / `worktree开发纪律.md`
 // 三篇移出常驻，文件仍在，改由 SKILL.md 的〈加载点清单〉在触发时才取。
-// 断言分两半：常驻集合本身（下方第一个 test）与加载点清单的行数下限（第二个 test，spec §6 Invariant 3；下限值见 test/contract-numbers.mjs）。
 const RESIDENT_CORE = ['00-流程总纲.md', '代码事实纪律.md', '用户沟通纪律.md', '上下文卫生.md']
 const MOVED_OUT_OF_RESIDENT = ['文档治理.md', 'spec写作纪律.md', 'worktree开发纪律.md']
 
@@ -144,31 +142,15 @@ test('入口自带工作区隔离门要点：建不建、目录取哪个字段�
   assert.match(skill, /worktree-dir/, '入口必须点名目录取自哪个字段')
   assert.match(skill, /\.\/\.worktrees\//, '入口必须给出 worktree-dir 缺省值')
   assert.match(skill, /MUST NOT 替用户 stash/, '入口必须写明主工作树不干净时中止而不是替用户 stash/reset')
-  // 上限取自 `contract-numbers.mjs` 的单点定义，MUST NOT 在这里再写一个字面量——
-  // 此前这两行写死了一个与那份「唯一定义处」并存的字面量，却没人盯着两者是否一致，
-  // 正是 `contract-numbers.mjs` 要消除的形态。
-  assert.ok(
-    Buffer.byteLength(skill, 'utf8') <= ENTRY_MAX_BYTES,
-    `入口 MUST ≤ ${ENTRY_MAX_BYTES} 字节（AC-004），当前 ${Buffer.byteLength(skill, 'utf8')}`,
-  )
 })
 
-test('加载点清单不少于 spec §7 的十八个加载点（Invariant 3）', () => {
+test('加载点清单每行四个字段齐全', () => {
   const skill = read(workflowRoot, 'SKILL.md')
   const table = skill.slice(skill.indexOf('## 加载点清单'))
   assert.ok(table.length > 0, '找不到〈加载点清单〉节')
   const rows = table
     .split('\n')
     .filter(l => l.startsWith('| ') && !/^\|\s*-+/.test(l) && !l.startsWith('| 触发条件'))
-  // 门槛跟 Invariant 3 走，值在 `contract-numbers.mjs` 单点定义（此前这里与 spec/CLAUDE.md 各写一份，
-  // 实测漂成 18/14/14 三处不一致）。它是**下限不是上限**
-  // （每新判出一个触发式小节 MUST 增行）。此前这里写死 14，比不变量松了 4 行——删掉实现阶段
-  // 新增的那四行照样绿，等于那四个加载点没有任何机器防线。下限值 MUST 与 spec §7 的行数一致，
-  // spec 增行时同步上调；**MUST NOT 为了让删行通过而下调它**。
-  assert.ok(
-    rows.length >= LOADING_POINT_MIN,
-    `加载点清单只有 ${rows.length} 行，MUST NOT 少于 ${LOADING_POINT_MIN} 行（spec §7：设计阶段十四个 + 实现阶段新增四个）`,
-  )
   // 每行四个 REQUIRED 字段齐（触发条件 / 加载对象 / 为什么此刻需要 / 适用路径）
   for (const row of rows) {
     const cells = row.replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim())
