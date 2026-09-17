@@ -34,7 +34,18 @@
       }
     }
   ],
-  "lines": [],
+  "lines": [
+    {
+      "file": "docs/index.md",
+      "entryPattern": "^- \\*\\*\\[",
+      "maxBytes": 360
+    },
+    {
+      "file": "docs/index-archive.md",
+      "entryPattern": "^- ",
+      "maxBytes": 360
+    }
+  ],
   "blockExcluded": {
     "file": "CLAUDE.md",
     "start": "<!-- dw-workflow:start -->",
