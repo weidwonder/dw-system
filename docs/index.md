@@ -52,6 +52,7 @@
 
 按次产出的计划文件名 MUST 以 `YYYY-MM-DD-` 开头；已归并计划移入归档索引。
 
+- **[dw-system 3.0 Coding Plan](./plan/2026-09-17-dw-system-3.0-coding-plan.md)** — 3.0.0 的十个任务：机械更名、换闸、安装器迁移、`dw-prose` 与来历清理、决策记录、拆评审门、拆其余与取消 Lean 副本、`ctx` 卡片体检、收紧体积、发布件。
 - **[spec 过稿门 Coding Plan](./plan/2026-08-27-spec过稿门-coding-plan.md)** — 9 个垂直切片任务（字节上限 → 总纲立判据 → 完整流程分册 → Lean 自足册 → 模板 → 协作面与注入片段 → 入口加载点 → 门同步机器闸 → 版本与账本），每个任务带 `满足:` 的 `FR-###`、反向自检与替换清单核销表。`authority_refs`：`ENTRY_MAX_BYTES` 取值与引用方式、`§spec 过稿门` 与 `§6.3` 小节名、两份模板的留痕节名。
 - **[原型注解分层与文档日期前缀 Coding Plan](./plan/2026-08-27-原型注解分层与文档日期前缀-coding-plan.md)** — 本期的 coding plan：15 个垂直切片任务（容器 → 工具 → 纪律模板 → 机器闸），每个任务带 `满足:` 的 `FR-###`、失败测试先行、替换清单核销表与三个 checkpoint。`authority_refs`：`window.setScreenState` 签名、`slot` 的 `--agreed` / `--agreed-plan` 参数契约、`serve` 的 `X-Proto-Version` / `If-Match` 头契约、`replies[]` 字段集合、`.screen-notes` DOM 契约与两个新标记名。
 
