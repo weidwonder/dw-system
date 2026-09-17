@@ -38,4 +38,4 @@ description: "编码完成后的代码评审门：定评审范围与积压通路
 | 写 spec 时登记被取代物；残留轴核销 | `references/替换清单.md` |
 | 第一次过门，或拿不准一次评审门长什么样 | `references/评审走查例子.md` |
 
-**你是被派出来的评审子代理时**：只读 `references/评审轴.md` 与 `references/子代理模板.md` 里属于你那一轴的职责与返回格式；文档轴另读 `dw-doc-governance` 的 `文档生命周期.md` §3；查代码事实按 `dw-code-facts`。skill 原则轴与 agent 架构轴 MUST NOT 加载本 skill，判据全在各自的伴生 skill 里。
+**你是被派出来的评审子代理时**：只读 `references/评审轴.md` 与 `references/子代理模板.md` 里属于你那一轴的职责与返回格式；残留轴另读 `references/替换清单.md`（保留例外怎样才成立、到期未删怎么办）；文档轴另读 `dw-doc-governance` 的 `文档生命周期.md` §3；查代码事实按 `dw-code-facts`。skill 原则轴与 agent 架构轴 MUST NOT 加载本 skill，判据全在各自的伴生 skill 里。
