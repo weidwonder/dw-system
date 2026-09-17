@@ -175,7 +175,7 @@ test('每篇受管文档都带 lifecycle 字段（缺字段是字段缺失，不
     `以下 ${missing.length} 篇文档的 frontmatter 里读不到 \`lifecycle\` 字段——这是**字段缺失**，`
       + '不是归类错误：\n'
       + missing.map((r) => `    - ${r}`).join('\n')
-      + '\n  处置：先按 `references/core/文档治理.md` §文档生命周期与索引门控 判一次这篇现在算什么，'
+      + '\n  处置：先按 `dw-doc-governance` 的 `文档生命周期.md` §文档生命周期与索引门控 判一次这篇现在算什么，'
       + '再补 `lifecycle` / `last_confirmed` / `authority_refs` 三个字段，最后才动索引。'
       + 'MUST NOT 直接往索引里塞一行了事——没有字段就没有判据，下一次归档轮到它时还是判不了。',
   )
@@ -189,7 +189,7 @@ test('lifecycle 取值都在闭集内（自造取值会让分类检查静默漏�
     0,
     `以下文档的 \`lifecycle\` 取值不在闭集 {${[...known].join(' / ')}} 内：\n`
       + weird.map((d) => `    - ${d.rel}：lifecycle: ${d.lifecycle}`).join('\n')
-      + '\n  取值闭集的权威定义在 `references/core/文档治理.md` §文档生命周期与索引门控。'
+      + '\n  取值闭集的权威定义在 `dw-doc-governance` 的 `文档生命周期.md` §文档生命周期与索引门控。'
       + '取值漂了，下面两条分类检查会把这一篇整个跳过——看着全绿，实则判据已丢。'
       + '（易错点：字段名是 `lifecycle` 不是 `status`，后者的语义已被 lean-change-spec 的'
       + '`写作进度` 与 product-prd 的 `status` 占用。）',

@@ -212,7 +212,7 @@ const DEPRECATION_ANCHOR = /(废弃|中间产物|不可用|deprecated|停用|下
 /**
  * 判断一行里出现的 entity 是"被废弃的那个"还是"该改用的那个"。
  *
- * card 最标准的废弃写法就是把两者写在同一行（`assets/context-layer/card.md` 的模板正是这么诱导的）：
+ * card 最标准的废弃写法就是把两者写在同一行（`assets/context-layer/card-domain.md` 的模板正是这么诱导的）：
  *   - `POST /v1/word/record`（已废弃，请改用 `POST /v2/word/record`）
  * 只判"这一行含废弃关键词且含 entity"会把 **v2 也判成 deprecated**——代码事实层的核心承诺
  * "信哪个"当场反过来：问 canonical 接口，`ctx` 告诉你它已废弃。所以这不是边缘情况。

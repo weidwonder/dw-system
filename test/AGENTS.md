@@ -32,7 +32,7 @@
 - `codegraph.test.mjs`：安装器的 codegraph 段（未装→npm 装、有新版→`upgrade`、已最新跳过、盲升不谎报、太旧退回 npm、已有索引不重建、`init` 没建成补 `index`、`--codegraph-location`、`--no-codegraph`、`--dry-run`、失败只警告）。全程假 CLI。
 - `companion-skill.test.mjs`：伴生 skill 装到用户级两个入口、不进目标项目；已最新跳过、有新版更新、symlink 与 git 工作区不覆盖、远端不可达降级、无版本号的按内容判；`COMPANION_SKILLS` 指向真实仓库与子目录。红了通常是改了 `COMPANION_SKILLS` 或参数名。
 - `counter-word.test.mjs`：受检计数词只出现在权威文件与豁免目录；权威映射有效；豁免路径真实存在。红了通常是往别处写回了数字。
-- `cross-reference.test.mjs`：skills 树与 `CLAUDE.md`、`AGENTS.md`、`docs/index.md`、`docs/REQUIREMENTS.md`、`docs/TODO.md` 里每条 `` `x.md` §y `` 的目标文件与小节都存在；另有一条守"抽取本身没有静默失效"。红了通常是改了标题或搬了文件没改引用方。MUST NOT 靠放宽 `STOP_CHARS` 或扩 `EXEMPT_TARGETS` 变绿。
+- `cross-reference.test.mjs`：skills 树与 `CLAUDE.md`、`AGENTS.md`、`docs/index.md`、`docs/REQUIREMENTS.md`、`docs/TODO.md` 里每条 `` `x.md` §y `` 的目标文件与小节都存在；另有一条守"抽取本身没有静默失效"；不带 `§` 的 `<skills 根>/…​.md` 纯文件指针另查目标文件存在。红了通常是改了标题或搬了文件没改引用方。MUST NOT 靠放宽 `STOP_CHARS` 或扩 `EXEMPT_TARGETS` 变绿。
 - `ctx-cards.test.mjs`：`cards.js` 解析层——`loadCards`、`loadRegistry`（按表头名取列、最小三列、跳占位行、认中文表头「能力」、认 GFM 分隔行）、`diagnoseRegistry` 把各种"读不出数据行"分开报、`registryConflicts`、读不出文件不抛栈。
 - `ctx-cli.test.mjs`：命令层与 CLI——`discover` / `getCard` / `findScenes` / `listServices` / `initScaffold` 行为、`--help` 首行签名串、`--json` 经管道不截断、`--json` 带 `diagnosis`、目录不存在与登记表为空分开报、失败给中文提示不抛栈。
 - `ctx-link.test.mjs`：安装器的 ctx 全局链接段——实跑 `--help` 验证、link 失败只警告并给兜底、不顶掉别人的同名 `ctx`、EEXIST 三种归属处置、回显 npm 原文、`--no-ctx-link`、`--dry-run`。全程假 npm + 假 ctx。

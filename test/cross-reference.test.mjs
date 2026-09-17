@@ -64,8 +64,8 @@
 //
 // ── 四、目标文件怎么解析 ───────────────────────────────────────────────────────────
 //
-// 引用路径写法五花八门：裸文件名（`代码事实纪律.md`）、相对目录（`core/代码事实纪律.md`）、
-// 带占位符（`<skills 根>/dw-workflow/references/core/…`）、上跳（`../../references/core/…`）、
+// 引用路径写法五花八门：裸文件名（`代码事实纪律.md`）、相对目录（`references/代码事实纪律.md`）、
+// 带占位符（`<skills 根>/dw-workflow/references/…`）、上跳（`../../references/…`）、
 // 花括号（`collab/{solo,team}.md`）。解析规则：丢掉 `.`/`..`/含 `<>` 的占位段后，剩下的段
 // 必须是某个真实文件路径的**结尾片段**；命中多个时按"引用方所在的那个 skill"收敛（`solo.md`
 // 在两个 skill 下各有一份，引用方读的显然是自己那份）。
@@ -371,4 +371,41 @@ test('每条交叉引用的目标文件与目标小节都真实存在', () => {
       + '\n\n  处置：改引用去对齐真实标题，或改标题并同步全部引用方。'
       + 'MUST NOT 靠放宽 STOP_CHARS / 往 EXEMPT_TARGETS 加条目让它变绿。',
   )
+})
+
+// ── `<skills 根>/…` 形态的纯文件指针 ───────────────────────────────────────────────
+//
+// 上面两条只核对带 `§` 的引用。跨 skill 的指针常常只写到文件（`<skills 根>/<skill>/references/x.md`），
+// 目标被拆分或改名后它不带 `§`、主形态抽不到，成了没有任何闸看得见的死链。`<skills 根>/` 前缀
+// 明确声明"这是本体系 skill 树里的路径"，所以可以零误报地要求目标文件存在。
+
+const SKILLS_ROOT_PATH_RE = /<skills 根>\/([^\s`<>|）)]+?\.md)/g
+
+function collectSkillsRootPaths() {
+  const out = []
+  for (const abs of allMarkdown) {
+    let inFence = false
+    readFileSync(abs, 'utf8').split('\n').forEach((line, i) => {
+      if (/^\s*```/.test(line)) { inFence = !inFence; return }
+      if (inFence) return
+      for (const m of line.matchAll(SKILLS_ROOT_PATH_RE)) out.push({ file: abs, line: i + 1, rel: m[1] })
+    })
+  }
+  return out
+}
+
+test('`<skills 根>/…​.md` 形态的路径都指到真实文件', () => {
+  const found = collectSkillsRootPaths()
+  assert.ok(found.length >= 10, `只抽到 ${found.length} 条 \`<skills 根>/…\` 路径（期望 ≥10）：抽取正则很可能已失效，本条是空跑。`)
+  const dead = found
+    .flatMap((ref) => expandBraces(ref.rel).map((rel) => ({ ...ref, rel })))
+    .filter((ref) => !existsSync(path.join(skillsRoot, ...ref.rel.split('/'))))
+    .map((ref) => `${relPosix(ref.file)}:${ref.line}  <skills 根>/${ref.rel}`)
+  assert.deepEqual(dead, [], `下列路径在 dw-system/skills/ 下不存在（目标被拆分或改名后没跟上）：\n  ${dead.join('\n  ')}`)
+})
+
+test('`<skills 根>/…` 路径检查认得出死链（反向自检）', () => {
+  const hits = [...'见 `<skills 根>/dw-workflow/references/不存在的文件.md`'.matchAll(SKILLS_ROOT_PATH_RE)].map((m) => m[1])
+  assert.deepEqual(hits, ['dw-workflow/references/不存在的文件.md'])
+  assert.equal(existsSync(path.join(skillsRoot, ...hits[0].split('/'))), false)
 })

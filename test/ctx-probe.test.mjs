@@ -610,7 +610,7 @@ test('ctx init 生成的 probe-set 骨架含全部六个机器可判题型（防
 // ---- P0 回归：废弃行里的替代物 MUST NOT 被判成废弃 ----
 
 test('classifyEntity 不把废弃行里指向的替代接口判成 deprecated', () => {
-  // card 最标准的废弃写法就是把新旧写在同一行（assets/context-layer/card.md 的模板正是这么诱导的）。
+  // card 最标准的废弃写法就是把新旧写在同一行（assets/context-layer/card-domain.md 的模板正是这么诱导的）。
   // 只判"这一行含废弃关键词且含 entity"会把新接口也判成 deprecated——代码事实层的核心承诺
   // "信哪个"当场反过来：问 canonical 接口，ctx 告诉你它已废弃。
   const cards = [
@@ -826,7 +826,7 @@ const DEPRECATION_MATRIX = [
   ['废弃段·废弃表按列序', p0Card(`| 废弃项 | 改用 | 为什么 |\n|---|---|---|\n| \`${P0_V1}\` | \`${P0_V2}\` | 已下线 |`), [], { [P0_V1]: 'deprecated', [P0_V2]: '!deprecated' }],
 
   // 「对外接口」表：第一列是**权威**接口，与废弃表的列序约定相反。
-  // 照 card.md 模板写（"已废弃仍在线的在备注标明"）曾让权威与废弃双向反转。
+  // 照 card-domain.md 模板写（"已废弃仍在线的在备注标明"）曾让权威与废弃双向反转。
   ['接口表·备注里提到被替代者', p0Card('', `| 接口 | 类型 | 状态 | 备注 |\n|---|---|---|---|\n| \`${P0_V2}\` | HTTP | V2 / canonical | 替代 \`${P0_V1}\`（已废弃）|`), [], { [P0_V2]: 'canonical' }],
   ['接口表·主语已废弃', p0Card('', ifaceRow('已废弃')), [], { [P0_V1]: 'deprecated' }],
   ['接口表·主语已下线', p0Card('', ifaceRow(`已下线，改用 \`${P0_V2}\``)), [], { [P0_V1]: 'deprecated' }],
