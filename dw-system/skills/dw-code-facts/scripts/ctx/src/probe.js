@@ -202,7 +202,7 @@ export const hasDeprecationKeyword = (line) => DEPRECATION_KEYWORD.test(line);
  * 段落标题是否宣告"这一整节都是废弃物"（card 模板里的「废弃/中间产物标记 ★防误用」节）。
  * 与 `hasDeprecationKeyword` 的分工：标题命中 → 整节都是废弃项；标题不命中 → 只能逐行判。
  */
-export const isDeprecationSectionTitle = (title) => /陷阱|废弃|中间产物|deprecat/i.test(title || '');
+export const isDeprecationSectionTitle = (title) => /陷阱|废弃|防误用|中间产物|deprecat/i.test(title || '');
 
 // 就近归属时给"被废弃的那个"用的锚点词，比上面宽。放宽是安全的：本表只在**已确认是废弃行**
 // 的行内用于定位（要么整段是废弃段，要么该行已被 DEPRECATION_KEYWORD 选中），

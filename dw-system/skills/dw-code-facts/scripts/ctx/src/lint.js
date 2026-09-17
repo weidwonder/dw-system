@@ -5,7 +5,7 @@
 // 没有任何入口能往既有基线里加条目——否则"新违规判红"可以靠改基线绕过。
 import fs from 'node:fs';
 import path from 'node:path';
-import { loadCards, loadDomainCards } from './cards.js';
+import { loadCards, loadDomainCards, unreadableCards } from './cards.js';
 
 export const BASELINE_FILE = 'cards-lint-baseline.json';
 
@@ -105,7 +105,7 @@ function checkDomainDup(service, domainNames) {
       const [a, b] = [normName(names[i]), normName(names[j])];
       const [short, long] = a.length <= b.length ? [a, b] : [b, a];
       if (a === b || ([...short].length >= 4 && long.startsWith(short))) {
-        found.push(violation('domain-dup', path.join('cards', service), `${names[i]}~${names[j]}`));
+        found.push(violation('domain-dup', path.join('cards', service), `${names[i]}~${names[j]}`)); // service 为 `<repo>` 或单文件卡的 `<repo>.md`
       }
     }
   }
@@ -144,7 +144,8 @@ export function lintCards(ctxDir) {
   const maps = loadCards(ctxDir);
   const domains = loadDomainCards(ctxDir);
   const projectRoot = path.dirname(path.resolve(ctxDir));
-  const found = [];
+  // 读不出的卡不会出现在 maps / domains 里；不单独报，它就从体检里无声消失。
+  const found = unreadableCards(ctxDir).map((rel) => violation('unreadable', `cards/${rel}`));
   const rootsOf = (service) => {
     const declared = declaredRoot(maps.find((m) => m.service === service));
     if (declared === '外部') return null;
@@ -168,16 +169,30 @@ export function lintCards(ctxDir) {
     if (!maps.some((m) => m.service === service)) found.push(violation('sections', path.join('cards', service), '缺地图卡'));
     found.push(...checkDomainDup(service, domains.filter((d) => d.service === service).map((d) => d.domain)));
   }
+  // 还没拆成域卡的单文件卡：它的业务域就是那些固定小节之外的 `## ` 小节，同样查近似重复。
+  for (const card of maps) {
+    if (services.has(card.service)) continue;
+    const extra = Object.keys(card.sections).filter((n) => !MAP_REQUIRED.includes(n) && !MAP_OPTIONAL.includes(n));
+    found.push(...checkDomainDup(`${card.service}.md`, extra));
+  }
   found.push(...checkRegistry(ctxDir));
   return { cards: maps.length + domains.length, violations: [...new Set(found)].sort() };
 }
 
-/** @returns {string[]|null} 基线里的违规；文件不存在返回 null */
+/** 基线文件在、但读不出或格式不对。MUST NOT 当成空基线继续：那等于把存量违规全判成新增，或把新增全放过。 */
+export class BaselineError extends Error {}
+
+/** @returns {string[]|null} 基线里的违规；文件不存在返回 null；读不出抛 BaselineError */
 export function readBaseline(ctxDir) {
   const file = path.join(ctxDir, BASELINE_FILE);
   if (!fs.existsSync(file)) return null;
-  const data = JSON.parse(fs.readFileSync(file, 'utf8'));
-  if (!data || !Array.isArray(data.violations)) throw new Error(`${BASELINE_FILE} 格式不对：缺 violations 数组`);
+  let data;
+  try {
+    data = JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch (err) {
+    throw new BaselineError(`${file} 读不出来（${err.message}）`);
+  }
+  if (!data || !Array.isArray(data.violations)) throw new BaselineError(`${file} 格式不对：缺 violations 数组`);
   return data.violations.map(String);
 }
 
@@ -209,11 +224,27 @@ const RULE_HINT = {
   sections: '小节名固定：域卡 = 职责 / 权威实现与对外接口 / 陷阱项 / 确认（可加 测试入口、日志与排障、端侧补充）；地图卡 = 职责 / 业务域地图（可加 对外入口总览、跨域陷阱、上下游、测试入口、日志与排障、确认）',
   budget: `体积上限：地图卡 ${BUDGET.map}、域卡 ${BUDGET.domain}、registry 单格 ${BUDGET.registryCell} 字节。先把来历搬走，再按业务域拆`,
   'dated-heading': '卡片只写现状：带日期的小节是变更流水，搬去变更日志、bug 修复历史或决策记录；〈确认〉只留一行',
+  unreadable: '卡片文件读不出来（权限或编码）：修好再检，读不出的卡不参与其余规则',
   cite: 'cite 解析不到：路径不存在、`#符号` 在该文件里检索不到，或 `:行` 超过文件行数',
   'domain-dup': '同一仓库里两个域名近似重复：合并，或在地图卡里把边界写清后改名',
   'registry-pointer': 'registry 里的 cards/…​.md 指针指向不存在的文件',
   'trap-noise': '〈陷阱项〉只放陷阱：`ctx` 把本节逐行当成误用警告，"仍在维护"一类的话会变成假警告',
 };
+
+/**
+ * 首次体检时给的拆分建议：超限、或带着固定小节之外的 `## ` 小节的单文件卡，这些小节各自搬成一张域卡。
+ * @returns {{card:string, sections:string[]}[]}
+ */
+export function splitSuggestions(ctxDir) {
+  const withDomains = new Set(loadDomainCards(ctxDir).map((d) => d.service));
+  return loadCards(ctxDir)
+    .filter((card) => !withDomains.has(card.service))
+    .map((card) => ({
+      card: posix(card.path),
+      sections: Object.keys(card.sections).filter((n) => !MAP_REQUIRED.includes(n) && !MAP_OPTIONAL.includes(n)),
+    }))
+    .filter((s) => s.sections.length);
+}
 
 /** 人读输出。 */
 export function formatReport(r) {

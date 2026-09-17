@@ -144,6 +144,15 @@ test('分支起点里每个含规范词的小节都有去处', () => {
     file => headingsOf(file) !== null,
   )
   console.log(`# 起点含规范词的小节 ${baseSections.length} 个；去向清单 ${ledger.length} 行`)
+  // 规范词条数的增减：只作信息、不判红（条数少了不等于规则丢了，丢没丢由上面的小节去向判）。
+  const headFiles = git(['ls-files']).split('\n').filter(f => SKILL_TREES.some(re => re.test(f)))
+  const headCount = new Map(headFiles.map(f => [f, normativeCount(fs.readFileSync(path.join(repoRoot, f), 'utf8'))]))
+  const sum = list => list.reduce((n, x) => n + x, 0)
+  console.log(`# 规范词条数：起点 ${sum(counts.map(c => c.base))} → 现在 ${sum([...headCount.values()])}`)
+  for (const { file, base: before } of counts) {
+    const now = headCount.get(file)
+    if (now !== undefined && now !== before) console.log(`#   ${file}: ${before} → ${now}`)
+  }
   assert.deepEqual(failures, [], `\n${failures.join('\n')}\n每个消失的小节 MUST 在 docs/report/*规范去向清单.md 里写明：搬到哪 / 并进哪 / 删除及理由。`)
 })
 

@@ -319,3 +319,59 @@ test('authority-unique：现行区一篇文档都没链到时判失败——零�
     assert.match(r.actual, /NO-DOC-LINK/)
   })
 })
+
+// ── 评审门补的边界：读不出的卡、损坏的基线、存量单文件卡 ─────────────────────────
+
+const LEGACY_SINGLE = `# 单文件卡
+
+## 职责
+订单服务。
+
+## 引用原件预览
+- \`src/export/columns.js#EXPORT_COLUMNS\`
+
+## 引用原件预览与定位
+- \`src/export/columns.js#EXPORT_COLUMNS\`
+`
+
+test('unreadable：读不出的域卡记一条违规，不从体检里无声消失', { skip: process.platform === 'win32' || process.getuid?.() === 0 }, () => {
+  withProject(({ ctxDir }) => {
+    const file = path.join(ctxDir, 'cards', 'order', '订单导出.md')
+    fs.chmodSync(file, 0o000)
+    try {
+      assert.ok(lintCards(ctxDir).violations.includes('unreadable|cards/order/订单导出.md|'))
+    } finally {
+      fs.chmodSync(file, 0o644)
+    }
+    assert.ok(!lintCards(ctxDir).violations.some((v) => v.startsWith('unreadable')), '读得出时不判')
+  })
+})
+
+test('基线 JSON 损坏或缺 violations：退出码 2 并点名文件，MUST NOT 当成空基线继续', () => {
+  for (const body of ['{ 不是 JSON', '{"version":1}']) {
+    withProject(({ root, ctxDir }) => {
+      fs.writeFileSync(path.join(ctxDir, BASELINE_FILE), body)
+      const r = runCli(root)
+      assert.equal(r.status, 2, body)
+      assert.match(r.stderr, new RegExp(BASELINE_FILE.replace(/\./g, '\\.')), body)
+      assert.equal(fs.readFileSync(path.join(ctxDir, BASELINE_FILE), 'utf8'), body, '损坏的基线不得被顺手重写')
+    })
+  }
+})
+
+test('存量单文件卡：固定小节之外的 `## ` 小节当业务域查近似重复；--init-baseline 列出按域拆分的建议', () => {
+  withProject(({ root, ctxDir }) => {
+    const v = lintCards(ctxDir).violations
+    assert.ok(v.includes('domain-dup|cards/order.md|引用原件预览~引用原件预览与定位'), v.join('\n'))
+    const init = runCli(root, '--init-baseline')
+    assert.equal(init.status, 0)
+    assert.match(init.stdout, /按业务域拆分的建议/)
+    assert.match(init.stdout, /cards\/order\.md：引用原件预览、引用原件预览与定位/)
+  }, { map: LEGACY_SINGLE, domains: {} })
+})
+
+test('已经拆成域卡的仓库：--init-baseline 不给拆分建议', () => {
+  withProject(({ root }) => {
+    assert.doesNotMatch(runCli(root, '--init-baseline').stdout, /按业务域拆分的建议/)
+  })
+})

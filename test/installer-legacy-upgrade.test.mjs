@@ -190,6 +190,51 @@ test('旧 skill 目录是符号链接时只删链接，不进入链接目标（A
   })
 })
 
+test('CLAUDE.md 是独立文件却带着旧 Codex 约束块：一次清掉，第二次运行不再列残留（FR-006 / FR-009）', () => {
+  withTarget('guard-in-claude', target => {
+    seedLegacy217(target)
+    const guard = '<!-- ai-dev-system:codex-conflicts:start -->\n旧约束\n<!-- ai-dev-system:codex-conflicts:end -->\n'
+    fs.appendFileSync(path.join(target, 'CLAUDE.md'), '\n' + guard)
+    const first = install(target, '--no-plugins')
+    assert.equal(first.status, 0, first.stderr || first.stdout)
+    for (const t of LEGACY_TOKENS) assert.ok(!managedText(target).includes(t), `残留旧名字 ${t}`)
+    assert.doesNotMatch(install(target, '--no-plugins').stdout, /旧版残留清理/)
+  })
+})
+
+test('块类残留每项一行"已改写"，删除项每项一行"已删除"（spec §7）', () => {
+  withTarget('observability', target => {
+    seedLegacy217(target)
+    const r = install(target, '--no-plugins')
+    assert.equal(r.status, 0, r.stderr || r.stdout)
+    assert.equal((r.stdout.match(/^✓ 已删除 /gm) || []).length, 6, '两个目录 × （两个旧 skill + 一个旧戳）')
+    // CLAUDE.md 的流程块、AGENTS.md 的流程块与约束块、.gitignore 的忽略块
+    assert.equal((r.stdout.match(/^✓ 已改写 /gm) || []).length, 4)
+  })
+})
+
+test('旧名字的块字段齐全且不含 mode：块名照样改写，前后对照照样打印（FR-005）', () => {
+  withTarget('legacy-no-mode', target => {
+    const block = legacyWorkflowBlock('collaboration="solo" merge-gate="direct" worktree-dir="./wt/"')
+    fs.writeFileSync(path.join(target, 'CLAUDE.md'), block + '\n')
+    fs.writeFileSync(path.join(target, 'AGENTS.md'), block + '\n')
+    const r = install(target)
+    assert.equal(r.status, 0, r.stderr || r.stdout)
+    assert.match(r.stdout, /旧：.*collaboration="solo"/)
+    assert.match(r.stdout, /新：collaboration="solo" merge-gate="direct" worktree-dir="\.\/wt\/"/)
+  })
+})
+
+test('新旧 .gitignore 块并存且新块没有决定行：沿用旧块里的决定，不发问（FR-007）', () => {
+  withTarget('docs-decision', target => {
+    seedLegacy217(target, { docsInGit: 'no' })
+    fs.appendFileSync(path.join(target, '.gitignore'), '\n# dw-system:gitignore:start\n/.codegraph/\n# dw-system:gitignore:end\n')
+    const r = install(target)
+    assert.equal(r.status, 0, r.stderr || r.stdout)
+    assert.match(fs.readFileSync(path.join(target, '.gitignore'), 'utf8'), /# dw-system:project-docs-in-git=no/)
+  })
+})
+
 test('安装器里旧名字只出现在 LEGACY 表内（FR-002）', () => {
   const src = fs.readFileSync(installer, 'utf8')
   const start = src.indexOf('const LEGACY = Object.freeze({')

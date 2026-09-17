@@ -430,7 +430,7 @@ function gitignoreBlock(skills, projectDocsInGit) {
 
 // 上次的决定：只认标记块【内】那行注释，块外同名字样不作数。
 function readProjectDocsDecision(raw) {
-  // 新块优先；没有新块才读旧名字的块——升级时把上次的决定原样带过去，不再发问。
+  // 新块的决定行优先；新块里读不出决定才读旧名字的块——升级时把上次的决定原样带过去，不再发问。
   const sources = [
     [getMarkedBlock(raw, GITIGNORE_START, GITIGNORE_END), PROJECT_DOCS_MARK],
     [getMarkedBlock(raw, ...LEGACY.gitignoreMarkers), LEGACY.projectDocsMark],
@@ -438,9 +438,9 @@ function readProjectDocsDecision(raw) {
   for (const [block, mark] of sources) {
     if (!block) continue;
     const line = block.split(/\r?\n/).find(l => l.trim().startsWith(mark));
-    if (!line) return null;
+    if (!line) continue;
     const value = line.trim().slice(mark.length);
-    return value === 'yes' || value === 'no' ? value : null;
+    if (value === 'yes' || value === 'no') return value;
   }
   return null;
 }
@@ -574,7 +574,7 @@ function parseWorkflowBlock(block, label) {
 //   1. 只映射协作维度——旧 mode="team" MUST NOT 推出别的任何东西（§8.1 第 2、3 条拍板"不兼容"）；
 //   2. 推断结果必须告知且可当场改（由调用方打印前后对照）；
 //   3. 告知文案不得使用 2.0.0 已废弃的旧项目类型说法（§8.1 第 1 条，无过渡期）。
-function resolveWorkflowSettings(parsed) {
+function resolveWorkflowSettings(parsed, fromLegacyBlock = false) {
   if (!parsed) return null;
   const declared = parsed.collaboration ?? null;
   const collaboration = declared ?? (parsed.mode === 'team' ? 'team' : 'solo');
@@ -586,9 +586,9 @@ function resolveWorkflowSettings(parsed) {
     worktreeDir,
     isNewFormat: declared !== null,
     inferred: declared === null || parsed['merge-gate'] == null || parsed['worktree-dir'] == null,
-    // 任一字段是补出来的、或旧块里还带着 mode，就要走改写并打印前后对照
+    // 任一字段是补出来的、旧块里还带着 mode、或读到的是旧名字的块，就要走改写并打印前后对照
     migrated: declared === null || parsed['merge-gate'] == null || parsed['worktree-dir'] == null
-      || parsed.mode !== null,
+      || parsed.mode !== null || fromLegacyBlock,
   };
 }
 
@@ -804,7 +804,7 @@ function legacyResidue(target, skillDestDirs, entries, gitignoreRaw) {
       residue.push({ kind: 'block', file, label: `${label}：${LEGACY.skills[0]} 标记块 → dw-workflow 标记块` });
     }
     if (getMarkedBlock(raw, ...LEGACY.codexGuardMarkers)) {
-      residue.push({ kind: 'block', file, label: `${label}：旧名字的 Codex 冲突约束块 → 新名字` });
+      residue.push({ kind: 'block', file, label: `${label}：旧名字的 Codex 冲突约束块（改名，本次不写约束时移除）` });
     }
   }
   if (getMarkedBlock(gitignoreRaw, ...LEGACY.gitignoreMarkers)) {
@@ -1476,7 +1476,9 @@ async function main() {
       + `（已知字段：mode / ${WORKFLOW_FIELDS.map(f => f.key).join(' / ')}）`);
   }
   const existingModeBlock = claudeParsed ? claudeModeBlock : agentsModeBlock;
-  const workflowSettings = resolveWorkflowSettings(claudeParsed || agentsParsed);
+  const fromLegacyBlock = existingModeBlock != null
+    && existingModeBlock === getMarkedBlock(claudeParsed ? initialClaudeRaw : initialAgentsRaw, ...LEGACY.workflowMarkers);
+  const workflowSettings = resolveWorkflowSettings(claudeParsed || agentsParsed, fromLegacyBlock);
   const workflowModeBlock = workflowSettings
     ? buildWorkflowBlock(skillsRoot, workflowSettings, existingModeBlock)
     : null;
@@ -1708,11 +1710,12 @@ async function main() {
     }
   }
 
-  // 2b') 本次不写 Codex 约束（--no-plugins 等）时，旧名字的约束块也不留。
-  {
-    const raw = readTextIfExists(agentsEntry);
+  // 2b') 旧名字的约束块一个入口也不留：本次不写 Codex 约束（--no-plugins 等）时 AGENTS.md 里的那份
+  // 走这里删；CLAUDE.md 是独立文件却带着这个块（手工拷过去的）同样删，否则残留清单每次都会再列一遍。
+  for (const entry of sharedEntry ? [agentsEntry] : [claudeEntry, agentsEntry]) {
+    const raw = readTextIfExists(entry);
     const cleaned = removeMarkedBlock(raw, ...LEGACY.codexGuardMarkers);
-    if (cleaned !== raw) fs.writeFileSync(agentsEntry, cleaned);
+    if (cleaned !== raw) fs.writeFileSync(entry, cleaned);
   }
 
   // 2c) 若任一入口已有 mode，幂等同步到两个入口，修复旧安装只写一个文件的状态。
@@ -1747,6 +1750,16 @@ async function main() {
       }
       console.log(`✓ 已移除 ${entryLabel(codexAgentsFile, agentsEntry, target)} 的 Codex 自动触发约束（已改为全局卸载）`);
     }
+  }
+
+  // 2d) 块类残留逐项核销：旧名字的标记确实不在了才报"已改写"，还在就中止——静默留下旧块，
+  // 下次运行会按旧块再迁移一遍。
+  for (const item of residue.filter(r => r.kind === 'block')) {
+    const raw = readTextIfExists(item.file);
+    const left = [LEGACY.workflowMarkers, LEGACY.codexGuardMarkers, LEGACY.gitignoreMarkers]
+      .filter(markers => getMarkedBlock(raw, ...markers));
+    if (left.length) throw new Error(`安装校验失败：${item.file} 里仍有旧名字的标记块（${left.map(m => m[0]).join('、')}）`);
+    console.log(`✓ 已改写 ${item.label}`);
   }
 
   // 3) 伴生 skill：装到用户级目录，失败只警告，不影响上面已完成的项目安装

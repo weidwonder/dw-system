@@ -29,6 +29,13 @@
 - `assets/context-layer/card.md`（卡片模板）—— 旧：每仓一张单文件卡；新：地图卡 `card-map.md` + 域卡 `card-domain.md`，小节名固定；迁移：存量卡片仍读得出，跑一次 `ctx lint-cards --init-baseline`，之后碰到哪个域搬哪个域。
 - 注入标记块（正文）—— 旧：约 16KB，判据就地写全；新：约 5KB，只留常驻规则与指针；迁移：重跑安装器。
 - GitHub 仓库与 npm 包名 —— 旧：`weidwonder/ai-dev-system`；新：`weidwonder/dw-system`；迁移：安装命令改用新地址。
+- `install.mjs`（旧本地检出里的 2.x 安装器）—— 旧：在旧检出里跑 `./install.mjs <目标>` 可装任意版本的源；新：2.x 安装器不认识 `dw-system/` 目录，装不了 3.0 的源；迁移：先 `git pull` 更新检出，或改用 `npx --yes git+https://github.com/weidwonder/dw-system.git <目标>`。
+- 评审子代理（派发前置）—— 旧：prompt 里点名加载 `ai-dev-workflow`、读 `references/core/代码评审纪律.md`；新：点名加载 `dw-review-gate`（文档轴另加 `dw-doc-governance`，查代码事实另加 `dw-code-facts`），模板在 `dw-review-gate` 的 `子代理模板.md`；迁移：自己存了旧派发 prompt 的，按新模板重填。
+- 决策记录与索引行（目标项目的文档）—— 旧：来历可写在规范正文、spec 或卡片里，索引一条可多行；新：来历只进 `docs/decisions/`，索引每条一行；迁移：存量豁免，新建与被触碰的文档按新口径写。
+- 卡片增删口径（`代码事实纪律.md` §4.2）—— 旧："只增不减"，卡内可留变更记录；新："事实不丢，体积有上限"，卡片只写现状，变更记录进变更日志、bug 修复历史或决策记录；迁移：存量豁免，碰到哪张卡改哪张，`ctx lint-cards` 的 `dated-heading` 会点名。
+- cite 形态 —— 旧：`路径:行` 为主；新：`路径#符号` 为主，行号漂移不再让 cite 失效；迁移：存量 `路径:行` 仍合法，新写的 cite 用 `路径#符号`。
+- `test/contract-numbers.mjs` 的 `ENTRY_MAX_BYTES` 与清单行数下限（本仓库机器闸）—— 旧：入口字节上限与行数下限散在各自的测试里；新：并入 `test/doc-budgets.json`；迁移：改上限只改这一份清单，超限按两条总纲的固定顺序处置。
+- `test/wording-redline.test.mjs`（本仓库机器闸）—— 旧：规范词条数只增不减；新：`test/rule-destinations.test.mjs`，消失的含规范词小节须在 `docs/report/*规范去向清单.md` 交代去向，条数增减只打印不判红；迁移：删除、合并或搬走小节时登记去向清单。
 
 ### 新增
 - 两条总纲与〈归属表〉（`dw-workflow/SKILL.md`）：一个事实只有一个家；规范文本有体积上限，超限先搬走、再压缩、最后才抬上限。目标项目侧的归属表在 `文档治理.md`。

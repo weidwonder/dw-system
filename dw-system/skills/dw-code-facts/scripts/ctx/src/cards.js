@@ -120,22 +120,29 @@ export function cardFreshness(card) {
  */
 export function unreadableCards(ctxDir) {
   const cardsDir = path.join(ctxDir, 'cards');
-  if (!fs.existsSync(cardsDir)) return [];
-  let entries;
-  try {
-    entries = fs.readdirSync(cardsDir);
-  } catch {
-    return [];
-  }
   const bad = [];
-  for (const f of entries) {
-    if (!f.endsWith('.md')) continue;
+  // 地图卡在 cards/ 下，域卡在 cards/<repo>/ 下；只下探一层，与 loadDomainCards 同一范围。
+  const scan = (dir, prefix, descend) => {
+    let entries;
     try {
-      fs.readFileSync(path.join(cardsDir, f), 'utf8');
+      entries = fs.readdirSync(dir, { withFileTypes: true });
     } catch {
-      bad.push(f);
+      return;
     }
-  }
+    for (const e of entries) {
+      if (e.isDirectory()) {
+        if (descend) scan(path.join(dir, e.name), `${prefix}${e.name}/`, false);
+        continue;
+      }
+      if (!e.name.endsWith('.md')) continue;
+      try {
+        fs.readFileSync(path.join(dir, e.name), 'utf8');
+      } catch {
+        bad.push(prefix + e.name);
+      }
+    }
+  };
+  scan(cardsDir, '', true);
   return bad;
 }
 

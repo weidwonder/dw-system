@@ -13,7 +13,7 @@ import {
 import { loadAllCards, loadRegistry, diagnoseRegistry, unreadableCards, UNDECLARED_FRESHNESS } from './cards.js';
 import { searchSemantic } from './semantic.js';
 import { loadProbes, evaluateGate, readHistory, writeHistory } from './probe.js';
-import { BASELINE_FILE, compareWithBaseline, formatReport, readBaseline, writeBaseline } from './lint.js';
+import { BASELINE_FILE, BaselineError, compareWithBaseline, formatReport, readBaseline, splitSuggestions, writeBaseline } from './lint.js';
 
 // registry 解析不出数据行时的提示：每种原因对应一个完全不同的修复动作，MUST 分开报。
 const REGISTRY_EMPTY_HINT = {
@@ -341,12 +341,25 @@ function main() {
     }
     case 'lint-cards': {
       if (initBaseline && pruneBaseline) { console.error('用法错误：--init-baseline 与 --prune-baseline 不能同时给'); return 2; }
-      const r = compareWithBaseline(ctxDir);
+      let r;
+      try {
+        r = compareWithBaseline(ctxDir);
+      } catch (err) {
+        if (!(err instanceof BaselineError)) throw err;
+        console.error(`基线损坏：${err.message}。MUST NOT 删掉重建——从版本库恢复它，或修好 JSON 后重跑。`);
+        return 2;
+      }
       if (initBaseline) {
         // 已有基线时拒绝：重写基线等于把新违规一笔勾销。
         if (r.hasBaseline) { console.error(`${BASELINE_FILE} 已存在，拒绝覆盖。基线只许变短：用 --prune-baseline。`); return 2; }
         writeBaseline(ctxDir, r.violations);
-        out(json, `已写出基线 ${BASELINE_FILE}：${r.violations.length} 条存量违规。之后只许减不许增。`, { baseline: r.violations });
+        const split = splitSuggestions(ctxDir);
+        const lines = [`已写出基线 ${BASELINE_FILE}：${r.violations.length} 条存量违规。之后只许减不许增。`];
+        if (split.length) {
+          lines.push('', '按业务域拆分的建议（每个小节搬成 cards/<repo>/<域>.md，原文件留〈职责〉与〈业务域地图〉）：');
+          for (const s of split) lines.push(`  ${s.card}：${s.sections.join('、')}`);
+        }
+        out(json, lines.join('\n'), { baseline: r.violations, split });
         return 0;
       }
       if (pruneBaseline) {

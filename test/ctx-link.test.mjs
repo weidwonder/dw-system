@@ -83,11 +83,13 @@ function sandbox(state, fn) {
   // 决定 EEXIST 之后安装器判不判得出"这是我们上次留下的"。
   if (state.globalCtx) {
     const pkg = path.join(fake, 'globalroot', 'ctx')
-    if (state.globalCtx === 'ours-symlink') {
+    if (state.globalCtx === 'ours-symlink' || state.globalCtx === 'legacy-symlink') {
       // npm link 的产物：指向某个项目里 skill 副本的符号链接，且目标已经不存在
       // （项目被删/改名，正是 Windows 上 EEXIST 的成因之一）。安装器只读链接字符串。
       mkdirSync(path.join(fake, 'globalroot'), { recursive: true })
-      symlinkSync(path.join(fake, 'gone', '.claude', 'skills', 'dw-code-facts', 'scripts', 'ctx'), pkg)
+      // legacy-symlink：3.0 之前的安装把 ctx 放在旧名字的 skill 下，升级后第一次 link 撞上的就是它。
+      const owner = state.globalCtx === 'legacy-symlink' ? 'ai-dev-workflow' : 'dw-code-facts'
+      symlinkSync(path.join(fake, 'gone', '.claude', 'skills', owner, 'scripts', 'ctx'), pkg)
     } else {
       mkdirSync(path.join(pkg, 'src'), { recursive: true })
       writeFileSync(path.join(pkg, 'src', 'cli.js'),
@@ -208,7 +210,7 @@ test('EEXIST + PATH 上就是本体系的 ctx：确认归属后 --force 覆盖�
 })
 
 test('EEXIST + 命令不在 PATH 上，但全局包目录里那个 ctx 认得出是本体系的：同样 --force 覆盖', () => {
-  const cases = process.platform === 'win32' ? ['ours-file'] : ['ours-file', 'ours-symlink']
+  const cases = process.platform === 'win32' ? ['ours-file'] : ['ours-file', 'ours-symlink', 'legacy-symlink']
   for (const globalCtx of cases) {
     sandbox({ eexist: true, globalCtx }, ({ run }) => {
       const r = run()
