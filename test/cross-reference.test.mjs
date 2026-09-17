@@ -379,7 +379,8 @@ test('每条交叉引用的目标文件与目标小节都真实存在', () => {
 // 目标被拆分或改名后它不带 `§`、主形态抽不到，成了没有任何闸看得见的死链。`<skills 根>/` 前缀
 // 明确声明"这是本体系 skill 树里的路径"，所以可以零误报地要求目标文件存在。
 
-const SKILLS_ROOT_PATH_RE = /<skills 根>\/([^\s`<>|）)]+?\.md)/g
+// 脚本路径同查：兜底命令 `node <skills 根>/…/cli.js` 指到空路径，一跑就 ENOENT，而文字读起来毫无异样。
+const SKILLS_ROOT_PATH_RE = /<skills 根>\/([^\s`<>|）)]+?\.(?:md|mjs|js))(?![\w.])/g
 
 function collectSkillsRootPaths() {
   const out = []
@@ -394,7 +395,7 @@ function collectSkillsRootPaths() {
   return out
 }
 
-test('`<skills 根>/…​.md` 形态的路径都指到真实文件', () => {
+test('`<skills 根>/…` 形态的 .md / .js / .mjs 路径都指到真实文件', () => {
   const found = collectSkillsRootPaths()
   assert.ok(found.length >= 10, `只抽到 ${found.length} 条 \`<skills 根>/…\` 路径（期望 ≥10）：抽取正则很可能已失效，本条是空跑。`)
   const dead = found
@@ -408,4 +409,33 @@ test('`<skills 根>/…` 路径检查认得出死链（反向自检）', () => {
   const hits = [...'见 `<skills 根>/dw-workflow/references/不存在的文件.md`'.matchAll(SKILLS_ROOT_PATH_RE)].map((m) => m[1])
   assert.deepEqual(hits, ['dw-workflow/references/不存在的文件.md'])
   assert.equal(existsSync(path.join(skillsRoot, ...hits[0].split('/'))), false)
+})
+
+// ── 跨 skill 的引用要点名属主 ───────────────────────────────────────────────────────
+//
+// 单体 skill 时所有判据同住一个目录，裸文件名就能定位。拆成八个之后，只加载了引用方那个 skill 的
+// agent 拿到 `代码事实纪律.md` §7 这样的名字，无从知道它住在哪个 skill——而上面几条按"全树结尾片段"
+// 解析，跨 skill 的裸名照样判绿。所以另查：目标不在引用方 skill 内时，同一行 MUST 出现属主 skill 的名字。
+
+test('跨 skill 的 `x.md` §y 引用同一行点名了属主 skill', () => {
+  const skillOf = (abs) => {
+    const segs = relPosix(abs).split('/')
+    return segs[0] === 'dw-system' && segs[1] === 'skills' && segs.length > 3 ? segs[2] : null
+  }
+  const bare = []
+  let crossSkill = 0
+  for (const ref of REFS) {
+    const from = skillOf(ref.file)
+    if (!from) continue // 治理类文档与 skills/AGENTS.md 不属于任何 skill
+    for (const refPath of expandBraces(ref.refPath)) {
+      const target = resolveTarget(refPath, ref.file)
+      if (!target.abs) continue
+      const owner = skillOf(target.abs)
+      if (!owner || owner === from) continue
+      crossSkill += 1
+      if (!ref.context.includes(owner)) bare.push(`${relPosix(ref.file)}:${ref.line}  \`${refPath}\` 住在 ${owner}`)
+    }
+  }
+  assert.ok(crossSkill >= 50, `只认出 ${crossSkill} 条跨 skill 引用（期望 ≥50）：属主判定很可能已失效，本条是空跑。`)
+  assert.deepEqual(bare, [], `下列引用的目标在别的 skill 里，同一行却没点名它（写成「\`<属主 skill>\` 的 \`x.md\` §y」）：\n  ${bare.join('\n  ')}`)
 })

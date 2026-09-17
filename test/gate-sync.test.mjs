@@ -55,6 +55,8 @@ export function parseGateTable(overview) {
 // 每道贯穿门排一行：漏一行，走 Lean 的 agent 就不知道有这道门，且不会有任何报错。
 // 这里核对的是"排了没有"，判据本身只在各门自己的 skill 里。
 const MUST_RESTATE = [
+  // 入口只写门的名字加指针，不展开判据；但名字 MUST 在——Triage 之前 agent 手里只有入口。
+  { label: '入口 SKILL.md', file: ['SKILL.md'], section: '' },
   {
     label: 'Lean 一页 §顺序',
     file: ['references', '路径-lean.md'],

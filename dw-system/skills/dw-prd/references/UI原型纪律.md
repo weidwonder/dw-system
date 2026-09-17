@@ -103,7 +103,7 @@ node <skills 根>/dw-prd/scripts/preview.mjs check <原型文件>
 容器按标记分区，**能动的只有 §8.1 插槽表里那几个插槽**，其余全是固定实现（下表按标记名引用，MUST NOT 用序号——序号会随容器增区而漂）。
 
 > **固定实现区的正文不在容器文件里**：`THEME` / `DESIGN-SYSTEM` / `ANNO-FRAMEWORK:CSS` / `ICONS` / `SCREEN-SCRIPT` / `ANNO-FRAMEWORK:JS` 这六个区的内容住在 `assets/templates/ui-prototype-framework/` 下的独立 css / js / svg 源文件里，`ui-prototype.html` 本体只留分区标记与骨架；`preview.mjs init` 会按装配表把它们填回去。**产出的原型仍是单文件、零外链、可离线打开**——外置的是源码组织方式，不是运行时依赖，这条对产出方**没有任何影响**：你依旧只填插槽、依旧不读容器。**要改框架本身**（而不是产出原型）时才读 `assets/templates/ui-prototype-framework/README.md`：装配表、结构层与外观层的切分线、新增源文件该归哪一层都在那里。
-> 只有**维护批注框架本身**时才需要知道这件事：**改框架改 `ui-prototype-framework/` 下对应那份文件，MUST NOT 往 `ui-prototype.html` 的固定区里写内容**——写了就有两份副本，装配后同一段内容出现两次，而页面照常打开、`check` 也看不出。判据与机器闸见 `dw-workflow` 分发源仓库的 `docs/spec/2026-08-27-原型取段与框架外置-eng-spec.md`。
+> 只有**维护批注框架本身**时才需要知道这件事：**改框架改 `ui-prototype-framework/` 下对应那份文件，MUST NOT 往 `ui-prototype.html` 的固定区里写内容**——写了就有两份副本，装配后同一段内容出现两次，而页面照常打开、`check` 也看不出。判据与机器闸见本体系源仓库的 `docs/spec/2026-08-27-原型取段与框架外置-eng-spec.md`。
 
 
 
@@ -214,7 +214,7 @@ node <skills 根>/dw-prd/scripts/preview.mjs <原型文件>
 
 ### 8.1 用工具建原型，不要手工拼
 
-`scripts/preview.mjs` 是本 skill 唯一的脚本（**不是 ctx**，那个随 `dw-workflow` 分发）。产出、自检、取批注、起预览全部走它的子命令，MUST 优先用它们：
+`scripts/preview.mjs` 是本 skill 唯一的脚本（**不是 ctx**，那个随 `dw-code-facts` 分发）。产出、自检、取批注、起预览全部走它的子命令，MUST 优先用它们：
 
 | 做什么 | 命令 |
 |---|---|

@@ -266,7 +266,7 @@ export function listServices(ctxDir) {
 
 /**
  * initScaffold：在 targetDir 下生成 engineering-context/ 骨架。
- * **初始化一律跑完整形态**（`references/init-初始化.md` 第 5b 步）：cards/ 目录必须从第一天就在，
+ * **初始化一律跑完整形态**（dw-workflow 的 `references/init-初始化.md` 第 5b 步）：cards/ 目录必须从第一天就在，
  * 否则第一次补卡的 agent 还要先决定目录放哪。骨架里只有模板占位行，那是正常起步态，
  * 内容按任务渐进补齐（`references/代码事实纪律.md` §4）。
  * `{ minimal: true }` 仍可用、行为不变，但**不再是推荐路径**：它只生成 `capability-registry.md`，

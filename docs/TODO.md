@@ -26,6 +26,13 @@
 - 2026-08-26 ｜ 安装器 ｜ codegraph 与两个伴生 skill（`agentic-principle` / `skill-principle`）是外部仓库，上游改名、改命令或下线会让安装器这两段静默降级为警告，使用者可能不知道自己没拿到检索加速面与伴生 skill
 
 ## 技术欠账
+- 2026-09-17 ｜ dw-worktree ｜ 隔离门第 3 步在建 worktree 之前往主工作树写 `.gitignore` 忽略行与标记块设置，这两笔没有随分支提交的去处，下一次任务的第 2 步会判主工作树不干净；`direct` 合并冲突后主工作树留在 MERGING 态没有出口；`git worktree add` 撞上已存在的目录或分支、`merge-gate` 缺失时怎么探测保护分支、清理 worktree 与分支该用哪条命令，都没写（skill 原则轴 2026-09-17，2.17 起就是这样）
+- 2026-09-17 ｜ dw-bug-diagnosis ｜ Phase 2 没有完成判据与回退轮次上限；确实造不出回路的 bug 没有合法出口；全篇没有走查案例；`ctx` 跑不起来时 Phase 2 没有降级路径（同上）
+- 2026-09-17 ｜ dw-review-gate ｜ 只改测试、没有 spec 的场景下忠实轴没有降级指令；`评审门禁.md`、`积压通路.md`、`评审轴.md` 里还留着几处带日期的来历叙述，理由要留、叙述外壳该搬去决策记录（同上）
+- 2026-09-17 ｜ dw-workflow ｜ 完整流程 Step 3、Step 5 没有退出条件；§大架构确认门 住在可被跳过的 Step 2 里面；七步完整流程与两道确认门没有贯通案例；"仅有的两个允许挂起的流程内点"这句与大架构确认门、不可逆确认门的 MUST 等用户相抵，待拍板收窄还是删（同上）
+- 2026-09-17 ｜ dw-code-facts ｜ 入口与 `代码事实纪律.md` 说"在子目录跑 `ctx` 会静默返回空且退出 0"，实际 `discover` 会打印路径不存在的提示、`get-card` 退出 1；`npm link` 是全局副作用，撤销方式只写在 ctx README；ctx README 里混着只对本仓库维护者有用的〈测试〉与 `package.json` 说明；`get-card` 在服务不存在时 `--json` 不输出 JSON；`--top` 默认值没写（同上）
+- 2026-09-17 ｜ skill 文档 ｜ 同一条规则换了措辞在两个 skill 里各展开一份、`single-home` 闸抓不到的七组（`reviewed-through` tag 的打法、"每条意见逐条落稿"、"怎样算定稿"、覆盖度台账登记、真相方向铁律、取证顺序的家、`<skills 根>` 的定义），以及 `<skills 根>` / `<本 skill 根目录>` 等五种占位符写法待统一（同上）
+- 2026-09-17 ｜ 机器闸 ｜ 三份注入块片段没有 `##` 标题，`rule-destinations` 按小节切段扫不到它们；该闸只认 `MUST` / `SHOULD`，中文模态（"不删""只有…才"）的小节不在射程内；入口 `SKILL.md` 逐份有上限、八份合计没有上限，要不要加待拍板
 
 - 2026-09-17 ｜ dw-workflow ｜ `references/` 合计超出 `test/doc-budgets.json` 的 `totals` 目标，上限暂冻结在实测值（同一文件的 `overrides`）。下一步候选：测试阶段三篇（`步骤-8-10-测试.md`、`测试资产纪律.md`）与 `AI-LLM-overlay.md` 是否各自成 skill，由拍板人定
 - 2026-09-17 ｜ dw-prd ｜ 入口、`00-prd生成流程.md`、`UI原型纪律.md` 三篇与 `references/` 合计都超出 `test/doc-budgets.json` 的目标，上限暂冻结在实测值（同一文件的 `files` 与 `overrides`）。3.0 只给它改了名，没有按两条总纲重组

@@ -248,7 +248,8 @@ export function splitSuggestions(ctxDir) {
 
 /** 人读输出。 */
 export function formatReport(r) {
-  if (r.cards === 0) return '没有卡片可检（engineering-context/cards/ 不存在或为空）。';
+  // 一张卡都没有、registry 却有违规（起步态只填了 registry 的项目）：照常往下打印，不能只说"没有卡片可检"却退出 1。
+  if (r.cards === 0 && r.violations.length === 0) return '没有卡片可检（engineering-context/cards/ 不存在或为空）。';
   const lines = [`已检 ${r.cards} 张卡：违规 ${r.violations.length} 条，其中基线内 ${r.violations.length - r.fresh.length} 条、新增 ${r.fresh.length} 条。`];
   if (r.fresh.length) {
     lines.push('', '🛑 新增违规（MUST 修掉；基线不接受新增）：');

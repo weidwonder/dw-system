@@ -28,6 +28,19 @@ function splitSections(raw) {
   return sections;
 }
 
+/**
+ * 目录项是不是目录。跟随符号链接：多仓项目用软链接共享卡片，`Dirent.isFile()` / `isDirectory()`
+ * 对软链接一律返回 false，照它判会把这张卡无声跳过。链接悬空时按"不是目录"算，由读文件那一步报读不出。
+ */
+function isDir(dir, e) {
+  if (!e.isSymbolicLink()) return e.isDirectory();
+  try {
+    return fs.statSync(path.join(dir, e.name)).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
 /** 读一个目录下的 `*.md`；目录或单个文件读不出时跳过，不抛。 */
 function readMarkdownDir(dir) {
   let entries;
@@ -38,7 +51,7 @@ function readMarkdownDir(dir) {
   }
   const out = [];
   for (const e of entries) {
-    if (!e.isFile() || !e.name.endsWith('.md')) continue;
+    if (isDir(dir, e) || !e.name.endsWith('.md')) continue;
     try {
       out.push({ name: path.basename(e.name, '.md'), raw: fs.readFileSync(path.join(dir, e.name), 'utf8') });
     } catch {
@@ -86,7 +99,7 @@ export function loadDomainCards(ctxDir) {
   }
   const out = [];
   for (const e of entries) {
-    if (!e.isDirectory()) continue;
+    if (!isDir(cardsDir, e)) continue;
     for (const { name, raw } of readMarkdownDir(path.join(cardsDir, e.name))) {
       out.push({
         service: e.name,
@@ -130,7 +143,7 @@ export function unreadableCards(ctxDir) {
       return;
     }
     for (const e of entries) {
-      if (e.isDirectory()) {
+      if (isDir(dir, e)) {
         if (descend) scan(path.join(dir, e.name), `${prefix}${e.name}/`, false);
         continue;
       }

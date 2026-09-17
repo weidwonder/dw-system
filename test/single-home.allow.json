@@ -1,13 +1,5 @@
 [
   {
-    "sentence": "> - **Agentic 应用** MUST 加载 `agentic-principle`",
-    "files": [
-      "dw-workflow/assets/config-snippets/base.md",
-      "dw-workflow/references/AI-LLM-overlay.md"
-    ],
-    "reason": "注入块的关键一句：读它的会话不一定已加载 skill，判据仍只在 AI-LLM-overlay.md 与伴生 skill 里"
-  },
-  {
     "sentence": "MUST NOT 合并成一次\"总体看看\"——合并会让一轴的显眼问题掩盖另一轴",
     "files": [
       "dw-prd/references/prd复核纪律.md",
@@ -56,7 +48,7 @@
     "reason": "入口的关键一句：dw-prd 入口自带完整纪律，展开在 00-prd生成流程.md"
   },
   {
-    "sentence": "> **本次读了源码才搞清楚的模块，MUST 在本次任务内落成 `engineering-context/cards/` 卡片**（域卡最小四节：职责 / 权威实现与对外接口 / 陷阱项 / 确认，判据见 `代码事实纪律.md` §4），并在末列写明补的是哪张卡片的哪个域",
+    "sentence": "> **本次读了源码才搞清楚的模块，MUST 在本次任务内落成 `engineering-context/cards/` 卡片**（域卡最小四节：职责 / 权威实现与对外接口 / 陷阱项 / 确认，判据见 `dw-code-facts` 的 `代码事实纪律.md` §4），并在末列写明补的是哪张卡片的哪个域",
     "files": [
       "dw-workflow/assets/templates/eng-spec.md",
       "dw-workflow/assets/templates/overview.md"
@@ -64,7 +56,7 @@
     "reason": "两份模板各自被单独复制进目标项目，〈既有系统清单〉的填写说明 MUST 就地写"
   },
   {
-    "sentence": "> 本表出现**\"同一逻辑的多处副本\"**时，MUST 在对应卡片的**陷阱项**里写清哪一处是权威、哪一处不该再用（`代码事实纪律.md` §4.1）——否则下一个零上下文 agent 还会改错那一份",
+    "sentence": "> 本表出现**\"同一逻辑的多处副本\"**时，MUST 在对应卡片的**陷阱项**里写清哪一处是权威、哪一处不该再用（`dw-code-facts` 的 `代码事实纪律.md` §4.1）——否则下一个零上下文 agent 还会改错那一份",
     "files": [
       "dw-workflow/assets/templates/eng-spec.md",
       "dw-workflow/assets/templates/lean-change-spec.md"

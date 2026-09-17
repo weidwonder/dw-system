@@ -523,7 +523,7 @@ function assertCodexGuard(raw, conflicts, file) {
 // ── dw-workflow 标记块的字段模型 ───────────────────────────────────────────
 // 契约来源：docs/spec/2026-08-18-代码事实层强制化-eng-spec.md
 // （它取代了已归档的 2026-08-16-项目真相源与context-tier重构-eng-spec.md §5 / §6.1 / §8.3）
-//（该 spec 已于 2.1.0 转归档，但字段模型这部分未被取代；现行口径见 CLAUDE.md §安装器的关键设计）。
+//（该 spec 已于 2.1.0 转归档，但字段模型这部分未被取代；现行口径见 engineering-context/cards/dw-system/标记块与旧版迁移.md）。
 // 代码事实层不设字段——它是每个项目的必备资产，与声明无关；代码图谱也不设字段——
 // 由 skill 每次运行探测 .codegraph/codegraph.db 得出。因此这里解析出来的东西
 // 只有协作维度与 worktree 目录。
@@ -1601,6 +1601,14 @@ async function main() {
     }
     console.log('       · 代码事实一律走 engineering-context 卡片层，与这份声明无关；'
       + '有没有代码图谱索引则由每次唤起时探测得出。');
+  }
+  // 两个入口各有一份且字段不一致：以 CLAUDE.md 为准会改掉 AGENTS.md 里用户显式配过的值，
+  // 不说的话他不会有任何察觉。
+  if (!sharedEntry && claudeParsed && agentsParsed
+    && workflowFieldSummary(agentsModeBlock) !== workflowFieldSummary(claudeModeBlock)) {
+    console.log(`\n${HL}  ⚠ 两个入口的 dw-workflow 配置不一致，将按 CLAUDE.md 统一：${HL_END}`);
+    console.log(`       AGENTS.md 原为：${workflowFieldSummary(agentsModeBlock)}`);
+    console.log(`       CLAUDE.md 为：${workflowFieldSummary(claudeModeBlock)}；不对就改 CLAUDE.md 里的字段后再跑一次。`);
   }
   // 已装 skill 早于新字段格式而配置已是新格式：显式报告，不静默继续（spec §8.3）。
   if (workflowSettings?.isNewFormat && installedVersion

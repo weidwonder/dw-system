@@ -921,7 +921,7 @@ export function selfCheck(cards, registry, ctx = {}) {
 /**
  * 评估门禁（不依赖时钟；交接题型会读项目文件，除此之外无 IO）：自检 → 跑真实探针 → 加权打分 + 双向棘轮 → 定级。
  *
- * 规则（与 core/engineering-context设计.md §6 / probe-set.md 一致）：
+ * 规则（与 references/engineering-context设计.md §6 / probe-set.md 一致）：
  *   · blocking 探针失败 = 零容忍，直接 RED（不受基线豁免）。
  *   · scored 探针按 weight 计**加权通过率**；低于 floor（默认关闭，CLI 传 0.9）= RED。
  *   · 棘轮**双向**：基线外新失败 = RED；基线内已不再失败 = staleBaseline，必须删除，也 RED（只许变短）。

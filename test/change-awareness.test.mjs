@@ -9,6 +9,7 @@
 // 只查机械可判的那一半：判据在不在场、五类闭集有没有漂、`ctx init` 有没有真建目录、stub 与模板
 // 有没有漂。规则合不合理归评审门；本闸全绿 MUST NOT 被读成契约描述正确。
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -183,9 +184,22 @@ test('本仓库自身的 CHANGELOG.md 在仓库根、有未发布节与五个小
   const start = body.indexOf('## 未发布')
   const firstVersion = body.search(/\n## \d+\.\d+\.\d+/)
   assert.ok(firstVersion === -1 || start < firstVersion, '`## 未发布` 必须在版本节之前')
-  // 「每次合并至少写一条」由完成门的 first-parent 检查守（worktree开发纪律.md §完成与自动合并门），
-  // 不由本闸守：发版刚改完名时 `## 未发布` 合法为空（2026-09-16 发 2.17.0 当场撞出）。
-  // 本闸只断言整份文件至少有一条真实条目——空壳 CHANGELOG 才是它要挡的。
-  const entries = body.split('\n').filter((l) => l.startsWith('- '))
-  assert.ok(entries.length >= 1, 'CHANGELOG 全文一条条目都没有')
+  // 「每次合并至少写一条」：`## 未发布` 只在发版刚改完名、之后还没有新提交时合法为空。
+  //   当前 VERSION 的 tag 还没打（发版提交还在分支上）→ 该版本节 MUST 有条目；
+  //   tag 已打且其后有提交 → `## 未发布` MUST 有条目；tag 已打且其后无提交 → 合法为空。
+  const entriesOf = (heading) => {
+    const from = body.indexOf(`\n${heading}`)
+    if (from === -1) return []
+    const next = body.indexOf('\n## ', from + 1)
+    return body.slice(from, next === -1 ? undefined : next).split('\n').filter((l) => l.startsWith('- '))
+  }
+  const version = readFileSync(path.join(repoRoot, 'dw-system', 'VERSION'), 'utf8').trim()
+  const git = (args) => spawnSync('git', args, { cwd: repoRoot, encoding: 'utf8' })
+  const tagged = git(['rev-parse', '--verify', '--quiet', `refs/tags/v${version}`]).status === 0
+  if (!tagged) {
+    assert.ok(entriesOf(`## ${version}`).length >= 1 || entriesOf('## 未发布').length >= 1,
+      `v${version} 还没打 tag，而 \`## ${version}\` 与 \`## 未发布\` 下都没有条目——每次合并 MUST 至少写一条`)
+  } else if (Number(git(['rev-list', '--count', `v${version}..HEAD`]).stdout.trim()) > 0) {
+    assert.ok(entriesOf('## 未发布').length >= 1, `v${version} 之后已有提交，\`## 未发布\` 下却一条都没有——每次合并 MUST 至少写一条`)
+  }
 })

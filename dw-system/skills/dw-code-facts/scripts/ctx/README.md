@@ -164,7 +164,7 @@ node src/cli.js init --minimal --dir <项目根>     # 落 engineering-context/c
 
 `.gitignore` 一起生成，内容是忽略 `.index/`（`ctx probe` 的通过率历史，机器状态，不入库）。除这两个文件外 `--minimal` 不落任何东西——`cards/`、`scenes/`、`probe-set.md`、`glossary.md` 正是它要省掉的。
 
-**什么时候用**：**初始化一律跑完整 `ctx init`**（`../../references/init-初始化.md` 第 5b 步）——`cards/` 目录必须从第一天就在，否则第一次补卡的 agent 还要先决定目录放哪。`--minimal` 保留给"手工在既有项目上先落一份 registry"这类场景：先把出过问题的能力写成三行，其余文件之后跑一次不带 `--minimal` 的 `ctx init` 补齐。
+**什么时候用**：**初始化一律跑完整 `ctx init`**（`<skills 根>/dw-workflow/references/init-初始化.md` 第 5b 步）——`cards/` 目录必须从第一天就在，否则第一次补卡的 agent 还要先决定目录放哪。`--minimal` 保留给"手工在既有项目上先落一份 registry"这类场景：先把出过问题的能力写成三行，其余文件之后跑一次不带 `--minimal` 的 `ctx init` 补齐。
 
 **最小合法 schema**（完整字段说明见 `../../assets/context-layer/capability-registry.md`）：
 
@@ -206,7 +206,7 @@ node src/cli.js search-semantic "背单词" --as-of 2026-07-20 --stale-days 90  
 | `ctx lint-cards --prune-baseline` | 从基线移除已不再出现的条目；不会添加 | 0 |
 | `ctx lint-cards --json` | 同第一行，机器可读（`violations` / `fresh` / `fixed`） | 同第一行 |
 
-没有 `cards/` 目录或目录为空：打印"没有卡片可检"，退出 0。基线文件在、但不是合法 JSON 或缺 `violations` 数组：点名文件、退出 2，MUST NOT 当成空基线继续，也不改写它。读不出的卡片文件记一条 `unreadable|<路径>|` 违规，其余规则不检它。
+没有 `cards/` 目录或目录为空、registry 也没有违规：打印"没有卡片可检"，退出 0；registry 有违规（指针指向不存在的卡、单格超限）时照常列出并按新增违规判退出码。基线文件在、但不是合法 JSON 或缺 `violations` 数组：点名文件、退出 2，MUST NOT 当成空基线继续，也不改写它。读不出的卡片文件记一条 `unreadable|<路径>|` 违规，其余规则不检它。
 
 | 规则 | 判据 |
 |---|---|

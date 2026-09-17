@@ -2,14 +2,14 @@
 
 > 首次在某项目唤起 skill、且两个入口都找不到标记块时执行。**只问一个问题（协作面）+ 一条待拍板的合并方式建议**，之后固化。
 > **代码事实层不问**——`engineering-context/` 是必备资产，不是选项：初始化时按第 5b 步直接建骨架，MUST NOT 问用户"要不要建"。
-> **代码图谱不问**——项目有没有建代码知识图谱索引由 `SKILL.md` §路由逻辑第 1 步**每次运行探测**得出，MUST NOT 写进标记块：写成配置，项目一长大它就过期。
+> **代码图谱不问**——项目有没有建代码知识图谱索引由 `SKILL.md` §路由 第 1 步**每次运行探测**得出，MUST NOT 写进标记块：写成配置，项目一长大它就过期。
 > 本文按 RFC 2119 解释 MUST / MUST NOT / SHOULD / MAY。
 
 ## 流程
 
 > **第 1–4 步只读文件、只与用户对话，MUST NOT 落盘任何东西。**
 > 注入（第 5 步）、建骨架（第 5b 步）与冲突处置的写盘 MUST 发生在**过完工作区隔离门、进入 worktree 之后**
-> （`worktree开发纪律.md` §工作区隔离门 第 4 步）。两个原因：
+> （`dw-worktree` 的 `worktree开发纪律.md` §工作区隔离门 第 4 步）。两个原因：
 > ① 隔离门要检查主工作树是否干净，在门前写 `CLAUDE.md`/`AGENTS.md` 会把它弄脏，
 >    于是**每个项目第一次唤起本 skill 都会被自己的门拦在门外**；
 > ② 在主工作树写下的标记块**不会出现在随后新建的 worktree 里**（worktree 是从主分支检出的），
@@ -36,10 +36,10 @@
 
    | 探测什么 | 怎么看 | 用途 |
    |---|---|---|
-   | **代码图谱** | `.codegraph/codegraph.db` 是否存在 | 只决定要不要加载 `graph.md`。MUST NOT 写进标记块，MUST NOT 据此追问用户 |
+   | **代码图谱** | `.codegraph/codegraph.db` 是否存在 | 只决定要不要加载 `dw-code-facts` 的 `graph.md`。MUST NOT 写进标记块，MUST NOT 据此追问用户 |
    | **代码事实层是否已初始化** | `engineering-context/capability-registry.md` 是否存在 | 只决定第 5b 步要不要建骨架。它是必备资产，**MUST NOT 据此判断"这项目要不要用卡片"**，也 MUST NOT 问用户 |
-   | **`merge-gate` 建议** | 有 git 远端（`git remote`）**且**存在 `.github/workflows/` 或等价 CI 配置 → 建议 `pr`；否则建议 `direct` | 只是**建议**，第 4 步交用户拍板。这是初始化时给用户的建议值，**与字段已缺失时的非交互兜底不是同一件事**（后者的唯一权威定义在 `worktree开发纪律.md` §完成与自动合并门） |
-   | **三层真相源缺口** | 按 `文档治理.md` §三层真相源 看需求 / 架构 / 实现是否各有其一、能否从 README 或 `docs/index.md` ≤2 跳到达 | 第 6 步**报告**，不阻断 |
+   | **`merge-gate` 建议** | 有 git 远端（`git remote`）**且**存在 `.github/workflows/` 或等价 CI 配置 → 建议 `pr`；否则建议 `direct` | 只是**建议**，第 4 步交用户拍板。这是初始化时给用户的建议值，**与字段已缺失时的非交互兜底不是同一件事**（后者的唯一权威定义在 `dw-worktree` 的 `worktree开发纪律.md` §完成与自动合并门） |
+   | **三层真相源缺口** | 按 `dw-doc-governance` 的 `文档治理.md` §三层真相源 看需求 / 架构 / 实现是否各有其一、能否从 README 或 `docs/index.md` ≤2 跳到达 | 第 6 步**报告**，不阻断 |
 
 4. **询问**（仅当两入口都无块）：一次抛全，不一问一答。
 
@@ -85,23 +85,23 @@
    ctx init
    ```
 
-   （`ctx` 命令不可用时改用 `node <本skill根目录>/scripts/ctx/src/cli.js init`，见
-   `代码事实纪律.md` §2。）它生成 `capability-registry.md`、`cards/`、`dependencies/`、`scenes/`、
+   （`ctx` 命令不可用时改用 `node <skills 根>/dw-code-facts/scripts/ctx/src/cli.js init`，见
+   `dw-code-facts` 的 `代码事实纪律.md` §2。）它生成 `capability-registry.md`、`cards/`、`dependencies/`、`scenes/`、
    `probe-set.md`、`glossary.md`、`README.md`、`.gitignore`，已存在的文件一律不覆盖。
    骨架随本次任务分支提交。
 
    - **MUST NOT 跑 `--minimal`**：卡片目录必须从第一天就在，否则第一次补卡的 agent
      还要先决定目录放哪，同一个项目里就会长出两种放法。
    - **MUST NOT 在这一步通读项目代码去填内容**。骨架里只有模板占位、没有真实数据行，
-     这是**正常起步状态**：内容按 `代码事实纪律.md` §4 在后续干活过程中渐进补齐
+     这是**正常起步状态**：内容按 `dw-code-facts` 的 `代码事实纪律.md` §4 在后续干活过程中渐进补齐
      （要用哪个模块的事实就补哪个模块的卡片）。一次性铺满卡片既做不准
      （没有具体任务当靶子，写出来的都是泛泛之谈），也会把这次初始化拖成一个大工程。
    - `capability-registry.md` **已存在时跳过整步**，MUST NOT 覆盖用户已有内容，
      也 MUST NOT 因为它"只有占位行"就重建——占位行就是起步态。
 
-6. **报告三层真相源缺口**（报告，不阻断）：把第 3 步查出的缺口一句话说清——缺哪层、补它的**最小形态**是什么（判据与最小形态表见 `文档治理.md` §三层真相源：需求 = README 一节或 `docs/index.md`；架构 = README 里一节"架构与边界"，短到 10 行也算；实现 = 代码本身 + 子代理外包探索），然后**继续流程**。
+6. **报告三层真相源缺口**（报告，不阻断）：把第 3 步查出的缺口一句话说清——缺哪层、补它的**最小形态**是什么（判据与最小形态表见 `dw-doc-governance` 的 `文档治理.md` §三层真相源：需求 = README 一节或 `docs/index.md`；架构 = README 里一节"架构与边界"，短到 10 行也算；实现 = 代码本身 + 子代理外包探索），然后**继续流程**。
 
-   - MUST NOT 替用户创建 `REQUIREMENTS.md` / `ARCHITECTURE.md` / `docs/index.md` / `docs/TODO.md`（后者是「还没做的事」的唯一出口，第一次有够格条目时才建，判据见 `文档治理.md` §TODO 出口），MUST NOT 为了归档而临时造一个索引（`文档治理.md`）。
+   - MUST NOT 替用户创建 `REQUIREMENTS.md` / `ARCHITECTURE.md` / `docs/index.md` / `docs/TODO.md`（后者是「还没做的事」的唯一出口，第一次有够格条目时才建，判据见 `dw-doc-governance` 的 `文档治理.md` §TODO 出口），MUST NOT 为了归档而临时造一个索引（`文档治理.md`）。
    - MUST NOT 把"补齐三层真相源"设成开始开发的前置条件——旧项目补齐需要时间，卡住只会让用户绕开整个流程。
    - 无缺口时一句话带过，不展开。
 
@@ -137,7 +137,7 @@
 
 - 找到标记块，把 `collaboration` 改成新值，并把块内的协作段替换为另一份 `collab-<collaboration>.md` 的**块内内容**（`<!-- dw-workflow:start -->` 与 `<!-- dw-workflow:end -->` 之间的正文，**MUST NOT 把这两行标记一起写进去**——两个 `collab-*.md` 各自带一对完整标记，照抄整份文件会在标记块内部再嵌一对，此后任何"替换首个 start 与首个 end 之间"的写入都会在嵌套的 `end` 处截断，静默丢掉协作段）；`base.md` 那段与其余字段不动。
 - **MUST NOT 顺手改 `merge-gate`**——合并方式是独立字段，用户没说就不动；确有必要时单独问一句。
-- **切换协作面不影响代码事实层**：卡片照常按 `代码事实纪律.md` §4 边干边补。MUST NOT 借切换的机会重新讨论"要不要用卡片"——那不是可选项。
+- **切换协作面不影响代码事实层**：卡片照常按 `dw-code-facts` 的 `代码事实纪律.md` §4 边干边补。MUST NOT 借切换的机会重新讨论"要不要用卡片"——那不是可选项。
 
 ## 写入示例
 

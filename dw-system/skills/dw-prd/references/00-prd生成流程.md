@@ -31,7 +31,7 @@
 
 > **AI-native / Agent 产品的边界（重要）**：上面三个模板给的是 PRD 的"软件外壳"。若产品的**核心价值来自 AI 行为**（模型自主规划、直接调用工具/接口、跨会话记忆影响决策，或置信度/降级是产品级决策），本 skill 的模板**不足以**承载 AI 产品决策——你**必须额外补一张 AI Capability Card**（见批 C 的 AI 追问），写清自主程度、允许/禁止行为、置信度与降级策略、评测（eval）准出标准（自主程度用批 C 的四档：仅给建议 / 辅助操作 / 受控自动执行 / 高影响自动执行）；**Agent 类产品**还要逐档写明**审批闸门**（哪一档起必须有人把关、什么情况必须停下问人），并列一份**不回答清楚就不上线的问题清单**（如：它最坏能造成什么业务损失？如何一键停用？出错了谁负责向谁交代？）。这些属产品/安全决策，**必须在 PRD 定，不能下沉给工程 spec 补**。你所在团队若有自有的 Agentic 产品 PRD 规范，完整骨架以其为准——本 skill 不随包分发这类重型模板。
 
-> **产出物是 skill 时的边界（重要）**：本次要交付的是一个 **Agent Skill**（含 `SKILL.md` 与它的 `references/` `assets/`）时，上面三个模板照选不误——但两件事要跟着变。**其一**：PRD 完成后，下游 `dw-workflow` 对**不含可执行代码**的 skill 改动**不再出技术 spec 与 coding plan**（PRD 即 spec，判据在它的 `纯skill改动.md`），因此这份 PRD 就是那次改动的**唯一需求真相源**：目标、非目标、详细业务行为与验收标准 MUST 写到零上下文可动手，**MUST NOT 以"工程 spec 里再补"为由留白**。**其二**：这类需求 SHOULD 加载伴生 skill `skill-principle` 的建设路径来定 skill 的边界与非目标——它管"skill 作为指令载体该怎么写"，判据以该 skill 当前版本为准，**本篇 MUST NOT 复述**。skill 自带 CLI 或脚本时，那部分仍是普通程序，照常走完整工程流程。
+> **产出物是 skill 时的边界（重要）**：本次要交付的是一个 **Agent Skill**（含 `SKILL.md` 与它的 `references/` `assets/`）时，上面三个模板照选不误——但两件事要跟着变。**其一**：PRD 完成后，下游 `dw-workflow` 对**不含可执行代码**的 skill 改动**不再出技术 spec 与 coding plan**（PRD 即 spec，判据在 `<skills 根>/dw-workflow/references/纯skill改动.md`），因此这份 PRD 就是那次改动的**唯一需求真相源**：目标、非目标、详细业务行为与验收标准 MUST 写到零上下文可动手，**MUST NOT 以"工程 spec 里再补"为由留白**。**其二**：这类需求 SHOULD 加载伴生 skill `skill-principle` 的建设路径来定 skill 的边界与非目标——它管"skill 作为指令载体该怎么写"，判据以该 skill 当前版本为准，**本篇 MUST NOT 复述**。skill 自带 CLI 或脚本时，那部分仍是普通程序，照常走完整工程流程。
 
 > **UI / 交互原型边界（重要）**：只要需求新增或调整用户可见页面、组件、入口、状态、信息层级或交互路径，MUST 补一个 HTML 高保真交互原型（**不改结构与交互的纯文案改动豁免**，在 PRD 写清改动前后文案即可）。样式依据**先自查代码里的设计 token / 组件库 / 同类现有页面**，查不到才向用户要材料。原型 MUST 可离线打开（单文件、零外链），用于体验对齐，不是给 PM 解释设计思路的文档页：屏幕内只放真实用户会看到的内容；设计说明、样式依据、开放问题放画布外。原型与 PRD 一并作为 `dw-workflow` 的输入，下游按它落用户可见行为。若确认不涉及 UI，PRD 写明“不适用 + 原因”。
 
@@ -91,9 +91,9 @@
 4. `ctx search-semantic "<自然语言>"` —— `discover` 未命中时的兜底；
 5. 命中的事实**每条附 cite**（`path#anchor @确认时间`），用它预填现状草稿再请用户确认/纠偏。**无 card 依据的 cite 视为幻觉，MUST NOT 编造。**
 
-命令找不到时 MUST NOT 判定"没有可信事实"，用 `node <skills 根>/dw-workflow/scripts/ctx/src/cli.js <命令>` 兜底。
+命令找不到时 MUST NOT 判定"没有可信事实"，用 `node <skills 根>/dw-code-facts/scripts/ctx/src/cli.js <命令>` 兜底。
 `<skills 根>` = **本 SKILL.md 所在目录的父目录**——Claude Code 下是 `.claude/skills/`、Codex 下是 `.agents/skills/`，**MUST NOT 写死其中一侧**（写死 `.claude/` 会让 Codex 侧照抄即 ENOENT）。
-**`ctx` CLI 随姊妹 skill `dw-workflow` 分发，`dw-prd` 自身不带**——本 skill 的 `scripts/` 下只有原型预览服务 `preview.mjs`（见 `UI原型纪律.md` §7.4），**没有 ctx**，在本 skill 目录里找 ctx 一定落空。
+**`ctx` CLI 随姊妹 skill `dw-code-facts` 分发，`dw-prd` 自身不带**——本 skill 的 `scripts/` 下只有原型预览服务 `preview.mjs`（见 `UI原型纪律.md` §7.4），**没有 ctx**。
 **`ctx` 与 `node` 兜底都执行不了时**（两条都报错，不是"零命中"）：一句话告知用户原因，直接进第 2 步，MUST NOT 阻断流程、MUST NOT 反复重试。
 
 **第 2 步 —— 卡片没覆盖就读源码**

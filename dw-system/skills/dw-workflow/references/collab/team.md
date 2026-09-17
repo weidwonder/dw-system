@@ -32,26 +32,26 @@
 
 ## 4. PR 平台动作
 
-合并**方式**由 `merge-gate` 决定；`merge-gate="pr"` 本身要做的事**全部在 `` 的对应小节、按加载点取，与协作面无关**（`worktree开发纪律.md` §完成与自动合并门、`评审处置.md` §处置），**本文 MUST NOT 复述，连列举都不要**。本节只列**因为有别人**而多出来的事：
+合并**方式**由 `merge-gate` 决定；`merge-gate="pr"` 本身要做的事**全部在下面两篇的对应小节、到点才读，与协作面无关**（`dw-worktree` 的 `worktree开发纪律.md` §完成与自动合并门、`dw-review-gate` 的 `评审处置.md` §处置），**本文 MUST NOT 复述，连列举都不要**。本节只列**因为有别人**而多出来的事：
 
 - **指派评审人**：PR MUST 指到具体的人（受影响仓 owner 优先），MUST NOT 只开 PR 不指人。
 - **合并窗口 SHOULD 提前与 owner 约定**（尤其影响对方对外契约时）；对方未确认时 MUST NOT 单方面推进。
 - **人审提出的结论 MUST 回写**到 spec 或 Overview 的"已定决策"表。
-- **本次补/改了哪张卡片 SHOULD 在 PR 描述或合并说明里点名**（`engineering-context/cards/<repo>.md` 的哪个域，`代码事实纪律.md` §7 第 4 条）。**MUST NOT 因等 owner 复核就把已知有错的卡片留在原样，也 MUST NOT 因此挂起任务**：先就地改正并更新确认时间，再请 owner 事后复核；owner 有异议时改的是卡片内容，不是撤回卡片。
+- **本次补/改了哪张卡片 SHOULD 在 PR 描述或合并说明里点名**（`engineering-context/cards/<repo>.md` 的哪个域，`dw-code-facts` 的 `代码事实纪律.md` §7 第 4 条）。**MUST NOT 因等 owner 复核就把已知有错的卡片留在原样，也 MUST NOT 因此挂起任务**：先就地改正并更新确认时间，再请 owner 事后复核；owner 有异议时改的是卡片内容，不是撤回卡片。
 
 ## 5. 多仓合并顺序协商
 
-- 多仓需求全部就绪后 MUST 按依赖顺序合并；**顺序本身**的规则在 ``（谁的契约先落地谁先合）。
+- 多仓需求全部就绪后 MUST 按依赖顺序合并；**顺序本身**的规则在 `00-流程总纲.md` §多边界的合并顺序（谁的契约先落地谁先合）。
 - **合并顺序 MUST 与各仓 owner 协商确认后再执行**，结果写进 Overview 或 coding plan 的完成清单；跨 owner 的窗口 SHOULD 提前约定，MUST NOT 单方面推进。
 
 ## 6. 与其它分册的边界
 
 | 想找的东西 | 在哪 |
 |---|---|
-| 合并走本地还是 PR | `worktree开发纪律.md`（按 `merge-gate`） |
+| 合并走本地还是 PR | `dw-worktree` 的 `worktree开发纪律.md`（按 `merge-gate`） |
 | 代码评审逐轴怎么派、判什么（§评审轴）| skill `dw-review-gate` |
 | 按边界拆 spec / 垂直切片拆 Issue | `00-流程总纲.md` |
-| 文档目录、生命周期结算、索引分层 | `文档治理.md` |
+| 文档目录、生命周期结算、索引分层 | `dw-doc-governance` 的 `文档治理.md` |
 | 哪个是权威实现、怎么查代码事实、卡片怎么补 | skill `dw-code-facts`（`代码事实纪律.md`）；结构检索在探测到代码图谱时走它的 `graph.md` |
 
 ## 一句话

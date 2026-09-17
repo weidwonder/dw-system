@@ -15,7 +15,7 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const SKILL_TREES = [/^ai-dev-system\/skills\/.+\.md$/, /^dw-system\/skills\/.+\.md$/]
+const SKILL_TREES = [/^ai-dev-system\/skills\/.+\.md$/, /^dw-system\/skills\/.+\.md$/, /^CLAUDE\.md$/]
 const NORMATIVE = /\b(MUST|SHOULD)\b/
 
 const git = args =>

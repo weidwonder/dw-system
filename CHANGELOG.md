@@ -48,10 +48,18 @@
 - 安装器：旧版残留清理（计划输出单列一段，`--dry-run` 同样打印）；旧名字集中在 `LEGACY` 表。
 - 评审门文档轴与 skill 原则轴的"同一事实有没有两个家"检查项。
 
+- 安装器：两个入口的标记块字段不一致时，打印 `AGENTS.md` 原来的字段行与将按 `CLAUDE.md` 统一的提示；读到旧名字的块一律打印改写前后对照；块类残留逐项核销后各打印一行"已改写"。
+- `ctx lint-cards`：读不出的卡记 `unreadable` 违规；基线文件损坏退出 2 并点名文件；`--init-baseline` 列出按业务域拆分的建议；`domain-dup` 覆盖还没拆成域卡的单文件卡；没有卡片而 registry 有违规时照常列出。
+- 机器闸：`cross-reference` 加查 `<skills 根>/…` 形态的文件路径必须存在、跨 skill 的引用同一行必须点名属主 skill；`doc-budgets` 的例外条目写成 `{max, note}`、高于同类上限而没有 note 判红、单条上限规则一行都匹配不到判红；`rule-destinations` 的射程加上仓库根 `CLAUDE.md` 并打印规范词条数增减；`gate-sync` 要求入口点到每道贯穿门的名字；`change-awareness` 按当前版本有没有打 tag 判"本次有没有写条目"。
 ### 变更
 - 代码事实纪律 §4.2「只增不减」改为「事实不丢，体积有上限」：地图卡 8,000、域卡 16,000、registry 单格 300 字节，超限先搬来历再按域拆。
 - 卡片里指向源码的 cite 以 `路径#符号` 为主，行号可附。
 - `ctx` 读最近确认日期的顺序：〈确认〉小节 → 〈Freshness / Provenance〉小节 → 全文第一个日期；标题含"陷阱"的小节整节按误用警告处理。
+
+### 修复
+- `ctx`：软链接的卡片文件与域卡目录读得到了（域卡读取改用目录项类型判断时，软链接被无声跳过）。
+- 拆分 skill 时机械改名留下的失效指针：Lean 评审子代理被指去加载 `dw-workflow`（应为 `dw-review-gate`）、`dw-prd` 与 `init-初始化.md` 里 `ctx` 的兜底路径指向 `dw-workflow/scripts/`（应为 `dw-code-facts`）、`collab/` 三处空指针、`dw-doc-governance` 里指向不存在的 `assets/` 的四处、环境冲突扫描的自排除清单只列两个 skill。
+- 搬家与注入块瘦身时弱化或丢掉的命题按 2.17 原文补回（逐条见 `docs/report/2026-09-17-dw-3.0-代码评审与特性损失审计.md`）。
 
 ### 内部
 - 机器闸换代：`wording-redline`、`resident-budget`、`number-drift`、`contract-sync`、`lean-selfcontained` 退役；新增体积清单闸 `doc-budgets`、规范去向清单闸 `rule-destinations`、规范句重复检测闸 `single-home`、`installer-legacy-upgrade`、`ctx-domain-cards`。契约测试改问"判据在它的家里"，计数词闸扫描面扩到整棵 skills 树。

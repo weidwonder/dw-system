@@ -375,3 +375,30 @@ test('已经拆成域卡的仓库：--init-baseline 不给拆分建议', () => {
     assert.doesNotMatch(runCli(root, '--init-baseline').stdout, /按业务域拆分的建议/)
   })
 })
+
+test('软链接的地图卡、域卡目录与域卡文件都读得到（多仓用软链接共享卡片）', { skip: process.platform === 'win32' }, () => {
+  withProject(({ root, ctxDir }) => {
+    const shared = path.join(root, 'shared')
+    fs.mkdirSync(path.join(shared, 'pay'), { recursive: true })
+    fs.writeFileSync(path.join(shared, 'pay.md'), MAP)
+    fs.writeFileSync(path.join(shared, 'pay', '退款.md'), DOMAIN)
+    fs.writeFileSync(path.join(shared, '对账.md'), DOMAIN)
+    fs.symlinkSync(path.join(shared, 'pay.md'), path.join(ctxDir, 'cards', 'pay.md'))
+    fs.symlinkSync(path.join(shared, 'pay'), path.join(ctxDir, 'cards', 'pay'))
+    fs.symlinkSync(path.join(shared, '对账.md'), path.join(ctxDir, 'cards', 'order', '对账.md'))
+    assert.ok(loadCards(ctxDir).some((c) => c.service === 'pay'), '软链接的地图卡')
+    const domains = loadDomainCards(ctxDir).map((d) => `${d.service}/${d.domain}`)
+    assert.ok(domains.includes('pay/退款'), '软链接的域卡目录')
+    assert.ok(domains.includes('order/对账'), '软链接的域卡文件')
+  })
+})
+
+test('一张卡都没有而 registry 指向不存在的卡：照常列出违规并退出 1，不只说"没有卡片可检"', () => {
+  withProject(({ root, ctxDir }) => {
+    fs.rmSync(path.join(ctxDir, 'cards'), { recursive: true, force: true })
+    const r = runCli(root)
+    assert.equal(r.status, 1)
+    assert.match(r.stdout, /registry-pointer/)
+    assert.match(r.stdout, /cards\/ghost\.md/)
+  }, { registry: '| Capability | 权威实现 | 陷阱项 |\n|---|---|---|\n| 导出 | 见 `cards/ghost.md` | 无 |\n' })
+})

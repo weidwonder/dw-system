@@ -56,12 +56,20 @@ export function checkBudgets(root, manifest) {
     if (actual > max) failures.push(`超限：${subject} 实测 ${actual} > 上限 ${max}（超 ${actual - max}）`)
   }
 
+  // 点名条目与合计例外的值可以是数字，也可以是 `{max, note}`。高于同类上限的条目是拍过板的例外，
+  // MUST 带 note 写明理由：没有理由的例外和"为了过闸顺手上调"在清单上分不出来。
+  const limitOf = v => (typeof v === 'number' ? { max: v, note: '' } : { max: v.max, note: String(v.note || '').trim() })
+  const classMaxFor = rel => (manifest.classes || []).find(c => globToRegExp(c.glob).test(rel))?.max
+
   const named = manifest.files || {}
-  for (const [rel, max] of Object.entries(named)) {
+  for (const [rel, value] of Object.entries(named)) {
     if (!files.includes(rel)) {
       failures.push(`清单点名的文件不存在：${rel}（改名或删除后 MUST 同步清单）`)
       continue
     }
+    const { max, note } = limitOf(value)
+    const classMax = classMaxFor(rel)
+    if (classMax !== undefined && max > classMax && !note) failures.push(`例外缺理由：${rel} 的上限 ${max} 高于同类上限 ${classMax}，MUST 写成 {max, note}`)
     push(rel, bytesOf(root, rel, manifest.blockExcluded), max)
   }
 
@@ -87,7 +95,11 @@ export function checkBudgets(root, manifest) {
       groups.set(key, (groups.get(key) || 0) + bytesOf(root, rel))
     }
     for (const [key, sum] of groups) {
-      push(`合计 ${total.glob} [${key}]`, sum, total.overrides?.[key] ?? total.max)
+      const override = total.overrides?.[key]
+      if (override === undefined) { push(`合计 ${total.glob} [${key}]`, sum, total.max); continue }
+      const { max, note } = limitOf(override)
+      if (max > total.max && !note) failures.push(`例外缺理由：合计 [${key}] 的上限 ${max} 高于 ${total.max}，MUST 写成 {max, note}`)
+      push(`合计 ${total.glob} [${key}]`, sum, max)
     }
   }
 
@@ -114,4 +126,4 @@ export function checkBudgets(root, manifest) {
 
 export const DISPOSAL_ORDER =
   '处置顺序 MUST 依次为：① 把不属于这里的内容搬回它的家、留一行指针；② 属于这里但能更短的，压缩（每条命题都要留住）；' +
-  '③ 内容确实需要这么多空间才抬上限——抬上限须拍板人同意，并在本次改动里写一句理由。'
+  '③ 内容确实需要这么多空间才抬上限——抬上限须拍板人同意，并在清单里把该条写成 {max, note}，note 写一句理由。'

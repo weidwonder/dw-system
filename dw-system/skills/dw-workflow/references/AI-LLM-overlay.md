@@ -30,7 +30,7 @@
 
 三处必须用它：
 
-1. **spec 设计（Step 2/4）**：先按它的工作流定场景分类、Agent 划分与信息传递链路，再回本 overlay 补运行期契约。它的设计文档写 `docs/spec/`（遵循本体系 `文档治理.md`，而非它默认的 `docs/specs/`）。
+1. **spec 设计（Step 2/4）**：先按它的工作流定场景分类、Agent 划分与信息传递链路，再回本 overlay 补运行期契约。它的设计文档写 `docs/spec/`（遵循本体系 `dw-doc-governance` 的 `文档治理.md`，而非它默认的 `docs/specs/`）。
 2. **开发参考（Step 6/7）**：系统提示词、工具描述、并发拆分照它的规则写。
 3. **代码评审门**：Agentic 项目增派一个 **agent 架构轴**子代理，按它 `SKILL.md` 的评审入口进入 review 模式，跑其中的**全部评估项**（入口指向哪个文件以它当前结构为准；见 skill `dw-review-gate`）。
 

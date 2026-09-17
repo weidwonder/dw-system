@@ -48,10 +48,15 @@ test('自检：files 优先于 classes，合计按路径段分组并认 override
     's/one/r/a.md': 'x'.repeat(30), 's/one/r/b.md': 'x'.repeat(30), 's/two/r/a.md': 'x'.repeat(30),
     'index.md': '- 短\n- ' + '长'.repeat(40) + '\n',
   })
-  const named = checkBudgets(dir, { files: { 's/one/r/a.md': 100 }, classes: [{ glob: 's/**/*.md', max: 40 }] })
+  const classes = [{ glob: 's/**/*.md', max: 40 }]
+  const named = checkBudgets(dir, { files: { 's/one/r/a.md': { max: 100, note: '拍过板的例外' } }, classes })
   assert.deepEqual(named.failures, [])
-  const totals = checkBudgets(dir, { totals: [{ glob: 's/*/r/*.md', groupBy: 1, max: 40, overrides: { one: 60 } }] })
-  assert.deepEqual(totals.failures, [])
+  // 高于同类上限的例外 MUST 带理由；不高于的可以是裸数字。
+  assert.match(checkBudgets(dir, { files: { 's/one/r/a.md': 100 }, classes }).failures[0], /例外缺理由/)
+  assert.deepEqual(checkBudgets(dir, { files: { 's/one/r/a.md': 35 }, classes }).failures, [])
+  const totalRule = overrides => ({ totals: [{ glob: 's/*/r/*.md', groupBy: 1, max: 40, overrides }] })
+  assert.deepEqual(checkBudgets(dir, totalRule({ one: { max: 60, note: '拍过板的例外' } })).failures, [])
+  assert.match(checkBudgets(dir, totalRule({ one: 60 })).failures[0], /例外缺理由/)
   const lines = checkBudgets(dir, { lines: [{ file: 'index.md', entryPattern: '^- ', maxBytes: 60 }] })
   assert.equal(lines.failures.length, 1)
 })
