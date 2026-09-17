@@ -14,7 +14,7 @@ description: "开发任务的工作区隔离与合并收尾：任何文档或代
 - **过不了就中止**：主工作树有未提交改动、不是 Git 仓库、或建不出 worktree，MUST 中止并用业务语言说明；MUST NOT 替用户 stash / reset / checkout / 删未知文件，MUST NOT 降级为直接改当前目录。
 - **进门之后**先结清初始化挂账（标记块、冲突处置、缺 registry 跑 `ctx init`），再开始本次任务。
 
-## 读取条件
+## 读取条件（到点才读、只读那一节；MUST NOT 预读，MUST NOT 凭记忆代替）
 
 | 什么时候 | 读什么 |
 |---|---|

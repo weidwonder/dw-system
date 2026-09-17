@@ -26,7 +26,7 @@ node <本 skill 根目录>/scripts/ctx/src/cli.js <命令>
 
 `<本 skill 根目录>` = 本文件所在目录；Claude Code 下是 `.claude/skills/dw-code-facts/`，Codex 下是 `.agents/skills/dw-code-facts/`，两份内容一致，用你加载 skill 的那一侧。要恢复全局命令：`cd <本 skill 根目录>/scripts/ctx && npm link`。命令清单与输出格式见 `scripts/ctx/README.md`。
 
-## 读取条件
+## 读取条件（到点才读、只读那一节；MUST NOT 预读，MUST NOT 凭记忆代替）
 
 | 什么时候 | 读什么 |
 |---|---|
@@ -36,8 +36,8 @@ node <本 skill 根目录>/scripts/ctx/src/cli.js <命令>
 | 卡片超过体积上限，或一张卡里堆了按任务追加的小节 | `references/代码事实纪律.md` §4.2；体检规则见 `scripts/ctx/README.md` §`ctx lint-cards` |
 | 要写 cite；要在卡片之外检索源码 | `references/代码事实纪律.md` §5、§6 |
 | 卡片不够、要 clone 外部仓库取证 | `references/代码事实纪律.md` §7 |
-| 本次改动碰了权威面，要判刷不刷卡 | `references/代码事实纪律.md` §8；权威面清单在 `dw-doc-governance` 的 `文档生命周期.md` §3 第 1 步 |
-| 卡片与源码说法冲突 | `references/代码事实纪律.md` §9 |
+| 本次改动碰了权威面，要判刷不刷卡；开新任务，要看 `engineering-context/` 的跨会话增量 | `references/代码事实纪律.md` §8；权威面清单在 `dw-doc-governance` 的 `文档生命周期.md` §3 第 1 步 |
+| 要落笔写卡而手边有 PRD（写之前读：卡片事实 MUST NOT 从 PRD 生成，等写错了再读已经晚了）；卡片与源码说法冲突 | `references/代码事实纪律.md` §9 |
 | 实现阶段要写本次的 CHANGELOG 条目 | `references/代码事实纪律.md` §10.1 |
 | 要升级某个上游；读到或改到对某个上游的调用 | `references/代码事实纪律.md` §10.2 |
 | 要动资产结构：registry 字段、场景蓝图、词汇表、探针集、新鲜度机制 | `references/engineering-context设计.md` |

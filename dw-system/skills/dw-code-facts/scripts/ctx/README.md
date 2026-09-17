@@ -4,7 +4,7 @@
 
 查代码事实的 CLI，**替代 MCP**：Claude Code 与 Codex 都能通过 shell 调用。Node.js ≥20，**零运行时依赖**，跨平台。读本地 `engineering-context/`（markdown card + capability-registry），每条事实附 cite。
 
-**卡片层是必备资产**：装了本体系的项目一律维护 `engineering-context/`，没有"启不启用"的开关。`ctx init` 只建骨架，内容按任务**渐进补齐**——要用某个模块的事实就先查卡片，查不到就读源码、读完当场补卡（判据见 `代码事实纪律.md` §4）。因此 **registry 只有 `【】` 占位行、`ctx list-services` 为空是正常起步态**，MUST NOT 据此判定这层不可用、更 MUST NOT 退回裸 grep。
+**卡片层是必备资产**：装了本体系的项目一律维护 `engineering-context/`，没有"启不启用"的开关。`ctx init` 只建骨架，内容按任务**渐进补齐**——要用某个模块的事实就先查卡片，查不到就读源码、读完当场补卡（判据见 `../../references/代码事实纪律.md` §4）。因此 **registry 只有 `【】` 占位行、`ctx list-services` 为空是正常起步态**，MUST NOT 据此判定这层不可用、更 MUST NOT 退回裸 grep。
 
 ## 安装 / 运行
 
@@ -303,4 +303,4 @@ node src/cli.js probe --dir <ctx目录> --json    # CI 读；退出码见下表
 
 **运行节奏**：只在 CI 发布 / 里程碑节点，**不进 coding agent 每轮 loop**。
 
-> 完整理念见 `engineering-context设计.md`；日常"先查卡片、没卡就读源码并当场补卡"的纪律见 `代码事实纪律.md`。
+> 完整理念见 `../../references/engineering-context设计.md`；日常"先查卡片、没卡就读源码并当场补卡"的纪律见 `../../references/代码事实纪律.md`。

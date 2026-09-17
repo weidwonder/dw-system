@@ -76,7 +76,7 @@ authority_refs:            # 本文冻结的权威面；准出时与本次触碰
 ## 如何验证
 - [ ] 【具体验证步骤 / 命令 + 预期结果】
 - [ ] 【回归检查点】
-- [ ] **代码评审门**：先按 `评审门禁.md` §门禁 判对象面算出轴集合（程序代码面 → 规范/忠实/残留/文档；skill 文档面 → skill 原则轴；agent 架构面 → agent 架构轴；改动含 `docs/` 下文档时文档轴也在内；三面皆不命中时只有文档轴），再派 1 个子代理跑算出那组轴的精简版，报告逐轴分节写，P0/P1 修完才算过门。MUST NOT 按固定几条轴派。子代理 prompt 必须点名加载 dw-workflow skill——模板与轴定义见 skill `dw-review-gate`。Lean 也不豁免这道门。
+- [ ] **代码评审门**：先按 `评审门禁.md` §门禁 判对象面算出轴集合（程序代码面 → 规范/忠实/残留/文档；skill 文档面 → skill 原则轴；agent 架构面 → agent 架构轴；改动含 `docs/` 下文档时文档轴也在内；三面皆不命中时只有文档轴），再派 1 个子代理跑算出那组轴的精简版，报告逐轴分节写，P0/P1 修完才算过门。MUST NOT 按固定几条轴派。子代理 prompt 必须点名加载 `dw-review-gate` skill（skill 原则轴与 agent 架构轴改为加载各自的伴生 skill）——prompt 模板与轴定义都在 `dw-review-gate`。Lean 也不豁免这道门。
 
 ## 回滚方式
 【出问题怎么退：feature flag 关闭 / deploy revert / 数据回滚。一句话写清，别等出事才想。】

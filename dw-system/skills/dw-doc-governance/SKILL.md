@@ -14,7 +14,7 @@ description: "项目文档放哪、活多久、怎么退场：输出目录与命
 - **新建文档 MUST 带 `lifecycle: active` 与 `authority_refs`**；`docs/index.md` 只索引现行口径、每条一行，非现行的进 `docs/index-archive.md`。
 - **归档按权威面触发，不按日期**；归档是降权，MUST NOT 删文件、MUST NOT 移动文件。
 
-## 读取条件
+## 读取条件（到点才读、只读那一节；MUST NOT 预读，MUST NOT 凭记忆代替）
 
 | 什么时候 | 读什么 |
 |---|---|
