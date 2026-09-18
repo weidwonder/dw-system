@@ -60,6 +60,13 @@ function withSandbox(prefix, fn) {
   try { return fn({ root, home, cwd }) } finally { rmSync(root, { recursive: true, force: true }) }
 }
 
+// 收窄的 PATH：只放假 CLI。Windows 上安装器先用 System32 下的 where.exe 探测
+// claude / codex 在不在，缺了它假 CLI 会被当成"没装"，整条卸载路径被悄悄跳过。
+function narrowPath(binDir) {
+  if (process.platform !== 'win32') return binDir
+  return [binDir, path.join(process.env.SystemRoot || 'C:\\Windows', 'System32')].join(path.delimiter)
+}
+
 const safeFlags = ['--no-plugins', '--no-companions', '--no-codegraph', '--no-ctx-link']
 const externalFlags = ['--no-companions', '--no-codegraph', '--no-ctx-link']
 
@@ -104,7 +111,7 @@ function pluginEnv(binDir, logFile, options = {}) {
   if (options.codex !== false) fakePluginCli(binDir, 'codex')
   return {
     ...process.env,
-    PATH: binDir,
+    PATH: narrowPath(binDir),
     FAKE_PLUGIN_LOG: logFile,
     FAKE_CLAUDE_LIST_MODE: options.claudeListMode || 'ok',
     FAKE_CODEX_LIST_MODE: options.codexListMode || 'ok',
@@ -321,7 +328,7 @@ test('全局 ctx link 的 cwd 指向 HOME 下 Claude Code skill 副本', () => {
     mkdirSync(binDir, { recursive: true })
     writeFileSync(logFile, '')
     ctxFakeNpm(binDir)
-    const env = { ...process.env, HOME: home, USERPROFILE: home, PATH: binDir, FAKE_EXTERNAL_LOG: logFile }
+    const env = { ...process.env, HOME: home, USERPROFILE: home, PATH: narrowPath(binDir), FAKE_EXTERNAL_LOG: logFile }
     const result = spawnSync(process.execPath, [installer, '--global', `--source-dir=${repoRoot}`, '--yes', '--no-plugins', '--no-companions', '--no-codegraph'], {
       cwd,
       encoding: 'utf8',
@@ -362,7 +369,7 @@ test('全局 codegraph 只做 global 接线，不在 HOME 或当前目录 init/i
     const result = spawnSync(process.execPath, [installer, '--global', `--source-dir=${repoRoot}`, '--yes', '--no-plugins', '--no-companions', '--no-ctx-link'], {
       cwd,
       encoding: 'utf8',
-      env: { ...process.env, HOME: home, USERPROFILE: home, PATH: binDir, FAKE_EXTERNAL_LOG: logFile },
+      env: { ...process.env, HOME: home, USERPROFILE: home, PATH: narrowPath(binDir), FAKE_EXTERNAL_LOG: logFile },
     })
     assert.equal(result.status, 0, result.stderr || result.stdout)
     const log = readFileSync(logFile, 'utf8')
