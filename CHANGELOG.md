@@ -47,6 +47,7 @@
 - `ctx probe` 题型 `authority-unique`（别名〈权威面唯一〉）。
 - 安装器：旧版残留清理（计划输出单列一段，`--dry-run` 同样打印）；旧名字集中在 `LEGACY` 表。
 - 评审门文档轴与 skill 原则轴的"同一事实有没有两个家"检查项。
+- 设计原则 YAGNI / KISS / DRY / LoD 成文（`dw-workflow` 的 `实现纪律.md` §设计原则）：写 spec 方案与写代码都守，spec 自检清单、两份 spec 模板、评审门规范轴按它判。
 
 - 安装器：两个入口的标记块字段不一致时，打印 `AGENTS.md` 原来的字段行与将按 `CLAUDE.md` 统一的提示；读到旧名字的块一律打印改写前后对照；块类残留逐项核销后各打印一行"已改写"。
 - `ctx lint-cards`：读不出的卡记 `unreadable` 违规；基线文件损坏退出 2 并点名文件；`--init-baseline` 列出按业务域拆分的建议；`domain-dup` 覆盖还没拆成域卡的单文件卡；没有卡片而 registry 有违规时照常列出。

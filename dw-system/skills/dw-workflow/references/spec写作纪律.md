@@ -67,3 +67,4 @@
 - [ ] 前后任务用的类型/函数名一致？（`clearLayers()` 别在别处变成 `clearFullLayers()`）
 - [ ] 每条外部事实都有来源？
 - [ ] Goal 与 Non-Goal 对称？
+- [ ] 方案过了 `实现纪律.md` §设计原则 的四条（YAGNI / KISS / DRY / LoD）？每个新引入的层或概念都写出了它解决的具体问题？

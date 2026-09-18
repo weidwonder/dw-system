@@ -87,6 +87,7 @@ AI coding 落不了地，通常不是因为流程不够精细，而是因为 AI 
 - 首次调用触发**初始化**：只问一个问题（除你之外还有没有人一起开发）+ 一条待拍板的 merge-gate 建议，答案写进项目根 `CLAUDE.md` 与 `AGENTS.md` 的标记块，此后不再问。**要不要维护代码事实层不问**（必备），**有没有代码图谱也不问**（探测得出）。
 - **Step 0 Triage 分流**：按 `00-流程总纲.md` §Step 0 的判定问题过一遍，全否走一页 Lean Change Spec 直接实现，任一为是升级回完整流程。全否时还有一条无条件的默认倾向：影响面说不清时仍 MUST 升级出 Overview，跨仓需求一律升级（判据在 `00-流程总纲.md` §默认倾向）。
 - **Lean 路径读一页步骤顺序** `路径-lean.md`：它只定顺序与 Lean 特有的几条，每一步的判据在对应 skill 里，到那一步才读。走到一半命中升级条件时这一页当场失效，改走完整流程。
+- **写方案与写代码都守设计原则** YAGNI / KISS / DRY / LoD：没有需求对应的抽象、开关、配置项不写；每个新引入的层或概念在 spec 里写出它解决的具体问题；定义与冲突时的取舍顺序在 `dw-workflow` 的 `实现纪律.md` §设计原则，spec 自检清单与评审门规范轴按它判。
 - **完整路径**走 Overview → 技术 spec → coding plan → 编码 → 测试；含 AI/LLM 功能时叠加 `AI-LLM-overlay.md` 的运行期 AI 契约，判定为 Agentic 应用时另加载外部伴生 skill `agentic-principle`。
 - 门禁贯穿两条路径，**Lean 不豁免**，位置见 `00-流程总纲.md` 的流程总览图：
   - **工作区隔离门**（skill `dw-worktree`）——路由与初始化对话做完后、任何文件落盘前，MUST 已从最新主分支建出并全程使用独立 worktree；目录取标记块的 `worktree-dir`，未声明默认 `./.worktrees/`；主工作树有未提交改动、不是 Git 仓库或建不出 worktree 时 MUST 中止并用业务语言说明，MUST NOT 替用户 stash / reset / checkout。

@@ -72,6 +72,7 @@ engineering-context/        本仓库自己的代码事实层
 - **兼容取舍每次由拍板人定**，AI MUST NOT 默认向后兼容，也 MUST NOT 默认不兼容。
 - **跨平台**：安装器与两个 CLI 在 macOS、Linux、Windows 上都要能跑。路径比较前统一成正斜杠；MUST NOT 依赖 shell 特性；符号链接只读链接字符串、不解引用后再删除。
 - **零依赖**：`ctx`、`preview.mjs`、`install.mjs` MUST NOT 引入第三方 npm 依赖。
+- **写方案与写代码守 YAGNI / KISS / DRY / LoD**（`dw-system/skills/dw-workflow/references/实现纪律.md` §设计原则）：没有需求对应的抽象、开关、配置项不写；两个 CLI 与安装器尤其如此。
 - **`ctx --help` 的首行是安装器的归属判据**：安装器靠签名串 `Engineering Context CLI` 认 PATH 上那个 `ctx` 是不是本体系的。改首行 MUST 同改 `install.mjs` 的 `CTX.signature`。
 - **本仓库的改动大多落在〈禁止积压清单〉里**（流程与门禁判据、标记块字段、CLI 参数）：这类改动 MUST 当场跑完整评审门，MUST NOT 走积压通路。
 
@@ -97,6 +98,7 @@ engineering-context/        本仓库自己的代码事实层
 > - **AI MUST NOT 默认向后兼容**：spec 定稿前把被改变的既有行为逐条列出送拍板；被取代的旧函数 / 文件 / 配置 / 开关当场删除，保留项 MUST 带理由与到期日并登记进替换清单（`dw-workflow` 的 `确认门.md`、`dw-review-gate` 的 `替换清单.md`）。
 > - **spec 定稿后、动手实现前 MUST 过 spec 过稿门**（`dw-workflow` 的 `确认门.md`）：只请拍板人看业务可判定的部分；他没回复 MUST NOT 推进；跳过只认他自己说"这次不用看"，且只对本次有效。
 > - **改动落盘后（含只改 `docs/`）MUST 过代码评审门**（`dw-review-gate`）：判对象面 → 推评审轴 → 派子代理 → P0 / P1 修完；三个对象面都不命中时轴集合只有文档轴，MUST NOT 跳过本门。够小的改动 MAY 按该 skill 的规则登记积压；未过门也未登记积压时 MUST NOT 合并。
+> - **写方案与写代码 MUST 守 YAGNI / KISS / DRY / LoD**（`dw-workflow` 的 `实现纪律.md` §设计原则）：没有需求对应的抽象、开关、配置项不写。
 > - **纯 skill 改动**（范围不含可执行代码文件）：PRD 即 spec，动手前 MUST 加载 `skill-principle`；跳过的是产物，不是门（`dw-workflow` 的 `纯skill改动.md`）。
 > - **文档**（`dw-doc-governance`）：spec → `docs/spec/`，plan → `docs/plan/`，report → `docs/report/`，决策记录 → `docs/decisions/`；新建文档 frontmatter MUST 带 `lifecycle: active` 与 `authority_refs`；`docs/index.md` 只放现行口径。需求真相源只写已实现的现状，还没做的去 `docs/TODO.md`。
 > - **写或精简规范文本、注释、卡片、提示词**：按 `dw-prose`——删改前保住每条命题，只写现状，来历进决策记录。
