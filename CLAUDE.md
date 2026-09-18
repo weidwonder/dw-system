@@ -82,7 +82,7 @@ engineering-context/        本仓库自己的代码事实层
 - 每次合并在 `CHANGELOG.md` 的 `## 未发布` 下至少写一条，分类取 `不兼容` / `新增` / `变更` / `修复` / `内部`。
 - 需要用户手动动作的版本 MUST 带 `dw-system/migrations/<版本>.md`，≤45 行——安装器会整篇打印。不需要手动动作的版本不建指南。
 - `VERSION` MUST NOT 低于 `migrations/` 里最高的那份指南，否则那份指南永远不会被打印。安装器默认按 `v<VERSION>` 取 tag，tag 没推时告警并回退 `main`；`package.json` 的 `files` MUST 带 `dw-system/VERSION`。
-- 发版是拍板人的动作：改 `## 未发布` 的标题、打 tag `v<版本>`。AI MUST NOT 自行定版本号或打 tag，除非拍板人在本次任务里明确要求。
+- 本仓库合并方式为 `direct`，发版是拍板人的动作：改 `## 未发布` 的标题、打 tag `v<版本>`。AI MUST NOT 自行定版本号或打 tag，除非拍板人在本次任务里明确要求。（`pr` 项目合并即发版，见 `dw-worktree`。）
 
 <!-- dw-workflow:start -->
 > **本项目采用 dw-workflow**
