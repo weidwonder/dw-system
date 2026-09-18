@@ -2,10 +2,10 @@
 lifecycle: active
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-09-17'
+last_confirmed: '2026-09-18'
 authority_refs:
   - 'install.mjs 的命令行选项：--no-ctx-link'
-  - 'install.mjs 中 ctx 全局链接的来源目录：<项目>/.claude/skills/dw-code-facts/scripts/ctx'
+  - 'install.mjs 中 ctx 全局链接的来源目录：项目级安装为 <项目>/.claude/skills/dw-code-facts/scripts/ctx，--global 为 ~/.claude/skills/dw-code-facts/scripts/ctx'
   - 'ctx 可用性的判定方式：实跑 ctx --help 并匹配签名串 "Engineering Context CLI"'
   - 'dw-system/skills/dw-workflow/assets/config-snippets/base.md 注入目标项目 CLAUDE.md/AGENTS.md 的 ctx 调用那一条'
   - 'ctx 不可用时的兜底调用方式：node <skill>/scripts/ctx/src/cli.js <命令>，且 MUST NOT 退回 grep'
@@ -49,7 +49,7 @@ skill 文档（代码事实分册、`scripts/ctx/README.md`、`SKILL.md`、注�
 
 - 影响：安装器执行链（skill 复制之后、codegraph 之前）；用户全局 npm 前缀目录（新增一个 `ctx` 命令）；注入目标项目 `CLAUDE.md` / `AGENTS.md` 的配置标记块。
 - **不做**：不改 ctx CLI 本身的任何逻辑与命令语义。
-- **不做**：不把 ctx 发布到 npm registry，也不做用户级独立副本；全局命令指向最后一次安装的那个项目里的副本，靠"ctx 按 cwd 找 `engineering-context/`"这一既有设计做到一份命令服务所有项目。
+- **不做**：不把 ctx 发布到 npm registry。全局命令指向最后一次安装的那份副本（当时口径为"不做用户级独立副本、只指向某个项目里的副本"；`--global` 起用户级 `~/.claude/skills/` 那份也是一个落点，见 [全局安装 spec](./2026-09-18-dw-system-全局安装-eng-spec.md) FR-008），靠"ctx 按 cwd 找 `engineering-context/`"这一既有设计做到一份命令服务所有项目。
 - 关键 NFR：跨平台——经 `runTool` 调用（win32 走 shell，认得 npm 生成的 `ctx.cmd` shim），不假设 unix 可执行位，不用 `which` / `command -v`；子进程 stdin 一律 `ignore`；超时 5 分钟。
 
 ## 兼容取舍（用户拍板，定稿前必填）

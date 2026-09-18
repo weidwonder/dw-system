@@ -388,7 +388,7 @@ test('项目级安装检测到用户级版本戳时打印全局并存提示', ()
     writeFileSync(path.join(home, '.claude', 'skills', 'dw-system.version'), sourceVersion + '\n')
     const result = projectInstall(home, cwd, '--yes', ...safeFlags)
     assert.equal(result.status, 0, result.stderr || result.stdout)
-    assert.match(result.stdout, /本机另有全局安装 v3\.0\.0/)
+    assert.ok(result.stdout.includes(`本机另有全局安装 v${sourceVersion}`), result.stdout)
   })
   withSandbox('coexist-absent', ({ home, cwd }) => {
     const result = projectInstall(home, cwd, '--yes', ...safeFlags)
