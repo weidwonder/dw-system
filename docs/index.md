@@ -36,6 +36,7 @@
 - **[评审门积压通路与测试面收窄](./spec/2026-09-14-评审门积压通路与测试面收窄-eng-spec.md)** — 让评审门的派发量与触发频率都与改动的真实风险相称。
 - **[变更日志与依赖声明（多项目变更感知）](./spec/2026-09-16-变更日志与依赖声明-eng-spec.md)** — 2.17.0 的技术 spec：上游在每次合并前往仓库根 `CHANGELOG.md` 的 `## 未发布` 写条目。
 - **[dw-system 技术 spec：安装器迁移、ctx 卡片体检与机器闸](./spec/2026-09-17-dw-system-安装器迁移与ctx体检与机器闸-eng-spec.md)** — 3.0.0 动到可执行代码的部分：安装器名字表与旧残留迁移、`ctx` 域卡解析与 `lint-cards`、`authority-unique` 题型、三条新闸与退役名单。
+- **[全局安装](./spec/2026-09-18-dw-system-全局安装-eng-spec.md)** — 安装器 `--global`：装进 `~/.claude/skills/` 与 `~/.codex/skills/`、与项目级参数互斥、全局卸载冲突插件、`ctx` 与 codegraph 的全局落点。
 
 ## 进行中的计划（`docs/plan/`）
 

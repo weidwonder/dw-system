@@ -9,7 +9,7 @@
 - **八个 skill**（`dw-system/skills/`，Claude Code 与 Codex 通用）：`dw-workflow`（总纲、路由、分流、步骤顺序、确认门）、`dw-prd`（从零产 PRD 与 UI 原型）、`dw-review-gate`（代码评审门）、`dw-doc-governance`（文档放哪、活多久）、`dw-code-facts`（代码事实层与 `ctx`）、`dw-bug-diagnosis`（红回路）、`dw-worktree`（隔离门与合并门）、`dw-prose`（文字怎么写）。
 - **`ctx`**：零依赖 Node CLI，查目标项目的 `engineering-context/`。源码在 `dw-system/skills/dw-code-facts/scripts/ctx/`。
 - **`preview.mjs`**：`dw-prd` 的原型工具，源码在 `dw-system/skills/dw-prd/scripts/`。
-- **`install.mjs`**：把上面几样装进目标项目的 `.claude/skills/` 与 `.agents/skills/`，写标记块，迁移旧版残留。
+- **`install.mjs`**：把上面几样装进目标项目的 `.claude/skills/` 与 `.agents/skills/`，写标记块，迁移旧版残留；带 `--global` 时改装进本机的 `~/.claude/skills/` 与 `~/.codex/skills/`，不碰任何项目。
 
 没有 build 步骤、没有 lint 配置、没有 npm 运行时依赖：纯 Node.js ESM（≥20）加 markdown。
 
@@ -46,6 +46,9 @@ node dw-system/skills/dw-code-facts/scripts/ctx/src/cli.js <命令>
 
 # 从发布源安装。MUST 写 git+https：`github:` 简写走 tarball，Windows 上新版 npm 会 404
 npx --yes git+https://github.com/weidwonder/dw-system.git <目标项目目录>
+
+# 装到本机用户级目录，所有项目共用（不接目标目录）
+npx --yes git+https://github.com/weidwonder/dw-system.git --global
 ```
 
 ## 目录
@@ -88,7 +91,7 @@ engineering-context/        本仓库自己的代码事实层
 > **本项目采用 dw-workflow**
 > (collaboration="solo" merge-gate="direct" worktree-dir="./.worktrees/")
 >
-> 本块只放每个会话都要知道的规则与指针；每条规则的判据在它后面点名的 skill 里，到那一步 MUST 加载该 skill，MUST NOT 凭本块的一句话推断判据。skill 在 `.claude/skills/<名>/`（Codex 在 `.agents/skills/<名>/`）。按 RFC 2119 解释规范词。
+> 本块只放每个会话都要知道的规则与指针；每条规则的判据在它后面点名的 skill 里，到那一步 MUST 加载该 skill，MUST NOT 凭本块的一句话推断判据。skill 在项目级或全局的 `<skills 目录>/<名>/`。按 RFC 2119 解释规范词。
 >
 > - **路由**：唤起 `dw-workflow` / `dw-prd` 时按本块字段路由，MUST NOT 再问一次。有没有代码图谱索引由 skill 每次运行时探测，MUST NOT 写死在本块。
 > - **两条总纲**（展开在 `dw-workflow` 入口）：一个事实只有一个家，别处只放链接；规范文本有体积上限，超限先搬走、再压缩、最后才抬上限。

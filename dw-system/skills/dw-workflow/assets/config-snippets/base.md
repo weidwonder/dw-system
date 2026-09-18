@@ -2,7 +2,7 @@
 > **本项目采用 dw-workflow**
 > (collaboration="solo|team" merge-gate="direct|pr" worktree-dir="./.worktrees/")
 >
-> 本块只放每个会话都要知道的规则与指针；每条规则的判据在它后面点名的 skill 里，到那一步 MUST 加载该 skill，MUST NOT 凭本块的一句话推断判据。skill 在 `.claude/skills/<名>/`（Codex 在 `.agents/skills/<名>/`）。按 RFC 2119 解释规范词。
+> 本块只放每个会话都要知道的规则与指针；每条规则的判据在它后面点名的 skill 里，到那一步 MUST 加载该 skill，MUST NOT 凭本块的一句话推断判据。skill 在项目级或全局的 `<skills 目录>/<名>/`。按 RFC 2119 解释规范词。
 >
 > - **路由**：唤起 `dw-workflow` / `dw-prd` 时按本块字段路由，MUST NOT 再问一次。有没有代码图谱索引由 skill 每次运行时探测，MUST NOT 写死在本块。
 > - **两条总纲**（展开在 `dw-workflow` 入口）：一个事实只有一个家，别处只放链接；规范文本有体积上限，超限先搬走、再压缩、最后才抬上限。

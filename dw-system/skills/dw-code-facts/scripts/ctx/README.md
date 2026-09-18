@@ -23,9 +23,9 @@ cd <skill 根目录>/scripts/ctx && npm link      # 之后可直接 `ctx <命令
 npm rm -g ctx
 ```
 
-`<skill 根目录>` = `dw-code-facts` 的 `SKILL.md` 所在目录。安装后目标项目下有两份逐字节相同的副本：Claude Code 读 `.claude/skills/dw-code-facts/`，Codex 读 `.agents/skills/dw-code-facts/`——任选一份，**别写死其中一份**。
+`<skill 根目录>` = `dw-code-facts` 的 `SKILL.md` 所在目录。安装后有两份逐字节相同的副本：项目级安装时 Claude Code 读 `.claude/skills/dw-code-facts/`、Codex 读 `.agents/skills/dw-code-facts/`，全局安装（`--global`）时是 `~/.claude/skills/dw-code-facts/` 与 `~/.codex/skills/dw-code-facts/`——任选一份，**别写死其中一份**。
 
-> **全局 `ctx` 指向最后一次安装的那个项目里的副本**（`npm link` 只有一个全局 bin）。这不影响使用：`ctx` 按**运行目录**去找 `engineering-context/`，所以一份命令服务所有项目。但它确实意味着多项目并存时，你敲的可能是别的项目里那份 ctx 的**代码**——版本差异导致行为可疑时，用上面的直接运行方式跑本项目这一份来对照。
+> **全局 `ctx` 指向最后一次安装的那份副本**（某个项目里的，或全局安装的 `~/.claude/skills/` 那份；`npm link` 只有一个全局 bin）。这不影响使用：`ctx` 按**运行目录**去找 `engineering-context/`，所以一份命令服务所有项目。但它确实意味着多项目并存时，你敲的可能是别的项目里那份 ctx 的**代码**——版本差异导致行为可疑时，用上面的直接运行方式跑本项目这一份来对照。
 
 **版本口径**：`package.json` 的 `version` 不是 ctx 自己的版本号。ctx **随 skill 一起分发、不单独发布 npm 包**，它的版本就是分发包版本（`dw-system/VERSION`）；`package.json` 只为 `npm link` 提供 `name` 与 `bin` 两个字段而存在，这两个字段 MUST NOT 改（`install.mjs` 依赖它们）。要判断手上这份 ctx 有多新，看 skill 目录旁的 `dw-system.version` stamp，不要看 `package.json`。
 

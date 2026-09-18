@@ -1,7 +1,7 @@
 ---
-lifecycle: active
+lifecycle: merged
 superseded_by: ''
-archived: ''
+archived: '2026-09-18'
 last_confirmed: '2026-09-18'
 authority_refs:
   - 'install.mjs 的 --global 选项与互斥规则'
