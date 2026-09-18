@@ -24,7 +24,7 @@ On top of that foundation, exactly two things vary:
 - 🎯 **One-command install** into any project — Claude Code and Codex at the same time. Exactly one question (is anyone else developing with you); the code-fact layer is scaffolded for you, so there is no "tier" to pick.
 - 🧠 **Engineering Context as the moat** — capability registry, fact cards split by business domain, end-to-end scene blueprints, a card health check (`ctx lint-cards`), a frozen probe set as an anti-rot gate. Every fact cited (`path#anchor @confirmed-date`); **no cite = treated as hallucination**.
 - 🪶 **Zero runtime dependencies** — pure Node.js standard library + markdown. No build step, no lockfile drift, nothing to babysit.
-- 🔒 **Discipline built in, not bolted on** — mandatory git-worktree isolation for every change, auto-merge only after all gates pass, business-language-only user communication, RFC2119 spec writing with zero placeholders.
+- 🔒 **Discipline built in, not bolted on** — mandatory git-worktree isolation for every change, auto-merge only after all gates pass, business-language-only user communication, RFC2119 spec writing with zero placeholders, and YAGNI / KISS / DRY / LoD for both designs and code.
 - ⚖️ **Right-sized process** — a 4-question Triage routes small changes to a one-page Lean Spec and real risk (AI behavior, security, cross-service, irreversibility, external commitments) to the full pipeline. No cargo-cult ceremony.
 
 > Core belief: whether AI coding lands in production is decided not by the process itself (anyone can copy a process), but by **whether you can hand the AI a trustworthy layer of code facts**. That is exactly why the code-fact layer is mandatory — and it has nothing to do with how many colleagues you have.
@@ -78,7 +78,7 @@ npx --yes git+https://github.com/weidwonder/dw-system.git .
 npx --yes git+https://github.com/weidwonder/dw-system.git . --dry-run
 
 # Pin one release end to end — installer entry and skill source at the same tag:
-npx --yes git+https://github.com/weidwonder/dw-system.git#v2.4.0 . --ref=v2.4.0
+npx --yes git+https://github.com/weidwonder/dw-system.git#v3.0.0 . --ref=v3.0.0
 
 # Follow the development branch instead:
 npx --yes git+https://github.com/weidwonder/dw-system.git . --ref=main
@@ -157,7 +157,7 @@ Then invoke the skill in any project (mentioning "AI-assisted development / dev 
 ### Working with others
 1. Invoke the skill in your project → answer "others too", and confirm the merge gate (merge locally / push a PR and let the platform merge).
 2. From then on, the AI creates a dedicated worktree per repo, produces an Overview before review meetings for anything spanning ≥3 repos, and aligns with the repo owner before touching someone else's repo.
-3. When all repos are ready, changes merge in dependency order through PR, CI, and protected-branch gates.
+3. When all repos are ready, changes merge in dependency order through PR, CI, and protected-branch gates. For PR-gated projects **a merge is a release**: the PR carries the version bump and the CHANGELOG version section, and the merge commit gets tagged; with local merges, tagging stays your own action.
 
 ### The code-fact layer (**mandatory — every project, every size, any headcount**)
 

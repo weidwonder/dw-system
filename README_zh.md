@@ -24,7 +24,7 @@
 - 🎯 **一条命令装进任意项目**——Claude Code 与 Codex 同时安装，只问一个问题（有没有人和你一起开发）；代码事实层由体系自己建骨架，没有"档次"要你选。
 - 🧠 **Engineering Context 是真正的护城河**——能力登记表、按业务域分的事实卡、端到端场景蓝图、卡片体检（`ctx lint-cards`）、Frozen Probe Set 防腐门禁。每条事实带 cite（`path#anchor @确认时间`）；**无 cite 视为幻觉**。
 - 🪶 **零运行时依赖**——纯 Node.js 标准库 + markdown。没有 build、没有 lockfile 漂移、没有需要伺候的东西。
-- 🔒 **纪律是内建的，不是贴上去的**——每次改动强制 worktree 隔离、全部门禁通过才自动合并、用户沟通只用业务语言、RFC2119 spec 写作零占位符。
+- 🔒 **纪律是内建的，不是贴上去的**——每次改动强制 worktree 隔离、全部门禁通过才自动合并、用户沟通只用业务语言、RFC2119 spec 写作零占位符、方案与代码都守 YAGNI / KISS / DRY / LoD。
 - ⚖️ **流程重量刚刚好**——4 问 Triage 把小改动分流到一页 Lean Spec，把真风险（AI 行为、安全、跨服务、不可逆、对外承诺）升级进完整流程。不搞仪式感。
 
 > 核心信念：AI coding 能不能落地，秘密不在流程本身（谁都能抄），而在**能不能给 AI 一层可信赖的代码事实**。代码事实层之所以是必备项，正是为此——而它跟你有几个同事无关。
@@ -78,7 +78,7 @@ npx --yes git+https://github.com/weidwonder/dw-system.git .
 npx --yes git+https://github.com/weidwonder/dw-system.git . --dry-run
 
 # 端到端锁定一个发布版本：安装入口与技能源取同一个 tag
-npx --yes git+https://github.com/weidwonder/dw-system.git#v2.4.0 . --ref=v2.4.0
+npx --yes git+https://github.com/weidwonder/dw-system.git#v3.0.0 . --ref=v3.0.0
 
 # 想跟随开发分支：
 npx --yes git+https://github.com/weidwonder/dw-system.git . --ref=main
@@ -157,7 +157,7 @@ cp -r dw-system/skills/dw-* ~/.codex/skills/
 ### 有人一起开发
 1. 在项目里唤起 skill → 回答"有其他人"，并确认合并方式（本地直接合并 / 推 PR 走平台）。
 2. 之后开发时，AI 会为每个仓库建立独立 worktree，跨 ≥3 仓的需求先出 Overview 再开评审会，改别人的仓库前先对齐 owner。
-3. 多仓全部就绪后，按依赖顺序走 PR、CI 和保护分支门禁并自动合并。
+3. 多仓全部就绪后，按依赖顺序走 PR、CI 和保护分支门禁并自动合并。走 PR 的项目**合并即发布**：PR 带版本号与 CHANGELOG 版本节，合并落地后打 tag；本地直合的项目发版仍由你自己打 tag。
 
 ### 代码事实层（**必备：任何项目、任何规模、任何人数**）
 
