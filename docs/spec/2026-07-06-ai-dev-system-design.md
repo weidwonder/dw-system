@@ -2,8 +2,10 @@
 date: '2026-07-06'
 status: 'design-approved-pending-review'
 documentRole: 'design-spec'
-sourceOfTruth: true
-lifecycle: active
+sourceOfTruth: false
+lifecycle: superseded
+archived: '2026-09-17'
+superseded_by: './2026-09-17-dw体系重组与两条总纲-PRD.md'
 last_confirmed: '2026-09-16'
 authority_refs:
   - 'skill 的交付形态与目录结构：ai-dev-system/skills/<name>/{SKILL.md,references/,assets/,scripts/}'
@@ -15,6 +17,8 @@ authority_refs:
   - 'ctx 的命令集合与跨平台硬约束（node:path / UTF-8 / 零第三方依赖）'
   - '安装形态：随项目安装为推荐路径 + 项目级禁用冲突插件（D10）'
 ---
+
+> **已归档（2026-09-17）｜lifecycle: superseded**：本文已被 `docs/spec/2026-09-17-dw体系重组与两条总纲-PRD.md` 取代：单 skill + `core/` 分册 + `mode` 墓碑字段的架构已由八个 `dw-` skill 接替，现行口径见 `docs/REQUIREMENTS.md` §这是什么、`docs/decisions/0004`–`0006` 与 `engineering-context/cards/dw-system.md`。与现行文档冲突时**以现行为准**，MUST NOT 据本文实施。
 
 > **现行性说明（2026-08-18）**：本文是体系的**设计真相源**，架构决策与理由仍现行。其中「个人 / 团队两档 mode」这一维度已在 2.0.0 被拆成**协作面**（显式字段）与**代码事实供给方式**；2.1.0 又取消了后者的分档——**代码事实层（`engineering-context/`）改为无条件必备**，只剩「有没有代码图谱索引」一项仍靠运行时探测。下文相关小节已按 2.1.0 更新；决策表保留原始记录并逐条标注去向。取代口径见 `2026-08-18-代码事实层强制化-eng-spec.md`（它取代的 `2026-08-16-项目真相源与context-tier重构-eng-spec.md` 已归档，MUST NOT 再当实施依据）。
 

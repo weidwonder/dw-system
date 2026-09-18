@@ -4,14 +4,14 @@ status: '设计定稿，待实现'
 documentRole: 'design-spec'
 sourceOfTruth: '../../REQUIREMENTS.md 不适用（本仓库为方法论分发包）'
 lifecycle: active
-last_confirmed: '2026-08-27'
+last_confirmed: '2026-09-17'
 authority_refs:
-  - 'ai-prd 与 ai-dev-workflow 的职责边界：PRD 产出在前，其产物即 workflow Step 1 的输入'
-  - 'ai-prd 的目录结构与分册加载方式'
+  - 'dw-prd（3.0.0 之前名为 ai-prd）与 dw-workflow 的职责边界：PRD 产出在前，其产物即 workflow Step 1 的输入'
+  - 'dw-prd 的目录结构与分册加载方式（dw-system/skills/dw-prd/）'
   - '三类 PRD 模板的划分与选用判据：change-prd（主）/ lite-issue-prd / product-prd'
   - '批量提问 elicitation 的批次划分（分流 / A 立项 / B 现状边界 / C 细节 / D 准出 / 组稿）'
   - 'PRD 写作纪律五条（非目标要硬 / 边界显式 / 验收可判定 / 真相方向 / 无占位符）'
-  - 'ai-prd 只读项目配置、不写配置这一职责边界'
+  - 'dw-prd 只读项目配置、不写配置这一职责边界'
   - '§7 demo 骨架 → change-prd 模板 的覆盖度映射（改模板前的对照表）'
 ---
 

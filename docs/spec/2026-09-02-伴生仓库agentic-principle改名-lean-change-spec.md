@@ -2,7 +2,7 @@
 lifecycle: active
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-09-02'
+last_confirmed: '2026-09-17'
 authority_refs:
   - '伴生 skill 的仓库地址：https://github.com/weidwonder/agentic-principle.git（install.mjs COMPANION_SKILLS）'
   - '仓库改名后本体系内一律用连字符名 agentic-principle 指代该仓库，含历史文档里给使用者点的链接'

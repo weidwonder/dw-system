@@ -2,15 +2,15 @@
 lifecycle: active
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-08-27'
+last_confirmed: '2026-09-17'
 authority_refs:
-  - '贯穿门清单与各门插入位置（00-流程总纲.md §五道门 / §spec 过稿门）'
-  - '三层确认边界（用户沟通纪律.md §3 与 §发送前检查）'
+  - '贯穿门清单与各门插入位置（dw-system/skills/dw-workflow/references/00-流程总纲.md §五道门）；spec 过稿门的判据（dw-system/skills/dw-workflow/references/确认门.md §spec 过稿门）'
+  - '三层确认边界（dw-system/skills/dw-workflow/references/用户沟通纪律.md §3 与 §发送前检查）'
   - 'eng-spec 模板章节集合（新增 §13 过稿记录）'
   - 'lean-change-spec 模板节集合（新增过稿记录行）'
-  - '加载点清单的行集合与入口字节上限 ENTRY_MAX_BYTES（本次由 8000 改为 12000）'
+  - 'dw-workflow 入口指向本门的那一行（3.0.0 起在 SKILL.md〈读取条件〉表；入口字节上限在 test/doc-budgets.json 的 classes）'
   - '计数词受检词表（test/counter-word.test.mjs 的 CHECKED_WORDS）'
-  - '注入目标项目的标记块条目集合（assets/config-snippets/base.md、collab-solo.md）'
+  - '注入目标项目的标记块里本门那一条（dw-system/skills/dw-workflow/assets/config-snippets/base.md、collab-solo.md）'
 ---
 
 # ai-dev-system_技术 Spec — spec 过稿门
@@ -88,18 +88,18 @@ authority_refs:
 | FR-005 | 跳过本门只有一条通路：**用户在本次对话里显式表态**（"这次不用看 / 直接往下 / 跳过"）。AI MUST NOT 主动提议跳过，MUST NOT 因"改动小""是我自己一个人"自行跳过。跳过**只对本次流程有效**，MUST NOT 记成项目级默认、MUST NOT 写进标记块。 |
 | FR-006 | 本门的结果 MUST 留痕：完整流程写进 eng-spec 新增的 §13 过稿记录；Lean 写进 lean-change-spec 新增的过稿记录行。留痕内容为日期 + 三选一结论（定稿 / 用户显式跳过本次 / 提了哪些意见及落稿情况）。 |
 | FR-007 | 用户意见改动了 §1.1 功能需求、§11 完成定义或 §8.1 兼容取舍结论时，MUST 先回兼容取舍确认门重过一遍清单，再回本门；只改技术章节时直接回本门。 |
-| FR-008 | Lean 路径本门**并进 `路径-lean.md` 第 4 步**（§6）那一批，与兼容取舍、大架构确认摘要同一批抛出；MUST NOT 新增 Lean 步骤号，MUST NOT 让 Lean 豁免本门。 |
+| FR-008 | Lean 路径本门**并进 `路径-lean.md` 第 4 步**（§6）那一批，与兼容取舍、大架构确认摘要同一批抛出；MUST NOT 新增 Lean 步骤号，MUST NOT 让 Lean 豁免本门。（3.0.0 起 Lean 自足册取消，`路径-lean.md` 改为一页步骤顺序，本门在 §顺序 表第 6 步，仍与兼容取舍、大架构摘要同一批抛出。） |
 | FR-009 | 计数词 `四道门` 改为 `五道门`，权威定义处仍只有 `00-流程总纲.md`；`test/counter-word.test.mjs` 的受检词表同步，其余复述处按既有豁免规则处置。 |
 | FR-010 | `用户沟通纪律.md` §3 与 §发送前检查 MUST 增加边界说明：本门问的是"要做的事对不对"而非"怎么做对不对"，因此**不构成 §3 的例外**；MUST NOT 借本门把技术选型摆给用户。 |
 | FR-011 | `collab/solo.md` 的"允许因等用户而挂起的例外"清单 MUST 增加本门；`collab/team.md` MUST 写明本门的拍板人是业务方、且只摆业务可判定项。两份注入片段（`base.md`、`collab-solo.md`）同步。 |
-| FR-012 | 入口 `SKILL.md` 的加载点清单 MUST 增一行指向本门。增行 MUST NOT 减少入口内任何 MUST / MUST NOT / SHOULD / MAY 条数与判据正反例条数。 |
+| FR-012 | 入口 `SKILL.md` 的加载点清单 MUST 增一行指向本门。增行 MUST NOT 减少入口内任何 MUST / MUST NOT / SHOULD / MAY 条数与判据正反例条数。（3.0.0 起〈加载点清单〉取消，入口改用〈读取条件〉表，本门那一行是「spec 定稿前后 → `确认门.md`」；规范条数棘轮已退役，改由规范去向清单闸把守。） |
 | FR-013 | 新增机器闸 `test/gate-sync.test.mjs`：断言每道贯穿门在其**必须被复述的文件集合**里都在场，并断言总表行数与计数词一致。 |
 | FR-014 | 修正既有交叉引用漂移：`00-流程总纲.md` 与 `用户沟通纪律.md` 里的「见 `路径-lean.md` 第 5 步」MUST 改为「第 4 步」（自足册里兼容取舍门是第 4 步 §6，第 5 步不存在）。 |
 | FR-015 | `ai-prd/references/collab/team.md` 里引用贯穿门数量的表述 MUST 同步（该文件不在计数词机器闸的遍历范围内，漏改不报错）。 |
 | FR-016 | `ai-dev-system/VERSION` bump 到 `2.11.0`；本次升级零手动动作（重装即可、不改标记块字段、不要求回填存量文档），MUST NOT 新建迁移指南。 |
 | FR-017 | `docs/TODO.md` 中本条待办 MUST 删除；本仓库根 `CLAUDE.md` 的门相关表述与 `docs/index.md` 同步。 |
-| FR-018 | 入口字节上限 `ENTRY_MAX_BYTES` 由 8000 上调到 **12000**。判据：UTF-8 下一个汉字占 3 字节，8000 字节仅约 2600 汉字，装不下「路由三步 + 工作区隔离门要点 + 只增不减的加载点清单」这三样必载内容。上调 MUST 同步全部**活引用点**（`test/` 下的断言与 `CLAUDE.md` 的契约条目）；`docs/spec/` 与 `docs/plan/` 下已完成文档里的 8,000 是**历史记账**，MUST NOT 改写。 |
-| FR-019 | 修掉上调时暴露的既有漏洞：①`test/cards-mandatory.test.mjs` 的入口上限断言 MUST 改为引用 `test/contract-numbers.mjs` 的 `ENTRY_MAX_BYTES`，MUST NOT 继续硬编码；②`test/contract-sync.test.mjs` 的 `CONTRACTS` MUST 为 `ENTRY_MAX_BYTES` 补上引用点清单，使文档侧的引用被盯住。 |
+| FR-018 | 入口字节上限 `ENTRY_MAX_BYTES` 由 8000 上调到 **12000**。判据：UTF-8 下一个汉字占 3 字节，8000 字节仅约 2600 汉字，装不下「路由三步 + 工作区隔离门要点 + 只增不减的加载点清单」这三样必载内容。上调 MUST 同步全部**活引用点**（`test/` 下的断言与 `CLAUDE.md` 的契约条目）；`docs/spec/` 与 `docs/plan/` 下已完成文档里的 8,000 是**历史记账**，MUST NOT 改写。（3.0.0 起 `ENTRY_MAX_BYTES` 与 `test/contract-numbers.mjs` 退役，入口字节上限的唯一定义处是 `test/doc-budgets.json`。） |
+| FR-019 | 修掉上调时暴露的既有漏洞：①`test/cards-mandatory.test.mjs` 的入口上限断言 MUST 改为引用 `test/contract-numbers.mjs` 的 `ENTRY_MAX_BYTES`，MUST NOT 继续硬编码；②`test/contract-sync.test.mjs` 的 `CONTRACTS` MUST 为 `ENTRY_MAX_BYTES` 补上引用点清单，使文档侧的引用被盯住。（3.0.0 起 `test/contract-numbers.mjs` 与 `test/contract-sync.test.mjs` 退役，由 `test/doc-budgets.test.mjs` 接替。） |
 | FR-020 | §8.1 第 4 条拍板的**存量豁免** MUST 有落点：`references/core/代码评审纪律.md` 的 §评审轴 D 轴职责段与 §子代理 prompt 模板 文档轴职责段 MUST 各写一条——遇到缺「过稿记录」节的存量 spec MUST 跳过、MUST NOT 报成缺陷，带到期日 2027-02-28；**豁免只针对「这一节压根不存在」**，有该节却为空或与实际过门情况不符的照常报。 |
 
 **编号规则（MUST）**：格式为 `FR-###` / `AC-###`，三位零填充；**永不复用、永不重排**；删除的需求原地保留编号并改写成"**已撤销** —— 原因"。`FR-###` / `AC-###` 与 §6 的 `Invariant N:` 是两套各自独立的编号。

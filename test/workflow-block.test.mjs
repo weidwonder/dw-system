@@ -1,6 +1,7 @@
-// ai-dev-workflow 标记块的字段模型与迁移改写。
-// 契约来源：docs/spec/2026-08-18-代码事实层强制化-eng-spec.md
-// （它取代了已归档的 2026-08-16-项目真相源与context-tier重构-eng-spec.md §5 / §6.1 / §8.3 / §9）。
+// dw-workflow 标记块的字段模型与迁移改写。
+// 契约来源：engineering-context/cards/dw-system/标记块与旧版迁移.md 与 docs/REQUIREMENTS.md §安装器
+// （当初的设计依据 2026-08-18-代码事实层强制化-eng-spec.md 与更早的
+// 2026-08-16-项目真相源与context-tier重构-eng-spec.md §5 / §6.1 / §8.3 / §9 均已归档）。
 //
 // --no-agentic / --no-codegraph / --no-ctx-link 是硬规定：这三段会动跑测试这台机器的
 // 用户级 skills 目录、全局 npm 安装与全局 ctx 命令。本组测试一律带上。
@@ -15,8 +16,8 @@ import { fileURLToPath } from 'node:url'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const installer = path.join(repoRoot, 'install.mjs')
 
-const START = '<!-- ai-dev-workflow:start -->'
-const END = '<!-- ai-dev-workflow:end -->'
+const START = '<!-- dw-workflow:start -->'
+const END = '<!-- dw-workflow:end -->'
 
 const install = (target, ...args) =>
   spawnSync(
@@ -28,10 +29,13 @@ const install = (target, ...args) =>
 const read = (...parts) => readFileSync(path.join(...parts), 'utf8')
 const write = (file, body) => writeFileSync(file, body)
 
-const legacyBlock = mode => `# Fixture\n\n${START}\n> **本项目采用 ai-dev-workflow** (mode="${mode}")\n${END}\n`
+// 1.x 旧块：旧名字的起止行 + 只有 mode 一个字段。
+const LEGACY_START = '<!-- ai-dev-workflow:start -->'
+const LEGACY_END = '<!-- ai-dev-workflow:end -->'
+const legacyBlock = mode => `# Fixture\n\n${LEGACY_START}\n> **本项目采用 ai-dev-workflow** (mode="${mode}")\n${LEGACY_END}\n`
 const newBlock = (collaboration, mergeGate, worktreeDir = './.worktrees/') =>
-  `# Fixture\n\n${START}\n> **本项目采用 ai-dev-workflow**\n`
-  + `> (mode="team" collaboration="${collaboration}" merge-gate="${mergeGate}" worktree-dir="${worktreeDir}")\n${END}\n`
+  `# Fixture\n\n${START}\n> **本项目采用 dw-workflow**\n`
+  + `> (collaboration="${collaboration}" merge-gate="${mergeGate}" worktree-dir="${worktreeDir}")\n${END}\n`
 
 function blockOf(text) {
   const start = text.indexOf(START)
@@ -45,7 +49,7 @@ function blockOf(text) {
 const fieldNames = block => [...block.matchAll(/([a-z][a-z-]*)="[^"]*"/g)].map(m => m[1]).sort()
 
 function withTarget(prefix, fn) {
-  const target = mkdtempSync(path.join(tmpdir(), 'ai-dev-system-' + prefix + '-'))
+  const target = mkdtempSync(path.join(tmpdir(), 'dw-system-' + prefix + '-'))
   try {
     return fn(target)
   } finally {
@@ -70,7 +74,7 @@ test('新格式标记块被原样识别，且重复安装幂等', () => {
     const second = install(target)
     assert.equal(second.status, 0, second.stderr || second.stdout)
     assert.equal(read(target, 'CLAUDE.md'), afterFirst, '重复安装必须字节级幂等')
-    assert.equal((read(target, 'CLAUDE.md').match(/ai-dev-workflow:start/g) || []).length, 1)
+    assert.equal((read(target, 'CLAUDE.md').match(/dw-workflow:start/g) || []).length, 1)
     assert.doesNotMatch(second.stdout, /改写前后对照/)
   })
 })
@@ -87,9 +91,9 @@ test('旧 mode="personal" 迁移为 collaboration="solo" / merge-gate="direct"',
       assert.match(block, /collaboration="solo"/, entry)
       assert.match(block, /merge-gate="direct"/, entry)
       assert.match(block, /worktree-dir="\.\/\.worktrees\/"/, entry)
-      // 墓碑字段：旧 skill 读到不硬失败；新 skill 完全忽略（spec §8.3）
-      assert.match(block, /mode="team"/, entry)
-      assert.doesNotMatch(block, /mode="personal"/, entry)
+      // 新块不含 mode；旧名字的块随同一次写入删除
+      assert.doesNotMatch(block, /mode="/, entry)
+      assert.doesNotMatch(read(target, entry), /ai-dev-workflow/, entry)
       // §8.1 第 1 条拍板"不兼容"：标记块正文里不得再出现旧概念
       assert.doesNotMatch(block, /个人版|团队版/, entry)
     }
@@ -113,13 +117,14 @@ test('旧 mode="team" 只映射协作维度，MUST NOT 推出别的任何东西'
     assert.match(block, /merge-gate="pr"/)
 
     // 旧 team 声明只映射协作维度，对别的任何东西零效力。
-    // 字段面：除四个已定义字段外不得多出任何字段。
-    assert.deepEqual(fieldNames(block), ['collaboration', 'merge-gate', 'mode', 'worktree-dir'])
+    // 字段面：除三个已定义字段外不得多出任何字段。
+    assert.deepEqual(fieldNames(block), ['collaboration', 'merge-gate', 'worktree-dir'])
     // 内容面：不得**声明**这个项目已经有代码图谱索引——那是每次唤起时探测出来的。
     assert.doesNotMatch(block, /(启用了?|已有|具备|已建)\s*(代码图谱|\.codegraph)/)
     // 2.1.0 起 ctx 指令**必须是无条件的**：代码事实层是必备资产，不再有"若存在 registry 才用 ctx"
-    // 这一档。这条断言与 2.0.0 那条正好相反，是本次变更刻意翻转的契约，理由见
-    // docs/spec/2026-08-18-代码事实层强制化-eng-spec.md 的变更总览 2.8。
+    // 这一档。这条断言与 2.0.0 那条正好相反，是 2.1.0 刻意翻转的契约；现行口径见
+    // docs/REQUIREMENTS.md §必备的代码事实层（没有开关），当初翻转的理由留在已归档的
+    // docs/spec/2026-08-18-代码事实层强制化-eng-spec.md 变更总览 2.8。
     const ctxLines = block.split('\n').filter(line => /MUST\s+(先)?用\s*`?ctx/.test(line))
     assert.ok(ctxLines.length > 0, '标记块里必须有一条强制用 ctx 的指令')
     for (const line of ctxLines) {
@@ -262,7 +267,7 @@ test('标记块存在但读不出任何已知字段 → 报错中止', () => {
 
     const result = install(target)
     assert.notEqual(result.status, 0)
-    assert.match(result.stdout + result.stderr, /ai-dev-workflow/)
+    assert.match(result.stdout + result.stderr, /dw-workflow/)
     assert.equal(existsSync(path.join(target, '.claude', 'skills')), false)
   })
 })
@@ -282,7 +287,7 @@ test('已装 skill stamp 早于 2.0.0 而标记块已是新格式 → 显式报�
     write(path.join(target, 'CLAUDE.md'), newBlock('solo', 'direct'))
     for (const dir of [path.join(target, '.claude', 'skills'), path.join(target, '.agents', 'skills')]) {
       mkdirSync(dir, { recursive: true })
-      writeFileSync(path.join(dir, 'ai-dev-system.version'), '1.0.0\n')
+      writeFileSync(path.join(dir, 'dw-system.version'), '1.0.0\n')
     }
 
     const result = install(target)

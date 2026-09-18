@@ -1,0 +1,66 @@
+{
+  "files": {
+    "CLAUDE.md": 12000,
+    "dw-system/skills/dw-workflow/assets/config-snippets/base.md": 5500,
+    "dw-system/skills/dw-workflow/assets/config-snippets/collab-solo.md": 1400,
+    "dw-system/skills/dw-workflow/assets/config-snippets/collab-team.md": 1400,
+    "dw-system/skills/dw-prd/SKILL.md": {
+      "max": 18998,
+      "note": "dw-prd 本次只改名不改内容；入口无条件加载三份 references、自带完整纪律，冻结在 3.0 拆分时的体积，只许降。瘦身登记在 docs/TODO.md"
+    },
+    "dw-system/skills/dw-prd/references/00-prd生成流程.md": {
+      "max": 45536,
+      "note": "同上：3.0 不动 dw-prd 的内容，冻结在拆分时的体积，只许降"
+    },
+    "dw-system/skills/dw-prd/references/UI原型纪律.md": {
+      "max": 43601,
+      "note": "同上：3.0 不动 dw-prd 的内容，冻结在拆分时的体积，只许降"
+    }
+  },
+  "classes": [
+    {
+      "glob": "dw-system/skills/*/SKILL.md",
+      "max": 12000,
+      "note": "每个 skill 的入口。逐份判、不判八份合计：skill 按需加载，一次会话只常驻命中的那一两个（2026-09-17 拍板）"
+    },
+    {
+      "glob": "dw-system/skills/*/references/**/*.md",
+      "max": 24000,
+      "note": "单篇分册"
+    }
+  ],
+  "totals": [
+    {
+      "glob": "dw-system/skills/*/references/**/*.md",
+      "groupBy": 2,
+      "max": 75000,
+      "overrides": {
+        "dw-workflow": {
+          "max": 133900,
+          "note": "目标 75000。拆分后冻结在实际体积；2026-09-17 特性损失审计补回了搬家时丢掉或弱化的命题、给跨 skill 指针补了属主，先按总纲搬走了两处重复展开仍超，抬到补回后的实际体积（拍板人 2026-09-17 同意）；同日新增 §设计原则（YAGNI / KISS / DRY / LoD）约 2KB。只许降，继续搬走登记在 docs/TODO.md"
+        },
+        "dw-prd": {
+          "max": 135359,
+          "note": "目标 75000。3.0 不动 dw-prd 的内容，冻结在拆分时的体积，只许降"
+        }
+      }
+    }
+  ],
+  "lines": [
+    {
+      "file": "docs/index.md",
+      "entryPattern": "^- \\*\\*\\[",
+      "maxBytes": 360
+    },
+    {
+      "file": "docs/index-archive.md",
+      "entryPattern": "^\\| \\[",
+      "maxBytes": 360
+    }
+  ],
+  "blockExcluded": {
+    "file": "CLAUDE.md",
+    "start": "<!-- dw-workflow:start -->",
+    "end": "<!-- dw-workflow:end -->"
+  }
+}

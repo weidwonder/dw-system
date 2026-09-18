@@ -4,7 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { searchSemantic, expandQuery } from '../ai-dev-system/skills/ai-dev-workflow/scripts/ctx/src/semantic.js';
+import { searchSemantic, expandQuery } from '../dw-system/skills/dw-code-facts/scripts/ctx/src/semantic.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ctxDir = path.join(here, 'fixtures', 'ctx-engineering-context');

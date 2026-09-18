@@ -1,8 +1,8 @@
 ---
 date: '2026-08-19'
-lifecycle: 'active'
+lifecycle: merged
 superseded_by: ''
-archived: ''
+archived: '2026-09-17'
 last_confirmed: '2026-08-27'
 authority_refs:
   - 'ai-dev-system/skills/ai-prd/references/prd复核纪律.md'
@@ -10,6 +10,8 @@ authority_refs:
   - 'ai-dev-system/skills/ai-prd/references/prd质量清单.md#质量对照纪律'
   - 'ai-dev-system/skills/ai-prd/SKILL.md#路由逻辑'
 ---
+
+> **已归档（2026-09-17）｜lifecycle: merged**：本文口径已归并至 `docs/REQUIREMENTS.md` §产 PRD 与 `dw-prd` 的 `prd复核纪律.md`；§B 的门序已由 `docs/spec/2026-08-25-用户过稿门-lean-change-spec.md` 修订。未勾选项保持原样，不代表待办。与现行文档冲突时**以现行为准**，MUST NOT 据本文实施。
 
 # PRD 复核门（组稿后、落盘确认门前的双轴子代理复核）
 

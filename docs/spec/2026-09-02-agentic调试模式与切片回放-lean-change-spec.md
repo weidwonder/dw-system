@@ -1,7 +1,7 @@
 ---
-lifecycle: active
+lifecycle: merged
 superseded_by: ''
-archived: ''
+archived: '2026-09-17'
 last_confirmed: '2026-09-02'
 authority_refs:
   - 'AI-LLM-overlay.md §AI 契约清单 的「可观测性」项：每次推理必记字段清单'
@@ -9,6 +9,8 @@ authority_refs:
   - '测试资产纪律.md §2：真实输入固化为测试资产的来源与去重规则'
   - '步骤-8-10-测试.md Step 8「优先用真实样本」条：真实输入来源的复述口径'
 ---
+
+> **已归档（2026-09-17）｜lifecycle: merged**：本文口径已归并至 `docs/REQUIREMENTS.md` §明确不做什么 第 1 条与 `dw-workflow` 的 `AI-LLM-overlay.md`，判据本体在外部伴生 skill `agentic-principle`。未勾选项里的旧路径与 `wording-redline` 测试已在 3.0.0 退役，保持原样，不代表待办。与现行文档冲突时**以现行为准**，MUST NOT 据本文实施。
 
 # Lean Change Spec（一页）— Agentic 调试模式与切片回放接线
 

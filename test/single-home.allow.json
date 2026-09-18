@@ -1,0 +1,74 @@
+[
+  {
+    "sentence": "MUST NOT 合并成一次\"总体看看\"——合并会让一轴的显眼问题掩盖另一轴",
+    "files": [
+      "dw-prd/references/prd复核纪律.md",
+      "dw-review-gate/references/评审门禁.md"
+    ],
+    "reason": "PRD 复核门与代码评审门是两道不同的门，各自的执行者只读自己那一份；这句是两道门共同的理由，不是同一条规则的两份展开"
+  },
+  {
+    "sentence": "写到可比对的粒度，确实没有就写一条 无（注释里 MUST NOT 出现引号：ctx probe 的 rationale-traceable 见引号即不剥注释，整条注释会被当成已填的条目）",
+    "files": [
+      "dw-workflow/assets/templates/eng-spec.md",
+      "dw-workflow/assets/templates/lean-change-spec.md"
+    ],
+    "reason": "模板各自被单独复制进目标项目，frontmatter 注释 MUST 就地写全"
+  },
+  {
+    "sentence": "属性行（含 collaboration / merge-gate / worktree-dir）只在 `base.md` 里，本片段 MUST NOT 出现属性行",
+    "files": [
+      "dw-workflow/assets/config-snippets/collab-solo.md",
+      "dw-workflow/assets/config-snippets/collab-team.md"
+    ],
+    "reason": "两份协作面片段二选一注入，头注是给改片段的人看的，各自必须自带"
+  },
+  {
+    "sentence": "<!-- 本片段从不单独注入：注入或替换时 MUST 只取下方 start 与 end 之间的**块内内容**（不含两行标记本身），拼在 `base.md` 的块内内容之后，再用一对标记包裹",
+    "files": [
+      "dw-workflow/assets/config-snippets/collab-solo.md",
+      "dw-workflow/assets/config-snippets/collab-team.md"
+    ],
+    "reason": "同上：两份片段各自自带头注"
+  },
+  {
+    "sentence": "文件名含 `/` 的（npm scoped 包如 `@scope/name`）把 `/` 替换成 `__`，写成 `@scope__name.md`，MUST NOT 造出子目录",
+    "files": [
+      "dw-code-facts/assets/context-layer/dependency.md",
+      "dw-code-facts/references/代码事实纪律.md"
+    ],
+    "reason": "dependency.md 是照抄进目标项目的模板，命名规则 MUST 就地写——照模板建文件的人手边不一定有 skill"
+  },
+  {
+    "sentence": "**无 card 依据的 cite 视为幻觉，MUST NOT 编造**",
+    "files": [
+      "dw-prd/SKILL.md",
+      "dw-prd/references/00-prd生成流程.md"
+    ],
+    "reason": "入口的关键一句：dw-prd 入口自带完整纪律，展开在 00-prd生成流程.md"
+  },
+  {
+    "sentence": "> **本次读了源码才搞清楚的模块，MUST 在本次任务内落成 `engineering-context/cards/` 卡片**（域卡最小四节：职责 / 权威实现与对外接口 / 陷阱项 / 确认，判据见 `dw-code-facts` 的 `代码事实纪律.md` §4），并在末列写明补的是哪张卡片的哪个域",
+    "files": [
+      "dw-workflow/assets/templates/eng-spec.md",
+      "dw-workflow/assets/templates/overview.md"
+    ],
+    "reason": "两份模板各自被单独复制进目标项目，〈既有系统清单〉的填写说明 MUST 就地写"
+  },
+  {
+    "sentence": "> 本表出现**\"同一逻辑的多处副本\"**时，MUST 在对应卡片的**陷阱项**里写清哪一处是权威、哪一处不该再用（`dw-code-facts` 的 `代码事实纪律.md` §4.1）——否则下一个零上下文 agent 还会改错那一份",
+    "files": [
+      "dw-workflow/assets/templates/eng-spec.md",
+      "dw-workflow/assets/templates/lean-change-spec.md"
+    ],
+    "reason": "同上：模板就地写填写说明"
+  },
+  {
+    "sentence": "- 【每条可判定，用 MUST / SHOULD / MAY 表达约束强度",
+    "files": [
+      "dw-prd/assets/templates/product-prd.md",
+      "dw-prd/assets/templates/requirements-module.md"
+    ],
+    "reason": "两份 PRD 模板里同一句占位提示，各自被单独复制"
+  }
+]

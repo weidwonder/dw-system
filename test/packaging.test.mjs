@@ -7,7 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repo = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const ctxRoot = path.join(repo, 'ai-dev-system', 'skills', 'ai-dev-workflow', 'scripts', 'ctx');
+const ctxRoot = path.join(repo, 'dw-system', 'skills', 'dw-code-facts', 'scripts', 'ctx');
 
 test('ctx 的测试与 fixtures MUST NOT 住在 skill 目录里（否则随安装装进每个目标项目）', () => {
   for (const leaked of ['test', 'tests', 'fixtures', '__tests__']) {

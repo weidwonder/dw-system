@@ -1,39 +1,34 @@
-// 多项目变更感知的两半契约（2.17.0，
-// spec `docs/spec/2026-09-16-变更日志与依赖声明-eng-spec.md` FR-001~FR-019）：
-// 上游侧「每次合并写 CHANGELOG」+ 下游侧「依赖声明与上游升级顺序」。
+// 多项目变更感知：上游侧「每次合并写 CHANGELOG」+ 下游侧「依赖声明与上游升级顺序」。
 //
-// 为什么要有这份测试：这条契约的价值全在**两边用同一套接口名**——上游条目以接口名开头、
-// 下游声明按接口名列"用到的部分"，升级时取交集。任何一边的判据被"精简"掉（比如把
-// "MUST 以对外接口名开头"删成"写清改了什么"），交集就再也取不出来，而每份文件各自读起来
-// 都自洽。判据被复述在五处：权威 `代码事实纪律.md` §10、Lean 只读 `路径-lean.md` §3.11/§3.12、
-// 评审门读 `代码评审纪律.md` 忠实轴、合并时读 `worktree开发纪律.md`、目标项目拿到 `base.md`。
+// 这条契约的价值在两边用同一套接口名：上游条目以接口名开头，下游声明按接口名列"用到的部分"，
+// 升级时取交集。判据的家是 dw-code-facts 的 `代码事实纪律.md` §10；评审门忠实轴、完成门准出项
+// 各自只管自己那一步的核对动作，注入块只留一句加指针。
 //
-// 第二个要守的是**子代理数**：正常路径零子代理，兜底各至多一个。把"MUST NOT 全量看 diff"
-// 或"读两份文件取交集"删掉，升级上游就会退回"派子代理通读 release note"——正是本方案要消灭的成本。
+// 第二个要守的是子代理数：正常路径零子代理，兜底各至多一个。
 //
-// 作用域：只查机械可判的那一半——判据在不在场、五类闭集有没有漂、`ctx init` 有没有真建目录、
-// stub 与模板有没有漂。规则合不合理归代码评审门。MUST NOT 把本闸全绿读成"契约描述正确"。
+// 只查机械可判的那一半：判据在不在场、五类闭集有没有漂、`ctx init` 有没有真建目录、stub 与模板
+// 有没有漂。规则合不合理归评审门；本闸全绿 MUST NOT 被读成契约描述正确。
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+
+import { readSkillFile, skillFile } from './skill-files.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const wfRoot = path.join(repoRoot, 'ai-dev-system', 'skills', 'ai-dev-workflow')
 const read = (...p) => readFileSync(path.join(...p), 'utf8')
 
-const FACTS = read(wfRoot, 'references', 'core', '代码事实纪律.md')
-const LEAN = read(wfRoot, 'references', 'core', '路径-lean.md')
-const REVIEW = read(wfRoot, 'references', 'core', '代码评审纪律.md')
-const WORKTREE = read(wfRoot, 'references', 'core', 'worktree开发纪律.md')
-const OUTLINE = read(wfRoot, 'references', 'core', '00-流程总纲.md')
-const SNIPPET = read(wfRoot, 'assets', 'config-snippets', 'base.md')
-const ENTRY = read(wfRoot, 'SKILL.md')
-const CARD_TPL = read(wfRoot, 'assets', 'context-layer', 'card.md')
-const DEP_TPL = read(wfRoot, 'assets', 'context-layer', 'dependency.md')
-const COMMANDS = read(wfRoot, 'scripts', 'ctx', 'src', 'commands.js')
+const FACTS = readSkillFile('代码事实纪律.md')
+const REVIEW = readSkillFile('子代理模板.md')
+const WORKTREE = readSkillFile('worktree开发纪律.md')
+const LEAN = readSkillFile('路径-lean.md')
+const SNIPPET = readSkillFile('config-snippets/base.md')
+const CARD_TPL = readSkillFile('context-layer/card-map.md')
+const DEP_TPL = readSkillFile('context-layer/dependency.md')
+const COMMANDS = readSkillFile('ctx/src/commands.js')
 
 /** 按小节切段（同 review-backlog.test.mjs 的理由：判据住在哪一节决定它能不能在那一刻被读到）。 */
 const cut = (body, from, to) => {
@@ -46,28 +41,23 @@ const cut = (body, from, to) => {
 
 const FACTS_UP = cut(FACTS, '### 10.1 上游侧', '### 10.2 下游侧')
 const FACTS_DOWN = cut(FACTS, '### 10.2 下游侧', '## 一句话')
-const LEAN_UP = cut(LEAN, '### 3.11 ', '### 3.12 ')
-const LEAN_DOWN = cut(LEAN, '### 3.12 ', '## 3bis.')
-const LEAN_MERGE = cut(LEAN, '## 11. ', '## 12. ')
 const REVIEW_DUTY = cut(REVIEW, '## 本轴职责', '## 硬要求')
 const WORKTREE_MERGE = cut(WORKTREE, '## 完成与自动合并门', '## 失败与阻塞')
 
 /** 五类闭集：顺序与措辞是契约的一部分，任何一处漂了下游就对不上小节名。 */
 const FIVE = '`不兼容` / `新增` / `变更` / `修复` / `内部`'
 
-/** 三处完整复述上游侧：权威 / Lean / 目标项目。 */
-const UPSTREAM_RESTATERS = [
-  ['代码事实纪律.md §10.1', FACTS_UP],
-  ['路径-lean.md §3.11', LEAN_UP],
-  ['config-snippets/base.md', SNIPPET],
-]
+const UPSTREAM_RESTATERS = [['代码事实纪律.md §10.1', FACTS_UP]]
+const DOWNSTREAM_RESTATERS = [['代码事实纪律.md §10.2', FACTS_DOWN]]
 
-/** 三处完整复述下游侧。 */
-const DOWNSTREAM_RESTATERS = [
-  ['代码事实纪律.md §10.2', FACTS_DOWN],
-  ['路径-lean.md §3.12', LEAN_DOWN],
-  ['config-snippets/base.md', SNIPPET],
-]
+test('注入块与 Lean 一页只留关键一句加指针，不再展开一份', () => {
+  assert.ok(SNIPPET.includes('至少写一条') && SNIPPET.includes('dw-code-facts'), '注入块缺「每次合并写一条」或没指向 dw-code-facts')
+  assert.ok(SNIPPET.includes('MUST NOT 替拍板人定版本号'), '注入块缺「AI 不得定版本号」')
+  assert.ok(LEAN.includes('写 CHANGELOG 条目'), 'Lean 一页的顺序表没排写 CHANGELOG 这一步')
+  for (const [name, body] of [['config-snippets/base.md', SNIPPET], ['路径-lean.md', LEAN]]) {
+    assert.ok(!body.includes('MUST NOT 自造第六类') && !body.includes('取交集'), `${name} 又展开了一份变更感知判据`)
+  }
+})
 
 test('上游侧：五类闭集 + 一律写 + 不兼容三项必填，在三处复述里逐条在场', () => {
   for (const [name, body] of UPSTREAM_RESTATERS) {
@@ -89,27 +79,19 @@ test('上游侧：条目写在实现阶段、评审门之前；完成门只核�
     assert.ok(/MUST NOT (推|留)到( §11)? ?完成门才写/.test(body), `${name}：时机漂到完成门`)
   }
   assert.ok(FACTS_UP.includes('积压通路 MUST NOT 豁免本条'), '积压通路不得豁免写条目')
-  assert.ok(LEAN_UP.includes('积压通路 MUST NOT 豁免本条'), 'Lean 侧同上')
-  for (const [name, body] of [
-    ['worktree开发纪律.md §完成与自动合并门', WORKTREE_MERGE],
-    ['路径-lean.md §11', LEAN_MERGE],
-  ]) {
+  for (const [name, body] of [['worktree开发纪律.md §完成与自动合并门', WORKTREE_MERGE]]) {
     assert.ok(body.includes('CHANGELOG 条目已在'), `${name}：准出项缺失`)
     assert.ok(body.includes('MUST NOT 在本门内代写'), `${name}：门内代写没被封`)
     assert.ok(body.includes('MUST NOT 派子代理去补写'), `${name}：漏写检查不得派子代理`)
     assert.ok(body.includes('first-parent'), `${name}：漏写检查的范围口径缺失`)
   }
   assert.ok(WORKTREE_MERGE.includes("git describe --tags --abbrev=0 --match 'v*'"), '漏写检查命令要照抄得走')
-  assert.ok(OUTLINE.includes('本门也只核对 CHANGELOG 条目在不在'), '总纲 §完成与自动合并门 缺核对句')
 })
 
 test('评审门忠实轴：spec §8.1 ↔ CHANGELOG 对照与两种偏离记法在场', () => {
   assert.ok(REVIEW_DUTY.includes('CHANGELOG 对照'), '忠实轴职责缺 CHANGELOG 对照')
   assert.ok(/缺一行记\s*一条 `漏做`/.test(REVIEW_DUTY), '缺条目 → 漏做')
   assert.ok(REVIEW_DUTY.includes('记一条 `做反了`'), '无兼容取舍却有不兼容条目 → 做反了')
-  const leanB = cut(LEAN, '| **B 忠实轴**', '| **C 残留轴**')
-  assert.ok(leanB.includes('CHANGELOG 对照'), 'Lean §9.2 B 轴缺对照')
-  assert.ok(leanB.includes('`漏做`') && leanB.includes('`做反了`'), 'Lean §9.2 B 轴缺两种记法')
 })
 
 test('下游侧：声明载体、命名、五项、补写义务在三处复述里逐条在场', () => {
@@ -136,31 +118,12 @@ test('下游侧：升级顺序五步 + 两条兜底 + 子代理上限，三处�
     assert.ok(body.includes('更新声明'), `${name}：升级后更新声明`)
   }
   assert.ok(FACTS_DOWN.includes('MUST NOT 按"无交集"处理'), '拿不准按有交集处理')
-  assert.ok(LEAN_DOWN.includes('MUST NOT 按"无交集"处理'), 'Lean 侧同上')
   assert.ok(FACTS_DOWN.includes('MUST NOT 在主会话裸 grep'), '无声明时的扫描必须外包')
 })
 
-test('Lean 自足册：§3.11/§3.12 进了 §0.3 触发式清单，每节带来源锚点，§7/§14 有接线', () => {
-  const loadTable = cut(LEAN, '### 0.3 本册按节加载', '## 1. ')
-  assert.ok(loadTable.includes('§3.11、§3.12'), '§0.3 触发式清单缺新节')
-  assert.ok(LEAN_UP.includes('来源：`代码事实纪律.md` §10.1'), '§3.11 缺来源锚点')
-  assert.ok(LEAN_DOWN.includes('来源：`代码事实纪律.md` §10.2'), '§3.12 缺来源锚点')
-  const impl = cut(LEAN, '## 7. 第 5–6 步', '## 8. ')
-  assert.ok(impl.includes('§3.11'), 'Lean §7 实现阶段没接到写 CHANGELOG')
-  const quick = cut(LEAN, '## 14. 顺序速查表', '### 14.1')
-  assert.ok(quick.includes('写 CHANGELOG 条目'), 'Lean §14 速查表缺此动作')
-})
-
-test('入口〈加载点清单〉两行在场，且 Lean 侧改取自足册 (L§3.11 / L§3.12)', () => {
-  assert.ok(ENTRY.includes('§10.1 (L§3.11)'), '入口缺「写 CHANGELOG 条目」行')
-  assert.ok(ENTRY.includes('§10.2 (L§3.12)'), '入口缺「升级上游」行')
-})
-
-test('文档治理 / 总纲 / Lean 的根目录例外清单认得仓库根 CHANGELOG.md', () => {
-  const gov = read(wfRoot, 'references', 'core', '文档治理.md')
+test('文档治理的根目录例外清单认得仓库根 CHANGELOG.md', () => {
+  const gov = readSkillFile('文档治理.md')
   assert.ok(gov.includes('`CHANGELOG.md`') && gov.includes('MUST 在仓库根'), '文档治理 §硬规则 缺例外')
-  assert.ok(OUTLINE.includes('仓库根另有给下游读的 `CHANGELOG.md`'), '总纲 §移出常驻的三篇 缺例外')
-  assert.ok(LEAN.includes('仓库根另有给下游读的 `CHANGELOG.md`'), 'Lean §10.1 缺例外')
 })
 
 test('卡片模板的下游行只留指针；声明模板五项齐全', () => {
@@ -173,7 +136,7 @@ test('卡片模板的下游行只留指针；声明模板五项齐全', () => {
 })
 
 test('ctx init 真生成 dependencies/README.md；--minimal 不生成', async () => {
-  const { initScaffold } = await import(path.join(wfRoot, 'scripts', 'ctx', 'src', 'commands.js'))
+  const { initScaffold } = await import(pathToFileURL(skillFile('ctx/src/commands.js')).href)
   const tmp = mkdtempSync(path.join(os.tmpdir(), 'ctx-dep-'))
   try {
     const { files } = initScaffold(tmp)
@@ -221,9 +184,22 @@ test('本仓库自身的 CHANGELOG.md 在仓库根、有未发布节与五个小
   const start = body.indexOf('## 未发布')
   const firstVersion = body.search(/\n## \d+\.\d+\.\d+/)
   assert.ok(firstVersion === -1 || start < firstVersion, '`## 未发布` 必须在版本节之前')
-  // 「每次合并至少写一条」由完成门的 first-parent 检查守（worktree开发纪律.md §完成与自动合并门），
-  // 不由本闸守：发版刚改完名时 `## 未发布` 合法为空（2026-09-16 发 2.17.0 当场撞出）。
-  // 本闸只断言整份文件至少有一条真实条目——空壳 CHANGELOG 才是它要挡的。
-  const entries = body.split('\n').filter((l) => l.startsWith('- '))
-  assert.ok(entries.length >= 1, 'CHANGELOG 全文一条条目都没有')
+  // 「每次合并至少写一条」：`## 未发布` 只在发版刚改完名、之后还没有新提交时合法为空。
+  //   当前 VERSION 的 tag 还没打（发版提交还在分支上）→ 该版本节 MUST 有条目；
+  //   tag 已打且其后有提交 → `## 未发布` MUST 有条目；tag 已打且其后无提交 → 合法为空。
+  const entriesOf = (heading) => {
+    const from = body.indexOf(`\n${heading}`)
+    if (from === -1) return []
+    const next = body.indexOf('\n## ', from + 1)
+    return body.slice(from, next === -1 ? undefined : next).split('\n').filter((l) => l.startsWith('- '))
+  }
+  const version = readFileSync(path.join(repoRoot, 'dw-system', 'VERSION'), 'utf8').trim()
+  const git = (args) => spawnSync('git', args, { cwd: repoRoot, encoding: 'utf8' })
+  const tagged = git(['rev-parse', '--verify', '--quiet', `refs/tags/v${version}`]).status === 0
+  if (!tagged) {
+    assert.ok(entriesOf(`## ${version}`).length >= 1 || entriesOf('## 未发布').length >= 1,
+      `v${version} 还没打 tag，而 \`## ${version}\` 与 \`## 未发布\` 下都没有条目——每次合并 MUST 至少写一条`)
+  } else if (Number(git(['rev-list', '--count', `v${version}..HEAD`]).stdout.trim()) > 0) {
+    assert.ok(entriesOf('## 未发布').length >= 1, `v${version} 之后已有提交，\`## 未发布\` 下却一条都没有——每次合并 MUST 至少写一条`)
+  }
 })

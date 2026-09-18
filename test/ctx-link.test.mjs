@@ -83,11 +83,13 @@ function sandbox(state, fn) {
   // 决定 EEXIST 之后安装器判不判得出"这是我们上次留下的"。
   if (state.globalCtx) {
     const pkg = path.join(fake, 'globalroot', 'ctx')
-    if (state.globalCtx === 'ours-symlink') {
+    if (state.globalCtx === 'ours-symlink' || state.globalCtx === 'legacy-symlink') {
       // npm link 的产物：指向某个项目里 skill 副本的符号链接，且目标已经不存在
       // （项目被删/改名，正是 Windows 上 EEXIST 的成因之一）。安装器只读链接字符串。
       mkdirSync(path.join(fake, 'globalroot'), { recursive: true })
-      symlinkSync(path.join(fake, 'gone', '.claude', 'skills', 'ai-dev-workflow', 'scripts', 'ctx'), pkg)
+      // legacy-symlink：3.0 之前的安装把 ctx 放在旧名字的 skill 下，升级后第一次 link 撞上的就是它。
+      const owner = state.globalCtx === 'legacy-symlink' ? 'ai-dev-workflow' : 'dw-code-facts'
+      symlinkSync(path.join(fake, 'gone', '.claude', 'skills', owner, 'scripts', 'ctx'), pkg)
     } else {
       mkdirSync(path.join(pkg, 'src'), { recursive: true })
       writeFileSync(path.join(pkg, 'src', 'cli.js'),
@@ -121,7 +123,7 @@ function sandbox(state, fn) {
   }
 }
 
-const ctxPkgDir = target => path.join(target, '.claude', 'skills', 'ai-dev-workflow', 'scripts', 'ctx')
+const ctxPkgDir = target => path.join(target, '.claude', 'skills', 'dw-code-facts', 'scripts', 'ctx')
 const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 test('本机没有 ctx：在安装好的 ctx 目录里 npm link，并实跑 --help 验证', () => {
@@ -129,7 +131,7 @@ test('本机没有 ctx：在安装好的 ctx 目录里 npm link，并实跑 --he
     const r = run()
     assert.equal(r.status, 0, r.stderr || r.stdout)
     // 只断言 cwd 的尾部：macOS 的 tmpdir 是 /var→/private/var 的软链，子进程读到的是解析后的实路径。
-    assert.match(r.calls, new RegExp(`^npm link @ .*${esc(path.join('.claude', 'skills', 'ai-dev-workflow', 'scripts', 'ctx'))}$`, 'm'))
+    assert.match(r.calls, new RegExp(`^npm link @ .*${esc(path.join('.claude', 'skills', 'dw-code-facts', 'scripts', 'ctx'))}$`, 'm'))
     assert.match(r.calls, /^ctx --help$/m)
     assert.match(r.stdout, /✓ ctx 已全局可用（已实跑 ctx --help 验证）/)
   })
@@ -142,7 +144,7 @@ test('npm link 失败：只警告并给出 node 兜底调用方式，skill 安�
     assert.match(r.stdout, /⚠ npm link 失败/)
     assert.match(r.stdout, new RegExp(`node .*${esc(path.join('scripts', 'ctx', 'src', 'cli.js'))} <命令>`))
     // 主安装的产物必须完好
-    assert.ok(existsSync(path.join(target, '.claude', 'skills', 'ai-dev-workflow', 'SKILL.md')))
+    assert.ok(existsSync(path.join(target, '.claude', 'skills', 'dw-workflow', 'SKILL.md')))
     assert.ok(existsSync(path.join(ctxPkgDir(target), 'src', 'cli.js')))
   })
 })
@@ -208,7 +210,7 @@ test('EEXIST + PATH 上就是本体系的 ctx：确认归属后 --force 覆盖�
 })
 
 test('EEXIST + 命令不在 PATH 上，但全局包目录里那个 ctx 认得出是本体系的：同样 --force 覆盖', () => {
-  const cases = process.platform === 'win32' ? ['ours-file'] : ['ours-file', 'ours-symlink']
+  const cases = process.platform === 'win32' ? ['ours-file'] : ['ours-file', 'ours-symlink', 'legacy-symlink']
   for (const globalCtx of cases) {
     sandbox({ eexist: true, globalCtx }, ({ run }) => {
       const r = run()

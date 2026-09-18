@@ -4,7 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { loadCards, loadRegistry, diagnoseRegistry, unreadableCards, registryConflicts, makeCite } from '../ai-dev-system/skills/ai-dev-workflow/scripts/ctx/src/cards.js';
+import { loadCards, loadRegistry, diagnoseRegistry, unreadableCards, registryConflicts, makeCite } from '../dw-system/skills/dw-code-facts/scripts/ctx/src/cards.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ctxDir = path.join(here, 'fixtures', 'ctx-engineering-context');

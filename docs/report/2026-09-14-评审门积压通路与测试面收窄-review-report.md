@@ -2,9 +2,9 @@
 lifecycle: active
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-09-14'
+last_confirmed: '2026-09-17'
 authority_refs:
-  - '无——本文是一次评审门的执行记录，不冻结任何权威面；判据的权威定义在 ai-dev-workflow 的 references/core/ 与本次 spec'
+  - '无——本文是一次评审门的执行记录，不冻结任何权威面；判据的权威定义在 skill dw-review-gate 与本次 spec'
 ---
 
 本次对象面：P + K｜轴集合：A/B/C/D/S｜档位：全部普通档｜各轴 P0 计数：规范 0 / 忠实 0 / 残留 1 / 文档 0 / skill 原则 2｜结算积压：无（`reviewed-through` tag 此前不存在，基点退回 `main`）

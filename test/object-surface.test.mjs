@@ -1,36 +1,34 @@
-// 对象面 → 轴集合 的推导契约（2.15.0，spec §2.1 / FR-014）。
+// 对象面 → 轴集合 的推导。
 //
-// 为什么要有这份测试：2.15.0 之前"派哪几条轴"是个常数（恒跑四条 + Agentic 增派一条），
-// 那时 doc-axis 用几个写死的数字就能盯住它。改成按对象面推导之后，能被漏掉的东西变了——
-// 不再是"数字改了没"，而是**推导规则本身有没有在每个复述它的地方保持一致**：
-// 主会话读 `代码评审纪律.md`，Lean 路径只读 `路径-lean.md`，注入目标项目的是
-// `config-snippets/base.md`；三处任一漏改，那条路径上的 agent 就会按另一套规则派轴，
-// 而三份文件各自读起来都自洽，没有任何一条既有闸会报错。
-//
-// 作用域：只查**机械可判**的那一半——三类面在不在场、映射写没写、几条硬规矩有没有被删。
-// 规则写得对不对是判断题，归代码评审门的文档轴（`代码评审纪律.md` §评审轴）。
-// MUST NOT 把本闸全绿读成"对象面这套东西描述正确"。
+// 这套推导的家是 dw-review-gate。本闸查机械可判的那一半：三类面在不在场、映射写没写、
+// 几条硬规矩有没有被删；Lean 一页与注入块只许指过去，不许再展开一份。
+// 规则写得对不对是判断题，归评审门的文档轴与 skill 原则轴；本闸全绿 MUST NOT 被读成描述正确。
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
+import { readSkillFile, skillCorpus } from './skill-files.mjs'
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const wfRoot = path.join(repoRoot, 'ai-dev-system', 'skills', 'ai-dev-workflow')
+const wfRoot = path.join(repoRoot, 'dw-system', 'skills', 'dw-workflow')
 const read = (...p) => readFileSync(path.join(...p), 'utf8')
 
-const REVIEW = read(wfRoot, 'references', 'core', '代码评审纪律.md')
-const LEAN = read(wfRoot, 'references', 'core', '路径-lean.md')
+// 这套推导的家是 dw-review-gate（纯 skill 改动的流程形态在 dw-workflow 的 `纯skill改动.md`）。
+const REVIEW = skillCorpus('dw-review-gate') + '\n' + readSkillFile('纯skill改动.md')
+const LEAN = readSkillFile('路径-lean.md')
 const SNIPPET = read(wfRoot, 'assets', 'config-snippets', 'base.md')
 const INSTALLER = read(repoRoot, 'install.mjs')
 
-// 三处都 MUST 复述这套推导：主会话读第一份，Lean 只读第二份，目标项目拿到的是第三份。
-const RESTATERS = [
-  ['代码评审纪律.md', REVIEW],
-  ['路径-lean.md', LEAN],
-  ['config-snippets/base.md', SNIPPET],
-]
+const RESTATERS = [['dw-review-gate', REVIEW]]
+
+test('Lean 一页与注入块只指向 dw-review-gate，不再展开一份对象面推导', () => {
+  for (const [name, body] of [['路径-lean.md', LEAN], ['config-snippets/base.md', SNIPPET]]) {
+    assert.ok(body.includes('dw-review-gate'), `${name} 未指向 dw-review-gate`)
+    assert.ok(!/MUST NOT 自造第四类|取并集/.test(body), `${name} 又展开了一份对象面推导——两份必然写岔`)
+  }
+})
 
 test('三类对象面是闭集，且在每个复述它的文件里都齐全', () => {
   for (const [name, body] of RESTATERS) {
@@ -66,9 +64,9 @@ test('面 → 轴的映射三处一致，且写明多面命中取并集', () => 
 })
 
 test('两条伴生轴都写明加载伴生 skill 而不是本 skill', () => {
-  // 这两轴的价值全在"换一套判据来看"。子代理若加载了 ai-dev-workflow，
+  // 这两轴的价值全在"换一套判据来看"。子代理若加载了 dw-workflow，
   // 交回来的会是一份别的轴已经给过的报告，而它看上去完全正常。
-  for (const [name, body] of [['代码评审纪律.md', REVIEW], ['路径-lean.md', LEAN]]) {
+  for (const [name, body] of RESTATERS) {
     assert.ok(
       /加载 `skill-principle`/.test(body),
       `${name} 未写明 S 轴加载 skill-principle`,
@@ -78,8 +76,8 @@ test('两条伴生轴都写明加载伴生 skill 而不是本 skill', () => {
       `${name} 未写明 E 轴加载 agentic-principle`,
     )
     assert.ok(
-      /不是本 skill|而不是本 skill|不加载\s*\n?\s*ai-dev-workflow/.test(body),
-      `${name} 未挡住"这两轴也加载 ai-dev-workflow"`,
+      /不是本 skill|而不是本 skill|不加载\s*\n?\s*dw-workflow/.test(body),
+      `${name} 未挡住"这两轴也加载 dw-workflow"`,
     )
     assert.ok(
       /整体不在场/.test(body),
@@ -96,7 +94,7 @@ test('文档说的伴生 skill 与安装器真正会装的是同两个', () => {
       new RegExp(`name: '${name}'`).test(INSTALLER),
       `install.mjs 的 COMPANION_SKILLS 里没有 ${name}，但判据文件要求加载它`,
     )
-    assert.ok(REVIEW.includes(name), `代码评审纪律.md 未提到伴生 skill ${name}`)
+    assert.ok(REVIEW.includes(name), `dw-review-gate 未提到伴生 skill ${name}`)
     // 拉取失败时的提示文案是按 why 生成的，缺了会打印 undefined 给使用者。
     const entry = INSTALLER.slice(INSTALLER.indexOf(`name: '${name}'`))
     assert.match(entry.slice(0, 600), /why: '[^']+'/, `COMPANION_SKILLS 的 ${name} 条目缺非空 why`)
@@ -137,7 +135,7 @@ test('档位判据里没有具体厂商型号被当作取值', () => {
 test('轴集合不可裁剪：算出几条派几条', () => {
   // 2026-09-03 撤回了裁剪准入——它能把只有 {D} 的小改裁成空集，门"过"了却一个子代理都没派。
   // 这条闸盯的是它别被悄悄加回来：省成本只能走合并派发（改怎么派），不能改派哪几条。
-  for (const [name, body] of [['代码评审纪律.md', REVIEW], ['路径-lean.md', LEAN]]) {
+  for (const [name, body] of RESTATERS) {
     assert.ok(
       /轴集合 MUST NOT 被裁剪/.test(body),
       `${name} 未写明轴集合不可裁剪——少了它，"改动很小"会重新变成少派几条轴的理由`,
@@ -148,13 +146,13 @@ test('轴集合不可裁剪：算出几条派几条', () => {
     )
   }
   // 组间合并同样会架空轴集合：S/E 轴与 A/B/C/D 同处一个 prompt 会得到自相矛盾的加载指令。
-  for (const [name, body] of [['代码评审纪律.md', REVIEW], ['路径-lean.md', LEAN]]) {
+  for (const [name, body] of RESTATERS) {
     assert.ok(/组间 MUST NOT 合并/.test(body), `${name} 未挡住跨组合并`)
   }
 })
 
 test('模型档位是两档加一条下限，且没有写死厂商型号当取值', () => {
-  for (const [name, body] of [['代码评审纪律.md', REVIEW], ['路径-lean.md', LEAN]]) {
+  for (const [name, body] of RESTATERS) {
     assert.ok(/普通档/.test(body) && /高档/.test(body), `${name} 缺两档档位定义`)
     assert.ok(
       /MUST NOT 派它的\*\*最低档\*\*|MUST NOT 派它的最低档/.test(body),
@@ -180,7 +178,7 @@ test('纯 K 面跳过 spec 与 plan，且理由与"门不豁免"都在场', () =
     )
   }
   // 只跑 S 轴这条 MUST 带着它的理由一起出现，否则下一个读到的人会当成漏了而加回来。
-  for (const [name, body] of [['代码评审纪律.md', REVIEW], ['路径-lean.md', LEAN]]) {
+  for (const [name, body] of RESTATERS) {
     assert.ok(/没有参照物/.test(body), `${name} 未写明纯 K 面不跑 B/C 轴的理由（那两轴没有参照物）`)
   }
 })
@@ -189,7 +187,7 @@ test('判定结论必须写进报告首行，缺它视为未过门', () => {
   for (const [name, body] of RESTATERS) {
     assert.ok(/首行/.test(body), `${name} 未要求把判定结论写进报告首行`)
   }
-  for (const [name, body] of [['代码评审纪律.md', REVIEW], ['路径-lean.md', LEAN]]) {
+  for (const [name, body] of RESTATERS) {
     assert.ok(
       /视为未过门/.test(body),
       `${name} 未写明缺首行结论的后果——不写后果，这条就只是建议`,

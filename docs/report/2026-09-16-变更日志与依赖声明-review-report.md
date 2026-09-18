@@ -2,7 +2,7 @@
 lifecycle: active
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-09-16'
+last_confirmed: '2026-09-17'
 authority_refs:
   - '无'
 ---

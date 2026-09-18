@@ -1,7 +1,7 @@
 ---
-lifecycle: active
+lifecycle: merged
 superseded_by: ''
-archived: ''
+archived: '2026-09-17'
 last_confirmed: '2026-08-27'
 authority_refs:
   - 'test/contract-numbers.mjs 的 ENTRY_MAX_BYTES 取值与引用方式'
@@ -9,6 +9,8 @@ authority_refs:
   - '路径-lean.md §6.3 小节名'
   - 'eng-spec.md §13 / lean-change-spec.md 过稿记录 的节名'
 ---
+
+> **已归档（2026-09-17）｜lifecycle: merged**：任务已随 2.11.0 执行并合入，口径已归并至 `docs/REQUIREMENTS.md` 与 `dw-workflow` 的 `确认门.md` §spec 过稿门；文中的 `ENTRY_MAX_BYTES`、`test/contract-numbers.mjs`、Lean 自足册与〈加载点清单〉已在 3.0.0 退役（上限现于 `test/doc-budgets.json`）。未勾选项保持原样，不代表待办。与现行文档冲突时**以现行为准**，MUST NOT 据本文实施。
 
 # spec 过稿门 Coding Plan
 

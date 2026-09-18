@@ -1,7 +1,7 @@
 ---
-lifecycle: active
+lifecycle: merged
 superseded_by: ''
-archived: ''
+archived: '2026-09-17'
 last_confirmed: '2026-08-27'
 authority_refs:
   - 'Lean 路径的加载清单（入口 + 协作面分册 + lean spec 模板 + 自足册）与「冲突以细则为准」的从属规则'
@@ -10,6 +10,8 @@ authority_refs:
   - '代码评审门忠实轴的报告两维度格式（五类偏离类型 + 严重度并存）'
   - '升级到本版不要求已装项目做任何手动动作的承诺'
 ---
+
+> **已归档（2026-09-17）｜lifecycle: merged**：本文口径已归并至 `docs/REQUIREMENTS.md`；其中的加载模型（常驻篇、加载点清单、Lean 自足册、规范条数红线）已在 3.0.0 被取代，来历见 `docs/decisions/0003`、`0004`。与现行文档冲突时**以现行为准**，MUST NOT 据本文实施。
 
 # ai-dev-workflow 精简与需求追溯 PRD
 

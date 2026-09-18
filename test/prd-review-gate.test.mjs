@@ -23,13 +23,12 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { PRD_ENTRY_MAX_BYTES } from './contract-numbers.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const prdRoot = path.join(repoRoot, 'ai-dev-system', 'skills', 'ai-prd')
+const prdRoot = path.join(repoRoot, 'dw-system', 'skills', 'dw-prd')
 const read = (...seg) => readFileSync(path.join(...seg), 'utf8')
 
-/** ai-prd 下所有 markdown，供全仓一致性扫描。 */
+/** dw-prd 下所有 markdown，供全仓一致性扫描。 */
 const prdFiles = (function walk(dir, acc = []) {
   for (const name of readdirSync(dir)) {
     const full = path.join(dir, name)
@@ -155,14 +154,14 @@ test('子代理 prompt 模板守住三条硬约束', () => {
 
 test('VERSION 不低于 2.2.0（复核门自此版起）并带一屏内的迁移指南', () => {
   // 与 cards-mandatory 同一修法：写死当前版本会让此后每次无关的 bump 都在这里假红
-  const version = read(repoRoot, 'ai-dev-system', 'VERSION').trim()
+  const version = read(repoRoot, 'dw-system', 'VERSION').trim()
   const [maj, min] = version.split('.').map(Number)
   assert.ok(maj > 2 || (maj === 2 && min >= 2), `复核门自 2.2.0 起，VERSION 不应低于它：${version}`)
   // 盯的是**本特性落地的那个版本**的指南（2.2.0），不是当前 VERSION。
   // 写 `${version}.md` 会隐含要求「每个版本都有迁移指南」——那从来不是成文判据，
   // 只是历史上恰好每次 bump 都需要用户动作。2.5.0 是第一个零手动动作的 bump，
   // 它把这个隐含假设顶了出来。指向 2.2.0 则永不过期：PRD 复核门的指南永远是 2.2.0 那一份。
-  const migration = path.join(repoRoot, 'ai-dev-system', 'migrations', '2.2.0.md')
+  const migration = path.join(repoRoot, 'dw-system', 'migrations', '2.2.0.md')
   assert.ok(existsSync(migration), `缺迁移指南：${migration}`)
   assert.ok(readFileSync(migration, 'utf8').split('\n').length <= 45, '迁移指南要保持一屏内（≤45 行）')
 })
@@ -211,20 +210,4 @@ test('子代理报告的「出口」列取值能表达全部三个出口', () =>
   const trace = body.slice(body.indexOf('「取证足迹」'), body.indexOf('- 「未能取证」'))
   assert.ok(/MUST\s*写|必写/.test(trace), '取证足迹未写成强制项')
   assert.ok(/无论|与本轴有没有发现|不管/.test(trace), '取证足迹未写明与本轴有无发现无关')
-})
-
-test(`ai-prd 入口 SKILL.md ≤ ${PRD_ENTRY_MAX_BYTES} 字节（防回涨棘轮）`, () => {
-  // 为什么要有这条闸：ai-prd 的入口没有渐进式披露——路由第 2 步无条件加载三份 references，
-  // 而入口自己又把三道门的判据完整复述了一遍。复述是刻意的（入口要能独立路由），但它没有
-  // 任何上界，一路涨到 19,599 字节都没有东西出声，是姊妹 skill 入口的两倍多。
-  //
-  // 本值是**棘轮不是精简目标**：入口里 100 条规范结论约每 195 字节一条，压下去就会剥掉
-  // `wording-redline` 红线②③保护的消歧上下文。超了 MUST 先把新增内容写进 references
-  // （反正会被加载），MUST NOT 顺手上调 PRD_ENTRY_MAX_BYTES。判据见 contract-numbers.mjs。
-  const bytes = Buffer.byteLength(read(prdRoot, 'SKILL.md'), 'utf8')
-  assert.ok(
-    bytes <= PRD_ENTRY_MAX_BYTES,
-    `ai-prd 入口 SKILL.md ${bytes} 字节，超出上限 ${PRD_ENTRY_MAX_BYTES}（超 ${bytes - PRD_ENTRY_MAX_BYTES}）。` +
-      'MUST 把新增内容写进 references/（路由第 2 步会加载它们），MUST NOT 上调上限值。',
-  )
 })

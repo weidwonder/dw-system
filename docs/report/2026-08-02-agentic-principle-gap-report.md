@@ -6,7 +6,7 @@ audience: 'https://github.com/weidwonder/agentic-principle 的维护者'
 lifecycle: active
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-09-02'
+last_confirmed: '2026-09-17'
 authority_refs:
   - '本仓库向 agentic-principle 提出的三条补充建议及其提出时的基线（v0.3.0）'
 ---

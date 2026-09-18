@@ -1,6 +1,6 @@
 # Frozen Probe Set — 上下文层防腐检测题集
 
-> 精简骨架；完整题型示例与 authority_refs 自防腐机制见 ai-dev-workflow skill 的 assets/context-layer/probe-set.md。
+> 精简骨架；完整题型示例与 authority_refs 自防腐机制见 dw-code-facts skill 的 assets/context-layer/probe-set.md。
 > 冻结、可打分、每发布周期重跑（`ctx probe`）。种子题取自真实歧义案例，有已知正确答案。
 > 机器可判题型分两类：
 > **A. context 层题型**（读 cards/registry）

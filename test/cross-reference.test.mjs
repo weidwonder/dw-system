@@ -64,8 +64,8 @@
 //
 // ── 四、目标文件怎么解析 ───────────────────────────────────────────────────────────
 //
-// 引用路径写法五花八门：裸文件名（`代码事实纪律.md`）、相对目录（`core/代码事实纪律.md`）、
-// 带占位符（`<skills 根>/ai-dev-workflow/references/core/…`）、上跳（`../../references/core/…`）、
+// 引用路径写法五花八门：裸文件名（`代码事实纪律.md`）、相对目录（`references/代码事实纪律.md`）、
+// 带占位符（`<skills 根>/dw-workflow/references/…`）、上跳（`../../references/…`）、
 // 花括号（`collab/{solo,team}.md`）。解析规则：丢掉 `.`/`..`/含 `<>` 的占位段后，剩下的段
 // 必须是某个真实文件路径的**结尾片段**；命中多个时按"引用方所在的那个 skill"收敛（`solo.md`
 // 在两个 skill 下各有一份，引用方读的显然是自己那份）。
@@ -76,11 +76,10 @@
 //
 // ── 五、跳围栏 ─────────────────────────────────────────────────────────────────────
 //
-// ``` 围栏内是给子代理的 prompt 模板与示例文本，按 `resident-budget.test.mjs` 的同一套写法跳过——
+// ``` 围栏内是给子代理的 prompt 模板与示例文本，一律跳过——
 // **引用方与标题方都跳**。标题方也跳是有后果的：`代码评审纪律.md` 的 prompt 模板整块在 ```text
 // 围栏里，里面的 `## 前置` / `## 本轴职责` / `## 硬要求` 是**发给子代理的段落标题**，不是本篇的
-// 小节，因此 MUST NOT 被别的文件当成可跳转的锚点。这与 `resident-budget.test.mjs` 文首切段算法
-// 第 1 条同源（那里同样因为这个围栏把一段切成了两段）。真要让它可被引用，正确处置是把那一条
+// 小节，因此 MUST NOT 被别的文件当成可跳转的锚点。真要让它可被引用，正确处置是把那一条
 // 提成文件的真小节，MUST NOT 反过来让本闸认围栏里的标题。
 //
 // 门禁自检：往任一 skill markdown 里写一条指向不存在小节的引用（如把 `§四条轴` 改成
@@ -93,7 +92,7 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const skillsRoot = path.join(repoRoot, 'ai-dev-system', 'skills')
+const skillsRoot = path.join(repoRoot, 'dw-system', 'skills')
 
 /**
  * 举例用的文件名豁免：正文里为了讲清判据而虚构的文档名，不是断链。
@@ -245,7 +244,7 @@ function resolveTarget(refPath, fromAbs) {
   if (hits.length === 0) return { missing: true }
   if (hits.length === 1) return { abs: hits[0] }
   // 同名多份（`SKILL.md` / `solo.md` 在两个 skill 下各一份）：收敛到引用方所在的 skill。
-  // 相对仓库根的路径形如 ai-dev-system/skills/<skill>/…，skill 名在第 3 段（下标 2）。
+  // 相对仓库根的路径形如 dw-system/skills/<skill>/…，skill 名在第 3 段（下标 2）。
   const skillOf = (abs) => relPosix(abs).split('/')[2]
   const fromSkill = skillOf(fromAbs)
   const sameSkill = hits.filter((abs) => skillOf(abs) === fromSkill)
@@ -321,7 +320,7 @@ test('每条交叉引用的目标文件与目标小节都真实存在', () => {
 
       if (target.missing) {
         problems.push(
-          `${where}\n    引用：${quoted}\n    目标文件：**不存在**（在 ai-dev-system/skills/ 下按结尾片段找不到 ${refPath}）\n    上下文：${ref.context}`,
+          `${where}\n    引用：${quoted}\n    目标文件：**不存在**（在 dw-system/skills/ 下按结尾片段找不到 ${refPath}）\n    上下文：${ref.context}`,
         )
         continue
       }
@@ -372,4 +371,71 @@ test('每条交叉引用的目标文件与目标小节都真实存在', () => {
       + '\n\n  处置：改引用去对齐真实标题，或改标题并同步全部引用方。'
       + 'MUST NOT 靠放宽 STOP_CHARS / 往 EXEMPT_TARGETS 加条目让它变绿。',
   )
+})
+
+// ── `<skills 根>/…` 形态的纯文件指针 ───────────────────────────────────────────────
+//
+// 上面两条只核对带 `§` 的引用。跨 skill 的指针常常只写到文件（`<skills 根>/<skill>/references/x.md`），
+// 目标被拆分或改名后它不带 `§`、主形态抽不到，成了没有任何闸看得见的死链。`<skills 根>/` 前缀
+// 明确声明"这是本体系 skill 树里的路径"，所以可以零误报地要求目标文件存在。
+
+// 脚本路径同查：兜底命令 `node <skills 根>/…/cli.js` 指到空路径，一跑就 ENOENT，而文字读起来毫无异样。
+const SKILLS_ROOT_PATH_RE = /<skills 根>\/([^\s`<>|）)]+?\.(?:md|mjs|js))(?![\w.])/g
+
+function collectSkillsRootPaths() {
+  const out = []
+  for (const abs of allMarkdown) {
+    let inFence = false
+    readFileSync(abs, 'utf8').split('\n').forEach((line, i) => {
+      if (/^\s*```/.test(line)) { inFence = !inFence; return }
+      if (inFence) return
+      for (const m of line.matchAll(SKILLS_ROOT_PATH_RE)) out.push({ file: abs, line: i + 1, rel: m[1] })
+    })
+  }
+  return out
+}
+
+test('`<skills 根>/…` 形态的 .md / .js / .mjs 路径都指到真实文件', () => {
+  const found = collectSkillsRootPaths()
+  assert.ok(found.length >= 10, `只抽到 ${found.length} 条 \`<skills 根>/…\` 路径（期望 ≥10）：抽取正则很可能已失效，本条是空跑。`)
+  const dead = found
+    .flatMap((ref) => expandBraces(ref.rel).map((rel) => ({ ...ref, rel })))
+    .filter((ref) => !existsSync(path.join(skillsRoot, ...ref.rel.split('/'))))
+    .map((ref) => `${relPosix(ref.file)}:${ref.line}  <skills 根>/${ref.rel}`)
+  assert.deepEqual(dead, [], `下列路径在 dw-system/skills/ 下不存在（目标被拆分或改名后没跟上）：\n  ${dead.join('\n  ')}`)
+})
+
+test('`<skills 根>/…` 路径检查认得出死链（反向自检）', () => {
+  const hits = [...'见 `<skills 根>/dw-workflow/references/不存在的文件.md`'.matchAll(SKILLS_ROOT_PATH_RE)].map((m) => m[1])
+  assert.deepEqual(hits, ['dw-workflow/references/不存在的文件.md'])
+  assert.equal(existsSync(path.join(skillsRoot, ...hits[0].split('/'))), false)
+})
+
+// ── 跨 skill 的引用要点名属主 ───────────────────────────────────────────────────────
+//
+// 单体 skill 时所有判据同住一个目录，裸文件名就能定位。拆成八个之后，只加载了引用方那个 skill 的
+// agent 拿到 `代码事实纪律.md` §7 这样的名字，无从知道它住在哪个 skill——而上面几条按"全树结尾片段"
+// 解析，跨 skill 的裸名照样判绿。所以另查：目标不在引用方 skill 内时，同一行 MUST 出现属主 skill 的名字。
+
+test('跨 skill 的 `x.md` §y 引用同一行点名了属主 skill', () => {
+  const skillOf = (abs) => {
+    const segs = relPosix(abs).split('/')
+    return segs[0] === 'dw-system' && segs[1] === 'skills' && segs.length > 3 ? segs[2] : null
+  }
+  const bare = []
+  let crossSkill = 0
+  for (const ref of REFS) {
+    const from = skillOf(ref.file)
+    if (!from) continue // 治理类文档与 skills/AGENTS.md 不属于任何 skill
+    for (const refPath of expandBraces(ref.refPath)) {
+      const target = resolveTarget(refPath, ref.file)
+      if (!target.abs) continue
+      const owner = skillOf(target.abs)
+      if (!owner || owner === from) continue
+      crossSkill += 1
+      if (!ref.context.includes(owner)) bare.push(`${relPosix(ref.file)}:${ref.line}  \`${refPath}\` 住在 ${owner}`)
+    }
+  }
+  assert.ok(crossSkill >= 50, `只认出 ${crossSkill} 条跨 skill 引用（期望 ≥50）：属主判定很可能已失效，本条是空跑。`)
+  assert.deepEqual(bare, [], `下列引用的目标在别的 skill 里，同一行却没点名它（写成「\`<属主 skill>\` 的 \`x.md\` §y」）：\n  ${bare.join('\n  ')}`)
 })

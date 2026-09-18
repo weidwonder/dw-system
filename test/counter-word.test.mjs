@@ -10,16 +10,16 @@
 // 的实现前提：小节名 `§四条轴` **不含**子串 `四轴`，所以"指名引用小节名"这个改写目标本身
 // 不会被这条检查误伤；一旦改成分词/模糊匹配，改写后的正确形态反而会被判红，与规则互斥。
 //
-// 门禁自检（AC-010）：往任一**非豁免**文件（如 `references/core/文档治理.md`）里写回一个受检
+// 门禁自检（AC-010）：往任一**非豁免**文件（如 `dw-doc-governance/references/文档治理.md`）里写回一个受检
 // 计数词（如把某处指名引用改回"按四轴执行"）→ 本检查判红并逐处点名；改回指名引用 → 转绿。
 // 自检 MUST 用这种方式做，MUST NOT 靠放宽词表或扩大豁免清单让它绿。
 //
-// 作用域：只遍历 `ai-dev-workflow/`（下方 wfRoot）。姊妹 skill `ai-prd/` **尚未收敛**——
-// `ai-prd/references/prd复核纪律.md` 里仍有 `四轴`×2，另有 `四问`×1。这是
-// spec §1「不做什么」划定的范围，不是漏网：`ai-prd` 待后续版本另开一次收敛。MUST NOT 把
+// 作用域：只遍历 `dw-workflow/`（下方 wfRoot）。姊妹 skill `dw-prd/` **尚未收敛**——
+// `dw-prd/references/prd复核纪律.md` 里仍有 `四轴`×2，另有 `四问`×1。这是
+// spec §1「不做什么」划定的范围，不是漏网：`dw-prd` 待后续版本另开一次收敛。MUST NOT 把
 // 本闸全绿读成"全仓计数词已收敛"。
 //
-// spec：docs/spec/2026-08-23-渐进式披露与需求追溯-eng-spec.md §4.3 / §6 Invariant 5
+// 规则的家：dw-system/skills/AGENTS.md〈数字只在它的家〉。当初的 spec（已归档）：docs/spec/2026-08-23-渐进式披露与需求追溯-eng-spec.md §4.3
 import assert from 'node:assert/strict'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
@@ -31,7 +31,7 @@ import { fileURLToPath } from 'node:url'
 import { EXEMPT_DIRS, EXEMPT_FILES } from './counter-word-exempt.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const wfRoot = path.join(repoRoot, 'ai-dev-system', 'skills', 'ai-dev-workflow')
+const wfRoot = path.join(repoRoot, 'dw-system', 'skills')
 
 // 受检词表（闭集，spec §4.3）。`variants` 覆盖同一个词的引号写法差异：仓库现用直引号，
 // 但弯引号 / 直角引号是中文写作里等价的常见变体，漏掉等于留了一条绕过通道。
@@ -46,7 +46,7 @@ const CHECKED_WORDS = [
     // 之于 `五道门` 同性质：不再有任何文件有资格写它，**包括原先的权威文件**。
     // authority 为 null 即表示"全仓禁用、无权威定义处"，下方反向护栏对这类词改判"全仓零出现"。
     authority: null,
-    rewrite: '轴集合按对象面推导，改成指名引用 `代码评审纪律.md` §评审轴 或 §门禁（MUST NOT 保留数字）',
+    rewrite: '轴集合按对象面推导，改成指名引用 `评审轴.md` §评审轴 或 `评审门禁.md` §门禁（MUST NOT 保留数字）',
   },
   {
     word: '五道门',
@@ -54,7 +54,7 @@ const CHECKED_WORDS = [
     // 五道门的清单与各门判据定义在总纲的 §五道门 一节。
     // `四道门` 留在 variants 里不是笔误：2.11.0 新增 spec 过稿门后它是**过时值**，
     // 别处残留一处就是一条按旧数字执行的路径，因此与新值同受本闸管辖。
-    authority: 'references/core/00-流程总纲.md',
+    authority: 'dw-workflow/references/00-流程总纲.md',
     // 注意：这一条与 `四轴` 的情形不同。`四轴` 的权威小节名叫 §四条轴，天然不含子串
     // `四轴`，所以"指名引用小节名"直接成立；而 `五道门` 的权威小节名**字面就是**
     // `## 五道门（…）`，引用写成 `§五道门` 仍含受检子串、照样判红。因此改写目标是
@@ -70,14 +70,14 @@ const CHECKED_WORDS = [
     // （真实标题为 `## Step 0：需求体量与风险分流（Triage）`）——照抄会得到一个查不到
     // 的锚点。`§默认倾向` 则是字面小节名的截短形态（全名 `§默认倾向（四问全否之后）`
     // 含数字，但它住在权威文件里，允许保留；引用方截短到 `§默认倾向` 即可）。
-    authority: 'references/core/00-流程总纲.md',
+    authority: 'dw-workflow/references/00-流程总纲.md',
     rewrite: '按 `00-流程总纲.md` §Step 0 Triage 的判定问题 / §默认倾向 指名引用（MUST NOT 保留数字）',
   },
   {
     word: '七条"不裁剪"护栏',
     variants: ['七条"不裁剪"护栏', '七条“不裁剪”护栏', '七条「不裁剪」护栏'],
     // 护栏条目本身逐条列在总纲的 §七条"不裁剪"护栏 一节。
-    authority: 'references/core/00-流程总纲.md',
+    authority: 'dw-workflow/references/00-流程总纲.md',
     rewrite: '按 `00-流程总纲.md` §"不裁剪"护栏 指名引用（MUST NOT 保留条数）',
   },
 ]
@@ -85,7 +85,7 @@ const CHECKED_WORDS = [
 const isExempt = (rel) =>
   EXEMPT_FILES.includes(rel) || EXEMPT_DIRS.some((dir) => rel.startsWith(dir))
 
-/** 递归收集 ai-dev-workflow/ 下的文本文件，返回 [相对 wfRoot 的路径（正斜杠）, 内容]。 */
+/** 递归收集 dw-system/skills/ 下的文本文件，返回 [相对 wfRoot 的路径（正斜杠）, 内容]。 */
 function collectFiles() {
   const out = []
   const walk = (dir) => {

@@ -1,4 +1,4 @@
-// 2.7.0 原型预览服务（`ai-prd/scripts/preview.mjs`）的契约测试。
+// 2.7.0 原型预览服务（`dw-prd/scripts/preview.mjs`）的契约测试。
 //
 // 为什么要有它：浏览器不允许网页未经用户手势就写本地文件，所以 `file://` 打开的原型
 // 只能靠用户点一次「保存到文件」并在弹窗里选中文件本身。原型是 agent 生成的、路径它
@@ -17,10 +17,10 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { composeTemplate } from '../ai-dev-system/skills/ai-prd/scripts/preview.mjs'
+import { composeTemplate } from '../dw-system/skills/dw-prd/scripts/preview.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const script = path.join(repoRoot, 'ai-dev-system', 'skills', 'ai-prd', 'scripts', 'preview.mjs')
+const script = path.join(repoRoot, 'dw-system', 'skills', 'dw-prd', 'scripts', 'preview.mjs')
 const composedTemplate = await composeTemplate()
 
 const SLOT_OPEN = '<script type="application/json" id="anno-data">'
@@ -922,8 +922,8 @@ test('正常放行把已约定的条目从真批注块里清掉', () => {
 
 test('文档按次产出范式带日期前缀', () => {
   const docs = [
-    'ai-dev-system/skills/ai-dev-workflow/references/core/文档治理.md',
-    'ai-dev-system/skills/ai-prd/references/00-prd生成流程.md',
+    'dw-system/skills/dw-doc-governance/references/文档治理.md',
+    'dw-system/skills/dw-prd/references/00-prd生成流程.md',
   ]
   docs.forEach((rel) => {
     const body = readFileSync(path.join(repoRoot, rel), 'utf8')
@@ -1013,7 +1013,7 @@ test('import preview.mjs 不产生副作用（不跑 CLI）', () => {
     { encoding: 'utf8' })
   assert.equal(r.status, 0, `import 时 CLI 被连带执行了：${(r.stdout || '') + (r.stderr || '')}`)
   assert.match(r.stdout, /imported-ok/)
-  assert.doesNotMatch(r.stdout, /原型工具（ai-prd）/, 'import 时 MUST NOT 打印 HELP')
+  assert.doesNotMatch(r.stdout, /原型工具（dw-prd）/, 'import 时 MUST NOT 打印 HELP')
 })
 
 // ── 2.12.0：改稿时 data-anno-id 的续接 ──

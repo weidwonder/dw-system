@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// ai-dev-workflow 项目安装器（跨平台，需要 Node.js 与 Git）
+// dw-system 安装器（跨平台，需要 Node.js 与 Git）
 //
 // 作用：
 //   1) 从 GitHub 获取指定版本，把所有 skill 复制进
@@ -51,17 +51,17 @@ import { spawnSync } from 'node:child_process';
 import { tmpdir, homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
-const DEFAULT_REPO = 'https://github.com/weidwonder/ai-dev-system.git';
+const DEFAULT_REPO = 'https://github.com/weidwonder/dw-system.git';
 
-// 安装器自身所在目录。npm 包（package.json 的 files 带上 ai-dev-system/VERSION）与 git 检出里，
-// install.mjs 都与 ai-dev-system/ 同级，所以同一条相对路径在两种形态下都成立。
+// 安装器自身所在目录。npm 包（package.json 的 files 带上 dw-system/VERSION）与 git 检出里，
+// install.mjs 都与 dw-system/ 同级，所以同一条相对路径在两种形态下都成立。
 const SELF_DIR = path.dirname(fileURLToPath(import.meta.url));
 
 // 默认安装版本【绑定到安装器自带的 VERSION】：npx 拉到哪个版本的 install.mjs，
 // 就默认装哪个版本的 skill。此前默认 main 会让"npx 包版本"与"技能源版本"各走各的——
 // 用旧包能装到新技能、用新包也可能装到尚未发布的 main HEAD，版本 stamp 与实际内容对不上。
 // 读不到 VERSION（例如把 install.mjs 单独拷了出来）时退回 main。
-const SELF_VERSION = readVersionFile(path.join(SELF_DIR, 'ai-dev-system', 'VERSION'));
+const SELF_VERSION = readVersionFile(path.join(SELF_DIR, 'dw-system', 'VERSION'));
 const FALLBACK_REF = 'main';
 const DEFAULT_REF = SELF_VERSION ? `v${SELF_VERSION}` : FALLBACK_REF;
 
@@ -74,27 +74,27 @@ const COMPANION_SKILLS = [
     repo: 'https://github.com/weidwonder/agentic-principle.git',
     ref: 'main',
     subdir: 'agentic-principle', // skill 本体在仓库的这个子目录里
-    why: 'ai-dev-workflow 判定需求命中 agent 架构面时必须加载：架构选型 / 系统提示词 / 注意力负载 / 步骤级测试与评测',
+    why: 'dw-workflow 判定需求命中 agent 架构面时必须加载：架构选型 / 系统提示词 / 注意力负载 / 步骤级测试与评测',
   },
   {
     name: 'skill-principle',
     repo: 'https://github.com/weidwonder/skill-principle.git',
     ref: 'main',
     subdir: 'skill', // skill 本体在仓库的这个子目录里（仓库根是开发工程，含 dist/ docs/ 等）
-    why: 'ai-dev-workflow 判定需求命中 skill 文档面时必须加载：建设路径定 skill 的结构与 description，审查路径承担代码评审门的 skill 原则轴',
+    why: 'dw-workflow 判定需求命中 skill 文档面时必须加载：建设路径定 skill 的结构与 description，审查路径承担代码评审门的 skill 原则轴',
   },
 ];
 
-// ctx：本体系自带的 Engineering Context 查询 CLI，随 ai-dev-workflow skill 一起复制进目标项目。
+// ctx：本体系自带的 Engineering Context 查询 CLI，随 dw-workflow skill 一起复制进目标项目。
 // 它是零依赖 Node 脚本，复制完就能用——但只有 `node <路径>/src/cli.js` 一种调用方式。
-// 而 skill 的文档（references/core/代码事实纪律.md、engineering-context设计.md / SKILL.md / config-snippet）
+// 而 skill 的文档（dw-code-facts 的 SKILL.md 与 references、注入目标项目的标记块）
 // 通篇写 `ctx <命令>`：命令不在 PATH 上时，使用者（尤其是 AI agent）极易把"which ctx 为空"
 // 误判成"Engineering Context 不可用"，退化成裸 grep 旧代码——任何项目里都明令禁止这么干。
 // 所以安装器把它 npm link 成全局命令。
 // 链接失败绝不能让安装失败：ctx 本体已经随 skill 落盘，降级为打印 node 兜底调用方式即可。
 const CTX = {
   bin: 'ctx',
-  skill: 'ai-dev-workflow',          // ctx 属于这个 skill；只装 ai-prd 的场景下没有它
+  skill: 'dw-code-facts',        // ctx 随这个 skill 落盘
   subdir: path.join('scripts', 'ctx'),
   // `ctx --help` 首行的固定串。`ctx` 是很常见的命令名，必须据此确认 PATH 上那个确实是本体系的，
   // 既避免 npm link 悄悄顶掉用户自己的同名命令，也避免把别人的 ctx 当成"验证通过"谎报成功。
@@ -140,23 +140,35 @@ const CODEX_PLUGIN_IDS = new Set([
 ]);
 
 // 版本 stamp 文件名：安装时写入目标项目的两个 skills 目录，升级时据此判断是否需要迁移提示。
-const VERSION_STAMP = 'ai-dev-system.version';
+const VERSION_STAMP = 'dw-system.version';
 // 显式版本化之前的旧安装（有 skill 无 stamp）一律按该版本处理。
 const LEGACY_VERSION = '1.0.0';
 
-const CODEX_GUARD_START = '<!-- ai-dev-system:codex-conflicts:start -->';
-const CODEX_GUARD_END = '<!-- ai-dev-system:codex-conflicts:end -->';
+const CODEX_GUARD_START = '<!-- dw-system:codex-conflicts:start -->';
+const CODEX_GUARD_END = '<!-- dw-system:codex-conflicts:end -->';
 // .gitignore 标记块：# 开头对 git 是注释行，机器可精确定位、可幂等替换。
-const GITIGNORE_START = '# ai-dev-system:gitignore:start';
-const GITIGNORE_END = '# ai-dev-system:gitignore:end';
+const GITIGNORE_START = '# dw-system:gitignore:start';
+const GITIGNORE_END = '# dw-system:gitignore:end';
 // 由用户拍板是否入库的两个目录：docs/（本流程产出的 spec / plan / report）与
 // engineering-context/（代码事实层）。它们是项目自己的产物，不像 skill 目录那样有唯一答案。
 const PROJECT_DOCS_DIRS = ['/docs/', '/engineering-context/'];
 // 决定记在 .gitignore 标记块内的一行注释里：# 开头对 git 是注释、无副作用，
 // 且能把"上次选了提交"与"从来没问过"区分开——只看有没有忽略规则是分不开这两者的。
-const PROJECT_DOCS_MARK = '# ai-dev-system:project-docs-in-git=';
-const WORKFLOW_MODE_START = '<!-- ai-dev-workflow:start -->';
-const WORKFLOW_MODE_END = '<!-- ai-dev-workflow:end -->';
+const PROJECT_DOCS_MARK = '# dw-system:project-docs-in-git=';
+const WORKFLOW_MODE_START = '<!-- dw-workflow:start -->';
+const WORKFLOW_MODE_END = '<!-- dw-workflow:end -->';
+// 旧名字（体系更名为 dw-system 之前的 1.x / 2.x 安装）的唯一登记处：升级时据此识别并清理残留。
+// 旧名字 MUST NOT 出现在本表之外——`test/installer-legacy-upgrade.test.mjs` 逐字核对。
+const LEGACY = Object.freeze({
+  systemName: 'ai-dev-system',
+  skills: ['ai-dev-workflow', 'ai-prd'],
+  versionStamp: 'ai-dev-system.version',
+  workflowMarkers: ['<!-- ai-dev-workflow:start -->', '<!-- ai-dev-workflow:end -->'],
+  codexGuardMarkers: ['<!-- ai-dev-system:codex-conflicts:start -->', '<!-- ai-dev-system:codex-conflicts:end -->'],
+  gitignoreMarkers: ['# ai-dev-system:gitignore:start', '# ai-dev-system:gitignore:end'],
+  projectDocsMark: '# ai-dev-system:project-docs-in-git=',
+  ctxSkills: ['ai-dev-workflow'],
+});
 // CLAUDE.md / AGENTS.md 软链接的解析跳数上限，用来在成环时给出明确报错而不是死循环。
 const MAX_LINK_HOPS = 32;
 
@@ -250,7 +262,7 @@ function parseArgs(argv) {
 }
 
 function helpText() {
-  return `ai-dev-workflow 项目安装器
+  return `dw-system 安装器
 
 用法：
   node install.mjs [目标目录] [选项]   （或 ./install.mjs [目标目录]）
@@ -292,7 +304,7 @@ ${COMPANION_SKILLS.map(c => `  - ${c.name}：${c.repo}\n      ${c.why}`).join('\
   每次安装都会检查远端版本，本地更旧才更新；本地是 symlink 或 git 工作区时
   只报告版本差异、不覆盖；拉取失败降级为警告，不影响主安装。用 --no-companions 跳过。
 
-ctx CLI（本体系自带，随 ai-dev-workflow skill 一起安装）：
+ctx CLI（本体系自带，随 dw-workflow skill 一起安装）：
   ${CTX.why}
   安装后在 ${path.join('.claude', 'skills', CTX.skill, CTX.subdir)} 下执行 npm link，
   把它变成全局 ctx 命令，并用 ctx --help 验证真的可用。链接失败（权限、npm 全局 bin
@@ -389,9 +401,9 @@ function entryLabel(file, resolved, target) {
 function codexGuardBlock(conflicts) {
   const names = conflicts.map(c => c.skillPrefix || c.short || c.key).join('、');
   return `${CODEX_GUARD_START}
-## ai-dev-system: Codex 冲突技能约束
+## dw-system: Codex 冲突技能约束
 
-本项目使用 ai-dev-workflow。不要自动加载或主动触发 ${names} 等与本流程冲突的技能；仅当用户在当前对话中明确要求使用对应技能时才可加载。
+本项目使用 dw-workflow。不要自动加载或主动触发 ${names} 等与本流程冲突的技能；仅当用户在当前对话中明确要求使用对应技能时才可加载。
 
 ${CODEX_GUARD_END}`;
 }
@@ -418,19 +430,29 @@ function gitignoreBlock(skills, projectDocsInGit) {
 
 // 上次的决定：只认标记块【内】那行注释，块外同名字样不作数。
 function readProjectDocsDecision(raw) {
-  const block = getMarkedBlock(raw, GITIGNORE_START, GITIGNORE_END);
-  if (!block) return null;
-  const line = block.split(/\r?\n/).find(l => l.trim().startsWith(PROJECT_DOCS_MARK));
-  if (!line) return null;
-  const value = line.trim().slice(PROJECT_DOCS_MARK.length);
-  return value === 'yes' || value === 'no' ? value : null;
+  // 新块的决定行优先；新块里读不出决定才读旧名字的块——升级时把上次的决定原样带过去，不再发问。
+  const sources = [
+    [getMarkedBlock(raw, GITIGNORE_START, GITIGNORE_END), PROJECT_DOCS_MARK],
+    [getMarkedBlock(raw, ...LEGACY.gitignoreMarkers), LEGACY.projectDocsMark],
+  ];
+  for (const [block, mark] of sources) {
+    if (!block) continue;
+    const line = block.split(/\r?\n/).find(l => l.trim().startsWith(mark));
+    if (!line) continue;
+    const value = line.trim().slice(mark.length);
+    if (value === 'yes' || value === 'no') return value;
+  }
+  return null;
 }
 
 // 标记块【外】已有针对这两个目录的忽略规则：说明使用者（或别的工具）早就处理过，
 // 同样算问过了——不再发问，也不把这些规则搬进我们的标记块。
 function projectDocsIgnoredOutsideBlock(raw) {
-  const block = getMarkedBlock(raw, GITIGNORE_START, GITIGNORE_END);
-  const outside = block ? raw.split(block).join('\n') : raw;
+  let outside = raw;
+  for (const markers of [[GITIGNORE_START, GITIGNORE_END], LEGACY.gitignoreMarkers]) {
+    const block = getMarkedBlock(outside, ...markers);
+    if (block) outside = outside.split(block).join('\n');
+  }
   const wanted = new Set(PROJECT_DOCS_DIRS.flatMap(dir => {
     const bare = dir.replace(/^\//, '');
     return [dir, bare, dir.replace(/\/$/, ''), bare.replace(/\/$/, '')];
@@ -448,6 +470,18 @@ function mergeMarkedBlock(raw, block, startMarker, endMarker) {
     return [before, block, after].filter(Boolean).join('\n\n') + '\n';
   }
   return [normalized, block].filter(Boolean).join('\n\n') + '\n';
+}
+
+// 用新块取代旧名字的块，一次合成最终文本（MUST NOT 分两次写文件）：
+// 只有旧块 → 新块落在旧块原来的位置；新旧并存 → 删旧块、就地更新新块；newBlock 为 null → 只删旧块。
+function replaceLegacyBlock(raw, newBlock, newMarkers, legacyMarkers) {
+  const legacy = getMarkedBlock(raw, ...legacyMarkers);
+  if (!legacy) return newBlock ? mergeMarkedBlock(raw, newBlock, ...newMarkers) : raw;
+  if (!newBlock) return removeMarkedBlock(raw, ...legacyMarkers);
+  if (getMarkedBlock(raw, ...newMarkers)) {
+    return mergeMarkedBlock(removeMarkedBlock(raw, ...legacyMarkers), newBlock, ...newMarkers);
+  }
+  return mergeMarkedBlock(raw, newBlock, ...legacyMarkers);
 }
 
 function removeMarkedBlock(raw, startMarker, endMarker) {
@@ -486,10 +520,10 @@ function assertCodexGuard(raw, conflicts, file) {
   }
 }
 
-// ── ai-dev-workflow 标记块的字段模型 ───────────────────────────────────────────
+// ── dw-workflow 标记块的字段模型 ───────────────────────────────────────────
 // 契约来源：docs/spec/2026-08-18-代码事实层强制化-eng-spec.md
 // （它取代了已归档的 2026-08-16-项目真相源与context-tier重构-eng-spec.md §5 / §6.1 / §8.3）
-//（该 spec 已于 2.1.0 转归档，但字段模型这部分未被取代；现行口径见 CLAUDE.md §安装器的关键设计）。
+//（该 spec 已于 2.1.0 转归档，但字段模型这部分未被取代；现行口径见 engineering-context/cards/dw-system/标记块与旧版迁移.md）。
 // 代码事实层不设字段——它是每个项目的必备资产，与声明无关；代码图谱也不设字段——
 // 由 skill 每次运行探测 .codegraph/codegraph.db 得出。因此这里解析出来的东西
 // 只有协作维度与 worktree 目录。
@@ -506,9 +540,8 @@ function readWorkflowField(block, key) {
   return block?.match(new RegExp(`${key}="([^"]*)"`))?.[1] ?? null;
 }
 
-// 旧块识别 + 墓碑字段。保留至 3.0.0（spec §8.2 替换清单）：
-// 没有它就读不到旧 mode，§8.1 第 4 条拍板的 merge-gate 推断也就无从谈起。
-// 值非法（如 mode="invalid"）时返回 null——沿用旧行为：让另一个入口的有效块接管。
+// 1.x 旧块只有 mode 一个字段：读它只为推断协作面与合并方式，新块 MUST NOT 再写出它。
+// 值非法（如 mode="invalid"）时返回 null，让另一个入口的有效块接管。
 function getWorkflowMode(block) {
   const match = block?.match(/mode="(personal|team)"/);
   return match?.[1] || null;
@@ -525,11 +558,11 @@ function parseWorkflowBlock(block, label) {
     if (raw === null) continue;
     if (field.values && !field.values.includes(raw)) {
       throw new Error(
-        `安装校验失败：${label} 的 ai-dev-workflow 标记块 ${field.key}="${raw}" 不是合法值`
+        `安装校验失败：${label} 的 dw-workflow 标记块 ${field.key}="${raw}" 不是合法值`
         + `（合法值：${field.values.map(v => `"${v}"`).join(' | ')}）`);
     }
     if (!field.values && !raw.trim()) {
-      throw new Error(`安装校验失败：${label} 的 ai-dev-workflow 标记块 ${field.key} 不能为空`);
+      throw new Error(`安装校验失败：${label} 的 dw-workflow 标记块 ${field.key} 不能为空`);
     }
     parsed[field.key] = raw;
     known++;
@@ -541,7 +574,7 @@ function parseWorkflowBlock(block, label) {
 //   1. 只映射协作维度——旧 mode="team" MUST NOT 推出别的任何东西（§8.1 第 2、3 条拍板"不兼容"）；
 //   2. 推断结果必须告知且可当场改（由调用方打印前后对照）；
 //   3. 告知文案不得使用 2.0.0 已废弃的旧项目类型说法（§8.1 第 1 条，无过渡期）。
-function resolveWorkflowSettings(parsed) {
+function resolveWorkflowSettings(parsed, fromLegacyBlock = false) {
   if (!parsed) return null;
   const declared = parsed.collaboration ?? null;
   const collaboration = declared ?? (parsed.mode === 'team' ? 'team' : 'solo');
@@ -552,15 +585,27 @@ function resolveWorkflowSettings(parsed) {
     mergeGate,
     worktreeDir,
     isNewFormat: declared !== null,
-    // 任一字段是补出来的就要走迁移改写（并打印前后对照）
-    migrated: declared === null || parsed['merge-gate'] == null || parsed['worktree-dir'] == null,
+    inferred: declared === null || parsed['merge-gate'] == null || parsed['worktree-dir'] == null,
+    // 任一字段是补出来的、旧块里还带着 mode、或读到的是旧名字的块，就要走改写并打印前后对照
+    migrated: declared === null || parsed['merge-gate'] == null || parsed['worktree-dir'] == null
+      || parsed.mode !== null || fromLegacyBlock,
   };
 }
 
 function workflowFieldLine(settings) {
-  // mode="team" 是墓碑：新 skill 完全忽略，留着只是让尚未升级的旧 skill 不硬失败。
-  return `mode="team" collaboration="${settings.collaboration}"`
+  return `collaboration="${settings.collaboration}"`
     + ` merge-gate="${settings.mergeGate}" worktree-dir="${settings.worktreeDir}"`;
+}
+
+// 迁移前后三个字段逐字相等：写入后重新解析新块，与写入前的解析结果比对。
+function assertWorkflowFieldsKept(raw, settings, file) {
+  const parsed = parseWorkflowBlock(getMarkedBlock(raw, WORKFLOW_MODE_START, WORKFLOW_MODE_END), file) || {};
+  const expected = { collaboration: settings.collaboration, 'merge-gate': settings.mergeGate, 'worktree-dir': settings.worktreeDir };
+  for (const [key, value] of Object.entries(expected)) {
+    if (parsed[key] !== value) {
+      throw new Error(`安装校验失败：${file} 的标记块字段 ${key} 写入后为 "${parsed[key]}"，应为 "${value}"`);
+    }
+  }
 }
 
 function workflowFieldSummary(block) {
@@ -571,17 +616,18 @@ function workflowFieldSummary(block) {
 }
 
 function workflowHeaderBody(settings) {
-  return `> **本项目采用 ai-dev-workflow**\n> (${workflowFieldLine(settings)})`;
+  return `> **本项目采用 dw-workflow**\n> (${workflowFieldLine(settings)})`;
 }
 
 function blockInner(block) {
   if (!block) return '';
-  return block.slice(WORKFLOW_MODE_START.length, block.length - WORKFLOW_MODE_END.length).trim();
+  // 起止行可能是新名字也可能是旧名字，按注释形态剥，不按固定长度切。
+  return block.replace(/^<!--[^>]*-->/, '').replace(/<!--[^>]*-->$/, '').trim();
 }
 
 function applyWorkflowFields(body, settings) {
   let out = body
-    .replace(/mode="[^"]*"/g, 'mode="team"')
+    .replace(/mode="[^"]*"\s*/g, '')
     .replace(/collaboration="[^"]*"/g, `collaboration="${settings.collaboration}"`)
     .replace(/merge-gate="[^"]*"/g, `merge-gate="${settings.mergeGate}"`)
     .replace(/worktree-dir="[^"]*"/g, `worktree-dir="${settings.worktreeDir}"`);
@@ -591,7 +637,7 @@ function applyWorkflowFields(body, settings) {
 
 // 组装要写进 CLAUDE.md / AGENTS.md 的标记块：base.md（公共正文）+ collab-<协作面>.md。
 function buildWorkflowBlock(skillsRoot, settings, existingBlock) {
-  const dir = path.join(skillsRoot, 'ai-dev-workflow', 'assets', 'config-snippets');
+  const dir = path.join(skillsRoot, 'dw-workflow', 'assets', 'config-snippets');
   const parts = ['base.md', `collab-${settings.collaboration}.md`]
     .map(name => readTextIfExists(path.join(dir, name)))
     .map(text => blockInner(getMarkedBlock(text, WORKFLOW_MODE_START, WORKFLOW_MODE_END)) || text.trim())
@@ -727,6 +773,61 @@ async function chooseProjectDocsInGit(opt, gitignoreRaw) {
   return answer === 'y' || answer === 'yes' ? 'yes' : 'no';
 }
 
+// 已装版本：新戳 → 旧名字的戳 → 有 skill 目录（旧名字或新名字）而无戳按 LEGACY_VERSION → 全新安装。
+function readInstalledVersion(skillDestDirs, skills) {
+  for (const stamp of [VERSION_STAMP, LEGACY.versionStamp]) {
+    for (const dir of skillDestDirs) {
+      const version = readVersionFile(path.join(dir, stamp));
+      if (version) return { version, stamped: true };
+    }
+  }
+  const hasSkillDir = [...LEGACY.skills, ...skills].some(name =>
+    skillDestDirs.some(dir => fs.lstatSync(path.join(dir, name), { throwIfNoEntry: false })));
+  return { version: hasSkillDir ? LEGACY_VERSION : null, stamped: false };
+}
+
+// 旧名字安装留在目标项目里的残留。只读，供计划输出与后续清理共用一份清单。
+function legacyResidue(target, skillDestDirs, entries, gitignoreRaw) {
+  const residue = [];
+  const rel = file => path.relative(target, file) || file;
+  for (const dir of skillDestDirs) {
+    for (const name of [...LEGACY.skills, LEGACY.versionStamp]) {
+      const file = path.join(dir, name);
+      const st = fs.lstatSync(file, { throwIfNoEntry: false });
+      if (!st) continue;
+      const isDir = st.isDirectory() && !st.isSymbolicLink();
+      residue.push({ kind: 'remove', file, parent: dir, label: `删除 ${rel(file)}${isDir ? '/' : ''}` });
+    }
+  }
+  for (const { file, raw, label } of entries) {
+    if (getMarkedBlock(raw, ...LEGACY.workflowMarkers)) {
+      residue.push({ kind: 'block', file, label: `${label}：${LEGACY.skills[0]} 标记块 → dw-workflow 标记块` });
+    }
+    if (getMarkedBlock(raw, ...LEGACY.codexGuardMarkers)) {
+      residue.push({ kind: 'block', file, label: `${label}：旧名字的 Codex 冲突约束块（改名，本次不写约束时移除）` });
+    }
+  }
+  if (getMarkedBlock(gitignoreRaw, ...LEGACY.gitignoreMarkers)) {
+    const decision = readProjectDocsDecision(gitignoreRaw);
+    residue.push({ kind: 'block', file: path.join(target, '.gitignore'),
+      label: `.gitignore：忽略规则块改名${decision ? `，docs 入库决定沿用 ${decision}` : ''}` });
+  }
+  return residue;
+}
+
+// 只删 <目标>/.claude/skills 与 <目标>/.agents/skills 下、名字逐字等于 LEGACY 登记项的条目。
+// 符号链接只删链接本身（rmSync 不解引用）；路径由固定父目录 + 常量拼出，删除前再核一次前缀。
+function removeLegacyInstall(residue) {
+  for (const item of residue.filter(r => r.kind === 'remove')) {
+    const resolved = path.resolve(item.file);
+    if (path.dirname(resolved) !== path.resolve(item.parent)) {
+      throw new Error(`拒绝删除：${item.file} 不在 ${item.parent} 下`);
+    }
+    fs.rmSync(resolved, { recursive: true, force: true });
+    console.log(`✓ 已${item.label}`);
+  }
+}
+
 function copySkills(skillsRoot, skills, destDir) {
   fs.mkdirSync(destDir, { recursive: true });
   for (const name of skills) {
@@ -751,7 +852,7 @@ function discoverSkills(skillsRoot) {
 function acquireSource(opt) {
   if (opt.sourceDir) {
     const repoRoot = path.resolve(opt.sourceDir);
-    const pkgRoot = path.join(repoRoot, 'ai-dev-system');
+    const pkgRoot = path.join(repoRoot, 'dw-system');
     const skillsRoot = path.join(pkgRoot, 'skills');
     const skills = discoverSkills(skillsRoot);
     return {
@@ -763,7 +864,7 @@ function acquireSource(opt) {
     };
   }
 
-  const tempRoot = fs.mkdtempSync(path.join(tmpdir(), 'ai-dev-system-download-'));
+  const tempRoot = fs.mkdtempSync(path.join(tmpdir(), 'dw-system-download-'));
   const checkout = path.join(tempRoot, 'repo');
   const clone = ref => spawnSync(
     'git',
@@ -797,7 +898,7 @@ function acquireSource(opt) {
   }
 
   try {
-    const pkgRoot = path.join(checkout, 'ai-dev-system');
+    const pkgRoot = path.join(checkout, 'dw-system');
     const skillsRoot = path.join(pkgRoot, 'skills');
     const skills = discoverSkills(skillsRoot);
     return {
@@ -1050,7 +1151,8 @@ function globalCtxIsOurs() {
     // 形态一：npm link 留下的符号链接，指向某个项目里的 skill 副本。目标目录可能已经
     // 不存在（项目被删或改名，那正是 EEXIST 的成因之一），所以只读链接字符串、不解引用。
     const st = fs.lstatSync(pkg);
-    if (st.isSymbolicLink() && fs.readlinkSync(pkg).split(/[\\/]/).includes(CTX.skill)) return true;
+    const owners = [CTX.skill, ...LEGACY.ctxSkills];
+    if (st.isSymbolicLink() && fs.readlinkSync(pkg).split(/[\\/]/).some(seg => owners.includes(seg))) return true;
   } catch { /* 不存在或读不了，落到形态二 */ }
   try {
     // 形态二：真实目录，或链接目标仍在。直接读入口脚本认签名，与 detectCtx 同一个判据。
@@ -1329,16 +1431,13 @@ async function main() {
   const claudeSkillsDestDir = path.join(target, '.claude', 'skills');
   const codexSkillsDestDir = path.join(target, '.agents', 'skills');
 
-  // 版本与迁移：源版本来自 ai-dev-system/VERSION；已装版本来自目标 stamp，
+  // 版本与迁移：源版本来自 dw-system/VERSION；已装版本来自目标 stamp，
   // 无 stamp 但已存在源同名 skill 的旧安装按 LEGACY_VERSION 处理；全新安装无需迁移。
   const sourceVersion = readVersionFile(path.join(pkgRoot, 'VERSION'));
-  const stampFiles = [path.join(claudeSkillsDestDir, VERSION_STAMP), path.join(codexSkillsDestDir, VERSION_STAMP)];
-  let installedVersion = readVersionFile(stampFiles[0]) || readVersionFile(stampFiles[1]);
-  if (!installedVersion) {
-    const hasLegacyInstall = skills.some(name =>
-      fs.existsSync(path.join(claudeSkillsDestDir, name)) || fs.existsSync(path.join(codexSkillsDestDir, name)));
-    if (hasLegacyInstall) installedVersion = LEGACY_VERSION;
-  }
+  const skillDestDirs = [claudeSkillsDestDir, codexSkillsDestDir];
+  const stampFiles = skillDestDirs.map(dir => path.join(dir, VERSION_STAMP));
+  const { version: installedVersion, stamped: installedVersionStamped } =
+    readInstalledVersion(skillDestDirs, skills);
   const isUpgrade = sourceVersion && installedVersion && cmpVersion(sourceVersion, installedVersion) > 0;
   const isDowngrade = sourceVersion && installedVersion && cmpVersion(sourceVersion, installedVersion) < 0;
   const migrations = isUpgrade
@@ -1363,18 +1462,23 @@ async function main() {
   const sharedEntry = claudeEntry === agentsEntry;
   const initialClaudeRaw = readTextIfExists(claudeEntry);
   const initialAgentsRaw = readTextIfExists(agentsEntry);
-  const claudeModeBlock = getMarkedBlock(initialClaudeRaw, WORKFLOW_MODE_START, WORKFLOW_MODE_END);
-  const agentsModeBlock = getMarkedBlock(initialAgentsRaw, WORKFLOW_MODE_START, WORKFLOW_MODE_END);
+  // 新块优先；没有新块才读旧名字的块（升级路径）。
+  const workflowBlockOf = raw => getMarkedBlock(raw, WORKFLOW_MODE_START, WORKFLOW_MODE_END)
+    ?? getMarkedBlock(raw, ...LEGACY.workflowMarkers);
+  const claudeModeBlock = workflowBlockOf(initialClaudeRaw);
+  const agentsModeBlock = workflowBlockOf(initialAgentsRaw);
   // 混合状态（spec §8.3）：两个入口各自解析，一律以 CLAUDE.md 为准；
   // CLAUDE.md 是旧块而 AGENTS.md 是新块时同样以 CLAUDE.md 为准，随即被下面的迁移改写补回新字段。
   const claudeParsed = parseWorkflowBlock(claudeModeBlock, entryLabel(claudeFile, claudeEntry, target));
   const agentsParsed = parseWorkflowBlock(agentsModeBlock, entryLabel(codexAgentsFile, agentsEntry, target));
   if ((claudeModeBlock || agentsModeBlock) && !claudeParsed && !agentsParsed) {
-    throw new Error('安装校验失败：CLAUDE.md / AGENTS.md 的 ai-dev-workflow 标记块读不出任何已知字段'
+    throw new Error('安装校验失败：CLAUDE.md / AGENTS.md 的 dw-workflow 标记块读不出任何已知字段'
       + `（已知字段：mode / ${WORKFLOW_FIELDS.map(f => f.key).join(' / ')}）`);
   }
   const existingModeBlock = claudeParsed ? claudeModeBlock : agentsModeBlock;
-  const workflowSettings = resolveWorkflowSettings(claudeParsed || agentsParsed);
+  const fromLegacyBlock = existingModeBlock != null
+    && existingModeBlock === getMarkedBlock(claudeParsed ? initialClaudeRaw : initialAgentsRaw, ...LEGACY.workflowMarkers);
+  const workflowSettings = resolveWorkflowSettings(claudeParsed || agentsParsed, fromLegacyBlock);
   const workflowModeBlock = workflowSettings
     ? buildWorkflowBlock(skillsRoot, workflowSettings, existingModeBlock)
     : null;
@@ -1388,12 +1492,16 @@ async function main() {
   const gitignoreFile = path.join(target, '.gitignore');
   const gitignoreRaw = readTextIfExists(gitignoreFile);
   const projectDocsInGit = await chooseProjectDocsInGit(opt, gitignoreRaw);
+  const residue = legacyResidue(target, skillDestDirs, [
+    { file: claudeEntry, raw: initialClaudeRaw, label: entryLabel(claudeFile, claudeEntry, target) },
+    ...(sharedEntry ? [] : [{ file: agentsEntry, raw: initialAgentsRaw, label: entryLabel(codexAgentsFile, agentsEntry, target) }]),
+  ], gitignoreRaw);
 
   // 计划
-  console.log('\nai-dev-workflow 安装器');
+  console.log('\ndw-system 安装器');
   console.log('目标项目：' + target);
   console.log('安装源：' + source.label + (sourceVersion ? `（v${sourceVersion}）` : ''));
-  if (installedVersion) console.log('已安装版本：v' + installedVersion + (installedVersion === LEGACY_VERSION && !readVersionFile(stampFiles[0]) && !readVersionFile(stampFiles[1]) ? '（旧安装无版本 stamp，按此版本处理）' : ''));
+  if (installedVersion) console.log('已安装版本：v' + installedVersion + (installedVersionStamped ? '' : '（旧安装无版本 stamp，按此版本处理）'));
   console.log('\n将执行：');
   console.log(`  1) 复制 ${skills.length} 个 skill → ${path.relative(target, claudeSkillsDestDir) || claudeSkillsDestDir}/  (Claude Code 项目级)`);
   console.log(`  2) 复制 ${skills.length} 个 skill → ${path.relative(target, codexSkillsDestDir) || codexSkillsDestDir}/  (Codex 项目级)`);
@@ -1456,12 +1564,16 @@ async function main() {
     console.log(`       ${CODEGRAPH.indexDir}/ 不存在时 codegraph init 建索引（大仓库需要几分钟）；已存在则跳过`);
     console.log('       任何一步失败只降级为警告，不影响上面的 skill 安装');
   }
+  if (residue.length) {
+    console.log(`\n  旧版残留清理（${LEGACY.systemName} → dw-system）：`);
+    for (const item of residue) console.log(`       - ${item.label}`);
+  }
   // 版本升级的迁移高亮提示（dry-run 同样展示）
   const [HL, HL_END] = process.stdout.isTTY ? ['\x1b[1;33m', '\x1b[0m'] : ['', ''];
   if (migrations.length) {
     console.log(`\n${HL}  ━━━━ ⚠ 版本升级 v${installedVersion} → v${sourceVersion}：检测到 ${migrations.length} 份迁移指南，继续前请阅读 ━━━━${HL_END}`);
     for (const m of migrations) {
-      console.log(`${HL}  ▶ 升级到 v${m.version} 的迁移指南（源仓库 ai-dev-system/migrations/${m.version}.md）：${HL_END}`);
+      console.log(`${HL}  ▶ 升级到 v${m.version} 的迁移指南（源仓库 dw-system/migrations/${m.version}.md）：${HL_END}`);
       const body = fs.readFileSync(m.file, 'utf8').trimEnd();
       console.log(body.split('\n').map(l => '    │ ' + l).join('\n'));
     }
@@ -1474,17 +1586,29 @@ async function main() {
 
   // 标记块迁移：改写前打印前后对照（spec §8.3 边界 2）。dry-run 同样展示。
   if (workflowSettings?.migrated) {
-    console.log(`\n${HL}  ⚠ ai-dev-workflow 配置标记块将改写为新字段（改写前后对照）：${HL_END}`);
+    console.log(`\n${HL}  ⚠ dw-workflow 配置标记块将改写为新字段（改写前后对照）：${HL_END}`);
     console.log(`       旧：${workflowFieldSummary(existingModeBlock)}`);
     console.log(`       新：${workflowFieldLine(workflowSettings)}`);
-    console.log(`       · 协作面沿用推断结果：${workflowSettings.collaboration === 'team'
-      ? '存在其他人类协作方（collaboration="team"）'
-      : '没有其他人类协作方（collaboration="solo"）'}。`);
-    console.log(`       · 合并方式沿用推断结果：${workflowSettings.mergeGate === 'pr'
-      ? '推送 + PR + 平台自动合并（merge-gate="pr"）'
-      : '本地非快进合并（merge-gate="direct"）'}；如需改为另一种，改这一行即可。`);
+    if (workflowSettings.inferred) {
+      console.log(`       · 协作面沿用推断结果：${workflowSettings.collaboration === 'team'
+        ? '存在其他人类协作方（collaboration="team"）'
+        : '没有其他人类协作方（collaboration="solo"）'}。`);
+      console.log(`       · 合并方式沿用推断结果：${workflowSettings.mergeGate === 'pr'
+        ? '推送 + PR + 平台自动合并（merge-gate="pr"）'
+        : '本地非快进合并（merge-gate="direct"）'}；如需改为另一种，改这一行即可。`);
+    } else {
+      console.log('       · 三个字段原样保留，只去掉 mode。');
+    }
     console.log('       · 代码事实一律走 engineering-context 卡片层，与这份声明无关；'
       + '有没有代码图谱索引则由每次唤起时探测得出。');
+  }
+  // 两个入口各有一份且字段不一致：以 CLAUDE.md 为准会改掉 AGENTS.md 里用户显式配过的值，
+  // 不说的话他不会有任何察觉。
+  if (!sharedEntry && claudeParsed && agentsParsed
+    && workflowFieldSummary(agentsModeBlock) !== workflowFieldSummary(claudeModeBlock)) {
+    console.log(`\n${HL}  ⚠ 两个入口的 dw-workflow 配置不一致，将按 CLAUDE.md 统一：${HL_END}`);
+    console.log(`       AGENTS.md 原为：${workflowFieldSummary(agentsModeBlock)}`);
+    console.log(`       CLAUDE.md 为：${workflowFieldSummary(claudeModeBlock)}；不对就改 CLAUDE.md 里的字段后再跑一次。`);
   }
   // 已装 skill 早于新字段格式而配置已是新格式：显式报告，不静默继续（spec §8.3）。
   if (workflowSettings?.isNewFormat && installedVersion
@@ -1522,6 +1646,9 @@ async function main() {
     uninstallCodexConflicts(codexUninstallIds);
   }
 
+  // 0) 旧名字的 skill 目录与版本戳：先删再复制，删除失败时项目仍是完整的旧安装。
+  removeLegacyInstall(residue);
+
   // 1) 复制所有 skill 到 Claude Code 与 Codex 的项目级目录
   copySkills(skillsRoot, skills, claudeSkillsDestDir);
   copySkills(skillsRoot, skills, codexSkillsDestDir);
@@ -1536,8 +1663,9 @@ async function main() {
   }
 
   // 1b) 幂等追加 .gitignore 标记块，避免安装的 skill 随目标仓库提交
-  const gitignoreMerged = mergeMarkedBlock(
-    gitignoreRaw, gitignoreBlock(skills, projectDocsInGit), GITIGNORE_START, GITIGNORE_END,
+  const gitignoreMerged = replaceLegacyBlock(
+    gitignoreRaw, gitignoreBlock(skills, projectDocsInGit),
+    [GITIGNORE_START, GITIGNORE_END], LEGACY.gitignoreMarkers,
   );
   if (gitignoreMerged !== gitignoreRaw) {
     fs.writeFileSync(gitignoreFile, gitignoreMerged);
@@ -1574,22 +1702,28 @@ async function main() {
   // 2b) 写 Codex 项目级自动触发约束
   if (codexToDisable.length && codexMode === 'guard') {
     const raw = readTextIfExists(agentsEntry);
-    const merged = mergeMarkedBlock(
-      raw,
-      codexGuardBlock(codexToDisable),
-      CODEX_GUARD_START,
-      CODEX_GUARD_END,
+    const merged = replaceLegacyBlock(
+      raw, codexGuardBlock(codexToDisable), [CODEX_GUARD_START, CODEX_GUARD_END], LEGACY.codexGuardMarkers,
     );
     fs.writeFileSync(agentsEntry, merged);
     assertCodexGuard(readTextIfExists(agentsEntry), codexToDisable, agentsEntry);
     console.log(`✓ 已在 ${entryLabel(codexAgentsFile, agentsEntry, target)} 写入并校验 Codex 自动触发约束（仅本项目）`);
   } else if (codexToKeep.length) {
     const raw = readTextIfExists(agentsEntry);
-    const withoutGuard = removeMarkedBlock(raw, CODEX_GUARD_START, CODEX_GUARD_END);
+    const withoutGuard = removeMarkedBlock(
+      removeMarkedBlock(raw, ...LEGACY.codexGuardMarkers), CODEX_GUARD_START, CODEX_GUARD_END);
     if (withoutGuard !== raw) {
       fs.writeFileSync(agentsEntry, withoutGuard);
       console.log(`✓ 已从 ${entryLabel(codexAgentsFile, agentsEntry, target)} 移除 Codex 自动触发约束`);
     }
+  }
+
+  // 2b') 旧名字的约束块一个入口也不留：本次不写 Codex 约束（--no-plugins 等）时 AGENTS.md 里的那份
+  // 走这里删；CLAUDE.md 是独立文件却带着这个块（手工拷过去的）同样删，否则残留清单每次都会再列一遍。
+  for (const entry of sharedEntry ? [agentsEntry] : [claudeEntry, agentsEntry]) {
+    const raw = readTextIfExists(entry);
+    const cleaned = removeMarkedBlock(raw, ...LEGACY.codexGuardMarkers);
+    if (cleaned !== raw) fs.writeFileSync(entry, cleaned);
   }
 
   // 2c) 若任一入口已有 mode，幂等同步到两个入口，修复旧安装只写一个文件的状态。
@@ -1599,17 +1733,20 @@ async function main() {
     const entries = sharedEntry ? [claudeEntry] : [claudeEntry, agentsEntry];
     for (const entry of entries) {
       const raw = readTextIfExists(entry);
-      fs.writeFileSync(entry, mergeMarkedBlock(raw, workflowModeBlock, WORKFLOW_MODE_START, WORKFLOW_MODE_END));
+      fs.writeFileSync(entry, replaceLegacyBlock(
+        raw, workflowModeBlock, [WORKFLOW_MODE_START, WORKFLOW_MODE_END], LEGACY.workflowMarkers));
       assertMarkedBlock(readTextIfExists(entry), WORKFLOW_MODE_START, WORKFLOW_MODE_END, entry);
+      assertWorkflowFieldsKept(readTextIfExists(entry), workflowSettings, entry);
     }
     console.log(sharedEntry
-      ? `✓ 已同步并校验 ${path.relative(target, claudeEntry) || claudeEntry} 的 ai-dev-workflow 配置标记块（CLAUDE.md 与 AGENTS.md 共用此文件）`
-      : '✓ 已同步并校验 CLAUDE.md / AGENTS.md 的 ai-dev-workflow 配置标记块');
+      ? `✓ 已同步并校验 ${path.relative(target, claudeEntry) || claudeEntry} 的 dw-workflow 配置标记块（CLAUDE.md 与 AGENTS.md 共用此文件）`
+      : '✓ 已同步并校验 CLAUDE.md / AGENTS.md 的 dw-workflow 配置标记块');
   }
 
   if (codexMode === 'uninstall' && codexToDisable.length) {
     const raw = readTextIfExists(agentsEntry);
-    const withoutGuard = removeMarkedBlock(raw, CODEX_GUARD_START, CODEX_GUARD_END);
+    const withoutGuard = removeMarkedBlock(
+      removeMarkedBlock(raw, ...LEGACY.codexGuardMarkers), CODEX_GUARD_START, CODEX_GUARD_END);
     if (withoutGuard !== raw) {
       // 只删安装器自己创建出来的空 AGENTS.md；入口是软链接时既不删链接也不删它
       // 指向的共用文件，改为写回去掉约束块后的内容。
@@ -1621,6 +1758,16 @@ async function main() {
       }
       console.log(`✓ 已移除 ${entryLabel(codexAgentsFile, agentsEntry, target)} 的 Codex 自动触发约束（已改为全局卸载）`);
     }
+  }
+
+  // 2d) 块类残留逐项核销：旧名字的标记确实不在了才报"已改写"，还在就中止——静默留下旧块，
+  // 下次运行会按旧块再迁移一遍。
+  for (const item of residue.filter(r => r.kind === 'block')) {
+    const raw = readTextIfExists(item.file);
+    const left = [LEGACY.workflowMarkers, LEGACY.codexGuardMarkers, LEGACY.gitignoreMarkers]
+      .filter(markers => getMarkedBlock(raw, ...markers));
+    if (left.length) throw new Error(`安装校验失败：${item.file} 里仍有旧名字的标记块（${left.map(m => m[0]).join('、')}）`);
+    console.log(`✓ 已改写 ${item.label}`);
   }
 
   // 3) 伴生 skill：装到用户级目录，失败只警告，不影响上面已完成的项目安装
