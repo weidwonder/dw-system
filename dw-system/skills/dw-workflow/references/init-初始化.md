@@ -38,7 +38,7 @@
    |---|---|---|
    | **代码图谱** | `.codegraph/codegraph.db` 是否存在 | 只决定要不要加载 `dw-code-facts` 的 `graph.md`。MUST NOT 写进标记块，MUST NOT 据此追问用户 |
    | **代码事实层是否已初始化** | `engineering-context/capability-registry.md` 是否存在 | 只决定第 5b 步要不要建骨架。它是必备资产，**MUST NOT 据此判断"这项目要不要用卡片"**，也 MUST NOT 问用户 |
-   | **`merge-gate` 建议** | 有 git 远端（`git remote`）**且**存在 `.github/workflows/` 或等价 CI 配置 → 建议 `pr`；否则建议 `direct` | 只是**建议**，第 4 步交用户拍板。这是初始化时给用户的建议值，**与字段已缺失时的非交互兜底不是同一件事**（后者的唯一权威定义在 `dw-worktree` 的 `worktree开发纪律.md` §完成与自动合并门） |
+   | **`merge-gate` 建议** | 有 git 远端（`git remote`）**且**存在 `.github/workflows/` 或等价 CI 配置 → 建议 `pr`；否则建议 `direct` | 只是**建议**，第 4 步交用户拍板；问时 MUST 说明后果：`pr` 是每次合并即发布（合并后打 tag），`direct` 由用户发版。这是初始化时给用户的建议值，**与字段已缺失时的非交互兜底不是同一件事**（后者的唯一权威定义在 `dw-worktree` 的 `worktree开发纪律.md` §完成与自动合并门） |
    | **三层真相源缺口** | 按 `dw-doc-governance` 的 `文档治理.md` §三层真相源 看需求 / 架构 / 实现是否各有其一、能否从 README 或 `docs/index.md` ≤2 跳到达 | 第 6 步**报告**，不阻断 |
 
 4. **询问**（仅当两入口都无块）：一次抛全，不一问一答。
