@@ -52,6 +52,7 @@
 - **[dw 3.0 规范去向清单](./report/2026-09-17-dw-3.0-规范去向清单.md)** — 3.0.0 重组期间每个含规范词的小节搬到了哪；`test/rule-destinations.test.mjs` 逐行核对。
 - **[评审门积压通路与测试面收窄 · 代码评审门报告](./report/2026-09-14-评审门积压通路与测试面收窄-review-report.md)** — 本次评审门 A/B/C/D/S 五轴的发现与处置：3 条 P0。
 - **[变更日志与依赖声明 · 代码评审门报告](./report/2026-09-16-变更日志与依赖声明-review-report.md)** — 本次评审门 A/B/C/D/S 五轴（三组子代理）的发现与处置：0 条 P0、5 条 P1。
+- **[全局安装 · 代码评审门报告](./report/2026-09-18-全局安装-review-report.md)** — 本次评审门 A/B/C/D/S 五轴（三组子代理）的发现与处置：1 条 P0、4 条 P1，另附 Windows 实机验证结论。
 
 - **[agentic-principle 缺口报告](./report/2026-08-02-agentic-principle-gap-report.md)** — 待 `agentic-principle` 维护者评估，未结案。
 
