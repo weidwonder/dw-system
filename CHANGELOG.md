@@ -14,6 +14,7 @@
 ### 修复
 
 ### 内部
+- `.gitattributes` 强制 LF 检出：机器闸按行切文本、按字节量体积，Windows 上 `core.autocrlf=true` 的检出此前会让十来条闸误判。两条只在 Windows 上红的测试改成跨平台写法（路径分隔符、动态 `import` 用 `file://`）。
 
 ## 3.0.0 — 2026-09-17
 

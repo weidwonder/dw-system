@@ -16,7 +16,7 @@ import { mkdtempSync, readFileSync, writeFileSync, rmSync, statSync } from 'node
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { composeTemplate } from '../dw-system/skills/dw-prd/scripts/preview.mjs'
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -1009,7 +1009,7 @@ test('extract 拒绝非原型文件；--with-css 放在文件名之前也不吞�
 
 test('import preview.mjs 不产生副作用（不跑 CLI）', () => {
   const r = spawnSync(process.execPath,
-    ['--input-type=module', '-e', `import(${JSON.stringify(script)}).then(() => console.log('imported-ok'))`],
+    ['--input-type=module', '-e', `import(${JSON.stringify(pathToFileURL(script).href)}).then(() => console.log('imported-ok'))`], // Windows 上裸绝对路径不是合法 ESM 说明符
     { encoding: 'utf8' })
   assert.equal(r.status, 0, `import 时 CLI 被连带执行了：${(r.stdout || '') + (r.stderr || '')}`)
   assert.match(r.stdout, /imported-ok/)
