@@ -24,7 +24,7 @@ description: "代码事实层 engineering-context 与 ctx CLI：查某个能力�
 node <本 skill 根目录>/scripts/ctx/src/cli.js <命令>
 ```
 
-`<本 skill 根目录>` = 本文件所在目录；项目级安装时 Claude Code 下是 `.claude/skills/dw-code-facts/`、Codex 下是 `.agents/skills/dw-code-facts/`，全局安装时是 `~/.claude/skills/dw-code-facts/`、`~/.codex/skills/dw-code-facts/`，两份内容一致，用你加载 skill 的那一侧。要恢复全局命令：`cd <本 skill 根目录>/scripts/ctx && npm link`。命令清单与输出格式见 `scripts/ctx/README.md`。
+`<本 skill 根目录>` = 本文件所在目录，即注入块里的 `<skills 根>/dw-code-facts/`；项目级安装时 Claude Code 下是 `.claude/skills/dw-code-facts/`、Codex 下是 `.agents/skills/dw-code-facts/`，全局安装时是 `~/.claude/skills/dw-code-facts/`、`~/.codex/skills/dw-code-facts/`，两份内容一致，用你加载 skill 的那一侧。要恢复全局命令：`cd <本 skill 根目录>/scripts/ctx && npm link`。命令清单与输出格式见 `scripts/ctx/README.md`。
 
 ## 读取条件（到点才读、只读那一节；MUST NOT 预读，MUST NOT 凭记忆代替）
 
