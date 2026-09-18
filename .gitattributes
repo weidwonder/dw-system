@@ -1,0 +1,5 @@
+# 机器闸按行切文本、按字节量体积：仓库文件一律 LF 检出，Windows 的 core.autocrlf=true 也不例外。
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.png binary
+*.jpg binary

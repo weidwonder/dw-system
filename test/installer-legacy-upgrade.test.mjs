@@ -137,7 +137,7 @@ test('--dry-run 打印残留清单且目标目录逐字节不变（AC-006）', (
     const r = install(target, '--dry-run')
     assert.equal(r.status, 0, r.stderr || r.stdout)
     assert.match(r.stdout, /旧版残留清理/)
-    assert.match(r.stdout, /删除 \.claude\/skills\/ai-dev-workflow\//)
+    assert.match(r.stdout, /删除 \.claude[\\/]skills[\\/]ai-dev-workflow[\\/]/) // Windows 打印反斜杠
     assert.match(r.stdout, /\.gitignore/)
     assert.deepEqual(snapshot(target), before)
   })
