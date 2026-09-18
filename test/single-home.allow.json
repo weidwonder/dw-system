@@ -70,5 +70,13 @@
       "dw-prd/assets/templates/requirements-module.md"
     ],
     "reason": "两份 PRD 模板里同一句占位提示，各自被单独复制"
+  },
+  {
+    "sentence": "**`direct` 下 AI MUST NOT 替拍板人定版本号或打 tag",
+    "files": [
+      "dw-code-facts/references/代码事实纪律.md",
+      "dw-workflow/assets/config-snippets/base.md"
+    ],
+    "reason": "注入块是没加载 dw skill 的会话唯一看得到的地方；这条禁令不在块里，会话在合并前就可能替人打 tag。家在 代码事实纪律.md §10.1"
   }
 ]

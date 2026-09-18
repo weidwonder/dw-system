@@ -53,6 +53,7 @@
 - `ctx lint-cards`：读不出的卡记 `unreadable` 违规；基线文件损坏退出 2 并点名文件；`--init-baseline` 列出按业务域拆分的建议；`domain-dup` 覆盖还没拆成域卡的单文件卡；没有卡片而 registry 有违规时照常列出。
 - 机器闸：`cross-reference` 加查 `<skills 根>/…` 形态的文件路径必须存在、跨 skill 的引用同一行必须点名属主 skill；`doc-budgets` 的例外条目写成 `{max, note}`、高于同类上限而没有 note 判红、单条上限规则一行都匹配不到判红；`rule-destinations` 的射程加上仓库根 `CLAUDE.md` 并打印规范词条数增减；`gate-sync` 要求入口点到每道贯穿门的名字；`change-awareness` 按当前版本有没有打 tag 判"本次有没有写条目"。
 ### 变更
+- `merge-gate="pr"` 的项目：合并即发布，完成与自动合并门兼作发布门（PR 带发版件、放行合并后打 tag）；此前写"自动合并不等于擅自发布上线"。`direct` 不变。
 - 代码事实纪律 §4.2「只增不减」改为「事实不丢，体积有上限」：地图卡 8,000、域卡 16,000、registry 单格 300 字节，超限先搬来历再按域拆。
 - 卡片里指向源码的 cite 以 `路径#符号` 为主，行号可附。
 - `ctx` 读最近确认日期的顺序：〈确认〉小节 → 〈Freshness / Provenance〉小节 → 全文第一个日期；标题含"陷阱"的小节整节按误用警告处理。

@@ -82,7 +82,7 @@ engineering-context/        本仓库自己的代码事实层
 - 每次合并在 `CHANGELOG.md` 的 `## 未发布` 下至少写一条，分类取 `不兼容` / `新增` / `变更` / `修复` / `内部`。
 - 需要用户手动动作的版本 MUST 带 `dw-system/migrations/<版本>.md`，≤45 行——安装器会整篇打印。不需要手动动作的版本不建指南。
 - `VERSION` MUST NOT 低于 `migrations/` 里最高的那份指南，否则那份指南永远不会被打印。安装器默认按 `v<VERSION>` 取 tag，tag 没推时告警并回退 `main`；`package.json` 的 `files` MUST 带 `dw-system/VERSION`。
-- 发版是拍板人的动作：改 `## 未发布` 的标题、打 tag `v<版本>`。AI MUST NOT 自行定版本号或打 tag，除非拍板人在本次任务里明确要求。
+- 本仓库合并方式为 `direct`，发版是拍板人的动作：改 `## 未发布` 的标题、打 tag `v<版本>`。AI MUST NOT 自行定版本号或打 tag，除非拍板人在本次任务里明确要求。（`pr` 项目合并即发版，见 `dw-worktree`。）
 
 <!-- dw-workflow:start -->
 > **本项目采用 dw-workflow**
@@ -102,7 +102,7 @@ engineering-context/        本仓库自己的代码事实层
 > - **纯 skill 改动**（范围不含可执行代码文件）：PRD 即 spec，动手前 MUST 加载 `skill-principle`；跳过的是产物，不是门（`dw-workflow` 的 `纯skill改动.md`）。
 > - **文档**（`dw-doc-governance`）：spec → `docs/spec/`，plan → `docs/plan/`，report → `docs/report/`，决策记录 → `docs/decisions/`；新建文档 frontmatter MUST 带 `lifecycle: active` 与 `authority_refs`；`docs/index.md` 只放现行口径。需求真相源只写已实现的现状，还没做的去 `docs/TODO.md`。
 > - **写或精简规范文本、注释、卡片、提示词**：按 `dw-prose`——删改前保住每条命题，只写现状，来历进决策记录。
-> - **每次合并 MUST 在仓库根 `CHANGELOG.md` 的 `## 未发布` 下至少写一条**，在评审门之前写好；分类是闭集 `不兼容` / `新增` / `变更` / `修复` / `内部`，MUST NOT 自造，对外不可见的写 `内部`，MUST NOT 以"本次无对外变化"为由不写；升级上游版本前 MUST 先读 `engineering-context/dependencies/` 下它的依赖声明（`dw-code-facts`）。AI MUST NOT 替拍板人定版本号或打 tag。
+> - **每次合并 MUST 在仓库根 `CHANGELOG.md` 的 `## 未发布` 下至少写一条**，在评审门之前写好；分类是闭集 `不兼容` / `新增` / `变更` / `修复` / `内部`，MUST NOT 自造，对外不可见的写 `内部`，MUST NOT 以"本次无对外变化"为由不写；升级上游前 MUST 先读 `engineering-context/dependencies/` 下它的依赖声明（`dw-code-facts`）。`direct` 下 AI MUST NOT 替拍板人定版本号或打 tag；`pr` 下合并即发。
 > - **合并方式只读本块 `merge-gate`，与协作面无关**（`dw-worktree`）：`direct` 为全部门禁通过后本地非快进合并并清理 worktree；`pr` 为过评审门后开 PR，平台放行后才合并——本门是 PR 前的地板，MUST NOT 替代人审，平台未放行 MUST NOT 改用本地直合。合并失败 MUST 保留 worktree，MUST NOT 强推，MUST NOT 绕过保护分支。
 > - **真实数据**固化进项目既有测试目录，没有则 `tests/fixtures/<场景名>/`，凭证进同级 `secrets/` 并 gitignore、脱敏副本入库；未覆盖的重要场景挂账到 `docs/report/测试场景覆盖度.md`；长链路 MUST 有断言中间结果的端到端用例（`dw-workflow` 的 `测试资产纪律.md`）。
 > - **Agentic 应用**（命中任一即是：模型自主规划、直接调工具、未过确定性闸门就改状态、记忆跨会话影响决策）MUST 加载 `agentic-principle`；**新建或改动 skill** MUST 加载 `skill-principle`。两者是伴生 skill，判据以它们当前版本为准。
