@@ -23,7 +23,7 @@
 ## 已知风险
 - 2026-09-17 ｜ 机器闸 ｜ Windows 主机（10.14.0.60）上四条依赖 `npm` 的测试稳定失败：`codegraph` 全局安装、`ctx-link` 的 npm link 与 EEXIST 两例、`npm-entrypoint` 的打包启动；2.17.0 基线在同一台机器上同样失败，与 3.0 无关。测试已按 win32 写了 `.cmd` shim，疑是非交互 ssh 会话里 `npm.cmd` 的解析与 PATH 差异，待在该机器的交互终端里复现定位
 
-- 2026-08-26 ｜ 安装器 ｜ 全局 `ctx` 命令指向最后一次安装的那个项目里的副本，该项目被删除或移动后全局命令会失效；目前兜底是文档里那条 `node <skill>/scripts/ctx/src/cli.js` 的调用方式
+- 2026-08-26 ｜ 安装器 ｜ 全局 `ctx` 命令指向最后一次安装的那个项目里的副本，该项目被删除或移动后全局命令会失效；目前兜底是文档里那条 `node <skill>/scripts/ctx/src/cli.js` 的调用方式。只用 `--global` 安装时全局 `ctx` 落在 `~/.claude/skills/`，不随项目删除失效；之后再做一次项目级安装又会改指向那个项目
 - 2026-08-26 ｜ 安装器 ｜ codegraph 与两个伴生 skill（`agentic-principle` / `skill-principle`）是外部仓库，上游改名、改命令或下线会让安装器这两段静默降级为警告，使用者可能不知道自己没拿到检索加速面与伴生 skill
 
 ## 技术欠账

@@ -92,7 +92,7 @@
 5. 命中的事实**每条附 cite**（`path#anchor @确认时间`），用它预填现状草稿再请用户确认/纠偏。**无 card 依据的 cite 视为幻觉，MUST NOT 编造。**
 
 命令找不到时 MUST NOT 判定"没有可信事实"，用 `node <skills 根>/dw-code-facts/scripts/ctx/src/cli.js <命令>` 兜底。
-`<skills 根>` = **本 SKILL.md 所在目录的父目录**——Claude Code 下是 `.claude/skills/`、Codex 下是 `.agents/skills/`，**MUST NOT 写死其中一侧**（写死 `.claude/` 会让 Codex 侧照抄即 ENOENT）。
+`<skills 根>` = **本 SKILL.md 所在目录的父目录**——Claude Code 与 Codex、项目级与全局安装各有一份，**MUST NOT 写死其中一侧**（写死任一份，换一侧或换安装方式照抄即 ENOENT）。
 **`ctx` CLI 随姊妹 skill `dw-code-facts` 分发，`dw-prd` 自身不带**——本 skill 的 `scripts/` 下只有原型预览服务 `preview.mjs`（见 `UI原型纪律.md` §7.4），**没有 ctx**。
 **`ctx` 与 `node` 兜底都执行不了时**（两条都报错，不是"零命中"）：一句话告知用户原因，直接进第 2 步，MUST NOT 阻断流程、MUST NOT 反复重试。
 

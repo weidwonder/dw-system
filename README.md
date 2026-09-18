@@ -92,6 +92,15 @@ Common flags: `--shared` commits the Claude Code project settings for the whole 
 
 > The leading `npx --yes` only skips npm's download prompt; the installer still asks once before modifying your project. For fully unattended installs, pass `--yes` again after the target directory: `npx --yes git+https://github.com/weidwonder/dw-system.git . --yes`.
 
+**Option A2: npx global install** — install once into your user-level skill directories, `~/.claude/skills/` (Claude Code) and `~/.codex/skills/` (Codex), shared by every project on this machine. No target directory is given, and no project file is touched: the `CLAUDE.md` / `AGENTS.md` block is written later, the first time you invoke a skill inside a project.
+
+```bash
+npx --yes git+https://github.com/weidwonder/dw-system.git --global
+npx --yes git+https://github.com/weidwonder/dw-system.git --global --dry-run
+```
+
+In global mode the installer uninstalls the conflicting plugins listed below from this machine (Claude Code: user-scope installs only; Codex: `superpowers`) instead of disabling them per project — `--keep=<short-name>` keeps one, `--no-plugins` skips the step; if `claude` / `codex` is not on PATH it prints the manual command. It links the global `ctx` command to the user-level copy and wires codegraph globally without building any index (run `codegraph init` in a project root for that). Project-only flags — a target directory, `--shared`, `--docs-in-git`, `--codex-conflicts`, `--codegraph-location=local` — are rejected. Copies already installed inside projects stay where they are; when both exist, which one Claude Code / Codex loads is up to the tool, so keep just one.
+
 **Option B: local script install (repo maintenance & troubleshooting)**
 
 ```bash
@@ -130,14 +139,9 @@ What the installer does:
 >
 > ⚠ Two prerequisites: ① a project-level `.claude/settings.json` triggers a **workspace trust** dialog on first open — it takes effect after you trust it; ② settings / `AGENTS.md` changes take effect on the **next start** of Claude Code / Codex, not the current session. To undo, delete the corresponding `false` entries in the project settings, or remove the `dw-system:codex-conflicts` block from `AGENTS.md`.
 
-**Option C: one-time global install** — shared by all projects, but you must weigh the conflicting plugins yourself (globally installed means globally active, which may interfere with this pipeline).
+**First use.** For a machine-wide install use Option A2 (`--global`) rather than copying the skill directories by hand: a plain copy writes no version stamp, so later upgrades cannot show their migration guides, and it skips conflict handling and the `ctx` link.
 
-```bash
-cp -r dw-system/skills/dw-* ~/.claude/skills/
-cp -r dw-system/skills/dw-* ~/.codex/skills/
-```
-
-Then invoke the skill in any project (mentioning "AI-assisted development / dev workflow / generate a spec / coding plan" triggers it). The first call runs a one-time **initialization**: it asks exactly one question — **is anyone else developing this project with you** — writes the answer into the project root `CLAUDE.md` and `AGENTS.md`, and never asks again. Whether to maintain the code-fact layer is **never asked** — it is mandatory, and initialization scaffolds it inside the task worktree. Whether the project has a code-graph index is **never asked either**; it is detected at every run.
+After installing, invoke the skill in any project (mentioning "AI-assisted development / dev workflow / generate a spec / coding plan" triggers it). The first call runs a one-time **initialization**: it asks exactly one question — **is anyone else developing this project with you** — writes the answer into the project root `CLAUDE.md` and `AGENTS.md`, and never asks again. Whether to maintain the code-fact layer is **never asked** — it is mandatory, and initialization scaffolds it inside the task worktree. Whether the project has a code-graph index is **never asked either**; it is detected at every run.
 
 > **Codex users**: project-level skills are installed under `<project>/.agents/skills/`; the **user-level** entry point is `~/.codex/skills/` (Codex has no `~/.agents/` user-level directory — don't install there). Codex reads `AGENTS.md`; initialization writes it too, recording the collaboration surface, the merge gate, and `ctx` usage. The `ctx` CLI is invoked via plain shell, so it works across tools.
 >

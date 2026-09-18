@@ -174,11 +174,14 @@ const MAX_LINK_HOPS = 32;
 
 function parseArgs(argv) {
   const opt = {
+    global: false,
     yes: false,
     shared: false,
+    sharedExplicit: false,
     keep: [],
     noPlugins: false,
     codexConflicts: null,
+    codexConflictsExplicit: false,
     dryRun: false,
     help: false,
     repo: DEFAULT_REPO,
@@ -191,13 +194,16 @@ function parseArgs(argv) {
     noCtxLink: false,
     noCodegraph: false,
     codegraphLocation: 'local',
+    codegraphLocationExplicit: false,
     // null = 未指定：沿用 .gitignore 里已记的决定，都没有才交互询问一次。
     docsInGit: null,
+    docsInGitExplicit: false,
     target: null,
   };
   for (const a of argv) {
     if (a === '--yes' || a === '-y') opt.yes = true;
-    else if (a === '--shared') opt.shared = true;
+    else if (a === '--global') opt.global = true;
+    else if (a === '--shared') { opt.shared = true; opt.sharedExplicit = true; }
     else if (a === '--no-plugins') opt.noPlugins = true;
     else if (a.startsWith('--codex-conflicts=')) {
       const value = a.slice('--codex-conflicts='.length);
@@ -205,6 +211,7 @@ function parseArgs(argv) {
         throw new Error('--codex-conflicts 只能是 guard 或 uninstall');
       }
       opt.codexConflicts = value;
+      opt.codexConflictsExplicit = true;
     }
     else if (a === '--dry-run') opt.dryRun = true;
     else if (a === '-h' || a === '--help') opt.help = true;
@@ -217,6 +224,7 @@ function parseArgs(argv) {
         throw new Error('--codegraph-location 只能是 local 或 global');
       }
       opt.codegraphLocation = value;
+      opt.codegraphLocationExplicit = true;
     }
     else if (a.startsWith('--docs-in-git=')) {
       const value = a.slice('--docs-in-git='.length);
@@ -224,6 +232,7 @@ function parseArgs(argv) {
         throw new Error('--docs-in-git 只能是 yes 或 no');
       }
       opt.docsInGit = value;
+      opt.docsInGitExplicit = true;
     }
     else if (a.startsWith('--companion-repo=')) {
       // 形如 --companion-repo=<name>=<url>。<name> 必须是 COMPANION_SKILLS 里的一个，
@@ -258,6 +267,17 @@ function parseArgs(argv) {
   if (!opt.repo) throw new Error('--repo 不能为空');
   if (!opt.ref) throw new Error('--ref 不能为空');
   if (opt.sourceDir === '') throw new Error('--source-dir 不能为空');
+  if (opt.global) {
+    if (opt.target) throw new Error('--global 不接受目标目录；该选项只对项目级安装有意义');
+    const rejected = [];
+    if (opt.sharedExplicit) rejected.push('--shared 只对项目级安装有意义');
+    if (opt.docsInGitExplicit) rejected.push('--docs-in-git 只对项目级安装有意义');
+    if (opt.codexConflictsExplicit) rejected.push('--codex-conflicts 只对项目级安装有意义');
+    if (opt.codegraphLocationExplicit && opt.codegraphLocation === 'local') {
+      rejected.push('--codegraph-location=local 只对项目级安装有意义');
+    }
+    if (rejected.length) throw new Error(rejected.join('；'));
+  }
   return opt;
 }
 
@@ -268,6 +288,7 @@ function helpText() {
   node install.mjs [目标目录] [选项]   （或 ./install.mjs [目标目录]）
 
 选项：
+  --global         装到 ~/.claude/skills/ 与 ~/.codex/skills/（跨项目共享）
   --yes, -y        跳过交互确认
   --shared         写 .claude/settings.json（提交进 git，全仓共享禁用）
                    默认写 .claude/settings.local.json（gitignored，仅影响你）
@@ -306,7 +327,8 @@ ${COMPANION_SKILLS.map(c => `  - ${c.name}：${c.repo}\n      ${c.why}`).join('\
 
 ctx CLI（本体系自带，随 dw-workflow skill 一起安装）：
   ${CTX.why}
-  安装后在 ${path.join('.claude', 'skills', CTX.skill, CTX.subdir)} 下执行 npm link，
+  项目级安装后在 ${path.join('.claude', 'skills', CTX.skill, CTX.subdir)}、全局安装后在
+  ~/.claude/skills/${CTX.skill}/${CTX.subdir} 下执行 npm link，
   把它变成全局 ctx 命令，并用 ctx --help 验证真的可用。链接失败（权限、npm 全局 bin
   不在 PATH、PATH 上已有别人的同名 ctx 命令）只降级为警告，并打印 node <路径>/src/cli.js
   兜底调用方式——ctx 本体已随 skill 落盘，任何时候都能用兜底方式调用。
@@ -676,13 +698,39 @@ function collectMigrations(migrationsDir, fromVersion, toVersion) {
     .sort((x, y) => cmpVersion(x.version, y.version));
 }
 
+function printVersionNotes({ installedVersion, sourceVersion, migrations, isUpgrade, isDowngrade }) {
+  const [HL, HL_END] = process.stdout.isTTY ? ['\x1b[1;33m', '\x1b[0m'] : ['', ''];
+  if (migrations.length) {
+    console.log(`\n${HL}  ━━━━ ⚠ 版本升级 v${installedVersion} → v${sourceVersion}：检测到 ${migrations.length} 份迁移指南，继续前请阅读 ━━━━${HL_END}`);
+    for (const m of migrations) {
+      console.log(`${HL}  ▶ 升级到 v${m.version} 的迁移指南（源仓库 dw-system/migrations/${m.version}.md）：${HL_END}`);
+      const body = fs.readFileSync(m.file, 'utf8').trimEnd();
+      console.log(body.split('\n').map(l => '    │ ' + l).join('\n'));
+    }
+    console.log(`${HL}  ━━━━ 迁移指南结束（安装完成后请按上述"需要的动作"逐项执行）━━━━${HL_END}`);
+  } else if (isUpgrade) {
+    console.log(`\n  版本升级 v${installedVersion} → v${sourceVersion}：本次升级无迁移指南，无需额外动作。`);
+  } else if (isDowngrade) {
+    console.log(`\n${HL}  ⚠ 降级安装：目标已装 v${installedVersion}，高于安装源 v${sourceVersion}。请自行确认兼容性。${HL_END}`);
+  }
+  return { HL, HL_END };
+}
+
+function printMigrationReminder({ installedVersion, sourceVersion, migrations, HL, HL_END }) {
+  if (migrations.length) {
+    console.log(`${HL}⚠ 别忘了执行上方 v${installedVersion} → v${sourceVersion} 迁移指南中"需要的动作"。${HL_END}`);
+  }
+}
+
 function ask(question) {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   return new Promise(resolve => rl.question(question, ans => { rl.close(); resolve(ans); }));
 }
 
-function runCodex(args) {
-  const commands = process.platform === 'win32' ? ['codex.cmd', 'codex.exe', 'codex'] : ['codex'];
+// Claude Code / Codex 的 CLI：Windows 上是 .cmd / .exe shim，先用 where.exe 探测再经 shell 调用。
+// 找不到命令时抛出 code === 'ENOENT' 的错误，调用方据此区分"没装这个工具"与"装了但执行失败"。
+function runAgentCli(bin, label, args) {
+  const commands = process.platform === 'win32' ? [`${bin}.cmd`, `${bin}.exe`, bin] : [bin];
   let lastError = null;
   for (const command of commands) {
     if (process.platform === 'win32') {
@@ -697,7 +745,17 @@ function runCodex(args) {
     if (!result.error || result.error.code !== 'ENOENT') return result;
     lastError = result.error;
   }
-  throw new Error(`找不到 Codex CLI，无法执行全局卸载：${lastError?.message || 'codex'}`);
+  const error = new Error(`找不到 ${label} CLI：${lastError?.message || bin}`);
+  error.code = 'ENOENT';
+  throw error;
+}
+
+function runCodex(args) {
+  return runAgentCli('codex', 'Codex', args);
+}
+
+function runClaude(args) {
+  return runAgentCli('claude', 'Claude Code', args);
 }
 
 function codexPluginId(plugin) {
@@ -708,7 +766,7 @@ function codexPluginId(plugin) {
   return null;
 }
 
-function findInstalledCodexConflicts() {
+function findInstalledCodexConflicts(keepList = []) {
   const result = runCodex(['plugin', 'list', '--json']);
   if (result.status !== 0) {
     throw new Error(`Codex 插件列表读取失败：${(result.stderr || result.stdout || '').trim()}`);
@@ -726,7 +784,110 @@ function findInstalledCodexConflicts() {
   return [...new Set(installed
     .filter(plugin => CODEX_PLUGIN_IDS.has(codexPluginId(plugin)))
     .map(codexPluginId)
+    .filter(pluginId => !isKept(pluginId, keepList))
     .filter(Boolean))];
+}
+
+function findInstalledClaudeConflicts(keepList = []) {
+  let result;
+  try {
+    result = runClaude(['plugin', 'list', '--json']);
+  } catch (error) {
+    if (error.code === 'ENOENT') return { available: false, ids: [], nonUserIds: [] };
+    throw error;
+  }
+  if (result.status !== 0) {
+    throw new Error(`Claude Code 插件列表读取失败：${(result.stderr || result.stdout || '').trim()}`);
+  }
+  let payload;
+  try {
+    payload = JSON.parse(result.stdout);
+  } catch (error) {
+    throw new Error(`Claude Code 插件列表不是有效 JSON：${error.message}`);
+  }
+  if (!Array.isArray(payload)) {
+    throw new Error('Claude Code 插件列表不是有效的数组');
+  }
+  const conflictKeys = new Set(CLAUDE_CONFLICTS.map(conflict => conflict.key));
+  const ids = [];
+  const nonUserIds = [];
+  for (const plugin of payload) {
+    if (!plugin || typeof plugin.id !== 'string' || !conflictKeys.has(plugin.id)) continue;
+    if (isKept(plugin.id, keepList)) continue;
+    if (plugin.scope === 'user') ids.push(plugin.id);
+    else nonUserIds.push(plugin.id);
+  }
+  return { available: true, ids: [...new Set(ids)], nonUserIds: [...new Set(nonUserIds)] };
+}
+
+function listGlobalConflicts(opt) {
+  if (opt.noPlugins) return {
+    claude: { available: true, ids: [], nonUserIds: [] },
+    codex: { available: true, ids: [] },
+  };
+  const claude = findInstalledClaudeConflicts(opt.keep);
+  let codex;
+  try {
+    codex = { available: true, ids: findInstalledCodexConflicts(opt.keep) };
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+    codex = { available: false, ids: [] };
+  }
+  return { claude, codex };
+}
+
+function printGlobalPluginPlan(opt, plan) {
+  if (opt.noPlugins) {
+    console.log('  3) 跳过冲突插件处理（--no-plugins）');
+    return;
+  }
+  console.log('  3) 处理全局冲突插件（复制 skill 前先列清单，确认后再卸载）');
+  if (!plan.claude.available) {
+    for (const conflict of CLAUDE_CONFLICTS) {
+      if (!isKept(conflict.key, opt.keep)) {
+        console.log(`       Claude Code CLI 不在 PATH：如需卸载请手动执行 claude plugin uninstall ${conflict.key} --scope user`);
+      }
+    }
+  } else if (plan.claude.ids.length) {
+    console.log(`       Claude Code → 全局卸载：${plan.claude.ids.join('、')}`);
+  } else {
+    console.log('       Claude Code → 未发现待卸载的 user scope 冲突插件');
+  }
+  if (plan.claude.nonUserIds?.length) {
+    console.log(`       Claude Code → 仅提示、不卸载（非 user scope）：${plan.claude.nonUserIds.join('、')}`);
+  }
+  if (!plan.codex.available) {
+    for (const conflict of CODEX_CONFLICTS) {
+      if (!isKept(conflict.key, opt.keep)) {
+        console.log(`       Codex CLI 不在 PATH：如需卸载请手动执行 codex plugin remove ${conflict.key}`);
+      }
+    }
+  } else if (plan.codex.ids.length) {
+    console.log(`       Codex → 全局卸载：${plan.codex.ids.join('、')}`);
+  } else {
+    console.log('       Codex → 未发现待卸载的冲突插件');
+  }
+}
+
+function uninstallClaudeConflicts(pluginIds) {
+  for (const pluginId of pluginIds) {
+    let result;
+    try {
+      result = runClaude(['plugin', 'uninstall', pluginId, '--scope', 'user']);
+    } catch (error) {
+      throw new Error(`Claude Code 插件卸载失败（${pluginId}）：${error.message}`);
+    }
+    if (result.status !== 0) {
+      throw new Error(`Claude Code 插件卸载失败（${pluginId}）：${(result.stderr || result.stdout || '').trim()}`);
+    }
+    console.log(`✓ 已全局卸载 Claude Code 冲突插件：${pluginId}`);
+  }
+}
+
+// 只卸计划里列出的；"没有要卸的"已在计划段说过，这里不再重复打印。
+function uninstallGlobalPlugins(plan) {
+  uninstallClaudeConflicts(plan.claude.ids);
+  if (plan.codex.ids.length) uninstallCodexConflicts(plan.codex.ids);
 }
 
 function uninstallCodexConflicts(pluginIds) {
@@ -928,7 +1089,7 @@ function readSkillMetaVersion(skillDir) {
 // 用户级安装位置：Claude Code 与 Codex 各一个入口，跨项目共享同一份。
 // 注意两侧不对称：Claude Code 用户级是 ~/.claude/，Codex 用户级是 ~/.codex/；
 // `.agents/` 只是 Codex 的【项目级】目录，不存在用户级形态。
-function companionDestDirs(home) {
+function userSkillDirs(home) {
   return [path.join(home, '.claude', 'skills'), path.join(home, '.codex', 'skills')];
 }
 
@@ -1006,7 +1167,7 @@ function syncCompanions(opt, home) {
   }
   for (const spec of COMPANION_SKILLS) {
     const repo = opt.companionRepos[spec.name] || spec.repo;
-    const dests = companionDestDirs(home).map(root => path.join(root, spec.name));
+    const dests = userSkillDirs(home).map(root => path.join(root, spec.name));
     const locals = dests.map(dir => ({
       dir,
       exists: fs.existsSync(dir),
@@ -1087,15 +1248,15 @@ function toolFailed(result) {
 
 // ctx 的包目录（含 package.json 的 bin 声明）与脚本入口，都在刚复制好的 Claude Code 侧 skill 里。
 // 只用 .claude/ 这一份：.agents/ 里是逐字节相同的副本，两份都 link 只会互相覆盖同一个全局命令。
-function ctxPackageDir(target) {
-  return path.join(target, '.claude', 'skills', CTX.skill, CTX.subdir);
+function ctxPackageDir(skillsDir) {
+  return path.join(skillsDir, CTX.skill, CTX.subdir);
 }
 
 // 兜底调用方式：全局命令没弄成时照样能用。必须打全路径，使用者（含 AI agent）才不会
 // 把"ctx 命令不存在"误当成"Engineering Context 不可用"。
-function ctxFallbackHint(target) {
+function ctxFallbackHint(skillsDir) {
   console.log('     ctx 本体已随 skill 落盘，仍可用兜底方式调用（功能完全相同）：');
-  console.log(`     node ${path.join(ctxPackageDir(target), 'src', 'cli.js')} <命令>`);
+  console.log(`     node ${path.join(ctxPackageDir(skillsDir), 'src', 'cli.js')} <命令>`);
 }
 
 // 探测 PATH 上的 ctx：present=命令跑得通，mine=确实是本体系这一个。
@@ -1160,7 +1321,7 @@ function globalCtxIsOurs() {
   } catch { return false; }
 }
 
-function printCtxPlan(target, before) {
+function printCtxPlan(skillsDir, before) {
   if (before.present && !before.mine) {
     console.log('  · PATH 上已有另一个同名 ctx 命令 → [--dry-run] 将跳过链接，只打印兜底调用方式');
     return;
@@ -1168,23 +1329,23 @@ function printCtxPlan(target, before) {
   console.log(before.present
     ? '  · 本机已有本体系的 ctx → [--dry-run] 仍会重新链接，指向本次安装的这份'
     : '  · 本机没有 ctx 命令');
-  console.log(`  · [--dry-run] 将在 ${ctxPackageDir(target)} 执行 npm link，并用 ctx --help 验证`);
+  console.log(`  · [--dry-run] 将在 ${ctxPackageDir(skillsDir)} 执行 npm link，并用 ctx --help 验证`);
 }
 
 // 主安装完成后执行（依赖 skill 已复制到位）。任何失败都只降级为警告：
 // ctx 本体已经随 skill 落盘，用兜底方式一样能跑，不该把整个安装拖成失败。
-function syncCtx(opt, target) {
+function syncCtx(opt, skillsDir) {
   if (opt.noCtxLink) {
     console.log('\n· 跳过 ctx 全局链接（--no-ctx-link）');
-    ctxFallbackHint(target);
+    ctxFallbackHint(skillsDir);
     return;
   }
   console.log(`\nctx CLI（${CTX.why}）`);
   try {
-    const dir = ctxPackageDir(target);
+    const dir = ctxPackageDir(skillsDir);
     const before = detectCtx();
     if (opt.dryRun) {
-      printCtxPlan(target, before);
+      printCtxPlan(skillsDir, before);
       return;
     }
     if (!fs.existsSync(path.join(dir, 'package.json'))) {
@@ -1195,7 +1356,7 @@ function syncCtx(opt, target) {
     // 也不能悄悄顶掉用户自己的工具——直接给兜底调用方式。
     if (before.present && !before.mine) {
       console.log('  ⚠ PATH 上已有另一个同名 ctx 命令（不是本体系的），不做全局链接以免顶掉它。');
-      ctxFallbackHint(target);
+      ctxFallbackHint(skillsDir);
       return;
     }
     let linked = linkCtxCli(dir);
@@ -1211,7 +1372,7 @@ function syncCtx(opt, target) {
         console.log('     确认它可以丢弃后，删掉该文件（或先跑 npm rm -g ctx）再重跑本安装器；');
         console.log('     想保留它就用 --no-ctx-link 跳过这一段，按下面的兜底方式调用即可。');
         printNpmOutput(linked.out);
-        ctxFallbackHint(target);
+        ctxFallbackHint(skillsDir);
         return;
       }
     }
@@ -1219,7 +1380,7 @@ function syncCtx(opt, target) {
       console.log('  ⚠ npm link 失败（常见原因：npm 全局目录没有写权限）。');
       console.log(`     可手动重试：cd ${dir} && npm link`);
       printNpmOutput(linked.out);
-      ctxFallbackHint(target);
+      ctxFallbackHint(skillsDir);
       return;
     }
     // 装完必须真跑一次才算数：npm link 退出码为 0 只说明 shim 写出去了，
@@ -1228,12 +1389,12 @@ function syncCtx(opt, target) {
     if (!after.present) {
       console.log('  ⚠ npm link 跑通了，但 PATH 上仍找不到 ctx：多半是 npm 全局 bin 不在 PATH 上。');
       console.log('     把 `npm prefix -g` 目录下的 bin 加进 PATH 后重开终端，再重跑本安装器。');
-      ctxFallbackHint(target);
+      ctxFallbackHint(skillsDir);
       return;
     }
     if (!after.mine) {
       console.log('  ⚠ PATH 上的 ctx 不是本体系这一个（有同名命令排在前面），本次链接未生效。');
-      ctxFallbackHint(target);
+      ctxFallbackHint(skillsDir);
       return;
     }
     console.log(`  ✓ ctx 已全局可用（已实跑 ctx --help 验证）｜来源：${dir}`);
@@ -1241,7 +1402,7 @@ function syncCtx(opt, target) {
     console.log('     · 该目录被删除（如删掉本项目）后全局命令会失效，重跑安装器即可恢复。');
   } catch (e) {
     console.log(`  ⚠ ctx 全局链接中断（${e.message}），已跳过；skill 安装不受影响。`);
-    ctxFallbackHint(target);
+    ctxFallbackHint(skillsDir);
   }
 }
 
@@ -1337,7 +1498,7 @@ function wireCodegraphAgents(location, target) {
   const r = runTool(
     CODEGRAPH.bin,
     ['install', '--target=auto', `--location=${location}`, '--yes'],
-    { cwd: target, timeout: CODEGRAPH_CMD_TIMEOUT_MS },
+    { cwd: target ?? homedir(), timeout: CODEGRAPH_CMD_TIMEOUT_MS },
   );
   if (toolFailed(r)) {
     console.log('  ⚠ agent 接线失败；索引仍可用命令行查询。稍后可在项目目录手动执行：');
@@ -1372,7 +1533,7 @@ function buildCodegraphIndex(target, indexed) {
   }
 }
 
-function printCodegraphPlan(opt, local, update, indexed) {
+function printCodegraphPlan(opt, local, update, indexed, target) {
   if (!local.present) {
     console.log(`  · 本机未安装 → [--dry-run] 将执行 npm install -g ${CODEGRAPH.npmPackage}`);
   } else {
@@ -1384,9 +1545,13 @@ function printCodegraphPlan(opt, local, update, indexed) {
     console.log(`  · 本机 v${localVersion || '未知'}｜远端 ${latest ? `v${latest}` : '未知（版本检测失败）'} → [--dry-run] ${verdict}`);
   }
   console.log(`  · [--dry-run] 将执行 codegraph install --target=auto --location=${opt.codegraphLocation} --yes`);
-  console.log(indexed
-    ? `  · ${CODEGRAPH.indexDir}/ 已存在 → [--dry-run] 将跳过建索引`
-    : '  · [--dry-run] 将执行 codegraph init 建立本仓库索引');
+  if (target == null) {
+    console.log('  · 索引按项目建立：在项目根执行 codegraph init');
+  } else {
+    console.log(indexed
+      ? `  · ${CODEGRAPH.indexDir}/ 已存在 → [--dry-run] 将跳过建索引`
+      : '  · [--dry-run] 将执行 codegraph init 建立本仓库索引');
+  }
 }
 
 // 主安装完成后执行。codegraph 是外部工具，任何一步失败都只降级为警告：
@@ -1400,13 +1565,17 @@ function syncCodegraph(opt, target) {
   try {
     const local = detectCodegraph();
     const update = local.present ? checkCodegraphUpdate() : null;
-    const indexed = fs.existsSync(path.join(target, CODEGRAPH.indexDir));
+    const indexed = target != null && fs.existsSync(path.join(target, CODEGRAPH.indexDir));
     if (opt.dryRun) {
-      printCodegraphPlan(opt, local, update, indexed);
+      printCodegraphPlan(opt, local, update, indexed, target);
       return;
     }
     if (!ensureCodegraphCli(local, update)) return;
     wireCodegraphAgents(opt.codegraphLocation, target);
+    if (target == null) {
+      console.log('  · 索引按项目建立：在项目根执行 codegraph init');
+      return;
+    }
     buildCodegraphIndex(target, indexed);
   } catch (e) {
     console.log(`  ⚠ codegraph 步骤中断（${e.message}），已跳过；skill 安装不受影响。`);
@@ -1414,18 +1583,116 @@ function syncCodegraph(opt, target) {
   }
 }
 
+async function installGlobal(opt, source) {
+  const home = homedir();
+  const dirs = userSkillDirs(home);
+  const { skillsRoot, skills, pkgRoot } = source;
+  const sourceVersion = readVersionFile(path.join(pkgRoot, 'VERSION'));
+  const stampFiles = dirs.map(dir => path.join(dir, VERSION_STAMP));
+  const { version: installedVersion, stamped: installedVersionStamped } =
+    readInstalledVersion(dirs, skills);
+  const isUpgrade = sourceVersion && installedVersion && cmpVersion(sourceVersion, installedVersion) > 0;
+  const isDowngrade = sourceVersion && installedVersion && cmpVersion(sourceVersion, installedVersion) < 0;
+  const migrations = isUpgrade
+    ? collectMigrations(path.join(pkgRoot, 'migrations'), installedVersion, sourceVersion)
+    : [];
+  const residue = legacyResidue(home, dirs, [], '');
+  // 只读列出冲突插件，必须在打印计划以及复制任何 skill 之前完成。
+  const pluginPlan = listGlobalConflicts(opt);
+
+  console.log('\ndw-system 安装器');
+  console.log('安装范围：全局用户级（跨项目共享）');
+  console.log('安装源：' + source.label + (sourceVersion ? `（v${sourceVersion}）` : ''));
+  if (installedVersion) {
+    console.log('已安装版本：v' + installedVersion + (installedVersionStamped ? '' : '（旧安装无版本 stamp，按此版本处理）'));
+  }
+  console.log('\n将执行：');
+  console.log(`  1) 复制 ${skills.length} 个 skill → ${dirs[0]}/  (Claude Code 用户级)`);
+  console.log(`  2) 复制 ${skills.length} 个 skill → ${dirs[1]}/  (Codex 用户级)`);
+  for (const name of skills) {
+    const existsInClaude = fs.existsSync(path.join(dirs[0], name));
+    const existsInCodex = fs.existsSync(path.join(dirs[1], name));
+    const existsNote = existsInClaude || existsInCodex ? '  (已存在，将覆盖)' : '';
+    console.log(`       - ${name}${existsNote}`);
+  }
+  printGlobalPluginPlan(opt, pluginPlan);
+  if (opt.noCompanions) {
+    console.log('  4) 跳过伴生 skill 检查（--no-companions）');
+  } else {
+    console.log(`  4) 检查并更新【用户级】伴生 skill：${COMPANION_SKILLS.map(c => c.name).join('、')}`);
+    console.log(`       装到 ${userSkillDirs(home).join('、')}（跨项目共享，不进任何项目）`);
+  }
+  if (opt.noCtxLink) {
+    console.log('  5) 跳过 ctx 全局链接（--no-ctx-link）；ctx 仍可用 node <skill>/scripts/ctx/src/cli.js 调用');
+  } else {
+    console.log('  5) 把 skill 自带的 ctx CLI 链接成全局命令，并实跑 ctx --help 验证');
+    console.log(`       npm link（在 ${path.join(dirs[0], CTX.skill, CTX.subdir)}）`);
+  }
+  if (opt.noCodegraph) {
+    console.log('  6) 跳过 codegraph 检查与建索引（--no-codegraph）');
+  } else {
+    console.log('  6) 保持 codegraph 为最新，接线到 agent，不在当前目录建立索引');
+    console.log('       索引按项目建立：在项目根执行 codegraph init');
+  }
+  if (residue.length) {
+    console.log(`\n  旧版残留清理（${LEGACY.systemName} → dw-system）：`);
+    for (const item of residue) console.log(`       - ${item.label}`);
+  }
+  const { HL, HL_END } = printVersionNotes({
+    installedVersion, sourceVersion, migrations, isUpgrade, isDowngrade,
+  });
+  console.log('  · 已装进项目里的副本不受影响，仍在原处');
+
+  if (opt.dryRun) {
+    syncCompanions(opt, home);
+    syncCtx(opt, dirs[0]);
+    syncCodegraph({ ...opt, codegraphLocation: 'global' }, null);
+    console.log('\n[--dry-run] 未做任何改动。');
+    return;
+  }
+
+  if (!opt.yes) {
+    const ans = (await ask('\n继续？[y/N] ')).trim().toLowerCase();
+    if (ans !== 'y' && ans !== 'yes') { console.log('已取消。'); return; }
+  }
+
+  // 全局插件卸载是不可逆的用户级副作用，必须在旧残留清理与 skill 复制之前完成。
+  uninstallGlobalPlugins(pluginPlan);
+
+  removeLegacyInstall(residue);
+  copySkills(skillsRoot, skills, dirs[0]);
+  copySkills(skillsRoot, skills, dirs[1]);
+  console.log(`\n✓ ${skills.length} 个 skill 已复制 → ${dirs[0]}（${skills.join('、')}）`);
+  console.log(`✓ ${skills.length} 个 skill 已复制 → ${dirs[1]}（${skills.join('、')}）`);
+  if (sourceVersion) {
+    for (const file of stampFiles) fs.writeFileSync(file, sourceVersion + '\n');
+    console.log(`✓ 已写入版本 stamp v${sourceVersion}（${VERSION_STAMP}）`);
+  }
+  printMigrationReminder({ installedVersion, sourceVersion, migrations, HL, HL_END });
+
+  syncCompanions(opt, home);
+  syncCtx(opt, dirs[0]);
+  syncCodegraph({ ...opt, codegraphLocation: 'global' }, null);
+
+  console.log('\n完成。下一步：');
+  console.log('  · 重启 Claude Code / Codex（或在任一项目重新打开），全局 skill 才会进入新会话。');
+  console.log('  · 到任一项目里唤起 skill 即会初始化该项目；已装进项目里的副本仍在原处。');
+}
+
 async function main() {
   const opt = parseArgs(process.argv.slice(2));
   if (opt.help) { console.log(helpText()); return; }
 
-  const target = path.resolve(opt.target || process.cwd());
-  if (!fs.existsSync(target) || !fs.statSync(target).isDirectory()) {
-    throw new Error(`目标目录不存在：${target}`);
-  }
-
   let source;
   try {
     source = acquireSource(opt);
+    if (opt.global) return installGlobal(opt, source);
+
+    const target = path.resolve(opt.target || process.cwd());
+    if (!fs.existsSync(target) || !fs.statSync(target).isDirectory()) {
+      throw new Error(`目标目录不存在：${target}`);
+    }
+
     const { skillsRoot, skills, pkgRoot } = source;
 
   const claudeSkillsDestDir = path.join(target, '.claude', 'skills');
@@ -1544,7 +1811,7 @@ async function main() {
     console.log('  5) 跳过伴生 skill 检查（--no-companions）');
   } else {
     console.log(`  5) 检查并更新【用户级】伴生 skill：${COMPANION_SKILLS.map(c => c.name).join('、')}`);
-    console.log(`       装到 ${companionDestDirs(homedir()).join('、')}（跨项目共享，不进本项目、不写本项目 .gitignore）`);
+    console.log(`       装到 ${userSkillDirs(homedir()).join('、')}（跨项目共享，不进本项目、不写本项目 .gitignore）`);
     console.log('       本地已是最新则跳过；目标是 symlink 或 git 工作区时只报告版本、不覆盖；无网时降级为警告');
   }
   if (opt.noCtxLink) {
@@ -1569,20 +1836,9 @@ async function main() {
     for (const item of residue) console.log(`       - ${item.label}`);
   }
   // 版本升级的迁移高亮提示（dry-run 同样展示）
-  const [HL, HL_END] = process.stdout.isTTY ? ['\x1b[1;33m', '\x1b[0m'] : ['', ''];
-  if (migrations.length) {
-    console.log(`\n${HL}  ━━━━ ⚠ 版本升级 v${installedVersion} → v${sourceVersion}：检测到 ${migrations.length} 份迁移指南，继续前请阅读 ━━━━${HL_END}`);
-    for (const m of migrations) {
-      console.log(`${HL}  ▶ 升级到 v${m.version} 的迁移指南（源仓库 dw-system/migrations/${m.version}.md）：${HL_END}`);
-      const body = fs.readFileSync(m.file, 'utf8').trimEnd();
-      console.log(body.split('\n').map(l => '    │ ' + l).join('\n'));
-    }
-    console.log(`${HL}  ━━━━ 迁移指南结束（安装完成后请按上述"需要的动作"逐项执行）━━━━${HL_END}`);
-  } else if (isUpgrade) {
-    console.log(`\n  版本升级 v${installedVersion} → v${sourceVersion}：本次升级无迁移指南，无需额外动作。`);
-  } else if (isDowngrade) {
-    console.log(`\n${HL}  ⚠ 降级安装：目标已装 v${installedVersion}，高于安装源 v${sourceVersion}。请自行确认兼容性。${HL_END}`);
-  }
+  const { HL, HL_END } = printVersionNotes({
+    installedVersion, sourceVersion, migrations, isUpgrade, isDowngrade,
+  });
 
   // 标记块迁移：改写前打印前后对照（spec §8.3 边界 2）。dry-run 同样展示。
   if (workflowSettings?.migrated) {
@@ -1618,6 +1874,12 @@ async function main() {
       + '其他协作者也需各自重跑一次，skill 目录不入库）。' + HL_END);
   }
 
+  // 只认版本戳：用户级目录里有同名目录不代表是本体系装的（可能是使用者自己放的）。
+  const globalInstall = readInstalledVersion(userSkillDirs(homedir()), skills);
+  if (globalInstall.stamped) {
+    console.log(`\n  本机另有全局安装 v${globalInstall.version}（~/.claude/skills、~/.codex/skills）：同名 skill 两份并存时哪份生效由 Claude Code / Codex 决定，建议只保留一种`);
+  }
+
   console.log('\n  ⚠ 提示：');
   console.log('     · 项目级 .claude/settings.json 首次打开会弹 workspace trust 对话框，信任后才生效。');
   console.log('     · Claude Code settings 改动在【下次启动 Claude Code】时生效，非当前会话。');
@@ -1629,7 +1891,7 @@ async function main() {
   }
   if (opt.dryRun) {
     syncCompanions(opt, homedir());
-    syncCtx(opt, target);
+    syncCtx(opt, path.join(target, '.claude', 'skills'));
     syncCodegraph(opt, target);
     console.log('\n[--dry-run] 未做任何改动。');
     return;
@@ -1658,9 +1920,7 @@ async function main() {
     for (const f of stampFiles) fs.writeFileSync(f, sourceVersion + '\n');
     console.log(`✓ 已写入版本 stamp v${sourceVersion}（${VERSION_STAMP}）`);
   }
-  if (migrations.length) {
-    console.log(`${HL}⚠ 别忘了执行上方 v${installedVersion} → v${sourceVersion} 迁移指南中"需要的动作"。${HL_END}`);
-  }
+  printMigrationReminder({ installedVersion, sourceVersion, migrations, HL, HL_END });
 
   // 1b) 幂等追加 .gitignore 标记块，避免安装的 skill 随目标仓库提交
   const gitignoreMerged = replaceLegacyBlock(
@@ -1774,7 +2034,7 @@ async function main() {
   syncCompanions(opt, homedir());
 
   // 4) ctx：把随 skill 落盘的 CLI 链接成全局命令；失败只警告并给出兜底调用方式
-  syncCtx(opt, target);
+  syncCtx(opt, path.join(target, '.claude', 'skills'));
 
   // 5) codegraph：保持最新 + 接线 + 建索引；同样失败只警告
   syncCodegraph(opt, target);

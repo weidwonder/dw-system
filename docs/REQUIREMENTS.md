@@ -1,13 +1,13 @@
 ---
 lifecycle: active
-last_confirmed: '2026-09-17'
+last_confirmed: '2026-09-18'
 authority_refs:
-  - '交付单元：八个 dw-* skill + ctx CLI + 原型工具 + 安装器，装进目标项目的是 .claude/skills/ 与 .agents/skills/ 两份'
+  - '交付单元：八个 dw-* skill + ctx CLI + 原型工具 + 安装器，装进目标项目的是 .claude/skills/ 与 .agents/skills/ 两份；--global 装进 ~/.claude/skills/ 与 ~/.codex/skills/'
   - '两条总纲：一个事实只有一个家；规范文本有体积上限，超限先搬走、再压缩、最后才抬上限'
   - '安装器升级时自动清理 3.0 之前的旧名字残留（旧 skill 目录、旧版本戳、三处旧标记块），字段与入库决定逐字带入'
   - '卡片按业务域分：地图卡 cards/<repo>.md + 域卡 cards/<repo>/<域>.md，ctx lint-cards 体检，基线只减不增'
   - '安装器默认 --ref 取自安装器自带的 dw-system/VERSION 对应的 tag；显式传的 --ref 取不到时硬失败，默认推出的 tag 取不到时告警回退 main'
-  - '安装器只在目标项目级禁用冲突插件，不改用户级全局配置'
+  - '安装器项目级安装只在目标项目级禁用冲突插件，不改用户级全局配置；--global 时直接从本机卸载冲突插件'
   - '标记块 <!-- dw-workflow:start/end --> 的字段集：collaboration / merge-gate / worktree-dir，幂等只替换块内内容'
   - '初始化只问一个问题（除你之外还有没有人一起开发）+ 一条待拍板的 merge-gate 建议；代码图谱与代码事实层都不问'
   - 'engineering-context/ 代码事实层是必备资产，没有开关；ctx init 生成整套骨架'
@@ -140,6 +140,7 @@ AI coding 落不了地，通常不是因为流程不够精细，而是因为 AI 
 - 先把 `--repo` / `--ref` 指定的版本拉到系统临时目录并确认其中有有效 skill，**之后才读取并修改目标项目**；下载或校验失败时目标项目零改动，临时目录在成功、取消、预演与异常场景都会清理。
 - 默认 `--ref` 是安装器自带的 `dw-system/VERSION` 对应的 tag，npx 拉到哪个版本的安装器就装哪个版本的 skill。两条不对称的失败语义：**默认推出的 tag 取不到时告警并回退 `main`**；**用户显式传的 `--ref` 取不到时硬失败**，MUST NOT 回退成别的版本。
 - 把该版本的**全部** skill 复制进 `<项目>/.claude/skills/`（Claude Code）与 `<项目>/.agents/skills/`（Codex），并在目标项目 `.gitignore` 幂等追加标记块，逐条忽略已装 skill 目录与版本 stamp。
+- **全局安装**（`--global`，不接目标目录）：把全部 skill 与版本戳装进本机 `~/.claude/skills/` 与 `~/.codex/skills/`，所有项目共用；不读写任何项目文件（标记块留给 skill 首次在项目里唤起时写），迁移指南与旧名字残留清理的口径与项目级相同。冲突插件改为**从本机直接卸载**：Claude Code 按完整插件标识且只卸 user scope 的安装，Codex 卸 `superpowers`；`--keep=` 保留、`--no-plugins` 跳过；CLI 不在 PATH 时只打印手动命令，读清单或卸载失败则在复制任何 skill 之前中止。全局 `ctx` 链接到 `~/.claude/skills/` 那份，codegraph 全局接线但不建索引。只对项目有意义的参数（目标目录、`--shared`、`--docs-in-git`、`--codex-conflicts`、`--codegraph-location=local`）一律报错。项目级安装检测到本机已有全局版本戳时提示两份并存。
 - 在**目标项目级** settings 里把会截胡本流程的 Claude Code 插件设为 `false`（`superpowers` / `everything-claude-code` / `oh-my-claudecode` / `general-task`），只影响本项目、不动用户级全局配置；默认写 `.claude/settings.local.json`，`--shared` 才写 `.claude/settings.json`；合并时不覆盖 `enabledPlugins` 里的其他键。Codex 侧默认在项目 `AGENTS.md` 写入 `dw-system:codex-conflicts` 约束块，交互安装可明确选择全局卸载。
 - 幂等写入 `CLAUDE.md` 与 `AGENTS.md` 的 `<!-- dw-workflow:start/end -->` 标记块：**只替换块内内容，绝不重复追加**；两个入口以 `CLAUDE.md` 为准，另一个自动补齐。两个入口允许是软链接，安装器逐层解析到实体文件再写入、保留链接本身，断链在复制任何 skill 之前就报错退出。
 - 把 skill 自带的 `ctx` 链接成**全局 `ctx` 命令**（`npm link`），随后实跑 `ctx --help` 并匹配签名串才报成功。链接失败、链完仍不在 PATH、PATH 上已有别人的同名 `ctx` 一律只降级为警告并打印 `node <skill>/scripts/ctx/src/cli.js <命令>` 兜底方式，**别人的同名命令绝不覆盖**；`--no-ctx-link` 跳过。Windows 上换项目重装时 `npm link` 会因全局命令目录里还留着上次那份 `ctx` 而报 `EEXIST`（unix 侧 npm 直接替换自己的符号链接，撞不出这条）：安装器捕获 npm 输出分辨出这一类，先判那个文件的归属——PATH 上跑得通且签名匹配，或 `npm root -g` 下的 `ctx` 包认得出是本体系的——确认是自己上次留下的才 `npm link --force` 覆盖成本次这份；判不出归属就不覆盖，改为打印该文件路径与删除方式。
@@ -165,7 +166,7 @@ AI coding 落不了地，通常不是因为流程不够精细，而是因为 AI 
 
 ## 用户怎么用
 
-**装进一个已有项目**：在目标项目根跑 `npx --yes git+https://github.com/weidwonder/dw-system.git .`。安装器先问一次确认（`--yes` 可跳过），随后复制 skill、处理冲突插件、链 `ctx`、装 codegraph 与伴生 skill。装完后 Claude Code / Codex 需**下次启动**才生效。
+**装进一个已有项目**：在目标项目根跑 `npx --yes git+https://github.com/weidwonder/dw-system.git .`。安装器先问一次确认（`--yes` 可跳过），随后复制 skill、处理冲突插件、链 `ctx`、装 codegraph 与伴生 skill。装完后 Claude Code / Codex 需**下次启动**才生效。想让本机所有项目共用一份，改跑 `npx --yes git+https://github.com/weidwonder/dw-system.git --global`。
 
 **第一次唤起 workflow**：在项目里描述一个需求，skill 走完路由发现没有标记块，于是问唯一那个问题——除你之外还有没有人一起开发——并给出一条待拍板的 merge-gate 建议。答完即写进两个入口的标记块，此后不再问。紧接着它建出独立 worktree，在里面跑 `ctx init` 建好 `engineering-context/` 骨架。
 

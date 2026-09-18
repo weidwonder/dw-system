@@ -6,10 +6,13 @@
 ## 未发布
 
 ### 不兼容
+- 注入标记块（"skill 在哪"一句）—— 旧：`skill 在 .claude/skills/<名>/（Codex 在 .agents/skills/<名>/）`；新：`skill 在项目级或全局的 <skills 根>/<名>/（路径见 dw-code-facts）`；迁移：重跑安装器即改写，无需手工动作。
 
 ### 新增
+- `install.mjs --global`：把全部 skill 装进本机 `~/.claude/skills/` 与 `~/.codex/skills/`，所有项目共用，不改任何项目文件；冲突插件改为从本机直接卸载（`--keep=` 保留、`--no-plugins` 跳过），全局 `ctx` 链接到用户级副本，codegraph 全局接线不建索引。与目标目录、`--shared`、`--docs-in-git`、`--codex-conflicts`、`--codegraph-location=local` 互斥。项目级安装检测到全局安装时提示两份并存。
 
 ### 变更
+- 各 skill 文档里 `<skills 根>` 的说明同步覆盖全局安装。README 删去手工 `cp` 全局安装的写法，改指 `--global`。
 
 ### 修复
 

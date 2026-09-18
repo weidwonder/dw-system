@@ -149,4 +149,4 @@ UI 原型结构摘要（不涉及 UI 时写"不适用"）：
 | 落盘前的用户确认 | `00-prd生成流程.md` §组稿 第 6 步 | 跑在本门**之后**：本门的「需用户拍板」出口与"定稿后改了什么"清单都直接汇入它的回述清单 |
 | 工程侧的分轴代码评审 | `<skills 根>/dw-review-gate/references/评审轴.md` | 同一个"每轴一个参照物"框架的下游对应物；本门查需求，那门查实现 |
 
-`<skills 根>` = 本 skill 目录的父目录——Claude Code 下是 `.claude/skills/`、Codex 下是 `.agents/skills/`，**MUST NOT 写死其中一侧**。
+`<skills 根>` = 本 skill 目录的父目录——Claude Code 与 Codex、项目级与全局安装各有一份，**MUST NOT 写死其中一侧**。

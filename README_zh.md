@@ -92,6 +92,15 @@ npx --yes git+https://github.com/weidwonder/dw-system.git . --ref=main
 
 > 命令前面的 `npx --yes` 只跳过 npm 下载确认，安装器仍会在修改项目之前询问一次。需要全自动安装时，在目标目录后再传一次：`npx --yes git+https://github.com/weidwonder/dw-system.git . --yes`。
 
+**方式 A2：npx 全局安装** — 一次装进本机用户级目录 `~/.claude/skills/`（Claude Code）与 `~/.codex/skills/`（Codex），本机所有项目共用。不接目标目录，也不改任何项目文件：`CLAUDE.md` / `AGENTS.md` 的标记块留到你第一次在某个项目里唤起 skill 时再写。
+
+```bash
+npx --yes git+https://github.com/weidwonder/dw-system.git --global
+npx --yes git+https://github.com/weidwonder/dw-system.git --global --dry-run
+```
+
+全局模式下，安装器把下表的冲突插件从本机直接卸载（Claude Code 只卸 user scope 的安装；Codex 为 `superpowers`），而不是逐项目禁用——`--keep=<短名>` 保留某一个，`--no-plugins` 跳过这一步；`claude` / `codex` 不在 PATH 上时只打印手动卸载命令。全局 `ctx` 命令链接到用户级那份副本；codegraph 全局接线但不建索引（在项目根执行 `codegraph init` 建索引）。只对项目有意义的参数——目标目录、`--shared`、`--docs-in-git`、`--codex-conflicts`、`--codegraph-location=local`——一律报错。已装进项目里的副本原样保留；两份并存时 Claude Code / Codex 加载哪一份由工具自己决定，建议只留一种。
+
 **方式 B：本地脚本安装（仓库维护与排障）**
 
 ```bash
@@ -130,14 +139,9 @@ node /path/to/dw-system/install.mjs . --source-dir=/path/to/dw-system
 >
 > ⚠ 两个前提：① 项目级 `.claude/settings.json` 首次打开会弹 **workspace trust** 对话框，信任后才生效；② settings / `AGENTS.md` 改动在**下次启动 Claude Code / Codex** 时生效，非当前会话。撤销只需删掉本项目 settings 里对应的 `false` 条目，或删掉 `AGENTS.md` 中的 `dw-system:codex-conflicts` 标记块。
 
-**方式 C：全局安装一次** — 所有项目共用，但冲突插件需你手动权衡（全局装则全局都在，可能与本流程相互干扰）。
+**首次使用。** 要全机共用请用方式 A2（`--global`），不要手工拷贝 skill 目录：手工拷贝不写版本戳，以后升级看不到迁移指南，也跳过了冲突插件处理与 `ctx` 链接。
 
-```bash
-cp -r dw-system/skills/dw-* ~/.claude/skills/
-cp -r dw-system/skills/dw-* ~/.codex/skills/
-```
-
-之后在任意项目里唤起 skill（提到"AI 辅助开发 / 开发流程 / 生成 spec / coding plan / 需求澄清"即可触发），首次会做一次**初始化**：只问一个问题——**这个项目除你之外还有其他人一起开发吗**——把结论写进项目根的 `CLAUDE.md` 和 `AGENTS.md`，之后不再询问。要不要维护代码事实层**不问**——它是必备的，初始化会在任务 worktree 里直接建好骨架；项目有没有代码图谱索引**也不问**，每次运行探测得出。
+装好之后在任意项目里唤起 skill（提到"AI 辅助开发 / 开发流程 / 生成 spec / coding plan / 需求澄清"即可触发），首次会做一次**初始化**：只问一个问题——**这个项目除你之外还有其他人一起开发吗**——把结论写进项目根的 `CLAUDE.md` 和 `AGENTS.md`，之后不再询问。要不要维护代码事实层**不问**——它是必备的，初始化会在任务 worktree 里直接建好骨架；项目有没有代码图谱索引**也不问**，每次运行探测得出。
 
 > **Codex 用户**：项目级 skill 安装在 `<项目>/.agents/skills/`，**用户级**则是 `~/.codex/skills/`（Codex 没有 `~/.agents/` 这个用户级入口，别装错）。Codex 读 `AGENTS.md`；初始化会同时写入 `AGENTS.md`，其中指明协作面、合并方式与 `ctx` 用法；`ctx` CLI 可直接通过 shell 调用，跨工具通用。
 
