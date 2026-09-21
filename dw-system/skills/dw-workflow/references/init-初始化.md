@@ -78,6 +78,10 @@
      已有标记块的一律按下方 §幂等规则 替换块内内容，MUST NOT 再追加一个。
    - **写之前先按下方「入口是软链接时」判断**：任一入口是软链接时，写的对象是链接目标，不是链接本身。
 
+5a. **写顶部提示块**（与第 5 步同一次落盘）：把 `assets/config-snippets/hint.md` 的块内内容，用 `<!-- dw-workflow:hint:start -->` / `<!-- dw-workflow:hint:end -->` 包住，写进入口文件**最前面**——它只说一句「动手前先加载 `dw-workflow`」，让下一个零上下文 agent 读第一屏就知道要走本流程；判据仍在标记块与各 skill 里，MUST NOT 在提示块里展开规则。写法按下方 §幂等规则。
+
+   **写进哪些入口**，判的是**第 5 步落盘之前**项目根的状态：两个入口文件都在 → 两个都写；只有一个在 → 只写在的那个；两个都不在 → 只写 `AGENTS.md`。MUST NOT 为了写提示块而创建第二个入口文件——被第 5 步顺带创建出来的那个只带标记块。安装器对已有标记块的项目维护同一块（`install.mjs` 的 `buildWorkflowHintBlock`），两边 MUST NOT 各写一套。
+
 5b. **建代码事实层骨架**（幂等，**在 worktree 内执行**）：第 3 步查到项目根下不存在
    `engineering-context/capability-registry.md` 时，在 worktree 内的项目根跑：
 
@@ -116,6 +120,7 @@
   > 另外，`AGENTS.md` 里原本写着「<原值的业务语言说法>」，已按 `CLAUDE.md` 的声明统一成上面这两项。如果原来那个才是对的，现在说一声，我改回去。
 
   这一句 MUST NOT 省——不说的话，用户明确配过的设置被静默改掉，而他不会有任何察觉。
+- **顶部提示块同一套口径**：`<!-- dw-workflow:hint:start -->` 与 `<!-- dw-workflow:hint:end -->` 在一份入口文件里各 MUST 只出现一次；已存在则替换块内正文、位置不动，不存在才插到文件最前面。它与标记块是两个独立的块，MUST NOT 把提示块塞进标记块里。
 - **块内 MUST NOT 出现第二对标记**：整份 `CLAUDE.md` / `AGENTS.md` 里 `<!-- dw-workflow:start -->` 与 `<!-- dw-workflow:end -->` 各 MUST 只出现一次。块内又出现一对（典型成因：把 `collab-*.md` 连标记一起抄了进来）即视为**块已损坏**，MUST 按"`base.md` 块内内容 + `collab-<collaboration>.md` 块内内容"重建整块（字段值从损坏块里能读到的部分沿用，读不到的按第 4 步重新确认），MUST NOT 只删掉多出来的标记行了事——嵌套一旦发生，块尾那段协作正文可能已在上一次写入时被截断丢失。
 - **值非法不猜**：`collaboration` 不是 `solo`/`team`、`merge-gate` 不是 `direct`/`pr` 时，报错中止并列出合法值域，MUST NOT 替用户挑一个。
 - 标记用 HTML 注释，对 markdown 渲染无影响，且机器可精确定位。

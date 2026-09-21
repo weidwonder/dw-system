@@ -157,6 +157,11 @@ const PROJECT_DOCS_DIRS = ['/docs/', '/engineering-context/'];
 const PROJECT_DOCS_MARK = '# dw-system:project-docs-in-git=';
 const WORKFLOW_MODE_START = '<!-- dw-workflow:start -->';
 const WORKFLOW_MODE_END = '<!-- dw-workflow:end -->';
+
+// 入口文件最前面的提示块：只说一句「动手前先加载 dw-workflow」，规则本身仍在标记块与各 skill 里。
+// 与标记块是两个独立的块，起止各认各的。
+const WORKFLOW_HINT_START = '<!-- dw-workflow:hint:start -->';
+const WORKFLOW_HINT_END = '<!-- dw-workflow:hint:end -->';
 // 旧名字（体系更名为 dw-system 之前的 1.x / 2.x 安装）的唯一登记处：升级时据此识别并清理残留。
 // 旧名字 MUST NOT 出现在本表之外——`test/installer-legacy-upgrade.test.mjs` 逐字核对。
 const LEGACY = Object.freeze({
@@ -494,6 +499,16 @@ function mergeMarkedBlock(raw, block, startMarker, endMarker) {
   return [normalized, block].filter(Boolean).join('\n\n') + '\n';
 }
 
+// 提示块落在文件最前面：已经有了就地替换（位置不动，使用者把它挪到别处也照旧），
+// 没有才插到最前面；MUST NOT 追加到末尾——读者第一屏看不到就等于没写。
+function mergeTopBlock(raw, block, startMarker, endMarker) {
+  if (getMarkedBlock(raw, startMarker, endMarker)) {
+    return mergeMarkedBlock(raw, block, startMarker, endMarker);
+  }
+  const rest = raw.trim();
+  return rest ? `${block}\n\n${rest}\n` : `${block}\n`;
+}
+
 // 用新块取代旧名字的块，一次合成最终文本（MUST NOT 分两次写文件）：
 // 只有旧块 → 新块落在旧块原来的位置；新旧并存 → 删旧块、就地更新新块；newBlock 为 null → 只删旧块。
 function replaceLegacyBlock(raw, newBlock, newMarkers, legacyMarkers) {
@@ -657,6 +672,16 @@ function applyWorkflowFields(body, settings) {
   return out.trim();
 }
 
+// 提示块的写后核对：块在，且正文与本次要写的逐字相等。正文写岔（片段读了一半、
+// 被别的替换规则改到）时 MUST 报错中止，MUST NOT 留下一段说法不同的提示。
+function assertHintBlockKept(raw, expectedBlock, file) {
+  assertMarkedBlock(raw, WORKFLOW_HINT_START, WORKFLOW_HINT_END, file);
+  const got = getMarkedBlock(raw, WORKFLOW_HINT_START, WORKFLOW_HINT_END);
+  if (got.trim() !== expectedBlock.trim()) {
+    throw new Error(`安装校验失败：${file} 的 dw-workflow 提示块正文与片段不一致`);
+  }
+}
+
 // 组装要写进 CLAUDE.md / AGENTS.md 的标记块：base.md（公共正文）+ collab-<协作面>.md。
 function buildWorkflowBlock(skillsRoot, settings, existingBlock) {
   const dir = path.join(skillsRoot, 'dw-workflow', 'assets', 'config-snippets');
@@ -672,6 +697,14 @@ function buildWorkflowBlock(skillsRoot, settings, existingBlock) {
   }
   const withFields = applyWorkflowFields(body.trim() || workflowHeaderBody(settings), settings);
   return `${WORKFLOW_MODE_START}\n${withFields}\n${WORKFLOW_MODE_END}`;
+}
+
+// 提示块正文同样随 skill 分发。安装源里没有这份片段（裁剪过的源）时返回 null：
+// 本次就不写提示块，与标记块片段缺失时的宽容度一致，MUST NOT 让安装失败。
+function buildWorkflowHintBlock(skillsRoot) {
+  const file = path.join(skillsRoot, 'dw-workflow', 'assets', 'config-snippets', 'hint.md');
+  const inner = blockInner(getMarkedBlock(readTextIfExists(file), WORKFLOW_HINT_START, WORKFLOW_HINT_END));
+  return inner ? `${WORKFLOW_HINT_START}\n${inner}\n${WORKFLOW_HINT_END}` : null;
 }
 
 function readVersionFile(file) {
@@ -1729,6 +1762,12 @@ async function main() {
   const sharedEntry = claudeEntry === agentsEntry;
   const initialClaudeRaw = readTextIfExists(claudeEntry);
   const initialAgentsRaw = readTextIfExists(agentsEntry);
+  // 提示块只写进本次写入前就已存在的入口文件：MUST NOT 为了写提示而凭空造出第二个入口文件。
+  // 「两个入口都不存在」时落到 AGENTS.md 那条规则归 skill 初始化（见 dw-workflow 的
+  // references/init-初始化.md §流程 第 5 步）——安装器只在已有标记块时同步，而标记块必然
+  // 来自一个已存在的文件，所以那种状态在这里不会出现。
+  const hintEntries = [...new Set([claudeEntry, agentsEntry].filter(entry => fs.existsSync(entry)))];
+  const workflowHintBlock = buildWorkflowHintBlock(skillsRoot);
   // 新块优先；没有新块才读旧名字的块（升级路径）。
   const workflowBlockOf = raw => getMarkedBlock(raw, WORKFLOW_MODE_START, WORKFLOW_MODE_END)
     ?? getMarkedBlock(raw, ...LEGACY.workflowMarkers);
@@ -1839,6 +1878,12 @@ async function main() {
   const { HL, HL_END } = printVersionNotes({
     installedVersion, sourceVersion, migrations, isUpgrade, isDowngrade,
   });
+
+  if (workflowModeBlock && workflowHintBlock && hintEntries.length) {
+    const names = hintEntries.map(entry =>
+      entry === claudeEntry ? entryLabel(claudeFile, claudeEntry, target) : entryLabel(codexAgentsFile, agentsEntry, target));
+    console.log(`\n  · 顶部提示块（动手前先加载 dw-workflow）写入：${[...new Set(names)].join('、')}`);
+  }
 
   // 标记块迁移：改写前打印前后对照（spec §8.3 边界 2）。dry-run 同样展示。
   if (workflowSettings?.migrated) {
@@ -1993,10 +2038,17 @@ async function main() {
     const entries = sharedEntry ? [claudeEntry] : [claudeEntry, agentsEntry];
     for (const entry of entries) {
       const raw = readTextIfExists(entry);
-      fs.writeFileSync(entry, replaceLegacyBlock(
-        raw, workflowModeBlock, [WORKFLOW_MODE_START, WORKFLOW_MODE_END], LEGACY.workflowMarkers));
+      let merged = replaceLegacyBlock(
+        raw, workflowModeBlock, [WORKFLOW_MODE_START, WORKFLOW_MODE_END], LEGACY.workflowMarkers);
+      if (workflowHintBlock && hintEntries.includes(entry)) {
+        merged = mergeTopBlock(merged, workflowHintBlock, WORKFLOW_HINT_START, WORKFLOW_HINT_END);
+      }
+      fs.writeFileSync(entry, merged);
       assertMarkedBlock(readTextIfExists(entry), WORKFLOW_MODE_START, WORKFLOW_MODE_END, entry);
       assertWorkflowFieldsKept(readTextIfExists(entry), workflowSettings, entry);
+      if (workflowHintBlock && hintEntries.includes(entry)) {
+        assertHintBlockKept(readTextIfExists(entry), workflowHintBlock, entry);
+      }
     }
     console.log(sharedEntry
       ? `✓ 已同步并校验 ${path.relative(target, claudeEntry) || claudeEntry} 的 dw-workflow 配置标记块（CLAUDE.md 与 AGENTS.md 共用此文件）`
