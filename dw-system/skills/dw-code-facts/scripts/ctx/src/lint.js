@@ -5,7 +5,7 @@
 // 没有任何入口能往既有基线里加条目——否则"新违规判红"可以靠改基线绕过。
 import fs from 'node:fs';
 import path from 'node:path';
-import { loadCards, loadDomainCards, unreadableCards } from './cards.js';
+import { loadCards, loadDomainCards, loadDependencies, loadDependencyCards, unreadableCards } from './cards.js';
 
 export const BASELINE_FILE = 'cards-lint-baseline.json';
 
@@ -97,7 +97,12 @@ function checkCites(card, roots) {
 
 const normName = (s) => s.toLowerCase().replace(/[\s\p{P}\p{S}]+/gu, '');
 
-function checkDomainDup(service, domainNames) {
+/**
+ * 同一个归属下的域名近似重复。`owner` 是违规标识里的相对路径：
+ * 产品仓 `cards/<repo>`（或单文件卡的 `cards/<repo>.md`），依赖仓 `dependencies/<上游名>`。
+ * 比较只在同一个 owner 内进行——两个上游各有一张同名卡不是重复。
+ */
+function checkDomainDup(owner, domainNames) {
   const found = [];
   const names = [...domainNames].sort();
   for (let i = 0; i < names.length; i++) {
@@ -105,7 +110,7 @@ function checkDomainDup(service, domainNames) {
       const [a, b] = [normName(names[i]), normName(names[j])];
       const [short, long] = a.length <= b.length ? [a, b] : [b, a];
       if (a === b || ([...short].length >= 4 && long.startsWith(short))) {
-        found.push(violation('domain-dup', path.join('cards', service), `${names[i]}~${names[j]}`)); // service 为 `<repo>` 或单文件卡的 `<repo>.md`
+        found.push(violation('domain-dup', owner, `${names[i]}~${names[j]}`));
       }
     }
   }
@@ -143,11 +148,23 @@ function checkRegistry(ctxDir) {
 export function lintCards(ctxDir) {
   const maps = loadCards(ctxDir);
   const domains = loadDomainCards(ctxDir);
+  const deps = loadDependencyCards(ctxDir);
   const projectRoot = path.dirname(path.resolve(ctxDir));
-  // 读不出的卡不会出现在 maps / domains 里；不单独报，它就从体检里无声消失。
-  const found = unreadableCards(ctxDir).map((rel) => violation('unreadable', `cards/${rel}`));
-  const rootsOf = (service) => {
-    const declared = declaredRoot(maps.find((m) => m.service === service));
+  // 读不出的卡不会出现在 maps / domains / deps 里；不单独报，它就从体检里无声消失。
+  // unreadableCards 给的路径已经以 cards/ 或 dependencies/ 开头，这里 MUST NOT 再拼一次前缀。
+  const found = unreadableCards(ctxDir).map((rel) => violation('unreadable', rel));
+  /**
+   * 这张卡的源码该去哪儿找；`null` = 找不到根目录 → `checkCites` 整卡不跑。
+   *
+   * "源码不在本项目里"在本文件里只有这一个表达。地图卡的 `> 根目录：外部` 是把它**显式声明**
+   * 出来的写法；依赖仓事实卡则由它所在的目录契约直接蕴含同一状态（`dependencies/` 按定义
+   * 装的就是外部上游）。两者在这里汇合成同一个 `null`，下游只有一条豁免路径。
+   * 若改成在 `checkCites` 里另加一个按 origin 的提前返回，就有了两处各自可能漂移的豁免判据，
+   * 而漂移的方向是"本该校验的被放过"。
+   */
+  const rootsOf = (card) => {
+    if (card.origin === 'dependency') return null;
+    const declared = declaredRoot(maps.find((m) => m.service === card.service));
     if (declared === '外部') return null;
     return declared ? [projectRoot, path.join(projectRoot, ...declared.split('/'))] : [projectRoot];
   };
@@ -155,28 +172,37 @@ export function lintCards(ctxDir) {
     found.push(...checkSections(card, MAP_REQUIRED, MAP_OPTIONAL));
     if (bytes(card.raw) > BUDGET.map) found.push(violation('budget', card.path));
   }
-  for (const card of domains) {
+  // 依赖仓事实卡与产品域卡同一套固定小节、同一个体积上限（MUST NOT 新增第五张小节表或第二个体积常量）。
+  for (const card of [...domains, ...deps]) {
     found.push(...checkSections(card, DOMAIN_REQUIRED, DOMAIN_OPTIONAL));
     if (bytes(card.raw) > BUDGET.domain) found.push(violation('budget', card.path));
   }
-  for (const card of [...maps, ...domains]) {
+  for (const card of [...maps, ...domains, ...deps]) {
     found.push(...checkDatedHeadings(card), ...checkTrapNoise(card));
-    const roots = rootsOf(card.service);
+    const roots = rootsOf(card);
     if (roots) found.push(...checkCites(card, roots));
   }
   const services = new Set(domains.map((d) => d.service));
   for (const service of services) {
     if (!maps.some((m) => m.service === service)) found.push(violation('sections', path.join('cards', service), '缺地图卡'));
-    found.push(...checkDomainDup(service, domains.filter((d) => d.service === service).map((d) => d.domain)));
+    found.push(...checkDomainDup(path.join('cards', service), domains.filter((d) => d.service === service).map((d) => d.domain)));
+  }
+  // 依赖侧与产品侧对称：有事实卡而没有同名依赖声明就判一条，规则名同样是 sections。
+  // 触发条件是"有事实卡"而不是"有目录"——空目录是常见的 git 残留，判红是噪音。
+  const declared = new Set(loadDependencies(ctxDir).map((d) => d.upstream));
+  for (const upstream of new Set(deps.map((d) => d.service))) {
+    const owner = path.join('dependencies', upstream);
+    if (!declared.has(upstream)) found.push(violation('sections', owner, '缺依赖声明'));
+    found.push(...checkDomainDup(owner, deps.filter((d) => d.service === upstream).map((d) => d.domain)));
   }
   // 还没拆成域卡的单文件卡：它的业务域就是那些固定小节之外的 `## ` 小节，同样查近似重复。
   for (const card of maps) {
     if (services.has(card.service)) continue;
     const extra = Object.keys(card.sections).filter((n) => !MAP_REQUIRED.includes(n) && !MAP_OPTIONAL.includes(n));
-    found.push(...checkDomainDup(`${card.service}.md`, extra));
+    found.push(...checkDomainDup(path.join('cards', `${card.service}.md`), extra));
   }
   found.push(...checkRegistry(ctxDir));
-  return { cards: maps.length + domains.length, violations: [...new Set(found)].sort() };
+  return { cards: maps.length + domains.length + deps.length, violations: [...new Set(found)].sort() };
 }
 
 /** 基线文件在、但读不出或格式不对。MUST NOT 当成空基线继续：那等于把存量违规全判成新增，或把新增全放过。 */
@@ -221,7 +247,7 @@ export function compareWithBaseline(ctxDir) {
 }
 
 const RULE_HINT = {
-  sections: '小节名固定：域卡 = 职责 / 权威实现与对外接口 / 陷阱项 / 确认（可加 测试入口、日志与排障、端侧补充）；地图卡 = 职责 / 业务域地图（可加 对外入口总览、跨域陷阱、上下游、测试入口、日志与排障、确认）',
+  sections: '小节名固定：域卡与依赖仓事实卡 = 职责 / 权威实现与对外接口 / 陷阱项 / 确认（可加 测试入口、日志与排障、端侧补充）；地图卡 = 职责 / 业务域地图（可加 对外入口总览、跨域陷阱、上下游、测试入口、日志与排障、确认）。有 cards/<repo>/ 就要有同名地图卡，有 dependencies/<上游名>/ 就要有同名依赖声明',
   budget: `体积上限：地图卡 ${BUDGET.map}、域卡 ${BUDGET.domain}、registry 单格 ${BUDGET.registryCell} 字节。先把来历搬走，再按业务域拆`,
   'dated-heading': '卡片只写现状：带日期的小节是变更流水，搬去变更日志、bug 修复历史或决策记录；〈确认〉只留一行',
   unreadable: '卡片文件读不出来（权限或编码）：修好再检，读不出的卡不参与其余规则',

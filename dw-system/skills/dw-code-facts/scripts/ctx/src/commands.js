@@ -4,12 +4,15 @@ import path from 'node:path';
 import {
   loadCards,
   loadDomainCards,
+  loadDependencyCards,
+  loadDependencies,
   loadAllCards,
   loadRegistry,
   registryConflicts,
   makeCite,
   confirmedAtOf,
   cardFreshness,
+  dependencyFreshness,
   UNDECLARED_FRESHNESS,
 } from './cards.js';
 import { isDeprecationSectionTitle } from './probe.js';
@@ -99,6 +102,7 @@ export function discover(ctxDir, intent) {
       scored.push({
         service: card.service,
         domain: card.domain ?? null,
+        origin: card.origin,
         score,
         why,
         freshness: confirmedAt,
@@ -166,53 +170,94 @@ function bestSection(card, tokens) {
   return bestKey;
 }
 
-/** 输出里指称一张卡：域卡写成 `仓库 › 域`。 */
+/**
+ * 输出里的来源标记。依赖仓的卡片一律带 `[依赖] ` 前缀，产品仓无前缀。
+ *
+ * 判据只读卡片对象的 `origin`（读取层按具名目录显式赋的值），MUST NOT 按路径子串或名字关键词猜。
+ * 标记选 ASCII 方括号而不是 emoji 或全角符号：这一行同时要被人读、被 agent 读、被 `grep` 过滤，
+ * 也要在 Windows 控制台不变形。
+ *
+ * `cardLabel` 与 `cli.js` 的 discover / search-semantic 两条人读行 MUST 共用本函数，
+ * MUST NOT 在三处各拼一次前缀字符串——三份字面量必然漂移，而漂移后 agent 就分不出
+ * 手里这条事实是本项目的还是外部上游的。
+ */
+export function originTag(origin) {
+  return origin === 'dependency' ? '[依赖] ' : '';
+}
+
+/** 输出里指称一张卡：域卡写成 `仓库 › 域`，依赖仓的再带 `[依赖]` 前缀。 */
 function cardLabel(card) {
-  return card.domain ? `${card.service} › ${card.domain}` : card.service;
+  const base = card.domain ? `${card.service} › ${card.domain}` : card.service;
+  return `${originTag(card.origin)}${base}`;
 }
 
 /**
- * getCard：取某仓的卡。不传 domain 返回地图卡全文；传 domain 时先找域卡文件
- * `cards/<仓库>/<域>.md`，没有才读地图卡里同名的 `## ` 小节。
+ * getCard：取某个名字下的卡。四处来源，**顺序写死、产品仓在前**：
+ * 域卡文件 `cards/<名>/<域>.md` → 依赖仓事实卡 `dependencies/<名>/<域>.md`
+ * → 地图卡 `cards/<名>.md` 里同名的 `## ` 小节 → 依赖声明 `dependencies/<名>.md` 里同名的 `## ` 小节。
+ * 不传 domain 时：有地图卡返回地图卡全文（另有同名依赖声明时带 `alsoDependency`），
+ * 没有产品卡而有依赖声明则返回声明全文——一个上游只有一个入口文件。
  *
- * **两处都没有时 MUST NOT 发 cite**（`cite: null` + `missing: true`，由 CLI 转成退出码 1）。
+ * **顺序 MUST NOT 让调用方传参调整**：卡片层回答"本项目该信哪个实现"，本项目自己的事实是
+ * 第一顺位；依赖仓事实是"我调的那个东西是什么样"，是第二顺位。
+ *
+ * **四处都没有时 MUST NOT 发 cite**（`cite: null` + `missing: true`，由 CLI 转成退出码 1）。
  * 体系铁律是"每条来自 card 的事实必须附 cite，无 cite 视为幻觉"——发一条锚点不存在的 cite
  * 等于给幻觉发通行证：下游拿它当已核实事实往 spec 里抄，而那个锚点点开是空的。
- * @returns {{service, domain?, content, cite:string|null, missing?:true, available?:string[]}|null}
+ *
+ * 返回对象 MUST NOT 新增 `origin`：cite 路径已经以 `dependencies/` 开头，调用方据此即知来源，
+ * 再加一个字段是同一事实的第二份表示。
+ * @returns {{service, domain?, content, cite:string|null, missing?:true, available?:string[], alsoDependency?:true}|null}
  */
 export function getCard(ctxDir, service, domain) {
   const card = loadCards(ctxDir).find((c) => c.service === service);
   const domainCards = loadDomainCards(ctxDir).filter((d) => d.service === service);
-  if (!card && domainCards.length === 0) return null;
+  const depCards = loadDependencyCards(ctxDir).filter((d) => d.service === service);
+  const dep = loadDependencies(ctxDir).find((d) => d.upstream === service);
+  if (!card && domainCards.length === 0 && depCards.length === 0 && !dep) return null;
+  // 依赖侧的可用条目标 [依赖]：不标的话"这个域名在哪一侧"要靠猜，而两侧同名是允许的。
+  const depAvailable = () => [...depCards.map((d) => `${d.domain}[依赖]`), ...(dep ? Object.keys(dep.sections).map((s) => `${s}[依赖]`) : [])];
   if (!domain) {
-    if (!card) {
-      const available = domainCards.map((d) => d.domain);
-      return {
-        service,
-        content: `（${service} 没有地图卡 cards/${service}.md，只有域卡：${available.join(', ')}）`,
-        cite: null,
-        missing: true,
-        available,
-      };
+    if (card) {
+      const hit = { service, content: card.raw, cite: makeCite(card.path, '全文', cardFreshness(card)) };
+      // 名字同时命中产品仓与依赖侧：产品仓优先，但 MUST NOT 静默吞掉另一侧。
+      if (dep) hit.alsoDependency = true;
+      return hit;
     }
-    return { service, content: card.raw, cite: makeCite(card.path, '全文', cardFreshness(card)) };
-  }
-  const domainCard = domainCards.find((d) => d.domain === domain);
-  if (domainCard) {
-    return { service, domain, content: domainCard.raw, cite: makeCite(domainCard.path, '全文', cardFreshness(domainCard)) };
-  }
-  const content = card ? card.sections[domain] : undefined;
-  if (content === undefined) {
-    const available = [...domainCards.map((d) => d.domain), ...(card ? Object.keys(card.sections) : [])];
+    if (domainCards.length === 0 && dep) {
+      return { service, content: dep.raw, cite: makeCite(dep.path, '全文', dependencyFreshness(dep.raw)) };
+    }
+    const available = [...domainCards.map((d) => d.domain), ...depCards.map((d) => `${d.domain}[依赖]`)];
     return {
       service,
-      content: `（未找到段落 "${domain}"，可用段落：${available.join(', ')}）`,
+      content: `（${service} 没有地图卡 cards/${service}.md，只有域卡：${available.join(', ')}）`,
       cite: null,
       missing: true,
       available,
     };
   }
-  return { service, content, cite: makeCite(card.path, domain, cardFreshness(card)) };
+  const domainCard = domainCards.find((d) => d.domain === domain);
+  if (domainCard) {
+    return { service, domain, content: domainCard.raw, cite: makeCite(domainCard.path, '全文', cardFreshness(domainCard)) };
+  }
+  const depCard = depCards.find((d) => d.domain === domain);
+  if (depCard) {
+    return { service, domain, content: depCard.raw, cite: makeCite(depCard.path, '全文', cardFreshness(depCard)) };
+  }
+  const content = card ? card.sections[domain] : undefined;
+  if (content !== undefined) return { service, content, cite: makeCite(card.path, domain, cardFreshness(card)) };
+  const depSection = dep ? dep.sections[domain] : undefined;
+  if (depSection !== undefined) {
+    return { service, content: depSection, cite: makeCite(dep.path, domain, dependencyFreshness(dep.raw)) };
+  }
+  const available = [...domainCards.map((d) => d.domain), ...(card ? Object.keys(card.sections) : []), ...depAvailable()];
+  return {
+    service,
+    content: `（未找到段落 "${domain}"，可用段落：${available.join(', ')}）`,
+    cite: null,
+    missing: true,
+    available,
+  };
 }
 
 /**
