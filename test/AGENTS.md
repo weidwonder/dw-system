@@ -29,7 +29,7 @@
 
 - `cards-mandatory.test.mjs`：卡片层必备这条线——路由不探测 `engineering-context`、注入片段的 ctx 条目无条件、初始化建完整骨架并禁 `--minimal`、默认倾向无条件、补卡最小形态四项、护栏条数与实际条目一致；另查 skills 树内相对链接不断、每个 skill 有入口且被 `dw-workflow` 点名、入口点名的 references 与实际文件双向一致。红了通常是删改了无条件表述，或新增 / 改名 references 没同步入口。
 - `change-awareness.test.mjs`：CHANGELOG 五类闭集、不兼容条目三项必填、条目写在评审门之前、依赖声明五项、升级顺序与子代理上限、`ctx init` 真建 `dependencies/README.md`、stub 与模板同讲一套、本仓库根 `CHANGELOG.md` 结构。红了通常是压缩时丢了某条，或 stub 与 `dependency.md` 漂移。
-- `codegraph.test.mjs`：安装器的 codegraph 段（未装→npm 装、有新版→`upgrade`、已最新跳过、盲升不谎报、太旧退回 npm、已有索引不重建、`init` 没建成补 `index`、`--codegraph-location`、`--no-codegraph`、`--dry-run`、失败只警告）。全程假 CLI。
+- `codegraph.test.mjs`：安装器的 codegraph 段（未装→npm 装、有新版→`upgrade`、已最新跳过、盲升不谎报、升级未生效→退回 npm、npm 也换不掉→告警本机有多份副本、退回过 npm 不再退第二次、太旧退回 npm、已有索引不重建、`init` 没建成补 `index`、`--codegraph-location`、`--no-codegraph`、`--dry-run`、失败只警告）。全程假 CLI。
 - `companion-skill.test.mjs`：伴生 skill 装到用户级两个入口、不进目标项目；已最新跳过、有新版更新、symlink 与 git 工作区不覆盖、远端不可达降级、无版本号的按内容判；`COMPANION_SKILLS` 指向真实仓库与子目录。红了通常是改了 `COMPANION_SKILLS` 或参数名。
 - `counter-word.test.mjs`：受检计数词只出现在权威文件与豁免目录；权威映射有效；豁免路径真实存在。红了通常是往别处写回了数字。
 - `cross-reference.test.mjs`：skills 树与 `CLAUDE.md`、`AGENTS.md`、`docs/index.md`、`docs/REQUIREMENTS.md`、`docs/TODO.md` 里每条 `` `x.md` §y `` 的目标文件与小节都存在；另有一条守"抽取本身没有静默失效"；不带 `§` 的 `<skills 根>/…​.md` 纯文件指针另查目标文件存在。红了通常是改了标题或搬了文件没改引用方。MUST NOT 靠放宽 `STOP_CHARS` 或扩 `EXEMPT_TARGETS` 变绿。

@@ -2,7 +2,7 @@
 lifecycle: active
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-09-17'
+last_confirmed: '2026-09-21'
 authority_refs:
   - 'install.mjs 的命令行选项：--no-codegraph / --codegraph-location=<local|global>'
   - '安装器写入目标项目 .gitignore 标记块的条目清单'
@@ -56,7 +56,7 @@ authority_refs:
 ## 验收标准（可判定，含边界/失败用例）
 
 - [x] 本机未装 codegraph → 走 `npm install -g @colbymchenry/codegraph`，随后接线并建索引。
-- [x] 已装且远端更新 → 走 `codegraph upgrade`（它自己认得 bundle/npm/npx 装法），不用 npm 装第二份。
+- [x] 已装且远端更新 → 走 `codegraph upgrade`（它自己认得 bundle/npm/npx 装法），不用 npm 装第二份。（当时口径。现行口径见 `2026-09-21-codegraph升级判定-lean-change-spec.md`：`upgrade` 跑通但 PATH 上那份的版本仍落后于远端时，会退回 `npm install -g <包>@latest`。）
 - [x] 已装且已是最新 → 跳过升级，仍接线并建索引。
 - [x] 太旧、没有 `upgrade` 子命令 → 退回 `npm install -g @colbymchenry/codegraph@latest`。
 - [x] 版本检测偶发失败（真机上升级刚完成时遇到过）→ 打印"远端未知（版本检测失败，下面直接尝试升级）"并盲升；`upgrade` 跑通但版本没变时报"已是最新，版本未变"，**不得**说成"已升级"。
