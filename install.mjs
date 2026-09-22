@@ -505,7 +505,8 @@ function mergeTopBlock(raw, block, startMarker, endMarker) {
   if (getMarkedBlock(raw, startMarker, endMarker)) {
     return mergeMarkedBlock(raw, block, startMarker, endMarker);
   }
-  const rest = raw.trim();
+  // 只去掉前导空行：原内容整体下移，MUST NOT 改动它本身。
+  const rest = raw.replace(/^\s*\n/, '').trimEnd();
   return rest ? `${block}\n\n${rest}\n` : `${block}\n`;
 }
 
@@ -683,8 +684,12 @@ function assertHintBlockKept(raw, expectedBlock, file) {
 }
 
 // 组装要写进 CLAUDE.md / AGENTS.md 的标记块：base.md（公共正文）+ collab-<协作面>.md。
+function snippetsDir(skillsRoot) {
+  return path.join(skillsRoot, 'dw-workflow', 'assets', 'config-snippets');
+}
+
 function buildWorkflowBlock(skillsRoot, settings, existingBlock) {
-  const dir = path.join(skillsRoot, 'dw-workflow', 'assets', 'config-snippets');
+  const dir = snippetsDir(skillsRoot);
   const parts = ['base.md', `collab-${settings.collaboration}.md`]
     .map(name => readTextIfExists(path.join(dir, name)))
     .map(text => blockInner(getMarkedBlock(text, WORKFLOW_MODE_START, WORKFLOW_MODE_END)) || text.trim())
@@ -702,7 +707,7 @@ function buildWorkflowBlock(skillsRoot, settings, existingBlock) {
 // 提示块正文同样随 skill 分发。安装源里没有这份片段（裁剪过的源）时返回 null：
 // 本次就不写提示块，与标记块片段缺失时的宽容度一致，MUST NOT 让安装失败。
 function buildWorkflowHintBlock(skillsRoot) {
-  const file = path.join(skillsRoot, 'dw-workflow', 'assets', 'config-snippets', 'hint.md');
+  const file = path.join(snippetsDir(skillsRoot), 'hint.md');
   const inner = blockInner(getMarkedBlock(readTextIfExists(file), WORKFLOW_HINT_START, WORKFLOW_HINT_END));
   return inner ? `${WORKFLOW_HINT_START}\n${inner}\n${WORKFLOW_HINT_END}` : null;
 }
@@ -1764,7 +1769,7 @@ async function main() {
   const initialAgentsRaw = readTextIfExists(agentsEntry);
   // 提示块只写进本次写入前就已存在的入口文件：MUST NOT 为了写提示而凭空造出第二个入口文件。
   // 「两个入口都不存在」时落到 AGENTS.md 那条规则归 skill 初始化（见 dw-workflow 的
-  // references/init-初始化.md §流程 第 5 步）——安装器只在已有标记块时同步，而标记块必然
+  // references/init-初始化.md §流程 第 5a 步）——安装器只在已有标记块时同步，而标记块必然
   // 来自一个已存在的文件，所以那种状态在这里不会出现。
   const hintEntries = [...new Set([claudeEntry, agentsEntry].filter(entry => fs.existsSync(entry)))];
   const workflowHintBlock = buildWorkflowHintBlock(skillsRoot);
@@ -2036,23 +2041,27 @@ async function main() {
   // 用过期内容盖掉刚写好的结果。
   if (workflowModeBlock) {
     const entries = sharedEntry ? [claudeEntry] : [claudeEntry, agentsEntry];
+    const written = [];
     for (const entry of entries) {
       const raw = readTextIfExists(entry);
+      const writeHint = Boolean(workflowHintBlock) && hintEntries.includes(entry);
       let merged = replaceLegacyBlock(
         raw, workflowModeBlock, [WORKFLOW_MODE_START, WORKFLOW_MODE_END], LEGACY.workflowMarkers);
-      if (workflowHintBlock && hintEntries.includes(entry)) {
+      if (writeHint) {
         merged = mergeTopBlock(merged, workflowHintBlock, WORKFLOW_HINT_START, WORKFLOW_HINT_END);
       }
       fs.writeFileSync(entry, merged);
       assertMarkedBlock(readTextIfExists(entry), WORKFLOW_MODE_START, WORKFLOW_MODE_END, entry);
       assertWorkflowFieldsKept(readTextIfExists(entry), workflowSettings, entry);
-      if (workflowHintBlock && hintEntries.includes(entry)) {
+      if (writeHint) {
         assertHintBlockKept(readTextIfExists(entry), workflowHintBlock, entry);
+        written.push(path.relative(target, entry) || entry);
       }
     }
     console.log(sharedEntry
       ? `✓ 已同步并校验 ${path.relative(target, claudeEntry) || claudeEntry} 的 dw-workflow 配置标记块（CLAUDE.md 与 AGENTS.md 共用此文件）`
       : '✓ 已同步并校验 CLAUDE.md / AGENTS.md 的 dw-workflow 配置标记块');
+    if (written.length) console.log(`✓ 已写入并校验 ${written.join('、')} 的 dw-workflow 顶部提示块`);
   }
 
   if (codexMode === 'uninstall' && codexToDisable.length) {

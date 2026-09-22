@@ -44,9 +44,9 @@
 按次产出的计划文件名 MUST 以 `YYYY-MM-DD-` 开头；已归并计划移入归档索引。
 
 - **[dw-system 3.0 Coding Plan](./plan/2026-09-17-dw-system-3.0-coding-plan.md)** — 3.0.0 的十个任务：机械更名、换闸、安装器迁移、`dw-prose` 与来历清理、决策记录、拆评审门、拆其余与取消 Lean 副本、`ctx` 卡片体检、收紧体积、发布件。
+- **[入口提示块 Coding Plan](./plan/2026-09-21-入口提示块-coding-plan.md)** — 四个任务：正文片段与组装、安装器落点与幂等写入、skill 初始化侧、吃自己的狗粮与账本。
 
 其余已完成的计划见[归档索引](./index-archive.md)。
-- **[入口提示块 Coding Plan](./plan/2026-09-21-入口提示块-coding-plan.md)** — 四个任务：正文片段与组装、安装器落点与幂等写入、skill 初始化侧、吃自己的狗粮与账本。
 
 ## 进行中的报告（`docs/report/`）
 
@@ -55,6 +55,7 @@
 - **[评审门积压通路与测试面收窄 · 代码评审门报告](./report/2026-09-14-评审门积压通路与测试面收窄-review-report.md)** — 本次评审门 A/B/C/D/S 五轴的发现与处置：3 条 P0。
 - **[变更日志与依赖声明 · 代码评审门报告](./report/2026-09-16-变更日志与依赖声明-review-report.md)** — 本次评审门 A/B/C/D/S 五轴（三组子代理）的发现与处置：0 条 P0、5 条 P1。
 - **[全局安装 · 代码评审门报告](./report/2026-09-18-全局安装-review-report.md)** — 本次评审门 A/B/C/D/S 五轴（三组子代理）的发现与处置：1 条 P0、4 条 P1，另附 Windows 实机验证结论。
+- **[入口提示块 · 代码评审门报告](./report/2026-09-21-入口提示块-review-report.md)** — 本次评审门 A/B/C/D/S 五轴（三组子代理）的发现与处置：0 条 P0、7 条 P1，另一条 P1 经拍板人判决维持原决定。
 
 - **[agentic-principle 缺口报告](./report/2026-08-02-agentic-principle-gap-report.md)** — 待 `agentic-principle` 维护者评估，未结案。
 
