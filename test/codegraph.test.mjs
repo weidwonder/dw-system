@@ -47,6 +47,12 @@ if (args[0] === 'upgrade') {
     process.exit(0)
   }
   if (state.upgradeFails) process.exit(1)
+  // upgradeNoop：命令跑通、退出码 0，但 PATH 上这份的版本没变——真机上本机同时装了
+  // npm 包与独立包时就是这样：upgrade 升的是它自己那份，PATH 优先命中的是另一份。
+  if (state.upgradeNoop) {
+    console.log('Already up to date')
+    process.exit(0)
+  }
   state.version = state.latest
   save()
   console.log('upgraded to v' + state.version)
@@ -82,6 +88,8 @@ const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'))
 const args = process.argv.slice(2)
 fs.appendFileSync(path.join(dir, 'calls.log'), 'npm ' + args.join(' ') + '\\n')
 if (state.npmFails) process.exit(1)
+// npmNoop：npm 装成功了，PATH 上优先命中的仍是别人那一份，版本照旧不变。
+if (state.npmNoop) process.exit(0)
 fs.writeFileSync(path.join(dir, 'codegraph'), fs.readFileSync(path.join(dir, 'codegraph.template')))
 fs.chmodSync(path.join(dir, 'codegraph'), 0o755)
 state.version = state.latest
@@ -180,6 +188,44 @@ test('版本检测失败时盲升：upgrade 跑通但版本没变，不许说成
     assert.match(r.calls, /^codegraph upgrade$/m)
     assert.match(r.stdout, /已是最新（v1\.5\.0），版本未变/)
     assert.doesNotMatch(r.stdout, /已升级到/)
+  })
+})
+
+test('upgrade 跑通却没换版本：退回 npm 装最新版，MUST NOT 说成"已是最新"', () => {
+  // 真机现场：/opt/homebrew/bin/codegraph（npm 那份 v1.5.0，PATH 优先）与
+  // ~/.local/bin/codegraph（独立包 v1.6.0）并存，upgrade 每次都升独立包那份，
+  // 于是每次安装都报"1.5.0 → 1.6.0"，升完下次照旧再报一遍。
+  sandbox({ version: '1.5.0', latest: '1.6.0', upgradeNoop: true }, ({ run }) => {
+    const r = run()
+    assert.equal(r.status, 0, r.stderr || r.stdout)
+    assert.match(r.calls, /^codegraph upgrade$/m)
+    assert.match(r.calls, new RegExp(`^npm install -g ${PKG.replace('/', '\\/')}@latest$`, 'm'))
+    assert.doesNotMatch(r.stdout, /已是最新/)
+    assert.match(r.stdout, /已升级到 v1\.6\.0/)
+  })
+})
+
+test('npm 也换不掉 PATH 上那份：明确告警并指出本机有多份副本', () => {
+  sandbox({ version: '1.5.0', latest: '1.6.0', upgradeNoop: true, npmNoop: true }, ({ run }) => {
+    const r = run()
+    assert.equal(r.status, 0, r.stderr || r.stdout)
+    assert.match(r.calls, new RegExp(`^npm install -g ${PKG.replace('/', '\\/')}@latest$`, 'm'))
+    assert.doesNotMatch(r.stdout, /已是最新/)
+    assert.doesNotMatch(r.stdout, /已升级到/)
+    assert.match(r.stdout, /仍是 v1\.5\.0/)
+    assert.match(r.stdout, /多份|which -a/)
+  })
+})
+
+test('upgrade 子命令失败已退回过 npm：不再退第二次，也不说"upgrade 跑通了"', () => {
+  // upgraded 若不区分来源（upgrade 自己成功 / 退回 npm 成功），这条路径会把同一条
+  // npm 命令跑两遍，还会在刚打印"未成功"之后紧接着说"跑通了"。
+  sandbox({ version: '1.5.0', latest: '1.6.0', upgradeFails: true, npmNoop: true }, ({ run }) => {
+    const r = run()
+    assert.equal(r.status, 0, r.stderr || r.stdout)
+    const npmInstalls = r.calls.split('\n').filter(line => line.startsWith('npm install -g')).length
+    assert.equal(npmInstalls, 1, 'npm 退回只该跑一次')
+    assert.doesNotMatch(r.stdout, /upgrade 跑通了/)
   })
 })
 

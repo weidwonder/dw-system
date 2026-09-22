@@ -1473,6 +1473,11 @@ function installCodegraphViaNpm(pin) {
   return !toolFailed(runTool('npm', ['install', '-g', spec], { timeout: CODEGRAPH_CMD_TIMEOUT_MS }));
 }
 
+// PATH 上那份是不是还落后于远端。两个版本号缺任何一个都判 false：未知不等于落后。
+function codegraphBehindLatest(version, latest) {
+  return Boolean(version && latest && cmpVersion(latest, version) > 0);
+}
+
 function codegraphManualHint() {
   console.log(`     手动安装：npm install -g ${CODEGRAPH.npmPackage}`);
   console.log(`     或用官方独立包（不需要 Node）：${CODEGRAPH.repo}`);
@@ -1500,7 +1505,7 @@ function ensureCodegraphCli(local, update) {
   const localVersion = local.version || update?.current || null;
   const latest = update?.latest || null;
   console.log(`  · 本机 v${localVersion || '未知'}｜远端 ${latest ? `v${latest}` : '未知（版本检测失败，下面直接尝试升级）'}`);
-  if (latest && localVersion && cmpVersion(latest, localVersion) <= 0) {
+  if (latest && localVersion && !codegraphBehindLatest(localVersion, latest)) {
     console.log('  · 已是最新，跳过升级');
     return local;
   }
@@ -1508,20 +1513,34 @@ function ensureCodegraphCli(local, update) {
   // 升级优先用 codegraph 自己的 upgrade：它认得 bundle / npm / npx 三种装法并原地更新，
   // 我们盲目 npm 装会在独立包安装的机器上留下一个抢 PATH 的第二份副本。
   console.log('  → codegraph upgrade');
-  let upgraded = !toolFailed(runTool(CODEGRAPH.bin, ['upgrade'], { timeout: CODEGRAPH_CMD_TIMEOUT_MS }));
+  // viaUpgrade 只记 upgrade 子命令自己成没成功：退回过 npm 的路径 MUST NOT 再退一次，
+  // 否则同一条 npm 命令会跑两遍，且下面那句"upgrade 跑通了"会与刚打印的"未成功"自相矛盾。
+  const viaUpgrade = !toolFailed(runTool(CODEGRAPH.bin, ['upgrade'], { timeout: CODEGRAPH_CMD_TIMEOUT_MS }));
+  let upgraded = viaUpgrade;
   if (!upgraded) {
     console.log('  · codegraph upgrade 未成功（旧版本没有该子命令）→ 退回 npm 安装最新版');
     upgraded = installCodegraphViaNpm('latest');
   }
-  const after = detectCodegraph();
+  let after = detectCodegraph();
+  // upgrade 退出码为 0 只说明命令跑通了，不代表 PATH 上那份真的换了版本：本机同时有
+  // npm 包与独立包时，upgrade 升的是它自己那份，而 PATH 可能优先命中另一份——那样每次
+  // 安装都会报同一个"有新版本"，升完下次照旧再报一遍。已知远端版本时以实际版本为准。
+  if (viaUpgrade && codegraphBehindLatest(after.version, latest)) {
+    console.log(`  · upgrade 跑通了，但 PATH 上的仍是 v${after.version}（本机多半还有一份副本排在前面）→ 退回 npm 安装最新版`);
+    upgraded = installCodegraphViaNpm('latest');
+    after = detectCodegraph();
+  }
   if (!after.present) {
     console.log('  ⚠ 升级后找不到 codegraph 命令，本次跳过接线与建索引。');
     codegraphManualHint();
     return null;
   }
-  // 版本检测失败时我们是"盲升"：upgrade 退出码为 0 只说明命令跑通了，不代表真换了版本
-  // （它自己会打印 Already up to date）。以升级前后的版本号为准报告，别把空转说成升级。
+  // 远端版本未知时我们是"盲升"：以升级前后的版本号为准报告，别把空转说成升级。
   if (!upgraded) console.log(`  ⚠ 升级失败，继续用本机 v${after.version || '未知'}`);
+  else if (codegraphBehindLatest(after.version, latest)) {
+    console.log(`  ⚠ 升级后 PATH 上仍是 v${after.version}（远端 v${latest}）：本机装了多份 codegraph，`
+      + `${process.platform === 'win32' ? '用 `where codegraph`' : '用 `which -a codegraph`'} 看一眼，只留一份后重跑本安装器。`);
+  }
   else if (localVersion && after.version === localVersion) console.log(`  · 已是最新（v${after.version}），版本未变`);
   else console.log(`  ✓ 已升级到 v${after.version || '未知'}`);
   return after;
@@ -1577,7 +1596,7 @@ function printCodegraphPlan(opt, local, update, indexed, target) {
   } else {
     const latest = update?.latest || null;
     const localVersion = local.version || update?.current || null;
-    const verdict = latest && localVersion && cmpVersion(latest, localVersion) <= 0
+    const verdict = latest && localVersion && !codegraphBehindLatest(localVersion, latest)
       ? '已是最新，将跳过升级'
       : '将执行 codegraph upgrade';
     console.log(`  · 本机 v${localVersion || '未知'}｜远端 ${latest ? `v${latest}` : '未知（版本检测失败）'} → [--dry-run] ${verdict}`);

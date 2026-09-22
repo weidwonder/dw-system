@@ -38,6 +38,7 @@
 - **[dw-system 技术 spec：安装器迁移、ctx 卡片体检与机器闸](./spec/2026-09-17-dw-system-安装器迁移与ctx体检与机器闸-eng-spec.md)** — 3.0.0 动到可执行代码的部分：安装器名字表与旧残留迁移、`ctx` 域卡解析与 `lint-cards`、`authority-unique` 题型、三条新闸与退役名单。
 - **[全局安装](./spec/2026-09-18-dw-system-全局安装-eng-spec.md)** — 安装器 `--global`：装进 `~/.claude/skills/` 与 `~/.codex/skills/`、与项目级参数互斥、全局卸载冲突插件、`ctx` 与 codegraph 的全局落点。
 - **[入口顶部提示块](./spec/2026-09-21-dw-system-入口提示块-eng-spec.md)** — 在目标项目 `AGENTS.md` / `CLAUDE.md` 最前面写一段「动手前先加载 `dw-workflow`」：落点决策表、两条写入路径、与文末标记块的分工。
+- **[codegraph 升级判定](./spec/2026-09-21-codegraph升级判定-lean-change-spec.md)** — 安装器不再用 `codegraph upgrade` 的退出码判升级成没成：改为比对升级后的实际版本，仍落后就退回 npm、再不行就告警本机有多份副本。
 
 ## 进行中的计划（`docs/plan/`）
 
@@ -56,6 +57,8 @@
 - **[变更日志与依赖声明 · 代码评审门报告](./report/2026-09-16-变更日志与依赖声明-review-report.md)** — 本次评审门 A/B/C/D/S 五轴（三组子代理）的发现与处置：0 条 P0、5 条 P1。
 - **[全局安装 · 代码评审门报告](./report/2026-09-18-全局安装-review-report.md)** — 本次评审门 A/B/C/D/S 五轴（三组子代理）的发现与处置：1 条 P0、4 条 P1，另附 Windows 实机验证结论。
 - **[入口提示块 · 代码评审门报告](./report/2026-09-21-入口提示块-review-report.md)** — 本次评审门 A/B/C/D/S 五轴（三组子代理）的发现与处置：0 条 P0、7 条 P1，另一条 P1 经拍板人判决维持原决定。
+- **[codegraph 升级判定 · 代码评审门报告](./report/2026-09-21-codegraph升级判定-review-report.md)** — 本次评审门 A/B/C/D 四轴（两组子代理）的发现与处置：1 条 P0、2 条 P1，并结算了一次积压的发版件提交。
+- **[Bug 修复历史](./report/bug修复历史.md)** — 已处理过的 bug：根因、处理方案、修复版本、回归测试、测试样本。修 bug 前先用关键词检索它，不要整份读。
 
 - **[agentic-principle 缺口报告](./report/2026-08-02-agentic-principle-gap-report.md)** — 待 `agentic-principle` 维护者评估，未结案。
 
