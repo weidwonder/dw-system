@@ -2,6 +2,7 @@
   "files": {
     "CLAUDE.md": 12000,
     "dw-system/skills/dw-workflow/assets/config-snippets/base.md": 5500,
+    "dw-system/skills/dw-workflow/assets/config-snippets/hint.md": 600,
     "dw-system/skills/dw-workflow/assets/config-snippets/collab-solo.md": 1400,
     "dw-system/skills/dw-workflow/assets/config-snippets/collab-team.md": 1400,
     "dw-system/skills/dw-prd/SKILL.md": {
@@ -36,8 +37,8 @@
       "max": 75000,
       "overrides": {
         "dw-workflow": {
-          "max": 133900,
-          "note": "目标 75000。拆分后冻结在实际体积；2026-09-17 特性损失审计补回了搬家时丢掉或弱化的命题、给跨 skill 指针补了属主，先按总纲搬走了两处重复展开仍超，抬到补回后的实际体积（拍板人 2026-09-17 同意）；同日新增 §设计原则（YAGNI / KISS / DRY / LoD）约 2KB。只许降，继续搬走登记在 docs/TODO.md"
+          "max": 135700,
+          "note": "目标 75000。拆分后冻结在实际体积；2026-09-17 特性损失审计补回了搬家时丢掉或弱化的命题、给跨 skill 指针补了属主，先按总纲搬走了两处重复展开仍超，抬到补回后的实际体积（拍板人 2026-09-17 同意）；同日新增 §设计原则（YAGNI / KISS / DRY / LoD）约 2KB；2026-09-21 新增入口提示块的落点规则约 1.3KB，它的家就是 init-初始化.md、无处可搬，已压到保住全部命题的最小写法；同日评审门补回软链接只写一次、不动原内容、片段缺失处置、幂等落点限定四条命题，再抬 500（两次均经拍板人 2026-09-21 同意）。只许降，继续搬走登记在 docs/TODO.md"
         },
         "dw-prd": {
           "max": 135359,

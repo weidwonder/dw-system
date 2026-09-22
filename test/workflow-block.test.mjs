@@ -7,7 +7,7 @@
 // 用户级 skills 目录、全局 npm 安装与全局 ctx 命令。本组测试一律带上。
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
@@ -305,5 +305,133 @@ test('安装器面向用户的输出不再出现"个人版 / 团队版"', () => 
     // 迁移指南（migrations/*.md）会被高亮全文打印，是唯一允许保留旧说法的地方，按行剔除后再断言。
     const lines = result.stdout.split('\n').filter(line => !line.includes('│'))
     assert.doesNotMatch(lines.join('\n'), /个人版|团队版/)
+  })
+})
+
+// ── 入口顶部提示块 ────────────────────────────────────────────────────────
+// 契约来源：docs/spec/2026-09-21-dw-system-入口提示块-eng-spec.md §0 决策表与 §1.1。
+// 正文从片段现场读，不在断言里写死措辞——换文案不该判红，落点与幂等写错才该判红。
+
+const HINT_START = '<!-- dw-workflow:hint:start -->'
+const HINT_END = '<!-- dw-workflow:hint:end -->'
+const hintFile = path.join(repoRoot, 'dw-system/skills/dw-workflow/assets/config-snippets/hint.md')
+
+function hintBlockSource() {
+  const raw = readFileSync(hintFile, 'utf8')
+  const start = raw.indexOf(HINT_START)
+  const end = raw.indexOf(HINT_END, start + HINT_START.length)
+  assert.notEqual(start, -1, '片段里必须有提示块起始标记')
+  assert.notEqual(end, -1, '片段里必须有提示块结束标记')
+  return raw.slice(start, end + HINT_END.length).trim()
+}
+
+const countOf = (text, needle) => text.split(needle).length - 1
+
+// 提示块必须在第一屏：落在文件最前面，且只有一份。
+function assertHintAtTop(text, label) {
+  assert.equal(countOf(text, HINT_START), 1, `${label} 的提示块必须只有一份`)
+  assert.ok(text.trimStart().startsWith(HINT_START), `${label} 的提示块必须在文件最前面`)
+  const block = text.slice(text.indexOf(HINT_START), text.indexOf(HINT_END) + HINT_END.length)
+  assert.equal(block.trim(), hintBlockSource(), `${label} 的提示块正文必须与片段逐字相同`)
+}
+
+test('两个入口都在时，提示块写进两个入口的最前面', () => {
+  withTarget('hint-both', target => {
+    write(path.join(target, 'CLAUDE.md'), newBlock('solo', 'direct'))
+    write(path.join(target, 'AGENTS.md'), '# 我自己的说明\n\n随便写点什么。\n')
+
+    const result = install(target)
+    assert.equal(result.status, 0, result.stderr || result.stdout)
+    assertHintAtTop(read(target, 'CLAUDE.md'), 'CLAUDE.md')
+    assertHintAtTop(read(target, 'AGENTS.md'), 'AGENTS.md')
+    // 原有内容一个字都不能丢
+    assert.match(read(target, 'AGENTS.md'), /我自己的说明/)
+    assert.match(result.stdout, /顶部提示块/)
+  })
+})
+
+test('只有一个入口存在时，提示块不写进被标记块顺带创建出来的那个', () => {
+  withTarget('hint-single', target => {
+    write(path.join(target, 'CLAUDE.md'), newBlock('solo', 'direct'))
+
+    const result = install(target)
+    assert.equal(result.status, 0, result.stderr || result.stdout)
+    assertHintAtTop(read(target, 'CLAUDE.md'), 'CLAUDE.md')
+    const agents = read(target, 'AGENTS.md')
+    assert.ok(agents.includes(START), 'AGENTS.md 仍照旧被同步上标记块')
+    assert.equal(countOf(agents, HINT_START), 0, '本次才被创建的入口不写提示块')
+  })
+})
+
+test('只有 AGENTS.md 存在时，提示块写它，被创建的 CLAUDE.md 只带标记块', () => {
+  withTarget('hint-agents-only', target => {
+    write(path.join(target, 'AGENTS.md'), newBlock('solo', 'direct'))
+
+    const result = install(target)
+    assert.equal(result.status, 0, result.stderr || result.stdout)
+    assertHintAtTop(read(target, 'AGENTS.md'), 'AGENTS.md')
+    const claude = read(target, 'CLAUDE.md')
+    assert.ok(claude.includes(START), 'CLAUDE.md 仍照旧被同步上标记块')
+    assert.equal(countOf(claude, HINT_START), 0, '本次才被创建的入口不写提示块')
+    assert.match(result.stdout, /顶部提示块（动手前先加载 dw-workflow）写入：AGENTS\.md/)
+  })
+})
+
+test('两个入口都没有标记块时，提示块一个字也不写', () => {
+  withTarget('hint-noblock', target => {
+    write(path.join(target, 'CLAUDE.md'), '# 别人的项目\n\n与本体系无关。\n')
+
+    const result = install(target)
+    assert.equal(result.status, 0, result.stderr || result.stdout)
+    assert.equal(countOf(read(target, 'CLAUDE.md'), HINT_START), 0)
+    // AGENTS.md 由 Codex 冲突约束块创建，与提示块无关：它被创建，且里面同样没有提示块。
+    // 两条都无条件断言——用 if 包住会在它哪天不再被创建时静默不跑。
+    assert.equal(existsSync(path.join(target, 'AGENTS.md')), true, 'Codex 约束块会创建 AGENTS.md')
+    assert.equal(countOf(read(target, 'AGENTS.md'), HINT_START), 0)
+  })
+})
+
+test('重跑安装幂等：提示块不追加第二份，被手改的正文恢复成片段原文', () => {
+  withTarget('hint-idempotent', target => {
+    write(path.join(target, 'CLAUDE.md'), newBlock('solo', 'direct'))
+    assert.equal(install(target).status, 0)
+
+    const tampered = read(target, 'CLAUDE.md')
+      .replace(hintBlockSource(), `${HINT_START}\n> 我自己改过的一句话。\n${HINT_END}`)
+    write(path.join(target, 'CLAUDE.md'), tampered)
+
+    const second = install(target)
+    assert.equal(second.status, 0, second.stderr || second.stdout)
+    assertHintAtTop(read(target, 'CLAUDE.md'), 'CLAUDE.md')
+    assert.doesNotMatch(read(target, 'CLAUDE.md'), /我自己改过的一句话/)
+  })
+})
+
+test('两个入口共用一份实体文件时，提示块只写一次', () => {
+  withTarget('hint-symlink', target => {
+    write(path.join(target, 'AGENTS.md'), newBlock('solo', 'direct'))
+    symlinkSync('AGENTS.md', path.join(target, 'CLAUDE.md'))
+
+    const result = install(target)
+    assert.equal(result.status, 0, result.stderr || result.stdout)
+    assertHintAtTop(read(target, 'AGENTS.md'), 'AGENTS.md')
+    assert.equal(lstatSync(path.join(target, 'CLAUDE.md')).isSymbolicLink(), true, '软链接本身保持不变')
+  })
+})
+
+test('本仓库自己的 CLAUDE.md 顶部提示块与片段逐字相同', () => {
+  // 吃自己的狗粮：这份副本改文案时容易漏改，而它是每个会话都读的那一份。
+  assertHintAtTop(readFileSync(path.join(repoRoot, 'CLAUDE.md'), 'utf8'), '仓库根 CLAUDE.md')
+})
+
+test('--dry-run 不写提示块', () => {
+  withTarget('hint-dryrun', target => {
+    const before = newBlock('solo', 'direct')
+    write(path.join(target, 'CLAUDE.md'), before)
+
+    const result = install(target, '--dry-run')
+    assert.equal(result.status, 0, result.stderr || result.stdout)
+    assert.equal(read(target, 'CLAUDE.md'), before)
+    assert.match(result.stdout, /顶部提示块/)
   })
 })

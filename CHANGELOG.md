@@ -6,9 +6,11 @@
 ## 未发布
 
 ### 不兼容
+- 入口文件顶部的 `dw-workflow` 提示块（`<!-- dw-workflow:hint:start/end -->`）—— 旧：入口文件顶部没有这个块；新：重跑安装器即在**已存在**的入口文件最前面写入它，被标记块顺带创建出来的入口只带标记块；迁移：无需手工动作，重跑安装器即补上。
 - 注入标记块（"skill 在哪"一句）—— 旧：`skill 在 .claude/skills/<名>/（Codex 在 .agents/skills/<名>/）`；新：`skill 在项目级或全局的 <skills 根>/<名>/（路径见 dw-code-facts）`；迁移：重跑安装器即改写，无需手工动作。
 
 ### 新增
+- 入口文件顶部的 `dw-workflow` 提示块：`AGENTS.md` / `CLAUDE.md` 最前面写一段「动手前先加载 `dw-workflow`」，正文随 skill 分发（`dw-workflow/assets/config-snippets/hint.md`）。首次由 skill 初始化写，已有标记块的项目重跑安装器即补上；只写进写入前就已存在的入口文件，两个都不在时只写 `AGENTS.md`，标记块的既有行为一条未改。
 - `install.mjs --global`：把全部 skill 装进本机 `~/.claude/skills/` 与 `~/.codex/skills/`，所有项目共用，不改任何项目文件；冲突插件改为从本机直接卸载（`--keep=` 保留、`--no-plugins` 跳过），全局 `ctx` 链接到用户级副本，codegraph 全局接线不建索引。与目标目录、`--shared`、`--docs-in-git`、`--codex-conflicts`、`--codegraph-location=local` 互斥。项目级安装检测到全局安装时提示两份并存。
 
 ### 变更
