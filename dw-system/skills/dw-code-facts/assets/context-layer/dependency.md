@@ -1,6 +1,6 @@
 # 依赖声明：【上游名】
 
-> 每个被本项目调用的上游（SDK / 服务 / 共享库）一份，落 `engineering-context/dependencies/<上游名>.md`；文件名取依赖清单文件（`package.json` / `go.mod` / `pom.xml` 一类）里的包名 / 模块名，服务类上游取 registry 里的仓库名；文件名含 `/` 的（npm scoped 包如 `@scope/name`）把 `/` 替换成 `__`，写成 `@scope__name.md`，MUST NOT 造出子目录。
+> 每个被本项目调用的上游（SDK / 服务 / 共享库）一份，落 `engineering-context/dependencies/<上游名>.md`；文件名取依赖清单文件（`package.json` / `go.mod` / `pom.xml` 一类）里的包名 / 模块名，服务类上游取 registry 里的仓库名；文件名含 `/` 的（npm scoped 包如 `@scope/name`）把 `/` 替换成 `__`，写成 `@scope__name.md`；**声明文件本身 MUST NOT 造子目录**，`dependencies/<上游名>/` 是依赖仓事实卡的专用目录。
 > 它写"本项目用了上游什么"，是卡片的反向。**事实从本项目源码读出**（"我怎么用你"上游文档答不了），MUST NOT 从上游文档或 PRD 抄。
 > 升级上游时与上游仓库根 `CHANGELOG.md` 的 `不兼容` 条目按**接口名**取交集即得影响面——所以下表的接口名 MUST 与上游 CHANGELOG / 上游卡片里的名字一字不差。
 > 与卡片同一套纪律：读到或改到对该上游的调用而它还没有声明时当场补、随分支提交；只增不减，与源码不符就地修正并更新确认时间。判据与升级处置顺序见 dw-code-facts 的 `代码事实纪律.md` §10.2。
@@ -16,3 +16,13 @@
 |---|---|---|
 | 【createOrder】 | 【src/order/service.ts:41】 | 【依赖默认 currency=CNY，上游改成必填时这里要显式传】 |
 | 【listOrders】 | 【src/order/query.ts:12】 | 【无】 |
+
+## 业务域地图
+
+> 读了上游源码、把它某个业务域的事实落成**依赖仓事实卡** `dependencies/<上游名>/<域>.md` 时，在这里登记一行。
+> 有事实卡时本节 MUST 在；一张都没有时整节删掉。事实卡本身照 `card-domain.md` 写（四节固定，见该模板顶部的三点差异）。
+> 上面的最小五项一字不动：〈用到的部分〉回答"我怎么用你"，事实卡回答"你是什么样"，两者 MUST NOT 互抄。
+
+| 业务域 | 一句话 | 事实卡 |
+|---|---|---|
+| 【向量库】 | 【语义检索的存储层】 | 【`dependencies/<上游名>/向量库.md`】 |

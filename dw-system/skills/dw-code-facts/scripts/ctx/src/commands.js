@@ -474,7 +474,8 @@ const GLOSSARY_STUB = `# Glossary — 领域词汇表
 const DEPENDENCIES_README_STUB = `# 依赖声明目录
 
 每个被本项目调用的上游（SDK / 服务 / 共享库）一份 \`<上游名>.md\`——文件名取依赖清单文件里的包名 / 模块名，
-服务类上游取 registry 里的仓库名；文件名含 / 的（npm scoped 包）把 / 替换成 __，MUST NOT 造出子目录。它写"本项目用了上游什么"，是卡片的反向；升级上游时与上游仓库根
+服务类上游取 registry 里的仓库名；文件名含 / 的（npm scoped 包）把 / 替换成 __；**声明文件本身 MUST NOT 造子目录**，
+\`dependencies/<上游名>/\` 是依赖仓事实卡的专用目录。它写"本项目用了上游什么"，是卡片的反向；升级上游时与上游仓库根
 \`CHANGELOG.md\` 的 \`不兼容\` 条目按接口名取交集即得影响面。
 
 最小五项（缺一项等于没写）：上游与当前版本 / 用到的部分（接口名，与上游 CHANGELOG 同名）/
@@ -495,6 +496,13 @@ const DEPENDENCIES_README_STUB = `# 依赖声明目录
 |---|---|---|
 | createOrder | src/order/service.ts:41 | 依赖默认 currency=CNY，上游改成必填时这里要显式传 |
 \`\`\`
+
+**依赖仓事实卡** \`dependencies/<上游名>/<域>.md\`：读了上游源码得到的、只有读源码才知道的判断（哪个是权威、
+哪个是陷阱、有什么约束），一个业务域一张，写法与产品仓的业务域卡完全相同（四节固定，模板
+\`assets/context-layer/card-domain.md\`）。落一张就在 \`<上游名>.md\` 新增的〈业务域地图〉节里登记一行；
+\`ctx get-card <上游名> <域>\` 取它，\`ctx discover\` / \`ctx search-semantic\` 的命中行带 \`[依赖]\` 前缀。
+上游源码不在本项目里，这类卡整卡跳过 cite 校验——正因如此它 MUST NOT 记本项目的调用点，
+调用点唯一的家是上面的〈用到的部分〉表。
 `;
 
 const CTX_README_STUB = `# engineering-context
