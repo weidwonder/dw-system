@@ -39,7 +39,8 @@ node <本 skill 根目录>/scripts/ctx/src/cli.js <命令>
 | 本次改动碰了权威面，要判刷不刷卡；开新任务，要看 `engineering-context/` 的跨会话增量 | `references/代码事实纪律.md` §8；权威面清单在 `dw-doc-governance` 的 `文档生命周期.md` §3 第 1 步 |
 | 要落笔写卡而手边有 PRD（写之前读：卡片事实 MUST NOT 从 PRD 生成，等写错了再读已经晚了）；卡片与源码说法冲突 | `references/代码事实纪律.md` §9 |
 | 实现阶段要写本次的 CHANGELOG 条目 | `references/代码事实纪律.md` §10.1 |
-| 要升级某个上游；读到或改到对某个上游的调用；读了上游源码要落依赖仓事实卡 | `references/代码事实纪律.md` §10.2 与 §4.1；模板 `assets/context-layer/dependency.md`（〈业务域地图〉节）与 `card-domain.md`（顶部三点差异） |
+| 要升级某个上游；读到或改到对某个上游的调用 | `references/代码事实纪律.md` §10.2；模板 `assets/context-layer/dependency.md` |
+| 读了上游源码，要落一张依赖仓事实卡 | `references/代码事实纪律.md` §4.1；模板 `assets/context-layer/card-domain.md`（顶部三点差异）与 `dependency.md`（〈业务域地图〉节，登记一行） |
 | 要动资产结构：registry 字段、场景蓝图、词汇表、探针集、新鲜度机制 | `references/engineering-context设计.md` |
 | 项目根存在 `.codegraph/codegraph.db`，且要做结构检索（调用边、符号定位、影响面） | `references/graph.md` |
 
