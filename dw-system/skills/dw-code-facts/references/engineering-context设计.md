@@ -26,8 +26,8 @@
 ### 2.1 Capability Registry（`engineering-context/capability-registry.md`）
 产品能力 → 权威代码实体的映射（**人工确认**）。字段见 `assets/context-layer/capability-registry.md` 模板：Capability / 业务含义 / 权威仓库 / 权威接口(含版本) / 废弃或中间产物替代 / 兼容窗口 / owner / 测试入口 / freshness / 理由链。
 
-### 2.2 Codebase Card（地图卡 `cards/<repo>.md` + 域卡 `cards/<repo>/<域>.md` + 依赖仓事实卡 `dependencies/<上游名>/<域>.md`）
-**三类卡**：每仓一张地图卡（职责 + 业务域地图），每个业务域一张域卡（权威实现与对外接口、陷阱项、确认），外部上游的每个业务域一张**依赖仓事实卡**——小节名、模板与体积上限都与域卡相同，只是落在 `engineering-context/dependencies/<上游名>/<域>.md`，域登记在 `dependencies/<上游名>.md` 的〈业务域地图〉节而不是地图卡里（§2.5）。`ctx` 与域卡同等检索它，人读输出带 `[依赖]` 前缀。按业务域而不按任务分卡：按任务追加的卡只会单调变长，读的人要在流水里找现状。**只放人工判断**——机器能自己算出来的事实（调用图、最后修改、DB schema）MUST NOT 抄进 card，需要时现查。写法在 `代码事实纪律.md` §4，模板 `assets/context-layer/card-map.md` 与 `card-domain.md`，`ctx lint-cards` 体检。
+### 2.2 Codebase Card（地图卡 `cards/<repo>.md` + 域卡 `cards/<repo>/<域>.md`）
+**三类卡**（第三类落在 `dependencies/` 下，见下）：每仓一张地图卡（职责 + 业务域地图），每个业务域一张域卡（权威实现与对外接口、陷阱项、确认），外部上游的每个业务域一张**依赖仓事实卡**——小节名、模板与体积上限都与域卡相同，只是落在 `engineering-context/dependencies/<上游名>/<域>.md`，域登记在 `dependencies/<上游名>.md` 的〈业务域地图〉节而不是地图卡里（§2.5）。`ctx` 与域卡同等检索它，人读输出带 `[依赖]` 前缀。按业务域而不按任务分卡：按任务追加的卡只会单调变长，读的人要在流水里找现状。**只放人工判断**——机器能自己算出来的事实（调用图、最后修改、DB schema）MUST NOT 抄进 card，需要时现查。写法在 `代码事实纪律.md` §4，模板 `assets/context-layer/card-map.md` 与 `card-domain.md`，`ctx lint-cards` 体检。
 
 `cards/` 下**只放本仓自己的事实**：外部上游的事实摆在那里，读卡的人会照着去改一个不归自己管的仓库。
 
