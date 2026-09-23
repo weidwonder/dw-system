@@ -138,7 +138,7 @@ authority_refs:
 | `dw-system/skills/AGENTS.md:24` 明确"体积上限只在 `test/doc-budgets.json` 与 `ctx` 的 `lint.js`" | `dw-system/skills/AGENTS.md:24` | 这是"卡片上限住在 `lint.js`"的现行口径出处 | 同上 |
 | 真实现场：`aiudit_platform` 的 `engineering-context/cards/agent_fs.md`（17,957 字节，非固定小节名）与 `engineering-context/dependencies/agent_fs.md`（7,935 字节，五项齐全），该项目**没有** `cards-lint-baseline.json` | `/Users/weidwonder/projects/aiudit_platform/engineering-context/cards/agent_fs.md:1`、`/Users/weidwonder/projects/aiudit_platform/engineering-context/dependencies/agent_fs.md:1` | 迁移样本；17,957 字节超出 `BUDGET.domain`，见 §8.1 | 已有卡片（该项目自己的） |
 
-> 本次读了源码才搞清楚的模块，已全部落在本仓库既有卡片 `engineering-context/cards/dw-system/ctx命令行.md` 的覆盖范围内（该卡第 28 行已登记 `lint.js#lintCards` 与七条规则）。实现阶段改动 `ctx` 的权威面后，MUST 就地刷新那张卡并更新〈确认〉，随本次分支提交。
+> 本次读了源码才搞清楚的模块，已全部落在本仓库既有卡片 `engineering-context/cards/dw-system/ctx命令行.md`（读取层与各条命令的契约）与 `engineering-context/cards/dw-system/ctx体检与门禁.md`（`lint.js#lintCards` 的规则集与扫描面、`probe` 门禁）的覆盖范围内。实现阶段改动 `ctx` 的权威面后，MUST 就地刷新对应的那张卡并更新〈确认〉，随本次分支提交。
 
 ### 1.1 功能需求（MUST 编号）
 
@@ -510,7 +510,7 @@ cardLabel(card):
 | AC-018 | §8.1 十条兼容取舍每条都有用户确认结论（含显式的"维持现状"），且结论与 §3 / §4 的契约一致 | 人工核对本文 §8.1 全部「待拍板」已替换 | — |
 | AC-019 | §8.2 替换清单逐条核销：该改的已改，`grep -rn "地图卡与域卡的平铺列表" dw-system/` 零命中 | 人工核对 + grep | — |
 | AC-020 | 仓库根 `CHANGELOG.md` 的 `## 未发布` 节已按 §8.1 的"不兼容"结论逐行写条目（以判据实体名开头，含旧调用方式 / 新调用方式 / 迁移步骤） | 人工核对；规则见 `references/代码事实纪律.md:162-172` | — |
-| AC-021 | 本仓库卡片已刷新：`engineering-context/cards/dw-system/ctx命令行.md` 的体检规则条目与命令清单反映新扫描面，〈确认〉已更新 | `ctx lint-cards` 无新增违规 | — |
+| AC-021 | 本仓库卡片已刷新：`engineering-context/cards/dw-system/ctx命令行.md` 的命令清单与 `engineering-context/cards/dw-system/ctx体检与门禁.md` 的体检规则条目反映新扫描面，两张卡的〈确认〉已更新 | `ctx lint-cards` 无新增违规 | — |
 | AC-022 | 本文已登记进 `docs/index.md` 现行区，frontmatter 的 `authority_refs` 非空且与别的现行文档无重复条目 | `ctx probe`（`rationale-traceable` 与 `authority-unique` 两题）| — |
 | AC-023 | 在 `aiudit_platform` 上完成 §8.3 的迁移并实跑通过：`cards/agent_fs.md` 已删、`dependencies/agent_fs/` 下有事实卡、`dependencies/agent_fs.md` 有〈业务域地图〉节、`ctx lint-cards` 可收敛 | 在该项目根跑 `ctx lint-cards` 与 `ctx discover "向量库"` | FR-001 / FR-002 |
 

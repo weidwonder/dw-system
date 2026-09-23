@@ -23,7 +23,7 @@
 | 文档生命周期与索引门控 | `dw-system/skills/dw-doc-governance/references/文档生命周期.md#lifecycle` | `lifecycle` / `superseded_by` / `authority_refs` 等字段与索引分层的家。同一条 `authority_refs` MUST NOT 被两份 `lifecycle: active` 的文档同时声明，由 `ctx probe` 的 `authority-unique` 题型机检。 |
 | 索引完整性机器闸 | `test/doc-index.test.mjs#collectDocs` | 递归子目录；`active` 的文档 MUST 在 `docs/index.md`，归档态的 MUST 在 `docs/index-archive.md` 且不在现行索引；断链判红；缺 `lifecycle` 字段单独报一条。按**文件路径**匹配，不按标题文字。 |
 | UI 原型的产出纪律 | `dw-system/skills/dw-prd/references/UI原型纪律.md#批注框架` | 原型的产出、结构、自检、批注框架、写回路径与风格归属（§8.3：外观层默认不装配）的权威判据；`preview.mjs` 的注释与 `ui-prototype-framework/README.md` 只指过去。工具侧的事实在 `cards/dw-system/原型工具.md`。 |
-| 卡片体例 | `dw-system/skills/dw-code-facts/references/代码事实纪律.md#补一张卡片的最小形态` | 两种卡写什么、只写现状、只记判断的家；小节名的机器定义在 `lint.js`（见 `cards/dw-system/ctx命令行.md`）。 |
+| 卡片体例 | `dw-system/skills/dw-code-facts/references/代码事实纪律.md#补一张卡片的最小形态` | 三类卡（地图卡 / 域卡 / 依赖仓事实卡）写什么、只写现状、只记判断的家；小节名的机器定义在 `lint.js`（见 `cards/dw-system/ctx体检与门禁.md`）。 |
 | 注入目标项目的标记块正文 | `dw-system/skills/dw-workflow/assets/config-snippets/base.md#dw-workflow:start` | `base.md` + `collab-solo.md` / `collab-team.md` 是标记块正文的唯一来源，由安装器与 skill 初始化取用；组装规则在 `cards/dw-system/标记块与旧版迁移.md`。 |
 
 ## 陷阱项
@@ -43,4 +43,4 @@
 `test/counter-word.test.mjs`、`test/gate-sync.test.mjs`、`test/doc-index.test.mjs`、`test/cross-reference.test.mjs`、`test/single-home.test.mjs`、`test/doc-budgets.test.mjs`、`test/rule-destinations.test.mjs`（含规范词的小节不得无声消失）；都在仓库根跑，不随 skill 分发。
 
 ## 确认
-2026-09-17｜来源：`00-流程总纲.md` 的〈五道门〉一节、`确认门.md` 与 `worktree开发纪律.md` 的小节表、`文档治理.md`〈默认命名〉、`文档生命周期.md`〈生命周期位〉、`UI原型纪律.md` 的小节表，以及 `test/counter-word.test.mjs` / `test/counter-word-exempt.mjs` / `test/gate-sync.test.mjs` / `test/doc-index.test.mjs` 、`test/single-home.test.mjs`、`test/doc-budgets.test.mjs`、`test/cross-reference.test.mjs`、`test/rule-destinations.test.mjs` 的文件头与常量
+2026-09-22｜来源：`代码事实纪律.md` §4.1 的三类卡表、`00-流程总纲.md` 的〈五道门〉一节、`确认门.md` 与 `worktree开发纪律.md` 的小节表、`文档治理.md`〈默认命名〉、`文档生命周期.md`〈生命周期位〉、`UI原型纪律.md` 的小节表，以及 `test/counter-word.test.mjs` / `test/counter-word-exempt.mjs` / `test/gate-sync.test.mjs` / `test/doc-index.test.mjs` 、`test/single-home.test.mjs`、`test/doc-budgets.test.mjs`、`test/cross-reference.test.mjs`、`test/rule-destinations.test.mjs` 的文件头与常量
