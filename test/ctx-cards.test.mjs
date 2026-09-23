@@ -292,7 +292,8 @@ test('card 读不出来时不抛栈：loadCards 跳过它，unreadableCards 报�
     if (!makeUnreadable(bad)) return t.skip('当前环境造不出不可读文件（root 或无权限位的文件系统）');
     const base = path.join(tmp, 'engineering-context');
     assert.deepEqual(loadCards(base).map((c) => c.service), ['ok'], '读不出的 card 跳过，MUST NOT 抛');
-    assert.deepEqual(unreadableCards(base), ['bad.md'], '跳过的必须报出来——否则会被读成"这个仓没登记"');
+    // 路径以 engineering-context/ 为根：扫描面含 cards/ 与 dependencies/ 两棵树，裸文件名分不清是哪一棵。
+    assert.deepEqual(unreadableCards(base), ['cards/bad.md'], '跳过的必须报出来——否则会被读成"这个仓没登记"');
   } finally {
     try { fs.chmodSync(path.join(cardsDir, 'bad.md'), 0o644); } catch { /* 已删或本就可读 */ }
     fs.rmSync(tmp, { recursive: true, force: true });

@@ -5,6 +5,27 @@
 
 ## 未发布
 
+### 不兼容
+- `ctx get-card <上游名>`（不给域）—— 旧：只看 `cards/`，依赖名必然落空，打印「未找到服务 card」并退出 1；新：没有产品卡而有 `dependencies/<上游名>.md` 时返回该声明全文、发 cite `dependencies/<名>.md#全文 @<确认时间>`、退出 0；迁移：把 `get-card` 退出码当「这个名字有没有卡」用的脚本与 agent，改判 `--json` 的 `missing` 字段，不要再用退出码区分"未登记"与"取到了"。
+- `ctx lint-cards`（扫描面）—— 旧：只扫 `engineering-context/cards/`；新：同时扫 `dependencies/`（依赖声明与依赖仓事实卡），事实卡按域卡那套固定小节、体积、`dated-heading`、`trap-noise`、`domain-dup` 检，有事实卡而无同名声明判 `sections|dependencies/<名>|缺依赖声明`；迁移：已跑过 `--init-baseline` 的存量项目升级后首跑会冒出基线外新违规而判红——基线只许变短，修不掉的那部分只能删掉 `cards-lint-baseline.json` 重新 `--init-baseline`。
+- `ctx discover` / `ctx search-semantic`（人读输出的卡片指称）—— 旧：命中行一律 `• <service>[ › <domain>]`，out-of-scope 行一律 `<service> › <domain>: …`；新：来自依赖仓的卡片在名字前加 `[依赖] ` 前缀，产品仓不变，`--json` 的 `cards[]` / `results[]` 每项多一个 `origin`（`product` / `dependency`）；迁移：按 `^• (\S+)` 取服务名的脚本会把 `[依赖]` 当成服务名，改读 `--json` 的 `service` 与 `origin`。
+- `unreadableCards(ctxDir)`（返回值形态；`ctx list-services` 的 `⚠ N 张 card 读不出来` 与 `--json.unreadableCards` 读它）—— 旧：返回裸文件名或 `<repo>/<文件名>`；新：一律带 `cards/` 或 `dependencies/` 前缀，路径以 `engineering-context/` 为根；迁移：按裸文件名匹配这两项的 CI 断言改成匹配带前缀的相对路径。
+- `ctx search-semantic`（结果集与排序）—— 旧：候选集只有产品仓的地图卡与域卡；新：并入依赖仓事实卡，不做任何折扣、按分数自然排，上游卡片体量大时（如二十多条陷阱的 `agent_fs`）产品仓条目会被挤出 `--top` 默认的 5 条；迁移：靠默认 top-N 取结果的脚本与 agent，改用 `--top` 调大取数，或按 `--json` 的 `origin` 过滤到 `product` 之后再截断。
+- `ctx discover`（结果集与排序）—— 旧：候选集只有产品仓的地图卡与域卡；新：并入依赖仓事实卡。本命令**不截断**、也没有 `--top` 参数，变的是命中列表整体变长与排序位次；迁移：按位次取前几条的脚本与 agent，改按 `--json` 的 `origin` 过滤后再取。
+- `ctx discover` 的 out-of-scope 警告列表 —— 旧：只列产品域卡〈陷阱项〉里的条目；新：命中的依赖仓事实卡，其〈陷阱项〉与产品域卡同等待遇逐条进，列表因此变长；迁移：把 out-of-scope 行数当门禁阈值或摘要长度上限的调用方，按新的条数重定阈值，MUST NOT 靠截断丢掉依赖侧的警告——那正是最该看到的外部陷阱。
+- `ctx get-card <名>`（名字同时命中产品仓卡片与依赖声明时）—— 旧：只返回地图卡全文加一行 cite，没有任何其他输出；新：cite 之后多一行「（另有同名依赖声明：`dependencies/<名>.md`）」，`--json` 多一个 `alsoDependency: true`；迁移：按行位取 `get-card` 输出末行的脚本改读 `--json`，MUST NOT 按输出行数判定。
+- `ctx get-card <名> <域>`（查找层级）—— 旧：只查 `cards/<名>/<域>.md` 与地图卡同名小节，其余一律退出 1；新：四级查找，第 2 级 `dependencies/<名>/<域>.md`、第 4 级依赖声明的同名小节，产品仓在前、命中即退出 0，**任何已有 `dependencies/*.md` 的存量项目升级后立刻生效**；迁移：把「退出 1 = 这个域没登记」当判据的脚本改判 `--json` 的 `missing`，并注意返回的 cite 路径可能以 `dependencies/` 开头。
+- `ctx probe` 的 A 类题型输入 —— 旧：`loadAllCards` 只给产品地图卡与域卡；新：并入依赖仓事实卡，`deprecated-trap` 因此可从上游卡片的〈陷阱项〉取证，此前失败的题可能转 PASS，门禁自检的「card 废弃段」样本来源同步扩大；迁移：已有 probe 棘轮基线的项目升级后首跑可能因「基线里某编号已不再失败」判 RED，按棘轮规则人工把该编号从 `probe-set.md` 的基线段删掉。
+
+### 新增
+- 依赖仓事实卡 `engineering-context/dependencies/<上游名>/<域>.md`：外部上游的事实有了与产品仓域卡同等待遇、但不和产品仓卡片平级摆放的位置。目录名即上游名、文件名即域名，小节名、模板（`card-domain.md`）与体积上限都与域卡相同；`ctx get-card <上游名> <域>` 直接取它，`discover` / `search-semantic` / `probe` 一并检索它，它的〈陷阱项〉逐条进 out-of-scope。
+- `dependencies/<上游名>.md` 新增〈业务域地图〉节（业务域 / 一句话 / 事实卡路径）：一个上游仍然只有一个入口文件，最小五项一字未动。
+- `ctx get-card <名> <域>` 的四级查找：`cards/<名>/<域>.md` → `dependencies/<名>/<域>.md` → 地图卡同名小节 → 依赖声明同名小节，产品仓在前；`missing` 时的 `available` 覆盖四处来源，依赖侧条目标 `[依赖]`。名字同时命中产品仓与依赖侧时产品仓优先，人读末尾提示一行、`--json` 给 `alsoDependency: true`。
+
+### 变更
+- 依赖仓事实卡的 cite 整卡跳过校验，走的是地图卡 `> 根目录：外部` 那条既有分支（`rootsOf` 返回 `null`），没有第二条豁免路径；这类卡因此 MUST NOT 记本项目的调用点，调用点的家仍是依赖声明的〈用到的部分〉列。
+- 「依赖声明文件名含 `/` 要替换成 `__`、MUST NOT 造出子目录」一句改写为「声明文件本身 MUST NOT 造子目录；`dependencies/<上游名>/` 是依赖仓事实卡的专用目录」，`代码事实纪律.md` §10.2、`assets/context-layer/dependency.md` 与 `ctx init` 生成的 `dependencies/README.md` 三处同改。
+
 ### 修复
 - 安装器不再把 `codegraph upgrade` 的退出码当作升级成功：本机同时装了 npm 包与独立包时，`upgrade` 升的是它自己那份而 PATH 优先命中另一份，导致每次安装都报同一个「有新版本」。改为升级后重新探测版本，仍落后于远端就退回 `npm install -g …@latest`，npm 也换不掉则告警提示本机有多份副本。
 

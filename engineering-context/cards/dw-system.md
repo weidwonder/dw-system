@@ -12,7 +12,8 @@
 | 安装主干 | 取源、复制与版本戳、迁移指南、`.gitignore` 块与 docs 入库决定、冲突插件处置、入口软链接 | 安装器：`install.mjs` | `cards/dw-system/安装主干.md` |
 | 标记块与旧版迁移 | 入口文件里标记块的字段模型、组装与两入口收敛；更名前旧安装的残留清理 | 安装器：`install.mjs` | `cards/dw-system/标记块与旧版迁移.md` |
 | 外部工具接线 | 主安装之后的三段：伴生 skill、`ctx` 全局链接、codegraph | 安装器：`install.mjs` | `cards/dw-system/外部工具接线.md` |
-| ctx命令行 | 代码事实层的查询与体检 CLI：卡片与 registry 解析、discover / get-card、语义兜底、lint-cards、probe | 必备的代码事实层、`ctx` 命令族 | `cards/dw-system/ctx命令行.md` |
+| ctx命令行 | 代码事实层的查询 CLI：三类卡与 registry 的解析、discover / get-card、语义兜底 | 必备的代码事实层、`ctx` 命令族 | `cards/dw-system/ctx命令行.md` |
+| ctx体检与门禁 | `lint-cards` 的体检规则与基线、`probe` 的题型与判级 | 必备的代码事实层、`ctx` 命令族 | `cards/dw-system/ctx体检与门禁.md` |
 | 原型工具 | `preview.mjs` 七条子命令与 `ui-prototype-framework/` 框架源码 | 产 PRD：`dw-prd` | `cards/dw-system/原型工具.md` |
 | skill文档 | 各份 skill 文档里哪一处是某条判据的家、哪些机器闸守着复述处 | 从 PRD 到代码、文档治理与三层真相源 | `cards/dw-system/skill文档.md` |
 
@@ -29,4 +30,4 @@
 - 指望装进目标项目的副本里有测试可跑 — 机器闸与 fixtures 只住在仓库根 `test/`，不随 skill 分发；改了 `ctx`、`preview.mjs`、框架源码或 skill 文档，MUST 在本仓库根跑 `node --test test/*.test.mjs`。
 
 ## 确认
-2026-09-17｜来源：`install.mjs` 全文的顶层常量与函数表、`dw-system/skills/dw-code-facts/scripts/ctx/`（`src/*.js`、`package.json`、`README.md`）、`dw-system/skills/dw-prd/scripts/preview.mjs` 与 `ui-prototype-framework/`、`docs/REQUIREMENTS.md`〈现在有哪些功能〉
+2026-09-22｜来源：`install.mjs` 全文的顶层常量与函数表、`dw-system/skills/dw-code-facts/scripts/ctx/`（`src/*.js`、`package.json`、`README.md`）、`dw-system/skills/dw-prd/scripts/preview.mjs` 与 `ui-prototype-framework/`、`docs/REQUIREMENTS.md`〈现在有哪些功能〉

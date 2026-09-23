@@ -154,6 +154,7 @@ export function searchSemantic(ctxDir, query, opts = {}) {
       scored.push({
         service: card.service,
         domain: card.domain ?? null,
+        origin: card.origin,
         section,
         score: Number(score.toFixed(4)),
         authority,

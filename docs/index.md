@@ -38,6 +38,7 @@
 - **[dw-system 技术 spec：安装器迁移、ctx 卡片体检与机器闸](./spec/2026-09-17-dw-system-安装器迁移与ctx体检与机器闸-eng-spec.md)** — 3.0.0 动到可执行代码的部分：安装器名字表与旧残留迁移、`ctx` 域卡解析与 `lint-cards`、`authority-unique` 题型、三条新闸与退役名单。
 - **[全局安装](./spec/2026-09-18-dw-system-全局安装-eng-spec.md)** — 安装器 `--global`：装进 `~/.claude/skills/` 与 `~/.codex/skills/`、与项目级参数互斥、全局卸载冲突插件、`ctx` 与 codegraph 的全局落点。
 - **[入口顶部提示块](./spec/2026-09-21-dw-system-入口提示块-eng-spec.md)** — 在目标项目 `AGENTS.md` / `CLAUDE.md` 最前面写一段「动手前先加载 `dw-workflow`」：落点决策表、两条写入路径、与文末标记块的分工。
+- **[依赖仓事实卡](./spec/2026-09-22-dw-system-依赖仓事实卡-eng-spec.md)** — 外部上游的事实落 `dependencies/<上游名>/<域>.md`：读取层的三个来源与 `origin` 字段、`get-card` 四级查找、检索输出的 `[依赖]` 标记、`lint-cards` 的扫描面与 cite 豁免。
 - **[codegraph 升级判定](./spec/2026-09-21-codegraph升级判定-lean-change-spec.md)** — 安装器不再用 `codegraph upgrade` 的退出码判升级成没成：改为比对升级后的实际版本，仍落后就退回 npm、再不行就告警本机有多份副本。
 
 ## 进行中的计划（`docs/plan/`）
@@ -46,6 +47,7 @@
 
 - **[dw-system 3.0 Coding Plan](./plan/2026-09-17-dw-system-3.0-coding-plan.md)** — 3.0.0 的十个任务：机械更名、换闸、安装器迁移、`dw-prose` 与来历清理、决策记录、拆评审门、拆其余与取消 Lean 副本、`ctx` 卡片体检、收紧体积、发布件。
 - **[入口提示块 Coding Plan](./plan/2026-09-21-入口提示块-coding-plan.md)** — 四个任务：正文片段与组装、安装器落点与幂等写入、skill 初始化侧、吃自己的狗粮与账本。
+- **[依赖仓事实卡 Coding Plan](./plan/2026-09-22-依赖仓事实卡-coding-plan.md)** — 八个垂直切片：读取层与 `origin`、`get-card` 四级、检索标记、体检扩面、缺依赖声明、模板与文档、卡片与账本、全量验证与跨仓实跑。
 
 其余已完成的计划见[归档索引](./index-archive.md)。
 

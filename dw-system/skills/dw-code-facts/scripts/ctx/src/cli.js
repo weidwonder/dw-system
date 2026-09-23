@@ -9,6 +9,7 @@ import {
   findScenes,
   listServices,
   initScaffold,
+  originTag,
 } from './commands.js';
 import { loadAllCards, loadRegistry, diagnoseRegistry, unreadableCards, UNDECLARED_FRESHNESS } from './cards.js';
 import { searchSemantic } from './semantic.js';
@@ -193,7 +194,7 @@ function main() {
         }).join('\n'));
       }
       if (r.cards.length) {
-        blocks.push(r.cards.map((c) => `• ${c.domain ? `${c.service} › ${c.domain}` : c.service}  (score ${c.score}) — ${c.why}\n    ${c.cite}${freshnessNote(c)}`).join('\n'));
+        blocks.push(r.cards.map((c) => `• ${originTag(c.origin)}${c.domain ? `${c.service} › ${c.domain}` : c.service}  (score ${c.score}) — ${c.why}\n    ${c.cite}${freshnessNote(c)}`).join('\n'));
       }
       if (r.outOfScope.length) blocks.push(`out-of-scope：\n- ${r.outOfScope.join('\n- ')}`);
       const hit = r.capabilities.length || r.cards.length;
@@ -219,7 +220,10 @@ function main() {
           { ...c, diagnosis: 'section-not-found' });
         return 1;
       }
-      out(json, `${c.content}\n\n${c.cite}`, { ...c, diagnosis: 'ok' });
+      // 名字同时命中产品仓与依赖侧时产品仓优先，但另一侧 MUST NOT 被静默吞掉：
+      // 不提示的话，调用方拿到的"这个名字的全部事实"其实只有一半，而它无从知道。
+      const alsoDep = c.alsoDependency ? `\n（另有同名依赖声明：dependencies/${service}.md）` : '';
+      out(json, `${c.content}\n\n${c.cite}${alsoDep}`, { ...c, diagnosis: 'ok' });
       return 0;
     }
     case 'find-scenes': {
@@ -273,7 +277,7 @@ function main() {
         ? r.results.map((x) => {
             const staleFlag = x.stale ? (x.freshness === UNDECLARED_FRESHNESS ? `⏳${UNDECLARED_FRESHNESS}` : '⏳过期') : '';
             const flags = [x.authority === 'deprecated' ? '⚠已废弃' : 'canonical', staleFlag].filter(Boolean).join(' ');
-            return `• ${x.domain ? `${x.service}/${x.domain}` : x.service} › ${x.section}  (${x.score}) [${flags}]\n    ${x.cite}`;
+            return `• ${originTag(x.origin)}${x.domain ? `${x.service}/${x.domain}` : x.service} › ${x.section}  (${x.score}) [${flags}]\n    ${x.cite}`;
           }).join('\n')
         : '（无语义命中）';
       out(json, `${human}\n\n提示：\n- ${r.note.join('\n- ')}`, r);

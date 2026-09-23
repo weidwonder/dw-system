@@ -32,7 +32,7 @@
     "reason": "同上：两份片段各自自带头注"
   },
   {
-    "sentence": "文件名含 `/` 的（npm scoped 包如 `@scope/name`）把 `/` 替换成 `__`，写成 `@scope__name.md`，MUST NOT 造出子目录",
+    "sentence": "**声明文件本身 MUST NOT 造子目录**，`dependencies/<上游名>/` 是依赖仓事实卡的专用目录",
     "files": [
       "dw-code-facts/assets/context-layer/dependency.md",
       "dw-code-facts/references/代码事实纪律.md"

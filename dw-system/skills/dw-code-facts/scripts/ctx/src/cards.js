@@ -69,7 +69,7 @@ function readMarkdownDir(dir) {
  * 而 agent 见到 ctx 崩了就直接退回裸 grep。读不出的当作不存在跳过；目录本身读不出时按
  * "没有 cards"处理，诊断由各命令自己给。
  * @param {string} ctxDir engineering-context 目录
- * @returns {Array<{service:string, path:string, sections:Record<string,string>, raw:string, domains:string[]}>}
+ * @returns {Array<{service:string, origin:'product', path:string, sections:Record<string,string>, raw:string, domains:string[]}>}
  */
 export function loadCards(ctxDir) {
   const cardsDir = path.join(ctxDir, 'cards');
@@ -77,6 +77,10 @@ export function loadCards(ctxDir) {
   const domains = loadDomainCards(ctxDir);
   return readMarkdownDir(cardsDir).map(({ name, raw }) => ({
     service: name,
+    // origin 是**显式声明**：由本函数按它读的那个具名目录写死。调用方一律只读不写。
+    // MUST NOT 让调用方按"路径里有没有 dependencies 子串"或名字关键词去猜——那是启发式，
+    // 换个目录名就静默失效，而失效的方向是"外部依赖的事实被当成本项目的权威实现"。
+    origin: 'product',
     path: path.join('cards', `${name}.md`),
     sections: splitSections(raw),
     raw,
@@ -87,7 +91,7 @@ export function loadCards(ctxDir) {
 /**
  * 读取域卡 `engineering-context/cards/<仓库>/<域>.md`。目录名即仓库名，文件名即域名。
  * 没有对应地图卡的目录同样读出来——缺地图卡由 `lint-cards` 报，不由读取层吞掉。
- * @returns {Array<{service:string, domain:string, path:string, sections:Record<string,string>, raw:string}>}
+ * @returns {Array<{service:string, domain:string, origin:'product', path:string, sections:Record<string,string>, raw:string}>}
  */
 export function loadDomainCards(ctxDir) {
   const cardsDir = path.join(ctxDir, 'cards');
@@ -104,6 +108,7 @@ export function loadDomainCards(ctxDir) {
       out.push({
         service: e.name,
         domain: name,
+        origin: 'product', // 见 loadCards：由读取函数按具名目录显式赋值，MUST NOT 由调用方推断
         path: path.join('cards', e.name, `${name}.md`),
         sections: splitSections(raw),
         raw,
@@ -113,9 +118,66 @@ export function loadDomainCards(ctxDir) {
   return out;
 }
 
-/** 地图卡与域卡的平铺列表：检索与 probe 的输入。域卡带 `domain`，地图卡没有。 */
+/**
+ * 读取依赖仓事实卡 `engineering-context/dependencies/<上游名>/<域>.md`。
+ * 目录名即上游名、文件名即域名，返回形状与 `loadDomainCards` 一致，只有 `origin` 不同。
+ *
+ * 只下探**一层**（与 `loadDomainCards` 同深度），MUST NOT 递归：递归会把
+ * `dependencies/<名>/<子目录>/x.md` 也当成事实卡，域名与路径的对应关系就此失去唯一解。
+ * `dependencies/` 下的**文件**（依赖声明与 README）不是事实卡，按"不是目录"跳过。
+ * @returns {Array<{service:string, domain:string, origin:'dependency', path:string, sections:Record<string,string>, raw:string}>}
+ */
+export function loadDependencyCards(ctxDir) {
+  const depDir = path.join(ctxDir, 'dependencies');
+  let entries;
+  try {
+    entries = fs.readdirSync(depDir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const out = [];
+  for (const e of entries) {
+    if (!isDir(depDir, e)) continue;
+    for (const { name, raw } of readMarkdownDir(path.join(depDir, e.name))) {
+      out.push({
+        service: e.name,
+        domain: name,
+        origin: 'dependency', // 见 loadCards：显式赋值，调用方只读不写
+        path: path.join('dependencies', e.name, `${name}.md`),
+        sections: splitSections(raw),
+        raw,
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * 读取依赖声明 `engineering-context/dependencies/<上游名>.md`（最小五项 + 〈业务域地图〉）。
+ *
+ * 它**不是**卡对象（没有 `origin` / `domain`），MUST NOT 混进 `loadAllCards`：混进去意味着
+ * 声明的〈用到的部分〉表会被 `discover` 当成卡片正文计分，把"我们调了它哪些接口"这类
+ * **本项目**的事实错报成外部依赖的事实。
+ *
+ * `README.md` 是 `ctx init` 生成的目录说明，不是声明——按文件名忽略（大小写不敏感），
+ * 与 `findScenes` 忽略 `scenes/README.md` 同一条理由：索引文件汇集各条目关键词，几乎必命中。
+ * @returns {Array<{upstream:string, path:string, sections:Record<string,string>, raw:string}>}
+ */
+export function loadDependencies(ctxDir) {
+  const depDir = path.join(ctxDir, 'dependencies');
+  return readMarkdownDir(depDir)
+    .filter(({ name }) => name.toLowerCase() !== 'readme')
+    .map(({ name, raw }) => ({
+      upstream: name,
+      path: path.join('dependencies', `${name}.md`),
+      sections: splitSections(raw),
+      raw,
+    }));
+}
+
+/** 三类卡的平铺列表（产品地图卡 → 产品域卡 → 依赖仓事实卡），每项带 `origin`：检索与 probe 的输入。 */
 export function loadAllCards(ctxDir) {
-  return [...loadCards(ctxDir), ...loadDomainCards(ctxDir)];
+  return [...loadCards(ctxDir), ...loadDomainCards(ctxDir), ...loadDependencyCards(ctxDir)];
 }
 
 /**
@@ -127,14 +189,29 @@ export function cardFreshness(card) {
 }
 
 /**
- * cards/ 目录里读不出来的 card 文件名（权限/编码问题）。**只用于人类可读的提示**：
- * `loadCards` 静默跳过它们，不报的话使用者会看到"这个仓没登记"而真相是"这张卡读不出来"。
+ * 依赖声明的最近确认日期：先取「确认时间」行，取不到才退回"全文第一个日期"。
+ *
+ * 声明文件没有 `## 确认` 小节，套 `cardFreshness` 会直落到"全文第一个日期"，而声明头部的
+ * 「上游与当前版本」行常带形似日期的版本串（`b-sdk @ 1.2.3-2026.01.01`、日历版本号），
+ * 取错就会发出一条日期错误的 cite——看起来权威却已过期的来源比没有来源更危险。
+ * @returns {string} YYYY-MM-DD，或 UNDECLARED_FRESHNESS
+ */
+export function dependencyFreshness(raw) {
+  const m = /^\s*-?\s*确认时间[:：]\s*(\d{4}-\d{2}-\d{2})/m.exec(raw || '');
+  return m ? m[1] : confirmedAtOf(raw);
+}
+
+/**
+ * `cards/` 与 `dependencies/` 里读不出来的 markdown（权限/编码问题），路径以
+ * `engineering-context/` 为根（`cards/<文件>`、`cards/<repo>/<文件>`、`dependencies/<文件>`、
+ * `dependencies/<上游名>/<文件>`）。**只用于人类可读的提示**：读取层静默跳过它们，
+ * 不报的话使用者会看到"这个仓没登记"而真相是"这张卡读不出来"。
  * @returns {string[]}
  */
 export function unreadableCards(ctxDir) {
-  const cardsDir = path.join(ctxDir, 'cards');
   const bad = [];
-  // 地图卡在 cards/ 下，域卡在 cards/<repo>/ 下；只下探一层，与 loadDomainCards 同一范围。
+  // 地图卡在 cards/ 下、域卡在 cards/<repo>/ 下；声明在 dependencies/ 下、事实卡在
+  // dependencies/<上游名>/ 下。两棵树都只下探一层，与各自的读取函数同一范围。
   const scan = (dir, prefix, descend) => {
     let entries;
     try {
@@ -155,7 +232,8 @@ export function unreadableCards(ctxDir) {
       }
     }
   };
-  scan(cardsDir, '', true);
+  scan(path.join(ctxDir, 'cards'), 'cards/', true);
+  scan(path.join(ctxDir, 'dependencies'), 'dependencies/', true);
   return bad;
 }
 

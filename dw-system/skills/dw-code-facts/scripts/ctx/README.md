@@ -113,8 +113,9 @@ node src/cli.js probe --dir <ctx目录> --json >/tmp/probe.json \
 
 ## card 格式约定（供解析）
 
-- 地图卡放 `engineering-context/cards/<repo>.md`，文件名即 service 名；域卡放 `engineering-context/cards/<repo>/<域>.md`，目录名即 service 名、文件名即域名。`discover`、`search-semantic`、`probe` 读两者，`list-services` 只列地图卡。
-- 段落用 `## 标题`。`get-card <repo> <域>` 先找域卡文件，没有才按段落标题在地图卡里定位。
+- 地图卡放 `engineering-context/cards/<repo>.md`，文件名即 service 名；域卡放 `engineering-context/cards/<repo>/<域>.md`，目录名即 service 名、文件名即域名。**依赖仓事实卡**（外部上游的事实）放 `engineering-context/dependencies/<上游名>/<域>.md`，目录名即上游名、文件名即域名，小节名与体积上限与域卡完全相同。`discover`、`search-semantic`、`probe` 读这三类，`list-services` 只列地图卡（上游不是本项目的服务）。`dependencies/<上游名>.md` 是**依赖声明**不是卡：它不进检索，只由 `get-card` 取，名下有哪几张事实卡写在它的〈业务域地图〉节里。`dependencies/README.md` 不参与解析。
+- 每张卡带 `origin`（`product` / `dependency`），由三个读取函数按它读的具名目录**显式赋值**；`--json` 的 `discover.cards[]` 与 `searchSemantic.results[]` 透传它，人读输出给依赖仓的卡片加 `[依赖]` 前缀（含 out-of-scope 行）。调用方 MUST 读这个字段区分来源，MUST NOT 按路径子串或名字关键词猜。
+- 段落用 `## 标题`。`get-card <名> <域>` 的查找顺序固定为 `cards/<名>/<域>.md` → `dependencies/<名>/<域>.md` → 地图卡同名 `## ` 小节 → 依赖声明同名 `## ` 小节，**产品仓在前**；四处皆无时不发 cite、退出 1，`available` 里依赖侧条目标 `[依赖]`。`get-card <名>` 不给域时有地图卡返回地图卡（另有同名依赖声明则提示一行并给 `alsoDependency`），没有产品卡则返回依赖声明全文，它的确认日期取「确认时间」行。
 - 最近确认日期取〈确认〉小节里的第一个日期；没有该小节时取〈Freshness / Provenance〉小节，再没有取全文第一个日期。
 - `capability-registry.md` 用 markdown 表格；正文单元格避免裸 `|`（不处理转义）。
 - **哪些行会被当作废弃声明**（选行判据，与下面的消歧判据不是一回事）：行里出现
@@ -206,16 +207,16 @@ node src/cli.js search-semantic "背单词" --as-of 2026-07-20 --stale-days 90  
 | `ctx lint-cards --prune-baseline` | 从基线移除已不再出现的条目；不会添加 | 0 |
 | `ctx lint-cards --json` | 同第一行，机器可读（`violations` / `fresh` / `fixed`） | 同第一行 |
 
-没有 `cards/` 目录或目录为空、registry 也没有违规：打印"没有卡片可检"，退出 0；registry 有违规（指针指向不存在的卡、单格超限）时照常列出并按新增违规判退出码。基线文件在、但不是合法 JSON 或缺 `violations` 数组：点名文件、退出 2，MUST NOT 当成空基线继续，也不改写它。读不出的卡片文件记一条 `unreadable|<路径>|` 违规，其余规则不检它。
+没有 `cards/` 目录或目录为空、registry 也没有违规：打印"没有卡片可检"，退出 0；registry 有违规（指针指向不存在的卡、单格超限）时照常列出并按新增违规判退出码。基线文件在、但不是合法 JSON 或缺 `violations` 数组：点名文件、退出 2，MUST NOT 当成空基线继续，也不改写它。读不出的卡片文件记一条 `unreadable|<路径>|` 违规，其余规则不检它；扫描面是 `cards/` 与 `dependencies/` 两棵树各下探一层（依赖声明与事实卡都算），路径以 `engineering-context/` 为根。
 
 | 规则 | 判据 |
 |---|---|
-| `sections` | 域卡的 `## ` 小节 MUST 含 职责 / 权威实现与对外接口 / 陷阱项 / 确认，此外只许 测试入口 / 日志与排障 / 端侧补充。地图卡 MUST 含 职责 / 业务域地图，此外只许 对外入口总览 / 跨域陷阱 / 上下游 / 测试入口 / 日志与排障 / 确认。有域卡目录而没有同名地图卡也判本规则 |
-| `budget` | 地图卡 ≤ 8,000 字节；域卡 ≤ 16,000；registry 任一单元格 ≤ 300 |
+| `sections` | 域卡**与依赖仓事实卡**的 `## ` 小节 MUST 含 职责 / 权威实现与对外接口 / 陷阱项 / 确认，此外只许 测试入口 / 日志与排障 / 端侧补充。地图卡 MUST 含 职责 / 业务域地图，此外只许 对外入口总览 / 跨域陷阱 / 上下游 / 测试入口 / 日志与排障 / 确认。有域卡目录而没有同名地图卡、有 `dependencies/<上游名>/` 下的事实卡而没有同名 `dependencies/<上游名>.md`（标识 `sections\|dependencies/<上游名>\|缺依赖声明`）也判本规则；依赖声明文件**本身**不受本规则约束 |
+| `budget` | 地图卡 ≤ 8,000 字节；域卡 ≤ 16,000；依赖仓事实卡与域卡同一个数值；registry 任一单元格 ≤ 300 |
 | `dated-heading` | 任一 `##` / `###` 标题含 `YYYY-MM-DD` 形态的日期 |
-| `cite` | 反引号内形如 `路径#符号` 或 `路径:行` 的 cite：文件 MUST 存在，`#符号` MUST 在该文件里检索得到，`:行` MUST 不超过文件行数。路径按"项目根 → 地图卡〈职责〉里 `> 根目录：<路径>` 声明的目录"解析；声明 `> 根目录：外部` 的仓库跳过本规则。含 `【】` 的占位行与代码围栏不检 |
-| `domain-dup` | 同一仓库内两个域名去空白与标点后相等，或一个是另一个的前缀且较短者 ≥4 个字符。域名取域卡文件名；还没拆成域卡的单文件卡，取它固定小节之外的 `## ` 小节名 |
-| `registry-pointer` | registry 里出现的 `cards/….md` 指针 MUST 指向存在的文件 |
+| `cite` | 反引号内形如 `路径#符号` 或 `路径:行` 的 cite：文件 MUST 存在，`#符号` MUST 在该文件里检索得到，`:行` MUST 不超过文件行数。路径按"项目根 → 地图卡〈职责〉里 `> 根目录：<路径>` 声明的目录"解析；声明 `> 根目录：外部` 的仓库跳过本规则；**依赖仓事实卡整卡跳过**（源码不在本项目里，按所在目录即豁免，不必声明），两者是同一条实现分支。含 `【】` 的占位行与代码围栏不检 |
+| `domain-dup` | 同一仓库（或同一上游）内两个域名去空白与标点后相等，或一个是另一个的前缀且较短者 ≥4 个字符。域名取域卡 / 事实卡文件名；还没拆成域卡的单文件卡，取它固定小节之外的 `## ` 小节名。跨仓库、跨上游不比较 |
+| `registry-pointer` | registry 里出现的 `cards/….md` 指针 MUST 指向存在的文件。本规则不扩到 `dependencies/`：registry 回答"本项目的能力由谁权威实现"，不该指向依赖仓事实卡 |
 | `trap-noise` | 〈陷阱项〉里出现"非废弃""仍在维护""持续维护"（`>` 引用块不检） |
 
 违规的稳定标识是 `<规则>|<相对路径>|<键>`。基线 `engineering-context/cards-lint-baseline.json` 入库，形如 `{ "version": 1, "violations": [...] }`，数组按字典序排序。它只经 `--init-baseline` 从无到有、经 `--prune-baseline` 变短；没有命令能往既有基线里加条目。
