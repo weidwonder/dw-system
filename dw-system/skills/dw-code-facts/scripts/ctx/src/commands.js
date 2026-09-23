@@ -377,6 +377,7 @@ const MINIMAL_REGISTRY_STUB = `# Capability Registry — 能力到权威实现�
 > 代码事实层的起步形态：**三列即可用，三行即可起步**。事实以**合入后的源码**为准，别从 PRD 生成（PRD 只作 scope + 业务语境）。
 > 其余列（业务含义 / 权威仓库 / 兼容窗口 / owner / 测试入口 / freshness / 理由链）按需再加：
 > \`ctx discover\` 对缺列**跳过而非报错**；没有 freshness 列时输出标注「未声明新鲜度」，不假定新鲜。
+> **第三列 MUST NOT 省**——它是最小 schema 里唯一的防误用装置，省掉就挡不住"改错了那个"。
 > 完整字段说明见 dw-code-facts skill 的 assets/context-layer/capability-registry.md。
 > 只剩下面这行模板占位时 \`ctx list-services\` 为空——这是**正常起步态**，不是"这层没启用"：
 > 内容按任务渐进补齐，要用哪个模块的事实就补哪个模块（见 dw-code-facts 的 references/代码事实纪律.md §4）。
@@ -395,6 +396,7 @@ const REGISTRY_STUB = `# Capability Registry — 产品能力到权威代码实�
 > MUST NOT 因为表是空的就告警、或退回裸 grep 找权威实现。
 > 下面两张表**填哪张都算，解析器会合并**（表头首列命中 Capability/能力的表全部解析）：
 > 三列是 MUST，十列表里的其余列是 MAY——缺列跳过不报错，没有 freshness 列的条目输出标注「未声明新鲜度」。
+> **第三列 MUST NOT 省**——它是最小 schema 里唯一的防误用装置，省掉就挡不住"改错了那个"。
 
 ## 最小合法 schema（起步用这个）
 

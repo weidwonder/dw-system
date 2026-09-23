@@ -20,7 +20,7 @@ import {
   unreadableCards,
 } from '../dw-system/skills/dw-code-facts/scripts/ctx/src/cards.js'
 import { discover, getCard } from '../dw-system/skills/dw-code-facts/scripts/ctx/src/commands.js'
-import { BUDGET, lintCards } from '../dw-system/skills/dw-code-facts/scripts/ctx/src/lint.js'
+import { BUDGET, lintCards, splitSuggestions } from '../dw-system/skills/dw-code-facts/scripts/ctx/src/lint.js'
 import { searchSemantic } from '../dw-system/skills/dw-code-facts/scripts/ctx/src/semantic.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -406,11 +406,16 @@ test('依赖侧不施加 registry-pointer 与 splitSuggestions', () => {
   const registry = '| Capability | 权威实现 | 陷阱项 |\n|---|---|---|\n'
     + '| 向量检索 | 见 `dependencies/agent_fs/检索缓存.md` | 无 |\n'
     + '| 订单导出 | 见 `cards/order/订单导出.md` | 无 |\n'
+  const legacy = '# 地图卡 — legacy\n\n## 职责\n\n遗留。\n\n## 业务域地图\n\n无。\n\n## 结算流程\n\n还没拆出去的一节。\n'
+  const depWithExtra = DEP_CARD + '\n## 上游发布节奏\n\n自造小节，依赖侧不该被建议拆分。\n'
   withProject(({ ctxDir }) => {
     assert.ok(!fs.existsSync(path.join(ctxDir, 'dependencies', 'agent_fs', '检索缓存.md')), '依赖侧样本必须指向不存在的文件，否则本条恒绿')
     assert.ok(fs.existsSync(path.join(ctxDir, 'cards', 'order', '订单导出.md')), '产品侧绿样本指向的域卡必须真实存在')
     assert.ok(!lintCards(ctxDir).violations.some((v) => v.startsWith('registry-pointer')), 'registry 不该指向依赖仓事实卡，规则也不扩到 dependencies/')
-  }, { deps: AGENT_FS, registry })
+    const split = splitSuggestions(ctxDir)
+    assert.ok(split.some((x) => x.card === 'cards/legacy.md'), '产品侧绿样本：带自造小节又没有域卡的地图卡必须被建议拆分，否则下一条恒绿')
+    assert.ok(!split.some((x) => x.card.startsWith('dependencies/')), '拆分建议不该扩到 dependencies/：依赖侧没有地图卡，拆分的落点是声明的〈业务域地图〉')
+  }, { deps: { agent_fs: { cards: { 向量库: depWithExtra } } }, registry, extraFiles: { 'cards/legacy.md': legacy } })
 })
 
 // ── lint-cards：缺依赖声明与依赖侧 unreadable ────────────────────────────────
