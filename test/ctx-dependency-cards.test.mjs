@@ -399,10 +399,18 @@ test('cite：依赖仓事实卡整卡跳过；同一段 cite 写进产品域卡�
   }, { domains: { 订单导出: DOMAIN.replace('`src/export/columns.js#EXPORT_COLUMNS`', badCite) }, deps: AGENT_FS })
 })
 
+// 依赖侧那一行**故意指向一个不存在的文件**：规则一旦被扩到 `dependencies/`，这条立刻判红。
+// 指向存在的文件会让本条恒绿——扩面了也照样查得到那个文件，断言永远成立。
+// 产品侧那一行指向真实存在的域卡，是绿样本：证明规则本身在跑，且没有误伤产品侧的合法指针。
 test('依赖侧不施加 registry-pointer 与 splitSuggestions', () => {
+  const registry = '| Capability | 权威实现 | 陷阱项 |\n|---|---|---|\n'
+    + '| 向量检索 | 见 `dependencies/agent_fs/检索缓存.md` | 无 |\n'
+    + '| 订单导出 | 见 `cards/order/订单导出.md` | 无 |\n'
   withProject(({ ctxDir }) => {
+    assert.ok(!fs.existsSync(path.join(ctxDir, 'dependencies', 'agent_fs', '检索缓存.md')), '依赖侧样本必须指向不存在的文件，否则本条恒绿')
+    assert.ok(fs.existsSync(path.join(ctxDir, 'cards', 'order', '订单导出.md')), '产品侧绿样本指向的域卡必须真实存在')
     assert.ok(!lintCards(ctxDir).violations.some((v) => v.startsWith('registry-pointer')), 'registry 不该指向依赖仓事实卡，规则也不扩到 dependencies/')
-  }, { deps: AGENT_FS, registry: '| Capability | 权威实现 | 陷阱项 |\n|---|---|---|\n| 向量检索 | 见 `dependencies/agent_fs/向量库.md` | 无 |\n' })
+  }, { deps: AGENT_FS, registry })
 })
 
 // ── lint-cards：缺依赖声明与依赖侧 unreadable ────────────────────────────────
