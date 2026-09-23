@@ -10,6 +10,8 @@
 - `ctx lint-cards`（扫描面）—— 旧：只扫 `engineering-context/cards/`；新：同时扫 `dependencies/`（依赖声明与依赖仓事实卡），事实卡按域卡那套固定小节、体积、`dated-heading`、`trap-noise`、`domain-dup` 检，有事实卡而无同名声明判 `sections|dependencies/<名>|缺依赖声明`；迁移：已跑过 `--init-baseline` 的存量项目升级后首跑会冒出基线外新违规而判红——基线只许变短，修不掉的那部分只能删掉 `cards-lint-baseline.json` 重新 `--init-baseline`。
 - `ctx discover` / `ctx search-semantic`（人读输出的卡片指称）—— 旧：命中行一律 `• <service>[ › <domain>]`，out-of-scope 行一律 `<service> › <domain>: …`；新：来自依赖仓的卡片在名字前加 `[依赖] ` 前缀，产品仓不变，`--json` 的 `cards[]` / `results[]` 每项多一个 `origin`（`product` / `dependency`）；迁移：按 `^• (\S+)` 取服务名的脚本会把 `[依赖]` 当成服务名，改读 `--json` 的 `service` 与 `origin`。
 - `unreadableCards(ctxDir)`（返回值形态；`ctx list-services` 的 `⚠ N 张 card 读不出来` 与 `--json.unreadableCards` 读它）—— 旧：返回裸文件名或 `<repo>/<文件名>`；新：一律带 `cards/` 或 `dependencies/` 前缀，路径以 `engineering-context/` 为根；迁移：按裸文件名匹配这两项的 CI 断言改成匹配带前缀的相对路径。
+- `ctx discover` / `ctx search-semantic`（结果集与排序）—— 旧：候选集只有产品仓的地图卡与域卡，排序里没有别的来源；新：候选集并入依赖仓事实卡，不做任何折扣、按分数自然排，上游卡片体量大时（如二十多条陷阱的 `agent_fs`）产品仓条目会被挤出 `--top` 默认的 5 条；迁移：靠默认 top-N 取结果的脚本与 agent，改用 `--top` 调大取数，或按 `--json` 的 `origin` 过滤到 `product` 之后再截断。
+- `ctx discover` 的 out-of-scope 警告列表 —— 旧：只列产品域卡〈陷阱项〉里的条目；新：命中的依赖仓事实卡，其〈陷阱项〉与产品域卡同等待遇逐条进，列表因此变长；迁移：把 out-of-scope 行数当门禁阈值或摘要长度上限的调用方，按新的条数重定阈值，MUST NOT 靠截断丢掉依赖侧的警告——那正是最该看到的外部陷阱。
 - `ctx probe` 的 A 类题型输入 —— 旧：`loadAllCards` 只给产品地图卡与域卡；新：并入依赖仓事实卡，`deprecated-trap` 因此可从上游卡片的〈陷阱项〉取证，此前失败的题可能转 PASS，门禁自检的「card 废弃段」样本来源同步扩大；迁移：已有 probe 棘轮基线的项目升级后首跑可能因「基线里某编号已不再失败」判 RED，按棘轮规则人工把该编号从 `probe-set.md` 的基线段删掉。
 
 ### 新增
