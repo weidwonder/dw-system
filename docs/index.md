@@ -60,6 +60,7 @@
 - **[全局安装 · 代码评审门报告](./report/2026-09-18-全局安装-review-report.md)** — 本次评审门 A/B/C/D/S 五轴（三组子代理）的发现与处置：1 条 P0、4 条 P1，另附 Windows 实机验证结论。
 - **[入口提示块 · 代码评审门报告](./report/2026-09-21-入口提示块-review-report.md)** — 本次评审门 A/B/C/D/S 五轴（三组子代理）的发现与处置：0 条 P0、7 条 P1，另一条 P1 经拍板人判决维持原决定。
 - **[codegraph 升级判定 · 代码评审门报告](./report/2026-09-21-codegraph升级判定-review-report.md)** — 本次评审门 A/B/C/D 四轴（两组子代理）的发现与处置：1 条 P0、2 条 P1，并结算了一次积压的发版件提交。
+- **[原样带入内容评审口径 · 代码评审门报告](./report/2026-10-01-原样带入内容评审口径-review-report.md)** — 本次评审门 S/D 两轴（两组子代理）的发现与处置：0 条 P0、2 条 P1。
 - **[Bug 修复历史](./report/bug修复历史.md)** — 已处理过的 bug：根因、处理方案、修复版本、回归测试、测试样本。修 bug 前先用关键词检索它，不要整份读。
 
 - **[agentic-principle 缺口报告](./report/2026-08-02-agentic-principle-gap-report.md)** — 待 `agentic-principle` 维护者评估，未结案。
