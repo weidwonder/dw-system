@@ -22,3 +22,4 @@ orgin.bak/
 /.agents/
 /.claude/
 /skills-lock.json
+.worktrees/
