@@ -6,6 +6,7 @@
 ## 未发布
 
 ### 不兼容
+- `dw-review-gate` 评审子代理的阅读范围 —— 旧：评审范围内的文件各轴一律通读评判；新：与已过评审门的上游版本逐字节一致、或由其注入 / 生成工具原样写出的文件，主会话核实后在派发 prompt 里点名排除，各轴只评接入面，轴集合不变（`评审门禁.md` §上游已评审的原样带入内容，`子代理模板.md`〈评审对象〉新增占位行）；迁移：自写评审 prompt 的项目照新占位行补一项，没有原样带入内容时删掉该行即与旧行为一致。
 - `ctx get-card <上游名>`（不给域）—— 旧：只看 `cards/`，依赖名必然落空，打印「未找到服务 card」并退出 1；新：没有产品卡而有 `dependencies/<上游名>.md` 时返回该声明全文、发 cite `dependencies/<名>.md#全文 @<确认时间>`、退出 0；迁移：把 `get-card` 退出码当「这个名字有没有卡」用的脚本与 agent，改判 `--json` 的 `missing` 字段，不要再用退出码区分"未登记"与"取到了"。
 - `ctx lint-cards`（扫描面）—— 旧：只扫 `engineering-context/cards/`；新：同时扫 `dependencies/`（依赖声明与依赖仓事实卡），事实卡按域卡那套固定小节、体积、`dated-heading`、`trap-noise`、`domain-dup` 检，有事实卡而无同名声明判 `sections|dependencies/<名>|缺依赖声明`；迁移：已跑过 `--init-baseline` 的存量项目升级后首跑会冒出基线外新违规而判红——基线只许变短，修不掉的那部分只能删掉 `cards-lint-baseline.json` 重新 `--init-baseline`。
 - `ctx discover` / `ctx search-semantic`（人读输出的卡片指称）—— 旧：命中行一律 `• <service>[ › <domain>]`，out-of-scope 行一律 `<service> › <domain>: …`；新：来自依赖仓的卡片在名字前加 `[依赖] ` 前缀，产品仓不变，`--json` 的 `cards[]` / `results[]` 每项多一个 `origin`（`product` / `dependency`）；迁移：按 `^• (\S+)` 取服务名的脚本会把 `[依赖]` 当成服务名，改读 `--json` 的 `service` 与 `origin`。
