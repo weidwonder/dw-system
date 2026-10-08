@@ -39,7 +39,7 @@
 - `ctx-probe.test.mjs`：`probe.js`——探针解析、`classifyEntity` 判定矩阵、门禁自检、棘轮（新增失败 RED / 基线内 AMBER / 基线过期 RED）、blocking 与加权、四类交接题型、init 骨架不产生可跑探针。红了通常是改了废弃判定词表或 probe-set stub。
 - `ctx-semantic.test.mjs`：`semantic.js`——排序结果带 cite / freshness / 权威标记、废弃标记按行判不连坐、`--as-of` 过期降权、未声明新鲜度不假定新鲜、synonyms 扩展。
 - `doc-axis.test.mjs`：文档轴这条线——D 是文档轴 E 是 agent 架构轴、D 轴触发条件没被放回主会话判断、完成门只核对 D 轴报告、权威面清单只有一份、probe 定位只有一处权威定义、「待归并」例外与它修饰的判据同处。断言问的是"判据在它的家里"，不问在哪一份分册。
-- `doc-budgets.test.mjs`：每份受管文本在 `doc-budgets.json` 的上限以内（单文件、类上限、按 skill 合计、索引单条行长、`CLAUDE.md` 扣掉标记块）；清单点名的文件不存在、glob 零命中也判红。红了按顺序处置：搬回它的家 → 压缩 → 经拍板人同意才抬上限并写理由。
+- `doc-budgets.test.mjs`：每份受管文本在 `doc-budgets.json` 的上限以内（单文件、类上限、索引单条行长、`CLAUDE.md` 扣掉标记块）；清单点名的文件不存在、glob 零命中、清单出现判定逻辑不认识的顶层键也判红。红了按顺序处置：搬回它的家 → 压缩 → 经拍板人同意才抬上限并写理由。
 - `doc-index.test.mjs`：`docs/spec|plan|report` 每篇带 `lifecycle` 且取值在闭集内；`active` 的在 `index.md`，归档的在 `index-archive.md` 且不在现行索引；索引链接不断链。按文件路径匹配不按标题；`collectDocs()` MUST 保持递归。刻意不判"active 文档出现在归档索引"（那是指路不是收录）。
 - `gate-sync.test.mjs`：总纲门全景表的每个门名在 Lean 一页的 §顺序 表里字面在场；表行数与标题计数词一致。门名从总纲现场解析，不在测试里写死。红了通常是加了一道门没同步 Lean 一页。
 - `install-and-doc-governance.test.mjs`：安装器主干——Codex 约束块与全局卸载各失败路径目标零改动、`.gitignore` 标记块幂等、`--keep` 撤销旧约束、settings 损坏先中止、入口软链接三种情形、源获取与失败零改动、`docs` 入库决定只问一次；另守几条 skill 文本契约（三个文档目录、业务语言、worktree 全程）。

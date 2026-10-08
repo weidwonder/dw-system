@@ -43,7 +43,7 @@ test('自检：超限、点名文件缺失、glob 零命中各判红', () => {
   assert.match(idle.failures[0], /空跑/)
 })
 
-test('自检：files 优先于 classes，合计按路径段分组并认 overrides，单条按行判', () => {
+test('自检：files 优先于 classes，单条按行判', () => {
   const dir = sandbox({
     's/one/r/a.md': 'x'.repeat(30), 's/one/r/b.md': 'x'.repeat(30), 's/two/r/a.md': 'x'.repeat(30),
     'index.md': '- 短\n- ' + '长'.repeat(40) + '\n',
@@ -54,11 +54,16 @@ test('自检：files 优先于 classes，合计按路径段分组并认 override
   // 高于同类上限的例外 MUST 带理由；不高于的可以是裸数字。
   assert.match(checkBudgets(dir, { files: { 's/one/r/a.md': 100 }, classes }).failures[0], /例外缺理由/)
   assert.deepEqual(checkBudgets(dir, { files: { 's/one/r/a.md': 35 }, classes }).failures, [])
-  const totalRule = overrides => ({ totals: [{ glob: 's/*/r/*.md', groupBy: 1, max: 40, overrides }] })
-  assert.deepEqual(checkBudgets(dir, totalRule({ one: { max: 60, note: '拍过板的例外' } })).failures, [])
-  assert.match(checkBudgets(dir, totalRule({ one: 60 })).failures[0], /例外缺理由/)
   const lines = checkBudgets(dir, { lines: [{ file: 'index.md', entryPattern: '^- ', maxBytes: 60 }] })
   assert.equal(lines.failures.length, 1)
+})
+
+test('自检：清单里判定逻辑不认识的顶层键判红', () => {
+  // 不认识的键不参与任何判定：不判红，它就是一条看着在守、其实不生效的规则。
+  const dir = sandbox({ 'a/x.md': 'x' })
+  const classes = [{ glob: 'a/*.md', max: 10 }]
+  assert.match(checkBudgets(dir, { classes, totals: [] }).failures.join('\n'), /未知键：totals/)
+  assert.deepEqual(checkBudgets(dir, { classes }).failures, [])
 })
 
 test('自检：blockExcluded 只扣掉标记块本身', () => {
