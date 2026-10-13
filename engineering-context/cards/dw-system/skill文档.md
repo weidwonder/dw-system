@@ -12,12 +12,12 @@
 | 贯穿门总表与计数词 `五道门` | `dw-system/skills/dw-workflow/references/00-流程总纲.md#五道门` | 贯穿门清单与"一共几道"的唯一定义处；三道条件门（红回路 / 不可逆 / 大架构）在总表之后逐条声明。别处要引用 MUST 指名引用**具体那一道门**的小节，MUST NOT 引用总表——总表的小节名字面就含受检计数词。 |
 | 兼容取舍确认门、spec 过稿门的判据 | `dw-system/skills/dw-workflow/references/确认门.md#过稿门` | 总纲总表只给触发时机与指针，判据在这里。spec 过稿门的四个子节（摆什么给拍板人 / 怎么算过了这道门 / 跳过本门只有一条通路 / 结论 MUST 当场留痕）是各处引用的锚点，改名要查引用方。 |
 | 工作区隔离门、完成与自动合并门的判据 | `dw-system/skills/dw-worktree/references/worktree开发纪律.md#工作区隔离门` | 两道门的判据归 skill `dw-worktree`，总纲只留指针。 |
-| 代码评审门的判据 | `dw-system/skills/dw-review-gate/references/评审门禁.md#门禁` | 派几个、跑哪几条轴、积压怎么登记都归 skill `dw-review-gate`；轴集合按对象面推导，定义在 `dw-system/skills/dw-review-gate/references/评审轴.md#评审轴`。 |
+| 代码评审门的判据 | `dw-system/skills/dw-review-gate/references/评审门禁.md#门禁` | 派几个、跑哪几条轴、积压怎么登记都归 skill `dw-review-gate`；轴集合按对象面推导，定义在 `dw-system/skills/dw-review-gate/references/评审轴.md#评审轴`。实现逻辑与被波及调用方的核对并在忠实轴里，没有单独的正确性轴。 |
 | 大架构判据 | `dw-system/skills/dw-workflow/references/用户沟通纪律.md#主干路` | 判据与正反例的权威定义；总纲 MUST NOT 复述。落地位置在 `dw-system/skills/dw-workflow/references/步骤-1-7-设计与实现.md#大架构确认门`，Lean 侧在 `dw-system/skills/dw-workflow/references/路径-lean.md#顺序`。 |
 | 计数词机器闸 | `test/counter-word.test.mjs#CHECKED_WORDS` | 遍历整棵 `dw-system/skills/`，按**字面子串**匹配，MUST NOT 改成分词或模糊正则——小节名式的指名引用靠"不含受检子串"才不被误伤。每个计数词只有 `authority` 指的那一份文件可以写；`authority: null` 的词全仓零出现。豁免只在 `test/counter-word-exempt.mjs#EXEMPT_DIRS`：`config-snippets/` 被注入目标项目，读它的 AI 不一定加载了 skill，指名引用在那一刻兑现不了。 |
 | 贯穿门同步闸 | `test/gate-sync.test.mjs#MUST_RESTATE` | 门名从总纲现场解析；核对两件事：总表每个门名在 Lean 一页 `## 顺序` 里字面在场、总表行数与标题计数词一致。只查在不在场，全绿 MUST NOT 读成各处描述都正确。 |
 | 规范句单一归属闸 | `test/single-home-lib.mjs#findDuplicates` | 含 MUST / SHOULD 的句子归一化后出现在两个以上 skill 文件即判红；确需就地重复的关键一句登记在 `test/single-home.allow.json#sentence`（句子 / 文件 / 理由三项齐全）。白名单里已不再重复的条目同样判红。只抓逐字重复，换了措辞的重复展开由评审门查。 |
-| 规范文本体积上限 | `test/doc-budgets.json#classes` | 各规范文本体积上限的**唯一**定义处，别处 MUST NOT 再写一份数字。超限的处置顺序是先把来历搬回它的家、再拆细，MUST NOT 为过线丢命题。 |
+| 规范文本体积上限 | `test/doc-budgets.json#classes` | 各规范文本体积上限的**唯一**定义处，别处 MUST NOT 再写一份数字。只判单篇、类、单条行长与 `CLAUDE.md`，没有按 skill 的分册合计。清单顶层键是闭集，判定在 `test/doc-budgets-lib.mjs#checkBudgets`，出现它不认识的键即判红——没有这条，新写的一种上限不生效却看着在守。超限的处置顺序是先把来历搬回它的家、再拆细，MUST NOT 为过线丢命题。 |
 | 交叉引用有效性闸 | `test/cross-reference.test.mjs#交叉引用` | skill 文档跨文件互指的小节 MUST 真实存在；被指小节改名或删除时引用方不会自己报错，靠这条闸判红。 |
 | 文档命名 | `dw-system/skills/dw-doc-governance/references/文档治理.md#默认命名` | 按次产出的 spec / plan / report 文件名以 `YYYY-MM-DD-` 开头；例外是常青档、两份索引、两个固定账本与 `docs/requirements/` 下的一级子模块，清单只在该节。项目可以在前缀之上更严格，MUST NOT 豁免前缀，目录不可改变。 |
 | 文档生命周期与索引门控 | `dw-system/skills/dw-doc-governance/references/文档生命周期.md#lifecycle` | `lifecycle` / `superseded_by` / `authority_refs` 等字段与索引分层的家。同一条 `authority_refs` MUST NOT 被两份 `lifecycle: active` 的文档同时声明，由 `ctx probe` 的 `authority-unique` 题型机检。 |
@@ -43,4 +43,4 @@
 `test/counter-word.test.mjs`、`test/gate-sync.test.mjs`、`test/doc-index.test.mjs`、`test/cross-reference.test.mjs`、`test/single-home.test.mjs`、`test/doc-budgets.test.mjs`、`test/rule-destinations.test.mjs`（含规范词的小节不得无声消失）；都在仓库根跑，不随 skill 分发。
 
 ## 确认
-2026-09-22｜来源：`代码事实纪律.md` §4.1 的三类卡表、`00-流程总纲.md` 的〈五道门〉一节、`确认门.md` 与 `worktree开发纪律.md` 的小节表、`文档治理.md`〈默认命名〉、`文档生命周期.md`〈生命周期位〉、`UI原型纪律.md` 的小节表，以及 `test/counter-word.test.mjs` / `test/counter-word-exempt.mjs` / `test/gate-sync.test.mjs` / `test/doc-index.test.mjs` 、`test/single-home.test.mjs`、`test/doc-budgets.test.mjs`、`test/cross-reference.test.mjs`、`test/rule-destinations.test.mjs` 的文件头与常量
+2026-10-12｜来源：`test/doc-budgets-lib.mjs` 的 `checkBudgets`、`评审轴.md` §评审轴，以及 `代码事实纪律.md` §4.1 的三类卡表、`00-流程总纲.md` 的〈五道门〉一节、`确认门.md` 与 `worktree开发纪律.md` 的小节表、`文档治理.md`〈默认命名〉、`文档生命周期.md`〈生命周期位〉、`UI原型纪律.md` 的小节表，以及 `test/counter-word.test.mjs` / `test/counter-word-exempt.mjs` / `test/gate-sync.test.mjs` / `test/doc-index.test.mjs` 、`test/single-home.test.mjs`、`test/doc-budgets.test.mjs`、`test/cross-reference.test.mjs`、`test/rule-destinations.test.mjs` 的文件头与常量

@@ -2,6 +2,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
+const MANIFEST_KEYS = new Set(['files', 'classes', 'lines', 'blockExcluded'])
 const SKIP_DIRS = new Set(['.git', 'node_modules', '.worktrees', '.claude', '.agents', '.codegraph'])
 
 /** 仓库相对路径（`/` 分隔）的全量文件清单。 */
@@ -56,10 +57,15 @@ export function checkBudgets(root, manifest) {
     if (actual > max) failures.push(`超限：${subject} 实测 ${actual} > 上限 ${max}（超 ${actual - max}）`)
   }
 
-  // 点名条目与合计例外的值可以是数字，也可以是 `{max, note}`。高于同类上限的条目是拍过板的例外，
+  // 点名条目的值可以是数字，也可以是 `{max, note}`。高于同类上限的条目是拍过板的例外，
   // MUST 带 note 写明理由：没有理由的例外和"为了过闸顺手上调"在清单上分不出来。
   const limitOf = v => (typeof v === 'number' ? { max: v, note: '' } : { max: v.max, note: String(v.note || '').trim() })
   const classMaxFor = rel => (manifest.classes || []).find(c => globToRegExp(c.glob).test(rel))?.max
+
+  // 清单的顶层键是闭集。不认识的键不参与任何判定，不判红它就是一条看着在守、其实不生效的规则。
+  for (const key of Object.keys(manifest)) {
+    if (!MANIFEST_KEYS.has(key)) failures.push(`清单有未知键：${key}（判定逻辑不认识它，MUST 删掉或先给它写判定）`)
+  }
 
   const named = manifest.files || {}
   for (const [rel, value] of Object.entries(named)) {
@@ -82,24 +88,6 @@ export function checkBudgets(root, manifest) {
       if (claimed.has(rel)) continue
       claimed.add(rel)
       push(rel, bytesOf(root, rel, manifest.blockExcluded), cls.max)
-    }
-  }
-
-  for (const total of manifest.totals || []) {
-    const re = globToRegExp(total.glob)
-    const hits = files.filter(f => re.test(f))
-    if (hits.length === 0) failures.push(`glob 零命中：${total.glob}`)
-    const groups = new Map()
-    for (const rel of hits) {
-      const key = rel.split('/')[total.groupBy]
-      groups.set(key, (groups.get(key) || 0) + bytesOf(root, rel))
-    }
-    for (const [key, sum] of groups) {
-      const override = total.overrides?.[key]
-      if (override === undefined) { push(`合计 ${total.glob} [${key}]`, sum, total.max); continue }
-      const { max, note } = limitOf(override)
-      if (max > total.max && !note) failures.push(`例外缺理由：合计 [${key}] 的上限 ${max} 高于 ${total.max}，MUST 写成 {max, note}`)
-      push(`合计 ${total.glob} [${key}]`, sum, max)
     }
   }
 
