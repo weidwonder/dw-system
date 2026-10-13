@@ -1,6 +1,6 @@
 ---
 lifecycle: active
-last_confirmed: '2026-09-18'
+last_confirmed: '2026-10-12'
 authority_refs:
   - '交付单元：八个 dw-* skill + ctx CLI + 原型工具 + 安装器，装进目标项目的是 .claude/skills/ 与 .agents/skills/ 两份；--global 装进 ~/.claude/skills/ 与 ~/.codex/skills/'
   - '两条总纲：一个事实只有一个家；规范文本有体积上限，超限先搬走、再压缩、最后才抬上限'

@@ -35,6 +35,7 @@
 - 2026-09-17 ｜ skill 文档 ｜ 同一条规则换了措辞在两个 skill 里各展开一份、`single-home` 闸抓不到的七组（`reviewed-through` tag 的打法、"每条意见逐条落稿"、"怎样算定稿"、覆盖度台账登记、真相方向铁律、取证顺序的家、`<skills 根>` 的定义），以及 `<skills 根>` / `<本 skill 根目录>` 等五种占位符写法待统一（同上）
 - 2026-09-17 ｜ 机器闸 ｜ 三份注入块片段没有 `##` 标题，`rule-destinations` 按小节切段扫不到它们；该闸只认 `MUST` / `SHOULD`，中文模态（"不删""只有…才"）的小节不在射程内；入口 `SKILL.md` 逐份有上限、八份合计没有上限，要不要加待拍板
 
+- 2026-09-17 ｜ dw-workflow ｜ 测试阶段三篇（`步骤-8-10-测试.md`、`测试资产纪律.md`）与 `AI-LLM-overlay.md` 是否各自成 skill，由拍板人定
 - 2026-09-17 ｜ dw-prd ｜ 入口、`00-prd生成流程.md`、`UI原型纪律.md` 三篇都超出 `test/doc-budgets.json` 的同类上限，上限暂冻结在实测值（同一文件的 `files`）。3.0 只给它改了名，没有按两条总纲重组
 - 2026-09-17 ｜ 跨模块 ｜ 三个已装项目（myclaws、agent_fs、aiudit_platform）的存量卡片是按任务追加的单文件大卡，需各自跑 `ctx lint-cards --init-baseline` 后按业务域拆成地图卡加域卡
 

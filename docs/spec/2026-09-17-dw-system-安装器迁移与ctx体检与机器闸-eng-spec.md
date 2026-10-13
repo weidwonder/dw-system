@@ -2,13 +2,13 @@
 lifecycle: active
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-09-22'
+last_confirmed: '2026-10-12'
 authority_refs:
   - '安装器的名字常量与旧名字残留清单（LEGACY）'
   - '安装器升级旧安装的卸载与改写顺序'
   - 'ctx lint-cards 对 cards/ 的规则集、基线文件与退出码（dependencies/ 扫描面由`docs/spec/2026-09-22-dw-system-依赖仓事实卡-eng-spec.md` 承载）'
   - 'ctx probe 题型 authority-unique'
-  - '体积上限清单 test/doc-budgets.json 的形态与处置顺序'
+  - '体积上限超限的处置顺序'
   - '规范句重复检测闸与规范去向清单闸的判据'
 ---
 
@@ -134,13 +134,12 @@ authority_refs:
 {
   "files":   { "<仓库相对路径>": <字节上限> },
   "classes": [ { "glob": "<模式>", "max": <字节上限>, "note": "<一句话>" } ],
-  "totals":  [ { "glob": "<模式>", "groupBy": "<路径段序号>", "max": <字节上限>, "overrides": { "<组名>": <字节上限> } } ],
   "lines":   [ { "file": "<路径>", "entryPattern": "<正则>", "maxBytes": <单条上限> } ],
   "blockExcluded": { "file": "CLAUDE.md", "start": "<!-- dw-workflow:start -->", "end": "<!-- dw-workflow:end -->" }
 }
 ```
 
-`files` 优先于 `classes`；同一文件被多个 `classes` 命中取最先一条。 `totals` 按路径的第 `groupBy` 段分组求和；`overrides` 给个别组单独的上限，用来把超目标的组冻结在实测值。
+`files` 优先于 `classes`；同一文件被多个 `classes` 命中取最先一条。清单顶层键是闭集，现行形态以 `docs/spec/2026-10-08-dw-system-执行层补强与体积闸收窄-eng-spec.md` 为准。
 
 ## 3. 接口契约
 
