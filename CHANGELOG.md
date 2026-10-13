@@ -38,6 +38,7 @@
 - 「依赖声明文件名含 `/` 要替换成 `__`、MUST NOT 造出子目录」一句改写为「声明文件本身 MUST NOT 造子目录；`dependencies/<上游名>/` 是依赖仓事实卡的专用目录」，`代码事实纪律.md` §10.2、`assets/context-layer/dependency.md` 与 `ctx init` 生成的 `dependencies/README.md` 三处同改。
 
 ### 修复
+- `dw-workflow` 环境冲突处置的保护范围与执行时机：「未经同意不得删改」改为覆盖扫描范围内的全部文件（含 commands、挂钩与入口正文）；`init-初始化.md` 与 `worktree开发纪律.md` 写明用户级文件的处置排在进入 worktree 之后、直接作用于用户目录、不随分支提交。
 - 安装器不再把 `codegraph upgrade` 的退出码当作升级成功：本机同时装了 npm 包与独立包时，`upgrade` 升的是它自己那份而 PATH 优先命中另一份，导致每次安装都报同一个「有新版本」。改为升级后重新探测版本，仍落后于远端就退回 `npm install -g …@latest`，npm 也换不掉则告警提示本机有多份副本。
 
 ## 3.1.0 — 2026-09-21
