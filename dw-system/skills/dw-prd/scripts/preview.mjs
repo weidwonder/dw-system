@@ -785,7 +785,7 @@ async function cmdAnnotations(file, opts) {
   const STATUS = { pending: '待处理', answered: '已回复' }
   const say = (m) => console.log(`        ${m.by === 'ai' ? 'AI' : '用户'}：${m.text}`)
   console.log(`待处理 ${pending[0] + pending[1] + pendingNotes.length} 条（元素批注 ${pending[0]} · 全局反馈 ${pending[1]} · 说明回复 ${pendingNotes.length}）。` +
-    '每条处理完 MUST 用 reply 回复。\n')
+    '每条处理完 MUST 用 reply 追加 AI 回复。\n')
   console.log(`用户元素批注（${items.length}）`)
   items.forEach((it) => {
     const where = it.line ? `@${path.basename(file)}:${it.line}`

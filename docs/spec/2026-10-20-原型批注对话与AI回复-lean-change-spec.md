@@ -90,23 +90,23 @@ authority_refs:
 
 ## 验收标准
 
-- [ ] AC-001 对 `u1` 跑 `reply --to u1 --text X` → 文件里 `items[u1].thread` 末尾多一条 `by: 'ai'`；`annotations` 显示该条为已回复，原话不变 —— 满足：FR-001、FR-003、FR-004
-- [ ] AC-002 对 `g1` 同上，落到 `global[g1].thread` —— 满足：FR-001
-- [ ] AC-003 对已有用户回复的说明 `a1` 跑 `reply --to a1` → `replies[]` 多一条 `by: 'ai'`、id 以 `ar` 开头，带说明快照字段；`ai[]` 里 `a1` 的 `status` 为 answered —— 满足：FR-001、FR-004
-- [ ] AC-004 失败路径：`--to` 指向不存在的 id、文本为空、`a<n>` 没有任何用户回复、文件不是原型 → 退出非 0，文件字节不变 —— 满足：FR-001
-- [ ] AC-005 用户在 `thread` 末尾追加一条 `by: 'user'` 后，`annotations` 把该条报为待处理，开头的待处理总数随之加 1；无任何回复的批注也计入待处理 —— 满足：FR-003、FR-004
-- [ ] AC-006 页面框架：用户图钉点开出现原话、回复列表（AI 与自己可区分）、追加框；追加、修改、删除自己的追加评论都写进 `thread`；已回复的图钉与待处理的样式不同；全局反馈面板每条可点开对话 —— 满足：FR-002、FR-005
-- [ ] AC-007 冲突合并：磁盘上 `u1.thread` 有一条 AI 回复，页面内存里同一条只有用户追加的另一条，`adoptLatest` 合并后两条都在、按时间排序 —— 满足：FR-007
-- [ ] AC-008 `slot --agreed --agreed-plan=u1=done`：`u1` 最后一条是 AI 回复 → 写入成功，`u1` 仍在 `items[]` 且 `released: 'done'`；`u1` 没有 AI 回复 → 拒绝写入、列出 `u1`、文件不变 —— 满足：FR-006
-- [ ] AC-009 放行后 `check` 不把 `released` 的条目报 P0；同一文件里一条未放行就丢了锚点的条目仍报 P0 —— 满足：FR-006
-- [ ] AC-010 对旧框架的原型跑 `reply` → 照写成功并打印"页面看不到"的提示—— 满足：FR-001
-- [ ] AC-011 `00-prd生成流程.md` 落盘确认门一步与 `prd质量清单.md` 写明待处理数 MUST 为 0，`UI原型纪律.md` §7.3 列出三个写入方 —— 满足：FR-008
+- [x] AC-001 对 `u1` 跑 `reply --to u1 --text X` → 文件里 `items[u1].thread` 末尾多一条 `by: 'ai'`；`annotations` 显示该条为已回复，原话不变 —— 满足：FR-001、FR-003、FR-004
+- [x] AC-002 对 `g1` 同上，落到 `global[g1].thread` —— 满足：FR-001
+- [x] AC-003 对已有用户回复的说明 `a1` 跑 `reply --to a1` → `replies[]` 多一条 `by: 'ai'`、id 以 `ar` 开头，带说明快照字段；`ai[]` 里 `a1` 的 `status` 为 answered —— 满足：FR-001、FR-004
+- [x] AC-004 失败路径：`--to` 指向不存在的 id、文本为空、`a<n>` 没有任何用户回复、文件不是原型 → 退出非 0，文件字节不变 —— 满足：FR-001
+- [x] AC-005 用户在 `thread` 末尾追加一条 `by: 'user'` 后，`annotations` 把该条报为待处理，开头的待处理总数随之加 1；无任何回复的批注也计入待处理 —— 满足：FR-003、FR-004
+- [ ] AC-006 （结构断言与切出函数真跑已覆盖，真浏览器点击待手工验证）页面框架：用户图钉点开出现原话、回复列表（AI 与自己可区分）、追加框；追加、修改、删除自己的追加评论都写进 `thread`；已回复的图钉与待处理的样式不同；全局反馈面板每条可点开对话 —— 满足：FR-002、FR-005
+- [x] AC-007 冲突合并：磁盘上 `u1.thread` 有一条 AI 回复，页面内存里同一条只有用户追加的另一条，`adoptLatest` 合并后两条都在、按时间排序 —— 满足：FR-007
+- [x] AC-008 `slot --agreed --agreed-plan=u1=done`：`u1` 最后一条是 AI 回复 → 写入成功，`u1` 仍在 `items[]` 且 `released: 'done'`；`u1` 没有 AI 回复 → 拒绝写入、列出 `u1`、文件不变 —— 满足：FR-006
+- [x] AC-009 放行后 `check` 不把 `released` 的条目报 P0；同一文件里一条未放行就丢了锚点的条目仍报 P0 —— 满足：FR-006
+- [x] AC-010 对旧框架的原型跑 `reply` → 照写成功并打印"页面看不到"的提示—— 满足：FR-001
+- [x] AC-011 `00-prd生成流程.md` 落盘确认门一步与 `prd质量清单.md` 写明待处理数 MUST 为 0，`UI原型纪律.md` §7.3 列出三个写入方 —— 满足：FR-008
 
 ## 如何验证
 
-- [ ] `node --test test/*.test.mjs` 全绿（含新用例与 `doc-budgets`、`cross-reference` 两道闸）。
-- [ ] 手工：`init` + `screen` + 一条带 `data-anno-user` 的片段建临时原型，往批注块放一条用户批注，跑 `reply` / `annotations` / `slot --agreed` / `check` 走一遍；`serve` 起来用浏览器点开图钉看对话、追加一条再跑 `annotations`。
-- [ ] **代码评审门**：对象面 = 程序代码面 + skill 文档面 + `docs/`，轴集合按 `dw-review-gate` 的 `评审门禁.md` §门禁 推导，派子代理，P0/P1 修完。
+- [ ] `node --test test/*.test.mjs` 全绿（含新用例与 `doc-budgets`、`cross-reference` 两道闸）。2026-10-20 沙箱内：536 通过、9 失败，9 条在未改动的 `main` 上同样失败（7 条预览服务测试——沙箱禁止回环 HTTP；2 条 unreadable 权限测试）；待在沙箱外重跑确认。
+- [ ] 手工（沙箱禁止回环 HTTP，未能执行，待拍板人在本机走一遍）：`init` + `screen` + 一条带 `data-anno-user` 的片段建临时原型，往批注块放一条用户批注，跑 `reply` / `annotations` / `slot --agreed` / `check` 走一遍；`serve` 起来用浏览器点开图钉看对话、追加一条再跑 `annotations`。
+- [x] **代码评审门**（2026-10-20 已过，报告 `docs/report/2026-10-20-原型批注对话与AI回复-review-report.md`）：对象面 = 程序代码面 + skill 文档面 + `docs/`，轴集合按 `dw-review-gate` 的 `评审门禁.md` §门禁 推导，派子代理，P0/P1 修完。
 
 ## 回滚方式
 
