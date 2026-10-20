@@ -30,7 +30,7 @@ assets/
                         structure.css 恒装配，components.css 只在 init --with-baseline 时追加）
   question-bank.md      分章节提问库，供组批
 scripts/
-  preview.mjs           原型工具：init/screen/slot 建原型、extract 取界面、check 自检、annotations 取批注、
+  preview.mjs           原型工具：init/screen/slot 建原型、extract 取界面、check 自检、annotations 取批注、reply 回批注、
                         serve 起预览服务（页面批注自动写回该文件）；
                         跑法 node <skills 根>/dw-prd/scripts/preview.mjs <子命令>
                         （本 skill 不带 ctx —— 那个随 dw-code-facts 分发）
@@ -97,8 +97,8 @@ scripts/
    MUST 以预览副本给用户打开（项目外位置），MUST NOT 写进 docs/；预览服务 MUST 由你后台起、
    也由你在派复核子代理之前停（node <skills 根>/dw-prd/scripts/preview.mjs <预览副本>，
    批注自动写回文件、用户零操作，MUST NOT 让用户自己起停），并告诉用户可直接在原型上批注；
-   收意见时 MUST 用 preview.mjs annotations 取回**三类 + 回复**（用户逐元素批注、全局反馈、AI 侧
-   data-anno 说明，以及用户对说明的回复），与口头意见合并逐条处理
+   收意见时 MUST 用 preview.mjs annotations 取回**三类 + 回复**，与口头意见合并逐条处理，
+   处理完的每条批注 MUST 用 preview.mjs reply 在原型里回复
    （见 `UI原型纪律.md` §7.3/§7.4）。"怎样算定稿"用的是落盘确认门
    那三条判据（见 `00-prd生成流程.md` §组稿 第 4 步）→
    【复核门 · MUST】加载 references/prd复核纪律.md，派子代理跑双轴复核（自洽轴 / 冲突轴；
@@ -136,7 +136,7 @@ scripts/
 - **全程只用业务语言**：对话、问题和 PRD 成稿不得要求用户理解程序实现；技术事实必须先翻译成业务事实。遵循 `references/业务语言纪律.md`。
 - **UI 变更必须出 HTML 高保真交互原型**：新增/调整用户可见界面时（纯文案改动豁免），**先自查项目里的设计 token / 组件库 / 同类现有页面**取样式依据，查不到才向用户要材料；产出可离线打开的单文件 HTML（零外链、零 CDN），不得用 Markdown 冒充原型文件，不得把面向 PM 的解释画在用户界面里。原型与 PRD 一并作为 `dw-workflow` 的输入。遵循 `references/UI原型纪律.md`。
 
-   - **原型批注框架**：原型 MUST 由 `scripts/preview.mjs` 的 `init` / `screen` / `slot` 三条命令建出，再只填 `UI原型纪律.md` §8.1 的具名插槽；容器自带设计系统、图标库与批注层，**MUST NOT 手工复制容器再逐行替换**，也 **MUST NOT 为动手而通读容器**——它刻意不含示例内容（范例会锚定产出），要填的信息全在 §8。对某个元素的说明写成该元素上的 `data-anno`（待拍板项加 `data-anno-kind="question"`）悬浮气泡，**MUST NOT 画进屏幕**；用户的意见由页面工具栏写进批注块。**取批注只有一个入口**：`preview.mjs annotations <原型文件>`，它一次给出**三类 + 回复**：用户逐元素批注、全局反馈、AI 侧 `data-anno` 说明，以及用户对说明的回复，**MUST NOT 通读整份 HTML 去找**。工具整体跑不起来时才降级为直读 `ANNOTATIONS:BEGIN … END` 那一段，MUST NOT 因此跳过批注。判据在 `references/UI原型纪律.md` §7、§8。
+   - **原型批注框架**：原型 MUST 由 `scripts/preview.mjs` 的 `init` / `screen` / `slot` 三条命令建出，再只填 `UI原型纪律.md` §8.1 的具名插槽；容器自带设计系统、图标库与批注层，**MUST NOT 手工复制容器再逐行替换**，也 **MUST NOT 为动手而通读容器**——它刻意不含示例内容（范例会锚定产出），要填的信息全在 §8。对某个元素的说明写成该元素上的 `data-anno`（待拍板项加 `data-anno-kind="question"`）悬浮气泡，**MUST NOT 画进屏幕**；用户的意见由页面工具栏写进批注块，AI 用 `preview.mjs reply` 在每条下面回复。**取批注只有一个入口**：`preview.mjs annotations <原型文件>`，它一次给出**三类 + 回复**：用户逐元素批注、全局反馈、AI 侧 `data-anno` 说明，以及用户对说明的回复，**MUST NOT 通读整份 HTML 去找**。工具整体跑不起来时才降级为直读 `ANNOTATIONS:BEGIN … END` 那一段，MUST NOT 因此跳过批注。判据在 `references/UI原型纪律.md` §7、§8。
 
 ## 何时用哪个模板
 

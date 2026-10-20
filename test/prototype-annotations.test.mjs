@@ -380,6 +380,58 @@ test('批注出口明确包含用户对说明的回复第四类', () => {
 })
 
 // ---------------------------------------------------------------------------
+// 批注变成对话：AI 用 reply 回复，用户在页面上继续追加
+// spec：docs/spec/2026-10-20-原型批注对话与AI回复-lean-change-spec.md
+//
+// 页面行为要真浏览器才跑得起来，本仓库零依赖、没有。能脱离 DOM 的两段（冲突合并、状态判定）
+// 从容器里切出来真跑；其余锁结构。
+// ---------------------------------------------------------------------------
+
+// 从容器源码切出一个函数真跑：锚点失效当场红（cut 保证），MUST NOT 在测试里另写一份实现。
+const liveFn = (name, end) => new Function(`${cut(template, `function ${name}(`, end)}; return ${name}`)()
+
+test('冲突合并保住磁盘侧的 AI 回复与 released：对话按 id 取并集并按时间排序', () => {
+  const mergeById = liveFn('mergeById', '      var merged = {')
+  const disk = [{ id: 'u1', text: '原话', released: 'done', thread: [{ id: 'ai1', by: 'ai', text: '改了', at: '2026-10-20T01:00:00Z' }] }]
+  const mine = [
+    { id: 'u1', text: '原话（改过）', thread: [{ id: 'me1', by: 'user', text: '还不够', at: '2026-10-20T02:00:00Z' }] },
+    { id: 'u2', text: '新的' },
+  ]
+  const out = mergeById(disk, mine)
+  const u1 = out.find((x) => x.id === 'u1')
+  assert.equal(u1.text, '原话（改过）', '页面侧的改动 MUST 生效')
+  assert.equal(u1.released, 'done', '只在磁盘侧的字段 MUST NOT 被整条覆盖掉')
+  assert.deepEqual(u1.thread.map((m) => m.id), ['ai1', 'me1'], 'AI 回复 MUST 留着，且按时间排序')
+  assert.ok(out.some((x) => x.id === 'u2'))
+})
+
+test('页面与工具的待处理判定同一口径：最后一句是 AI 才算已回复', () => {
+  const isPending = liveFn('isPending', '\n    function whoOf(')
+  assert.equal(isPending({}), true, '没人回过 = 待处理')
+  assert.equal(isPending({ thread: [{ by: 'ai' }] }), false)
+  assert.equal(isPending({ thread: [{ by: 'ai' }, { by: 'user' }] }), true, '用户追加之后 MUST 回到待处理')
+  const tool = read(prdRoot, 'scripts', 'preview.mjs')
+  assert.match(cut(tool, 'function threadStatus(', '\n}'), /last\.by === 'ai' \? 'answered' : 'pending'/)
+})
+
+test('用户批注点开是对话浮层：原话可改可删、AI 回复只读、末尾追加；全局反馈与失联条目同入口', () => {
+  const fn = cut(template, 'function openThread(', '\n    function ')
+  assert.match(fn, /data-medit/, '自己说的话 MUST 可改')
+  assert.match(fn, /data-mdel/, '自己说的话 MUST 可删')
+  assert.match(fn, /mine \?/, 'AI 的回复 MUST NOT 出改删入口')
+  assert.match(fn, /by: "user"/, '页面追加的 MUST 记成用户说的')
+  assert.match(fn, /nextId\(thread, "me"\)/, '页面侧 id 前缀 MUST 与工具侧 ai 不同')
+  assert.doesNotMatch(template, /function openEditor\(/, '被取代的编辑浮层 MUST 删掉')
+  const global = cut(template, 'function openGlobal(', '\n    function ')
+  assert.match(global, /openThread\(ref\[0\], ref\[1\]/, '全局反馈与失联条目 MUST 能点开对话')
+  assert.match(global, /released/, '放行过的条目 MUST 与真失联的分开标')
+  const note = cut(template, 'function openNote(', '\n    function ')
+  assert.match(note, /r\.by === "ai"/, '说明回复里 AI 那句 MUST 只读')
+  const render = cut(template, 'function render(', '\n    function ')
+  assert.match(render, /anno-pin--answered/, '已回复的图钉 MUST 与待处理的一眼可分')
+})
+
+// ---------------------------------------------------------------------------
 // 批注框架不得改写被批注元素的定位，图钉不得被裁切或遮挡
 // spec：docs/spec/2026-08-27-原型批注框架绝对定位与图钉可见性-lean-change-spec.md
 //

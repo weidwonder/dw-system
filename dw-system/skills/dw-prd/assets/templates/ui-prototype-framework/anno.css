@@ -131,6 +131,8 @@
     .anno-pin--note { background: oklch(0.55 0.2 264) !important; }
     .anno-pin--ask { background: oklch(0.7 0.16 70) !important; }
     .anno-pin--user { background: oklch(0.6 0.22 350) !important; }
+    /* AI 已回复的用户批注换成中性灰，与待处理的品红一眼可分；同 .anno-pin--user 带 !important */
+    .anno-pin--answered { background: oklch(0.6 0.02 264) !important; }
 
     /* MUST 带 !important：.anno-pin 的 display 为挡产出方的标签选择器带了 !important，
        框架自己的这条覆盖规则不带就压不过它——工具栏的"隐藏批注"会整个失效。凡是覆盖
@@ -216,6 +218,8 @@
     .anno-editing .icon { width: 12px; height: 12px; }
     .anno-list p { flex: 1 1 auto; margin: 0; word-break: break-word; }
     .anno-list small { color: var(--muted-foreground); font-size: 11px; }
+    .anno-who { margin-right: 6px; font-weight: 600; }
+    .anno-list li.anno-msg--ai p { color: oklch(0.45 0.15 264); }
 
     /* 拾取模式：光标跟随一枚气泡，命中元素描边 */
     [data-anno-picking] { cursor: crosshair; }

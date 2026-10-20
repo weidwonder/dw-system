@@ -31,4 +31,4 @@
 - **框架自用的控件 MUST 用私有 class**（`.anno-btn` / `.anno-notes-body` 等），**MUST NOT 借用 `components.css` 里的 `.btn` / `.card-content`**——外观层默认不装配，借用的那一刻框架 UI 在默认路径下就完全没有样式，而页面照常打开、零报错。初始 `innerHTML` 与运行时 `className` 赋值**两条路径都算**（机器闸：分发源仓库的 `test/prototype-framework.test.mjs`〈框架 JS 只用私有 class〉；`test/` 不随 skill 分发）。
 - `icons.svg` 存的是 `<symbol>` 序列，不是可独立渲染的 SVG 文档。根 `<svg>` 由装配表提供，且 **MUST NOT 加 `xmlns`**——它会带进 `http://` 串，直接挂掉零外链自检。
 
-改这些文件不需要动 `ui-prototype.html`；**反过来，MUST NOT 往容器的固定区里写正文**（写了就有两份副本，装配后同一段内容出现两次而页面照常打开）。改分区标记或装配表时两处同改，并在分发源仓库跑 `node --test test/prototype-framework.test.mjs`（该目录不随 skill 分发，装进目标项目后没有它）。
+改这些文件不需要动 `ui-prototype.html`；**反过来，MUST NOT 往容器的固定区里写正文**（写了就有两份副本，装配后同一段内容出现两次而页面照常打开、`check` 也看不出）。改分区标记或装配表时两处同改，并在分发源仓库跑 `node --test test/prototype-framework.test.mjs`（该目录不随 skill 分发，装进目标项目后没有它）。
