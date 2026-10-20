@@ -102,7 +102,7 @@ node <skills 根>/dw-prd/scripts/preview.mjs check <原型文件>
 
 容器按标记分区，**能动的只有 §8.1 插槽表里那几个插槽**，其余全是固定实现（下表按标记名引用，MUST NOT 用序号——序号会随容器增区而漂）。
 
-> **固定实现区的正文不在容器文件里**：`THEME` / `DESIGN-SYSTEM` / `ANNO-FRAMEWORK:CSS` / `ICONS` / `SCREEN-SCRIPT` / `ANNO-FRAMEWORK:JS` 这六个区的内容住在 `assets/templates/ui-prototype-framework/` 下的独立 css / js / svg 源文件里，`ui-prototype.html` 本体只留分区标记与骨架；`preview.mjs init` 会按装配表把它们填回去。**产出的原型仍是单文件、零外链、可离线打开**——外置的是源码组织方式，不是运行时依赖，这条对产出方**没有任何影响**：你依旧只填插槽、依旧不读容器。**要改框架本身**（而不是产出原型）时才读 `assets/templates/ui-prototype-framework/README.md`：装配表、结构层与外观层的切分线、新增源文件该归哪一层、为什么 MUST NOT 往容器固定区写正文都在那里。
+> **固定实现区的正文不在容器文件里**：`THEME` / `DESIGN-SYSTEM` / `ANNO-FRAMEWORK:CSS` / `ICONS` / `SCREEN-SCRIPT` / `ANNO-FRAMEWORK:JS` 这六个区的内容住在 `assets/templates/ui-prototype-framework/` 下的独立 css / js / svg 源文件里，`ui-prototype.html` 本体只留分区标记与骨架；`preview.mjs init` 会按装配表把它们填回去。**产出的原型仍是单文件、零外链、可离线打开**——外置的是源码组织方式，不是运行时依赖，这条对产出方**没有任何影响**：你依旧只填插槽、依旧不读容器。**要改框架本身**（而不是产出原型）时才读 `assets/templates/ui-prototype-framework/README.md`：装配表、结构层与外观层的切分线、新增源文件该归哪一层都在那里；MUST NOT 往容器固定区写正文，理由同在那篇。
 
 
 
@@ -143,11 +143,11 @@ node <skills 根>/dw-prd/scripts/preview.mjs check <原型文件>
   node <skills 根>/dw-prd/scripts/preview.mjs annotations <原型文件> --json # 结构化
   ```
 
-  它一次给出三类 + 回复：**用户元素批注**（带屏幕名、元素标签、元素可见文字、**所在行号**）、**用户全局反馈**、**AI 侧写在 `data-anno` 里的说明**（含哪些是 `question` 待拍板项）、以及**用户对说明的回复**（带被回复说明的锚点与原文）；每条用户意见带对话与状态，开头一行是待处理总数。跑不起来时兜底：`sed -n '/ANNOTATIONS:BEGIN/,/ANNOTATIONS:END/p' <原型文件>` 取用户批注那半（**这条是 bash-only，Windows 上没有**，所以它是兜底不是首选）。
+  它一次给出三类 + 回复：**用户元素批注**（带屏幕名、元素标签、元素可见文字、**所在行号**）、**用户全局反馈**、**AI 侧写在 `data-anno` 里的说明**（含哪些是 `question` 待拍板项）、以及**用户对说明的回复**（带被回复说明的锚点与原文）；每条用户意见带对话与状态（每句标说话方：用户 / AI），开头一行是待处理总数。跑不起来时兜底：`sed -n '/ANNOTATIONS:BEGIN/,/ANNOTATIONS:END/p' <原型文件>` 取用户批注那半（**这条是 bash-only，Windows 上没有**，所以它是兜底不是首选）。
 
 - `items[]` 是元素批注，每条带 `screen`（哪一屏，多屏原型据此区分）、`label`（元素上的可见文字）、`path`（结构路径，辅助线索）、`id`；`id` 与界面里的 `data-anno-user="<id>"` 一一对应，要定位元素就 grep 这个属性。`global[]` 是整体意见。
 - 批注 MUST 与用户在对话里提的意见**同等对待**：逐条落稿，或明确回"不改 + 一句话理由"，MUST NOT 默默忽略（同 `00-prd生成流程.md` §组稿 第 4 步用户过稿门）。
-- **处理完一条就在原型里回它**：`… reply <文件> --to <id> --text "<落实了什么 / 不改 + 理由>"`，`<id>` 取 `annotations` 列出的 `u<n>` / `g<n>` / `a<n>`。状态只看最后一句是谁说的：AI = 已回复，用户或无人回 = 待处理（用户在页面上追加即回到待处理）；落盘确认门前待处理数 MUST 为 0。`reply` 提示"页面上看不到 AI 回复"（旧原型）时 MUST 再在对话里转告。
+- **处理完一条就在原型里追加 AI 回复**：`… reply <文件> --to <id> --text "<落实了什么 / 不改 + 理由>"`，`<id>` 取 `annotations` 列出的 `u<n>` / `g<n>` / `a<n>`。状态只看最后一句是谁说的：AI = 已回复，用户或无人回 = 待处理（用户在页面上追加即回到待处理）；预览服务开着时请用户刷新页面看回复；落盘确认门前待处理数 MUST 为 0。`reply` 提示"页面上看不到 AI 回复"（旧原型）时 MUST 再在对话里转告。
 - **AI 侧 `data-anno` 里的说明与用户批注同等重要**：它们是屏幕上看不见、但属于用户可见行为契约的一部分（下游按它落 spec）。`annotations` 命令会一并列出，**MUST NOT 因为界面上看不到就漏掉**；其中 `data-anno-kind="question"` 的是**待用户拍板项**，MUST 在落盘确认门逐条摆给用户，MUST NOT 让它们跟着原型静默进库。
 - **AI MUST NOT 手工编辑批注块**。写入方只有三个：页面工具栏、`reply`、§7.7 显式放行路径上的 `slot`。
 

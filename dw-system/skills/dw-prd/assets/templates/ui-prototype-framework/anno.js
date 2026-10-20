@@ -345,7 +345,11 @@
     function paint() {
       var live = store.items.filter(function (it) { return !!findEl(it.id); }).length;
       var lost = store.items.filter(function (it) { return !it.released && !findEl(it.id); }).length;
-      var waiting = store.items.concat(store.global).filter(isPending).length;
+      // 与 annotations 的待处理总数同一口径：说明回复按 noteId 成串，看每串最后一句
+      var lastByNote = {};
+      store.replies.forEach(function (r) { lastByNote[r.noteId] = r.by === "ai"; });
+      var waiting = store.items.concat(store.global).filter(isPending).length +
+        Object.keys(lastByNote).filter(function (k) { return !lastByNote[k]; }).length;
       bar.querySelector(".anno-count").textContent =
         "元素批注 " + live + (lost ? "（另有 " + lost + " 条已失联）" : "") + " · 全局 " + store.global.length +
         " · 待 AI 处理 " + waiting;

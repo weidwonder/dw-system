@@ -14,7 +14,7 @@
 | 外部工具接线 | 主安装之后的三段：伴生 skill、`ctx` 全局链接、codegraph | 安装器：`install.mjs` | `cards/dw-system/外部工具接线.md` |
 | ctx命令行 | 代码事实层的查询 CLI：三类卡与 registry 的解析、discover / get-card、语义兜底 | 必备的代码事实层、`ctx` 命令族 | `cards/dw-system/ctx命令行.md` |
 | ctx体检与门禁 | `lint-cards` 的体检规则与基线、`probe` 的题型与判级 | 必备的代码事实层、`ctx` 命令族 | `cards/dw-system/ctx体检与门禁.md` |
-| 原型工具 | `preview.mjs` 七条子命令与 `ui-prototype-framework/` 框架源码 | 产 PRD：`dw-prd` | `cards/dw-system/原型工具.md` |
+| 原型工具 | `preview.mjs` 八条子命令与 `ui-prototype-framework/` 框架源码 | 产 PRD：`dw-prd` | `cards/dw-system/原型工具.md` |
 | skill文档 | 各份 skill 文档里哪一处是某条判据的家、哪些机器闸守着复述处 | 从 PRD 到代码、文档治理与三层真相源 | `cards/dw-system/skill文档.md` |
 
 > skill 文档的判据本身不进卡片：它们的家就是 skill 文档。`skill文档` 域卡只记"哪份文件权威、别处只许指过去"。
@@ -30,4 +30,5 @@
 - 指望装进目标项目的副本里有测试可跑 — 机器闸与 fixtures 只住在仓库根 `test/`，不随 skill 分发；改了 `ctx`、`preview.mjs`、框架源码或 skill 文档，MUST 在本仓库根跑 `node --test test/*.test.mjs`。
 
 ## 确认
+2026-10-20｜原型工具行：`dw-system/skills/dw-prd/scripts/preview.mjs#HELP` 子命令表
 2026-09-22｜来源：`install.mjs` 全文的顶层常量与函数表、`dw-system/skills/dw-code-facts/scripts/ctx/`（`src/*.js`、`package.json`、`README.md`）、`dw-system/skills/dw-prd/scripts/preview.mjs` 与 `ui-prototype-framework/`、`docs/REQUIREMENTS.md`〈现在有哪些功能〉
