@@ -41,6 +41,7 @@
 - **[依赖仓事实卡](./spec/2026-09-22-dw-system-依赖仓事实卡-eng-spec.md)** — 外部上游的事实落 `dependencies/<上游名>/<域>.md`：读取层的三个来源与 `origin` 字段、`get-card` 四级查找、检索输出的 `[依赖]` 标记、`lint-cards` 的扫描面与 cite 豁免。
 - **[codegraph 升级判定](./spec/2026-09-21-codegraph升级判定-lean-change-spec.md)** — 安装器不再用 `codegraph upgrade` 的退出码判升级成没成：改为比对升级后的实际版本，仍落后就退回 npm、再不行就告警本机有多份副本。
 - **[执行层补强与体积闸收窄](./spec/2026-10-08-dw-system-执行层补强与体积闸收窄-eng-spec.md)** — 体积闸只管单篇、未知清单键判红；忠实轴顺带查逻辑与被波及调用方、委派执行契约、交接补位置与验证状态、回归用 bisect 等九处规则补强。
+- **[原型批注对话与 AI 回复](./spec/2026-10-20-原型批注对话与AI回复-lean-change-spec.md)** — 每条用户意见挂一串对话：`preview.mjs reply` 追加 AI 回复，用户在页面上继续追加，最后一句的说话方决定待处理 / 已回复；放行的 `done` / `void` 保留并标处置。
 
 ## 进行中的计划（`docs/plan/`）
 
@@ -63,6 +64,7 @@
 - **[入口提示块 · 代码评审门报告](./report/2026-09-21-入口提示块-review-report.md)** — 本次评审门 A/B/C/D/S 五轴（三组子代理）的发现与处置：0 条 P0、7 条 P1，另一条 P1 经拍板人判决维持原决定。
 - **[codegraph 升级判定 · 代码评审门报告](./report/2026-09-21-codegraph升级判定-review-report.md)** — 本次评审门 A/B/C/D 四轴（两组子代理）的发现与处置：1 条 P0、2 条 P1，并结算了一次积压的发版件提交。
 - **[原样带入内容评审口径 · 代码评审门报告](./report/2026-10-01-原样带入内容评审口径-review-report.md)** — 本次评审门 S/D 两轴（两组子代理）的发现与处置：0 条 P0、2 条 P1。
+- **[原型批注对话与 AI 回复 · 代码评审门报告](./report/2026-10-20-原型批注对话与AI回复-review-report.md)** — 本次评审门 A/B/C/D/S 五轴（三组子代理）的发现与处置：0 条 P0、5 条 P1。
 - **[Bug 修复历史](./report/bug修复历史.md)** — 已处理过的 bug：根因、处理方案、修复版本、回归测试、测试样本。修 bug 前先用关键词检索它，不要整份读。
 
 - **[agentic-principle 缺口报告](./report/2026-08-02-agentic-principle-gap-report.md)** — 待 `agentic-principle` 维护者评估，未结案。

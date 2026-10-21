@@ -182,10 +182,22 @@
       var doc = new DOMParser().parseFromString(latestHtml, "text/html");
       var slot = doc.getElementById("anno-data");
       var disk = (slot && parse(slot.textContent)) || blank();
+      // 同一条两边都有时按字段合并、对话按 id 取并集：AI 用 reply 写进文件的回复与工具记下的
+      // released 只在磁盘侧，整条以页面侧覆盖会把它们静默丢掉。
       function mergeById(diskList, mineList) {
         var by = {};
         (diskList || []).forEach(function (x) { by[x.id] = x; });
-        (mineList || []).forEach(function (x) { by[x.id] = x; });
+        (mineList || []).forEach(function (x) {
+          var d = by[x.id];
+          if (!d) { by[x.id] = x; return; }
+          var m = Object.assign({}, d, x);
+          if (d.thread || x.thread) {
+            m.thread = mergeById(d.thread, x.thread).sort(function (a, b) {
+              return String(a.at || "").localeCompare(String(b.at || ""));
+            });
+          }
+          by[x.id] = m;
+        });
         return Object.keys(by).map(function (k) { return by[k]; });
       }
       var merged = {
@@ -332,9 +344,15 @@
 
     function paint() {
       var live = store.items.filter(function (it) { return !!findEl(it.id); }).length;
-      var lost = store.items.length - live;
+      var lost = store.items.filter(function (it) { return !it.released && !findEl(it.id); }).length;
+      // 与 annotations 的待处理总数同一口径：说明回复按 noteId 成串，看每串最后一句
+      var lastByNote = {};
+      store.replies.forEach(function (r) { lastByNote[r.noteId] = r.by === "ai"; });
+      var waiting = store.items.concat(store.global).filter(isPending).length +
+        Object.keys(lastByNote).filter(function (k) { return !lastByNote[k]; }).length;
       bar.querySelector(".anno-count").textContent =
-        "元素批注 " + live + (lost ? "（另有 " + lost + " 条已失联）" : "") + " · 全局 " + store.global.length;
+        "元素批注 " + live + (lost ? "（另有 " + lost + " 条已失联）" : "") + " · 全局 " + store.global.length +
+        " · 待 AI 处理 " + waiting;
 
       var save = bar.querySelector('[data-act="save"]');
       var copy = bar.querySelector('[data-act="copy"]');
@@ -482,6 +500,7 @@
         var el = findEl(it.id);
         if (!el) return;
         var pin = mkPin("user", String(i + 1), it.text);
+        if (!isPending(it)) pin.classList.add("anno-pin--answered");
         pin.setAttribute("data-anno-ref", it.id);
         pin.setAttribute("data-anno-text", it.text || "");
         attach(el, pin);
@@ -521,7 +540,7 @@
       var pin = e.target.closest(".anno-pin");
       if (pin) {
         var ref = pin.getAttribute("data-anno-ref");
-            if (ref) { e.preventDefault(); e.stopPropagation(); openEditor(ref, pin); }
+            if (ref) { e.preventDefault(); e.stopPropagation(); openThread("items", ref, pin); }
             else {
               var host = pin.closest("[data-anno-host]");
               var want = pin.getAttribute("data-anno-text") || "";
@@ -552,32 +571,93 @@
       });
     }
 
-    function openEditor(id, anchor) {
-      var it = store.items.filter(function (x) { return x.id === id; })[0];
+    // 一条用户意见的状态只看对话最后一句是谁说的：AI 最后说话 = 已回复，否则待处理。
+    // 与 preview.mjs 的 threadStatus 同一判据。
+    function isPending(it) {
+      var t = it.thread || [];
+      var last = t[t.length - 1];
+      return !(last && last.by === "ai");
+    }
+
+    function whoOf(m) {
+      return '<b class="anno-who">' + (m.by === "ai" ? "AI" : "我") + "</b>";
+    }
+
+    // 用户意见的对话浮层，元素批注（list = "items"）与全局反馈（list = "global"）共用：
+    // 第一行是原话，下面是 AI 与自己的往来，末尾追加。自己说的每一句可改可删；删原话 = 删整条批注。
+    // AI 的回复只由 preview.mjs reply 写入，页面上只读。
+    function openThread(list, id, anchor) {
+      var it = store[list].filter(function (x) { return x.id === id; })[0];
       if (!it) return;
+      var thread = it.thread || [];
+      var head = list === "items" ? esc(it.screen || "本页") + " · " + esc(it.label || it.tag || "元素") : "全局反馈";
+      var rows = [{ id: "", by: "user", text: it.text }].concat(thread).map(function (m) {
+        var mine = m.by !== "ai";
+        return '<li class="anno-msg--' + (mine ? "me" : "ai") + '" data-rid="' + esc(m.id) + '"><p>' + whoOf(m) + esc(m.text) + "</p>" +
+          (mine ? '<span class="row">' +
+            '<button type="button" class="anno-btn anno-btn--ghost anno-btn--icon" data-medit="' + esc(m.id) + '" aria-label="修改">' + ico("i-edit") + "</button>" +
+            '<button type="button" class="anno-btn anno-btn--ghost anno-btn--icon" data-mdel="' + esc(m.id) + '" aria-label="' + (m.id ? "删除" : "删除整条批注") + '">' + ico("i-x") + "</button></span>" : "") +
+          "</li>";
+      }).join("");
       pop.innerHTML =
-        '<div class="anno-pop__head">' + esc(it.screen || "本页") + " · " + esc(it.label || it.tag || "元素") + "</div>" +
-        '<textarea data-role="text"></textarea>' +
-        '<div class="anno-pop__row anno-pop__row--split">' +
-        '<button type="button" class="anno-btn anno-btn--ghost" data-role="del">' + ico("i-trash") + "删除</button>" +
-        '<span class="row"><button type="button" class="anno-btn anno-btn--outline" data-role="close">关闭</button>' +
-        '<button type="button" class="anno-btn" data-role="ok">保存</button></span></div>';
+        '<div class="anno-pop__head">' + head + " · " + (isPending(it) ? "待 AI 处理" : "AI 已回复") + "</div>" +
+        (it.released ? '<p class="anno-note__text">界面已改掉 · ' + (it.released === "void" ? "已作废" : "已落实") + "</p>" : "") +
+        '<ul class="anno-list">' + rows + "</ul>" +
+        '<p class="anno-editing" data-role="editing-hint" hidden>' + ico("i-edit") + "正在修改上面高亮的那条</p>" +
+        '<textarea data-role="text" placeholder="追加评论"></textarea>' +
+        '<div class="anno-pop__row"><button type="button" class="anno-btn anno-btn--outline" data-role="close">关闭</button>' +
+        '<button type="button" class="anno-btn anno-btn--outline" data-role="cancel-edit" hidden>放弃修改</button>' +
+        '<button type="button" class="anno-btn" data-role="reply">' + ico("i-message") + "追加</button></div>";
       var ta = pop.querySelector('[data-role="text"]');
-      ta.value = it.text || "";
-      pop.querySelector('[data-role="ok"]').onclick = function () {
-        it.text = ta.value.trim();
-        it.at = new Date().toISOString();
+      // null = 追加新评论；"" = 改原话；其余 = 改自己追加的那一句。进出编辑态只走这一个函数，理由同 openNote。
+      var editing = null;
+      function setEditing(rid) {
+        editing = rid;
+        Array.prototype.forEach.call(pop.querySelectorAll(".anno-list li"), function (li) {
+          li.classList.toggle("is-editing", rid !== null && li.getAttribute("data-rid") === rid);
+        });
+        pop.querySelector('[data-role="editing-hint"]').hidden = rid === null;
+        pop.querySelector('[data-role="cancel-edit"]').hidden = rid === null;
+        pop.querySelector('[data-role="reply"]').innerHTML = rid !== null ? ico("i-check") + "保存修改" : ico("i-message") + "追加";
+        ta.placeholder = rid !== null ? "修改这一条" : "追加评论";
+        if (rid === null) ta.value = "";
+      }
+      pop.querySelector('[data-role="reply"]').onclick = function () {
+        var v = ta.value.trim();
         pop.hidden = true;
+        if (!v) return;
+        var at = new Date().toISOString();
+        if (editing === "") { it.text = v; it.at = at; }
+        else if (editing !== null) thread.forEach(function (m) { if (m.id === editing) { m.text = v; m.at = at; } });
+        else { thread.push({ id: nextId(thread, "me"), by: "user", text: v, at: at }); it.thread = thread; }
         persist();
       };
       pop.querySelector('[data-role="close"]').onclick = function () { pop.hidden = true; };
-      pop.querySelector('[data-role="del"]').onclick = function () {
-        var el = findEl(id);
-        if (el) el.removeAttribute("data-anno-user");
-        store.items = store.items.filter(function (x) { return x.id !== id; });
-        pop.hidden = true;
-        persist();
-      };
+      pop.querySelector('[data-role="cancel-edit"]').onclick = function () { setEditing(null); ta.focus(); };
+      Array.prototype.forEach.call(pop.querySelectorAll("[data-medit]"), function (b) {
+        b.onclick = function () {
+          var mid = b.getAttribute("data-medit");
+          var cur = mid ? thread.filter(function (m) { return m.id === mid; })[0] : it;
+          if (!cur) return;
+          ta.value = cur.text || "";
+          setEditing(mid);
+          ta.focus();
+        };
+      });
+      Array.prototype.forEach.call(pop.querySelectorAll("[data-mdel]"), function (b) {
+        b.onclick = function () {
+          var mid = b.getAttribute("data-mdel");
+          pop.hidden = true;
+          if (mid) {
+            it.thread = thread.filter(function (m) { return m.id !== mid; });
+          } else {
+            var el = list === "items" && findEl(id);
+            if (el) el.removeAttribute("data-anno-user");
+            store[list] = store[list].filter(function (x) { return x.id !== id; });
+          }
+          persist();
+        };
+      });
       place(pop, anchor);
       ta.focus();
     }
@@ -600,8 +680,10 @@
       var isQuestion = el.getAttribute("data-anno-kind") === "question";
       var nid = el.getAttribute("data-anno-id");
       var mine = nid ? store.replies.filter(function (r) { return r.noteId === nid; }) : [];
+      // AI 的回复（by: "ai"，由 preview.mjs reply 写入）只读，不给改删入口
       var rows = mine.map(function (r) {
-        return '<li data-rid="' + esc(r.id) + '"><p>' + esc(r.text) + '</p><span class="row">' +
+        if (r.by === "ai") return '<li class="anno-msg--ai" data-rid="' + esc(r.id) + '"><p>' + whoOf(r) + esc(r.text) + "</p></li>";
+        return '<li class="anno-msg--me" data-rid="' + esc(r.id) + '"><p>' + whoOf(r) + esc(r.text) + '</p><span class="row">' +
           '<button type="button" class="anno-btn anno-btn--ghost anno-btn--icon" data-redit="' + esc(r.id) + '" aria-label="修改">' + ico("i-edit") + '</button>' +
           '<button type="button" class="anno-btn anno-btn--ghost anno-btn--icon" data-rdel="' + esc(r.id) + '" aria-label="删除">' + ico("i-x") + '</button></span></li>';
       }).join("");
@@ -682,12 +764,16 @@
 
     function openGlobal() {
       var lost = store.items.filter(function (it) { return !findEl(it.id); });
-      var rows = store.global.map(function (g) {
-        return "<li><p>" + esc(g.text) + '</p><button type="button" class="anno-btn anno-btn--ghost anno-btn--icon" data-del="' + esc(g.id) + '" aria-label="删除">' + ico("i-x") + "</button></li>";
-      }).join("");
+      // 每条带状态，点对话图标进 openThread；行尾删除保留（删原话的另一个入口）
+      function row(list, it, tag, delAttr) {
+        return "<li><p><small>" + tag + (isPending(it) ? "待 AI 处理" : "AI 已回复") + "</small><br />" + esc(it.text) + '</p><span class="row">' +
+          '<button type="button" class="anno-btn anno-btn--ghost anno-btn--icon" data-open="' + list + ":" + esc(it.id) + '" aria-label="查看对话">' + ico("i-message") + "</button>" +
+          '<button type="button" class="anno-btn anno-btn--ghost anno-btn--icon" ' + delAttr + '="' + esc(it.id) + '" aria-label="删除">' + ico("i-x") + "</button></span></li>";
+      }
+      var rows = store.global.map(function (g) { return row("global", g, "", "data-del"); }).join("");
       var lostRows = lost.map(function (it) {
-        return "<li><p><small>失联 · " + esc(it.screen || "") + " · " + esc(it.label || "") + "</small><br />" + esc(it.text) +
-          '</p><button type="button" class="anno-btn anno-btn--ghost anno-btn--icon" data-drop="' + esc(it.id) + '" aria-label="删除">' + ico("i-x") + "</button></li>";
+        var why = it.released ? (it.released === "void" ? "已作废" : "已落实") : "失联";
+        return row("items", it, why + " · " + esc(it.screen || "") + " · " + esc(it.label || "") + " · ", "data-drop");
       }).join("");
       pop.innerHTML =
         '<div class="anno-pop__head">全局反馈（针对整份原型）</div>' +
@@ -696,9 +782,15 @@
         '<div class="anno-pop__row"><button type="button" class="anno-btn anno-btn--outline" data-role="close">关闭</button>' +
         '<button type="button" class="anno-btn" data-role="add">' + ico("i-plus") + "添加</button></div>" +
         (lostRows
-          ? '<div class="anno-pop__head" style="margin-top:14px">已失联的元素批注（界面被改掉了）</div><ul class="anno-list">' + lostRows + "</ul>"
+          ? '<div class="anno-pop__head" style="margin-top:14px">界面已改掉的元素批注</div><ul class="anno-list">' + lostRows + "</ul>"
           : "");
       var ta = pop.querySelector('[data-role="text"]');
+      Array.prototype.forEach.call(pop.querySelectorAll("[data-open]"), function (b) {
+        b.onclick = function () {
+          var ref = b.getAttribute("data-open").split(":");
+          openThread(ref[0], ref[1], bar.querySelector('[data-act="global"]'));
+        };
+      });
       pop.querySelector('[data-role="add"]').onclick = function () {
         var v = ta.value.trim();
         if (!v) return;
@@ -818,7 +910,7 @@
       var existing = el.getAttribute("data-anno-user");
       if (existing) {
         var oldPin = document.querySelector('[data-anno-ref="' + existing + '"]');
-        if (oldPin) { openEditor(existing, oldPin); return; }
+        if (oldPin) { openThread("items", existing, oldPin); return; }
       }
       var id = nextId(store.items, "u");
       pop.innerHTML =

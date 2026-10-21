@@ -890,34 +890,137 @@ test('片段里混进批注块开标签时拒绝写入，真批注块不被动�
   assert.deepEqual(after.items.map((x) => x.id), ['u1'], '写入被拒，真批注块 MUST 原封不动')
 })
 
-// 与上一条相对：正常放行路径必须真的把已约定的条目从真批注块里清掉。
-test('正常放行把已约定的条目从真批注块里清掉', () => {
-  const dir = mkdtempSync(path.join(tmpdir(), 'proto-release-'))
+// 与上一条相对：正常放行路径必须真的落到真批注块里。已落实 / 作废的批注**保留**并记下处置——
+// 用户要能在页面上看到 AI 怎么处理的，所以放行前那条对话的最后一句 MUST 是 AI 回复。
+// spec：docs/spec/2026-10-20-原型批注对话与AI回复-lean-change-spec.md（FR-006）
+const REL_SHELL =
+  '<div class="screen-notes"><p class="screen-notes__title">这一屏的注解 · 不属于用户界面</p>' +
+  '<div class="screen-notes__body">x</div><div class="screen-notes__acts"></div></div>'
+const relScreens = (inner) =>
+  '<section class="device-wrap"><p class="device-name">S</p><div class="device"><div class="screen">' +
+  '<div class="status is-default">' + inner + '</div></div></div>' + REL_SHELL + '</section>'
+
+// 一屏、一个带用户批注的按钮、一条带 id 的 AI 待拍板说明；批注块按 data 写入
+function threadFixture(data) {
+  const dir = mkdtempSync(path.join(tmpdir(), 'proto-thread-'))
   const file = path.join(dir, 'p.html')
   assert.equal(run('init', file, '--title', 'T').code, 0)
-  assert.equal(run('screen', file, '--name', 'S').code, 0)
-  const shell =
-    '<div class="screen-notes"><p class="screen-notes__title">这一屏的注解 · 不属于用户界面</p>' +
-    '<div class="screen-notes__body">x</div><div class="screen-notes__acts"></div></div>'
-  const withAnchor =
-    '<section class="device-wrap"><p class="device-name">S</p><div class="device"><div class="screen">' +
-    '<div class="status is-default"><button class="btn" data-anno-user="u1">甲</button></div>' +
-    '</div></div>' + shell + '</section>'
-  assert.equal(run('slot', file, '--set', 'screens', '--text', withAnchor).code, 0)
+  const inner = '<button class="btn" data-anno-user="u1">甲</button>' +
+    '<p data-anno="每次几题" data-anno-kind="question" data-anno-id="a1">题量</p>'
+  assert.equal(run('slot', file, '--set', 'screens', '--text', relScreens(inner)).code, 0)
   writeFileSync(file, withAnnotations(readFileSync(file, 'utf8'), {
-    schema: 'prd-annotations@1',
-    updatedAt: '2026-08-27T00:00:00.000Z',
-    global: [],
-    items: [{ id: 'u1', screen: 'S', tag: 'button', label: '甲', text: '甲的意见' }],
-    replies: [],
+    schema: 'prd-annotations@1', updatedAt: '2026-10-20T00:00:00.000Z', global: [], items: [], replies: [], ...data,
   }), 'utf8')
-  const gone =
-    '<section class="device-wrap"><p class="device-name">S</p><div class="device"><div class="screen">' +
-    '<div class="status is-default"><b>甲没了</b></div></div></div>' + shell + '</section>'
-  const r = run('slot', file, '--set', 'screens', '--text', gone, '--agreed', '--agreed-plan=u1=done')
-  assert.equal(r.code, 0)
+  return { dir, file }
+}
+const U1 = { id: 'u1', screen: 'S', tag: 'button', label: '甲', text: '甲的意见' }
+const NOTE_REPLY = { id: 'r1', noteId: 'a1', noteText: '每次几题', noteKind: 'question', screen: 'S', label: '题量', tag: 'p', text: '20 题', at: '2026-10-20T00:00:01.000Z' }
+const KEEP_A1 = '<p data-anno="每次几题" data-anno-kind="question" data-anno-id="a1">题量</p>'
+
+test('放行 done 的批注保留在批注块里并记下处置，不再被删', () => {
+  const { dir, file } = threadFixture({ items: [{ ...U1, thread: [{ id: 'ai1', by: 'ai', text: '甲已删除，改成乙', at: '2026-10-20T00:00:02.000Z' }] }] })
+  const r = run('slot', file, '--set', 'screens', '--text', relScreens('<b>甲没了</b>' + KEEP_A1), '--agreed', '--agreed-plan=u1=done')
+  assert.equal(r.code, 0, r.out)
   assert.match(r.out, /放行清单/)
-  assert.deepEqual(readAnnotations(readFileSync(file, 'utf8')).items, [], '放行 MUST 真的清掉那条')
+  const items = readAnnotations(readFileSync(file, 'utf8')).items
+  assert.deepEqual(items.map((x) => [x.id, x.released]), [['u1', 'done']], '放行 MUST 保留条目并写 released')
+  assert.equal(items[0].thread.length, 1, 'AI 回复 MUST 原样留着')
+  const check = JSON.parse(run('check', file, '--json').out)
+  assert.ok(!check.problems.some((p) => /已失联/.test(p.msg)), '放行过的条目 MUST NOT 再报失联 P0')
+  rmSync(dir, { recursive: true, force: true })
+})
+
+test('放行 done / void 前没有 AI 回复就拒绝写入，文件不变', () => {
+  const { dir, file } = threadFixture({ items: [U1] })
+  const before = readFileSync(file, 'utf8')
+  const r = run('slot', file, '--set', 'screens', '--text', relScreens('<b>甲没了</b>' + KEEP_A1), '--agreed', '--agreed-plan=u1=void')
+  assert.equal(r.code, 1)
+  assert.match(r.out, /还没有 AI 回复/)
+  assert.match(r.out, /reply <文件> --to u1/)
+  assert.equal(readFileSync(file, 'utf8'), before)
+  rmSync(dir, { recursive: true, force: true })
+})
+
+test('未经放行就丢锚点的批注照样报失联 P0——released 豁免不外溢', () => {
+  const { dir, file } = threadFixture({ items: [{ ...U1, released: 'done' }, { ...U1, id: 'u2', text: '乙的意见' }] })
+  const check = JSON.parse(run('check', file, '--json').out)
+  const lost = check.problems.filter((p) => /已失联/.test(p.msg))
+  assert.equal(lost.length, 1, JSON.stringify(lost))
+  assert.match(lost[0].msg, /u2/)
+  rmSync(dir, { recursive: true, force: true })
+})
+
+test('reply 把 AI 回复追加进元素批注、全局反馈与说明回复的对话，状态随之变为已回复', () => {
+  const { dir, file } = threadFixture({ items: [U1], global: [{ id: 'g1', text: '整体太挤' }], replies: [NOTE_REPLY] })
+  assert.equal(run('reply', file, '--to', 'u1', '--text', '已改成乙').code, 0)
+  assert.equal(run('reply', file, '--to', 'g1', '--text', '已加大间距').code, 0)
+  const r = run('reply', file, '--to', 'a1', '--text', '已按 20 题写进 PRD')
+  assert.equal(r.code, 0)
+  assert.match(r.out, /请用户刷新/, '新框架的原型 MUST 提示刷新，MUST NOT 报"页面看不到"')
+  const data = readAnnotations(readFileSync(file, 'utf8'))
+  assert.equal(data.items[0].text, '甲的意见', '原话 MUST 不变')
+  assert.deepEqual(data.items[0].thread.map((m) => [m.id, m.by, m.text]), [['ai1', 'ai', '已改成乙']])
+  assert.deepEqual(data.global[0].thread.map((m) => [m.by, m.text]), [['ai', '已加大间距']])
+  const ar = data.replies.find((x) => x.by === 'ai')
+  assert.match(ar.id, /^ar\d+$/, 'AI 侧 id 前缀 MUST 与页面侧不同，冲突合并才不会互相顶掉')
+  assert.equal(ar.noteId, 'a1')
+  assert.equal(ar.noteText, '每次几题', '说明快照字段 MUST 带上')
+  const out = JSON.parse(run('annotations', file, '--json').out)
+  assert.deepEqual(out.pending, { items: 0, global: 0, notes: 0 })
+  assert.equal(out.user.items[0].status, 'answered')
+  assert.equal(out.user.global[0].status, 'answered')
+  assert.equal(out.ai.find((a) => a.id === 'a1').status, 'answered')
+  assert.ok(out.user.replies.every((x) => x.by), 'replies 每条 MUST 带 by')
+  rmSync(dir, { recursive: true, force: true })
+})
+
+test('用户最后说话或还没人回 = 待处理，annotations 开头给出待处理总数', () => {
+  const { dir, file } = threadFixture({
+    items: [{ ...U1, thread: [{ id: 'ai1', by: 'ai', text: '改了', at: '1' }, { id: 'me1', by: 'user', text: '还不够', at: '2' }] }],
+    global: [{ id: 'g1', text: '整体太挤' }],
+    replies: [NOTE_REPLY],
+  })
+  const out = JSON.parse(run('annotations', file, '--json').out)
+  assert.deepEqual(out.pending, { items: 1, global: 1, notes: 1 })
+  const text = run('annotations', file).out
+  assert.match(text, /^待处理 3 条/)
+  assert.match(text, /\[u1\] 待处理/)
+  assert.match(text, /AI：改了[\s\S]*用户：还不够/, '对话 MUST 按顺序列出并标明说话方')
+  rmSync(dir, { recursive: true, force: true })
+})
+
+test('reply 的失败路径一律非 0 退出且文件字节不变', () => {
+  const { dir, file } = threadFixture({ items: [U1], replies: [] })
+  const before = readFileSync(file, 'utf8')
+  const cases = [
+    [['--to', 'u9', '--text', 'x'], /没有 u9/],
+    [['--to', 'u1', '--text', '  '], /非空/],
+    [['--to', 'u1'], /非空/],
+    [['--text', 'x'], /--to/],
+    [['--to', 'a1', '--text', 'x'], /还没有用户回复/],
+    [['--to', 'zz1', '--text', 'x'], /只认/],
+  ]
+  for (const [args, msg] of cases) {
+    const r = run('reply', file, ...args)
+    assert.notEqual(r.code, 0, args.join(' '))
+    assert.match(r.out, msg, args.join(' '))
+  }
+  assert.equal(readFileSync(file, 'utf8'), before)
+  const notProto = path.join(dir, 'x.html')
+  writeFileSync(notProto, '<html></html>')
+  assert.notEqual(run('reply', notProto, '--to', 'u1', '--text', 'x').code, 0)
+  rmSync(dir, { recursive: true, force: true })
+})
+
+test('旧框架生成的原型照写回复，并提示页面上看不到', () => {
+  const { dir, file } = threadFixture({ items: [U1] })
+  const html = readFileSync(file, 'utf8').replace(/function openThread\(/g, 'function openEditor(')
+  writeFileSync(file, html)
+  const r = run('reply', file, '--to', 'u1', '--text', '已改')
+  assert.equal(r.code, 0)
+  assert.match(r.out, /页面上看不到 AI 回复/)
+  assert.equal(readAnnotations(readFileSync(file, 'utf8')).items[0].thread[0].text, '已改')
+  rmSync(dir, { recursive: true, force: true })
 })
 
 test('文档按次产出范式带日期前缀', () => {

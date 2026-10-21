@@ -492,8 +492,14 @@ async function cmdSlot(file, opts) {
     const moveNoAnchor = affected.filter((id) => plan[id] === 'move' && lost.includes(id))
     if (moveNoAnchor.length) fail(`这几条约定为「挪到新元素」，但新片段里找不到它们的锚点：\n` + moveNoAnchor.map((id) => `    data-anno-user="${id}"  ${detailOf(id)}`).join('\n'), 1)
     released = affected.map((id) => ({ id, act: plan[id], detail: detailOf(id) }))
-    const drop = new Set(released.filter((r) => r.act !== 'move').map((r) => r.id))
-    changedData = { ...data, items: (data.items || []).filter((x) => !drop.has(x.id)) }
+    // 已落实 / 作废的批注保留在文件里，界面元素没了也要让用户在页面上看到 AI 怎么处理的——
+    // 所以放行前那条对话的最后一句 MUST 是 AI 回复，否则用户只看到批注"消失"。
+    const silent = released.filter((r) => r.act !== 'move' && threadStatus(itemThread(data, r.id)) !== 'answered')
+    if (silent.length) {
+      fail(`这几条约定为已落实 / 作废，但还没有 AI 回复。先用 reply 写明落实了什么 / 为什么作废，再重跑：\n` +
+        silent.map((r) => `    ${r.id}  ${r.detail}\n      preview.mjs reply <文件> --to ${r.id} --text "<怎么处理的>"`).join('\n'), 1)
+    }
+    changedData = { ...data, items: markReleased(data.items, released) }
   }
   if (lostNotes.length) {
     const dropped = (data.replies || []).filter((r) => lostNotes.includes(r.noteId))
@@ -501,16 +507,15 @@ async function cmdSlot(file, opts) {
     if (dropped.length) console.log(`  ⚠ 连带丢弃 ${dropped.length} 条回复：${dropped.map((r) => r.id).join(' ')}`)
     changedData = { ...changedData, replies: (changedData.replies || []).filter((r) => !lostNotes.includes(r.noteId)) }
   }
-  // 第一步：执行本次允许的两类删除（已约定 done/void 的批注、被删说明连带的回复）。
+  // 第一步：执行本次允许的两类改动（已约定 done/void 的批注记下处置、被删说明连带的回复删掉）。
   if (before && (released.length || lostNotes.length)) {
     next = replaceAnnoBlock(next, changedData)
   }
-  // 第二步：无条件校验。批注块 MUST 恰好等于"允许的删除之后"的样子，别的差异一律判 bug。
+  // 第二步：无条件校验。批注块 MUST 恰好等于"允许的改动之后"的样子，别的差异一律判 bug。
   // 这两步 MUST NOT 合并成"不相等就覆盖成我算出来的样子"——那样校验对象就没了，
   // 而放行路径恰恰是最需要它的那条路。
   if (before) {
-    const dropIds = new Set(released.filter((r) => r.act !== 'move').map((r) => r.id))
-    const expected = { ...before, items: (before.items || []).filter((x) => !dropIds.has(x.id)) }
+    const expected = { ...before, items: markReleased(before.items, released) }
     if (before.replies) expected.replies = before.replies.filter((r) => !lostNotes.includes(r.noteId))
     const after = readAnnoBlock(next)
     if (!after || JSON.stringify({ ...expected, updatedAt: '' }) !== JSON.stringify({ ...after, updatedAt: '' })) {
@@ -595,6 +600,101 @@ function replaceAnnoBlock(html, data) {
   return html.slice(0, from) + '\n' + text.replace(/<\//g, '<\\/') + '\n  ' + html.slice(to)
 }
 
+/* ────────────────── 对话：用户意见与 AI 回复 ────────────────── */
+
+// 每条用户意见下挂一串对话：元素批注与全局反馈的在条目自己的 `thread[]`，用户对 AI 说明
+// 的回复按 `noteId` 聚成一串（`replies[]`）。状态只看最后一句是谁说的——用户最后说话
+// （或还没人回过）= 待处理，AI 最后说话 = 已回复。MUST NOT 另设"已处理"标记：那会和对话
+// 本身各说各话，用户追加一句之后还得有人记得把标记撤掉。
+//
+// 消息 id 两侧前缀不同（AI `ai<n>` / 页面 `me<n>`；`replies[]` 里 AI `ar<n>` / 页面 `r<n>`）：
+// 页面写回撞版本冲突时按 id 取并集，同号会让一侧把另一侧顶掉。
+function threadStatus(msgs) {
+  const last = msgs[msgs.length - 1]
+  return last && last.by === 'ai' ? 'answered' : 'pending'
+}
+
+function itemThread(data, id) {
+  const it = (data.items || []).find((x) => x.id === id)
+  return (it && it.thread) || []
+}
+
+function noteThread(data, noteId) {
+  return (data.replies || []).filter((r) => r.noteId === noteId).map((r) => ({ ...r, by: r.by || 'user' }))
+}
+
+function markReleased(items, released) {
+  const act = Object.fromEntries(released.filter((r) => r.act !== 'move').map((r) => [r.id, r.act]))
+  return items && items.map((x) => (act[x.id] ? { ...x, released: act[x.id] } : x))
+}
+
+const RELEASED_LABEL = { done: '已落实', void: '已作废' }
+
+/* ────────────────── reply ────────────────── */
+
+function appendReply(data, to, text) {
+  const at = new Date().toISOString()
+  if (/^[ug]\d+$/.test(to)) {
+    const list = to[0] === 'u' ? data.items || [] : data.global || []
+    const target = list.find((x) => x.id === to)
+    if (!target) fail(`批注块里没有 ${to}。先跑 annotations 看现有的 id。`, 2)
+    const thread = target.thread || []
+    thread.push({ id: nextId(thread, 'ai'), by: 'ai', text, at })
+    target.thread = thread
+    return
+  }
+  if (/^a\d+$/.test(to)) {
+    const mine = noteThread(data, to)
+    const first = mine.find((r) => r.by === 'user')
+    if (!first) fail(`说明 ${to} 上还没有用户回复——AI 说明本身改 data-anno 即可，不需要回复。`, 2)
+    const { noteText, noteKind, screen, label, tag } = first
+    data.replies = data.replies || []
+    data.replies.push({ id: nextId(data.replies, 'ar'), noteId: to, noteText, noteKind, screen, label, tag, by: 'ai', text, at })
+    return
+  }
+  fail(`--to 只认 u<n>（元素批注）/ g<n>（全局反馈）/ a<n>（AI 说明），收到「${to}」`, 2)
+}
+
+function nextId(list, prefix) {
+  const re = new RegExp(`^${prefix}(\\d+)$`)
+  const max = list.reduce((m, x) => {
+    const hit = String(x.id || '').match(re)
+    return hit ? Math.max(m, Number(hit[1])) : m
+  }, 0)
+  return prefix + (max + 1)
+}
+
+async function cmdReply(file, opts) {
+  const to = typeof opts.to === 'string' ? opts.to.trim() : ''
+  if (!to) fail('reply 需要 --to <id>：u<n> 元素批注 / g<n> 全局反馈 / a<n> AI 说明')
+  let text = opts.text
+  if (opts.from) text = await readFile(path.resolve(opts.from), 'utf8').catch(() => fail(`读不到回复文件：${opts.from}`, 1))
+  text = typeof text === 'string' ? text.trim() : ''
+  if (!text) fail('reply 需要非空的 --text <文本> 或 --from <文件>')
+
+  // 预览服务开着时页面随时可能写回。写前重读一次：文件变了就按新内容重算，
+  // 否则页面刚写进来的那句用户评论会被这次写入盖掉。
+  let html = await readTarget(file)
+  let next
+  for (let round = 0; ; round += 1) {
+    const data = readAnnoBlock(html)
+    if (!data) fail('读不到批注块（ANNOTATIONS 区缺失或被改写）', 1)
+    appendReply(data, to, text)
+    next = replaceAnnoBlock(html, data)
+    const now = await readTarget(file)
+    if (now === html) break
+    if (round) fail('原型文件在写入期间连续被改动（预览页正在写回？），稍后重跑。', 1)
+    html = now
+  }
+  await writeAtomic(file, next)
+  console.log(`已回复 ${to}：${text}`)
+  if (!sliceRegion(html, 'ANNO-FRAMEWORK:JS').includes('function openThread(')) {
+    console.log('  ⚠ 这份原型生成于对话功能之前：页面上看不到 AI 回复，只有 annotations 看得到。请在对话里把回复转告用户。')
+  } else {
+    console.log('  预览页开着的话，请用户刷新后查看。')
+  }
+}
+
 /* ────────────────── annotations ────────────────── */
 
 // 每一屏在全文里的区间与屏幕名——AI 侧说明要和用户批注一样说得清"这是哪一屏的哪个控件"，
@@ -656,43 +756,65 @@ async function cmdAnnotations(file, opts) {
   const data = readAnnoBlock(html)
   if (!data) fail('读不到批注块（ANNOTATIONS 区缺失或被改写）', 1)
   const lines = anchorLines(html)
-  const items = (data.items || []).map((it) => ({ ...it, line: lines[it.id] || null }))
-  const ai = collectAiNotes(html)
-  const known = new Set(ai.map((a) => a.id).filter(Boolean))
-  const replies = (data.replies || []).map((r) => ({ ...r, orphan: !known.has(r.noteId) }))
+  const withStatus = (x) => ({ ...x, status: threadStatus(x.thread || []) })
+  const items = (data.items || []).map((it) => ({ ...withStatus(it), line: lines[it.id] || null }))
+  const global = (data.global || []).map(withStatus)
+  const known = new Set()
+  const ai = collectAiNotes(html).map((a) => {
+    if (a.id) known.add(a.id)
+    const thread = a.id ? noteThread(data, a.id) : []
+    return thread.length ? { ...a, status: threadStatus(thread) } : a
+  })
+  const replies = (data.replies || []).map((r) => ({ ...r, by: r.by || 'user', orphan: !known.has(r.noteId) }))
+  const noteIds = [...new Set(replies.map((r) => r.noteId))]
+  const pendingNotes = noteIds.filter((id) => threadStatus(noteThread(data, id)) === 'pending')
+  const pending = [items, global].map((l) => l.filter((x) => x.status === 'pending').length)
 
   if (opts.json) {
     console.log(JSON.stringify({
       schema: data.schema || 'prd-annotations@1',
       file: path.resolve(file),
       updatedAt: data.updatedAt || '',
-      user: { items, global: data.global || [], replies },
+      pending: { items: pending[0], global: pending[1], notes: pendingNotes.length },
+      user: { items, global, replies },
       ai,
     }, null, 2))
     return
   }
 
+  const STATUS = { pending: '待处理', answered: '已回复' }
+  const say = (m) => console.log(`        ${m.by === 'ai' ? 'AI' : '用户'}：${m.text}`)
+  console.log(`待处理 ${pending[0] + pending[1] + pendingNotes.length} 条（元素批注 ${pending[0]} · 全局反馈 ${pending[1]} · 说明回复 ${pendingNotes.length}）。` +
+    '每条处理完 MUST 用 reply 追加 AI 回复。\n')
   console.log(`用户元素批注（${items.length}）`)
   items.forEach((it) => {
-    const where = it.line ? `${path.basename(file)}:${it.line}` : '已失联（元素被改掉了）'
-    console.log(`  [${it.id}] ${it.screen || '本页'} › ${it.tag || '?'} "${it.label || ''}" @${where}`)
-    console.log(`        ${it.text}`)
+    const where = it.line ? `@${path.basename(file)}:${it.line}`
+      : it.released ? `（界面已改掉 · ${RELEASED_LABEL[it.released]}）` : '（已失联：元素被改掉了）'
+    console.log(`  [${it.id}] ${STATUS[it.status]} · ${it.screen || '本页'} › ${it.tag || '?'} "${it.label || ''}" ${where}`)
+    say({ by: 'user', text: it.text })
+    ;(it.thread || []).forEach(say)
   })
-  console.log(`\n用户全局反馈（${(data.global || []).length}）`)
-  ;(data.global || []).forEach((g) => console.log(`  [${g.id}] ${g.text}`))
+  console.log(`\n用户全局反馈（${global.length}）`)
+  global.forEach((g) => {
+    console.log(`  [${g.id}] ${STATUS[g.status]}`)
+    say({ by: 'user', text: g.text })
+    ;(g.thread || []).forEach(say)
+  })
   const q = ai.filter((a) => a.kind === 'question')
   console.log(`\nAI 侧元素说明（${ai.length}，其中待拍板 ${q.length}）`)
   ai.forEach((a) => {
-    console.log(`  ${a.screen || '本页'} › ${a.tag} "${a.label}" @${path.basename(file)}:${a.line}${a.kind === 'question' ? ' [待拍板]' : ''}`)
+    console.log(`  ${a.id ? `[${a.id}] ` : ''}${a.screen || '本页'} › ${a.tag} "${a.label}" @${path.basename(file)}:${a.line}${a.kind === 'question' ? ' [待拍板]' : ''}`)
     console.log(`        ${a.text}`)
   })
-  console.log(`\n用户对说明的回复（${replies.length}）`)
-  replies.forEach((r) => {
-    const q = r.noteKind === 'question' ? ' [待拍板]' : ''
-    const where = r.orphan ? '（这条说明已不在页面上）' : ''
-    console.log(`  [${r.id}] ${r.screen || '本页'} › ${r.tag || '?'} "${r.label || ''}"${q}${where}`)
-    console.log(`        回的是：${r.noteText}`)
-    console.log(`        回复：${r.text}`)
+  console.log(`\n用户对说明的回复（${noteIds.length} 串）`)
+  noteIds.forEach((id) => {
+    const thread = replies.filter((r) => r.noteId === id)
+    const head = thread[0]
+    const q = head.noteKind === 'question' ? ' [待拍板]' : ''
+    const where = head.orphan ? '（这条说明已不在页面上）' : ''
+    console.log(`  [${id}] ${STATUS[threadStatus(thread)]} · ${head.screen || '本页'} › ${head.tag || '?'} "${head.label || ''}"${q}${where}`)
+    console.log(`        回的是：${head.noteText}`)
+    thread.forEach(say)
   })
 }
 
@@ -799,7 +921,8 @@ async function cmdCheck(file, opts) {
   const annoData = readAnnoBlock(html)
   if (annoData) {
     const anchors = new Set([...screensRegion(html).matchAll(/data-anno-user="([^"]+)"/g)].map((m) => m[1]))
-    const orphans = (annoData.items || []).filter((it) => it.id && !anchors.has(it.id))
+    // 放行时约定为已落实 / 作废的条目界面元素本就没了，不算断链
+    const orphans = (annoData.items || []).filter((it) => it.id && !it.released && !anchors.has(it.id))
     orphans.forEach((it) =>
       add('P0', `用户批注「${it.text}」已失联（锚点 data-anno-user="${it.id}" 不在界面上）`,
         '改稿时把该 data-anno-user 属性写回对应元素；这条意见交付时看不出任何症状')
@@ -1112,8 +1235,11 @@ const HELP = `原型工具（dw-prd）
          （注解区状态按钮不用写，容器已内置行为）
          改稿走它：只换插槽内容，批注块与 data-anno-user 锚点原样保留
          动到带用户批注的元素时：先逐条约定，再带 --agreed --agreed-plan=<id>=<done|void|move> 放行
+         done / void 的批注保留不删，放行前它 MUST 已有 AI 回复（用 reply）
   extract <文件> [--with-css]                           取界面内容（结构+文案；批注用 annotations）
-  annotations <文件> [--json]                           取用户批注 + AI 侧说明（带行号）
+  annotations <文件> [--json]                           取用户批注 + AI 侧说明（带行号、对话与待处理数）
+  reply  <文件> --to <id> (--text <文本> | --from <文件>)
+         在一条用户意见下追加 AI 回复：u<n> 元素批注 / g<n> 全局反馈 / a<n> AI 说明上的用户回复
   check  <文件> [--json]                                交付前自检（P0 存在则退出码 1）
   serve  <文件> [--port <n>] [--no-open]                起预览服务，页面批注自动写回该文件
 
@@ -1159,7 +1285,7 @@ async function main() {
     process.exitCode = opts.help ? 0 : 2
     return
   }
-  const known = ['init', 'screen', 'slot', 'extract', 'annotations', 'check', 'serve']
+  const known = ['init', 'screen', 'slot', 'extract', 'annotations', 'reply', 'check', 'serve']
   let cmd = 'serve'
   let file = opts._[0]
   if (known.includes(opts._[0])) {
@@ -1174,6 +1300,7 @@ async function main() {
   if (cmd === 'slot') return cmdSlot(target, opts)
   if (cmd === 'extract') return cmdExtract(target, opts)
   if (cmd === 'annotations') return cmdAnnotations(target, opts)
+  if (cmd === 'reply') return cmdReply(target, opts)
   if (cmd === 'check') return cmdCheck(target, opts)
   return cmdServe(target, opts)
 }

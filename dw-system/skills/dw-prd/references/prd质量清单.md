@@ -72,6 +72,7 @@
 - [ ] UI 原型跑过 `node <skills 根>/dw-prd/scripts/preview.mjs check <原型文件>` 且**无 P0**（它查外链 / 占位符 / 固定实现区完整 / 屏结构 / 控件结构契约 / 图标引用 / 未定义 class / 写死颜色 / 脚本语法，见 `UI原型纪律.md` §6）。**样式依据查不到时不豁免**：`project-theme` 插槽 MUST 整段留空，MUST NOT 填臆造的品牌色冒充既有样式（§4、§8.4）。
 - [ ] UI 原型的固定实现区**全部**未被改写（清单以 `UI原型纪律.md` §6 自检那条为准，`check` 命令会逐个验，MUST NOT 在此另记一套）；针对单个元素的说明写在该元素的 `data-anno` 上而非画进屏幕（§7.2）；改稿走 `slot` 命令，用户已写的批注与 `data-anno-user` 锚点一条不少（§7.1）。
 - [ ] 原型里 `data-anno-kind="question"` 的待拍板项**已全部列进落盘确认门的回述清单**（用 `preview.mjs annotations` 取），MUST NOT 让它们跟着原型静默进库（§7.3）。
+- [ ] 落盘确认门前 `preview.mjs annotations` 开头的待处理数为 0：每条用户批注都已用 `reply` 追加 AI 回复，写明落实了什么或"不改 + 理由"（§7.3）。
 
 ## 落位（doc 治理）
 

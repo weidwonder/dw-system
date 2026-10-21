@@ -2,16 +2,16 @@
 lifecycle: active
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-09-17'
+last_confirmed: '2026-10-20'
 authority_refs:
   - 'ui-prototype.html 的分区标记：THEME / DESIGN-SYSTEM / ICONS / ANNO-FRAMEWORK:CSS / ANNO-FRAMEWORK:JS / SCREENS / PROJECT-THEME / ANNOTATIONS（2026-08-27 起另加 SCREEN-SCRIPT 与 CUSTOM-JS 两个，见 2026-08-27-原型注解分层与文档日期前缀-eng-spec.md）'
   - '插槽的逐字原文（preview.mjs 的 SLOTS 探针）与容器实际文本的一致性'
   - '纪律 §8.3 列出的 class 与图标 id 集合，与容器实际提供的一致'
-  - '批注数据结构 prd-annotations@1 的字段：global[] / items[]（id / screen / tag / label / path / text / at）（2026-08-27 起增加可选 replies[]，schema 号不变）'
+  - '批注数据结构 prd-annotations@1 的字段：global[] / items[]（id / screen / tag / label / path / text / at）（2026-08-27 起增加可选 replies[]，schema 号不变）（2026-10-20 起 items[] / global[] 增 thread、replies[] 带 by、items[] 增 released，见 2026-10-20-原型批注对话与AI回复-lean-change-spec.md）'
   - '元素锚点属性：AI 侧 data-anno + data-anno-kind，用户侧 data-anno-user'
-  - 'UI原型纪律.md §7 的四条判据（复制不重写 / 元素说明写成气泡 / 只读批注块 / 写回文件才读得到）（2026-08-27 起第二条细分为三层归属、第三条的写入方增加 slot 显式放行路径）'
+  - 'UI原型纪律.md §7 的四条判据（复制不重写 / 元素说明写成气泡 / 只读批注块 / 写回文件才读得到）（2026-08-27 起第二条细分为三层归属、第三条的写入方增加 slot 显式放行路径）（2026-10-20 起写入方再增 reply，见 2026-10-20-原型批注对话与AI回复-lean-change-spec.md）'
   - 'UI原型纪律.md §8 的插槽契约：容器不含示例内容、产出原型不读容器'
-  - 'preview.mjs 的子命令契约：init / screen / slot / check / annotations / serve，以及退出码约定（2 = 用法错误，其余 1）（--drop-anchors 已于 2026-08-27 废除，改为 --agreed + --agreed-plan）（`extract` 于 2026-08-27 新增，见 `2026-08-27-原型取段与框架外置-eng-spec.md`）'
+  - 'preview.mjs 的子命令契约：init / screen / slot / check / annotations / serve，以及退出码约定（2 = 用法错误，其余 1）（--drop-anchors 已于 2026-08-27 废除，改为 --agreed + --agreed-plan）（`extract` 于 2026-08-27 新增，见 `2026-08-27-原型取段与框架外置-eng-spec.md`）（`reply` 于 2026-10-20 新增，见 2026-10-20-原型批注对话与AI回复-lean-change-spec.md）'
   - '流程与门禁契约：00-prd生成流程.md §组稿 第 4/5/6/7 步的准出项（服务由 AI 起停、check 前置、question 逐条摆出、原型带批注整份落盘），以及下游 Step 1/4/8 与 Lean §4.1 的取批注义务'
 ---
 
