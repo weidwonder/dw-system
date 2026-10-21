@@ -5,6 +5,8 @@
 
 ## 未发布
 
+## 3.3.0 — 2026-10-20
+
 ### 不兼容
 - `preview.mjs slot --agreed --agreed-plan=<id>=done|void`（`dw-prd` 原型改稿放行）—— 旧：约定为已落实 / 作废的用户批注从批注块删除；新：条目保留并写 `released: done|void`，放行前该条最后一句 MUST 是 AI 回复，否则拒绝写入并列出缺回复的条目；迁移：放行前先对每条 `done` / `void` 跑 `preview.mjs reply <文件> --to <id> --text "<落实了什么 / 为什么作废>"`。
 - `preview.mjs annotations`（人读输出）—— 旧：每条批注一行加原话；新：开头一行待处理总数，每条用户意见带「待处理 / 已回复」与完整对话，用户对说明的回复按说明分组成串；`--json` 只增字段（顶层 `pending`，`items[]` / `global[]` 的 `status` 与 `thread`，`replies[]` 的 `by`，有用户回复的 `ai[]` 条目的 `status`）；迁移：按行解析人读输出的脚本改读 `--json`。
