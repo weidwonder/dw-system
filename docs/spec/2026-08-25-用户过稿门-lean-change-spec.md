@@ -3,7 +3,7 @@ date: '2026-08-25'
 lifecycle: 'active'
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-09-17'
+last_confirmed: '2026-10-26'
 authority_refs:
   - 'dw-system/skills/dw-prd/references/00-prd生成流程.md#组稿'
   - 'dw-system/skills/dw-prd/references/prd复核纪律.md#门禁'
