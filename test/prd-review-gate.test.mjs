@@ -40,7 +40,14 @@ const prdFiles = (function walk(dir, acc = []) {
 
 test('复核纪律存在，且两轴与三个出口都写明', () => {
   const body = read(prdRoot, 'references', 'prd复核纪律.md')
-  for (const must of ['自洽轴', '冲突轴', '三个出口', '事实错了回批 B 重新取证或回批 D 补齐']) {
+  for (const must of [
+    '自洽轴',
+    '冲突轴',
+    '三个出口',
+    '事实错了回批 B 重新取证或回批 D 补齐',
+    '回批 C 向用户提问',
+    '进落盘确认门给用户拍板',
+  ]) {
     assert.ok(body.includes(must), `prd复核纪律.md 缺「${must}」`)
   }
   // 冲突轴的六类冲突是判据本体，缺一类就等于漏一整类问题
