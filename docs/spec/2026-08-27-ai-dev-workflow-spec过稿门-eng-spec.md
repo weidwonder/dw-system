@@ -2,7 +2,7 @@
 lifecycle: active
 superseded_by: ''
 archived: ''
-last_confirmed: '2026-09-17'
+last_confirmed: '2026-10-26'
 authority_refs:
   - '贯穿门清单与各门插入位置（dw-system/skills/dw-workflow/references/00-流程总纲.md §五道门）；spec 过稿门的判据（dw-system/skills/dw-workflow/references/确认门.md §spec 过稿门）'
   - '三层确认边界（dw-system/skills/dw-workflow/references/用户沟通纪律.md §3 与 §发送前检查）'
