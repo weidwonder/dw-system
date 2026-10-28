@@ -5,6 +5,19 @@
 
 ## 未发布
 
+### 不兼容
+- `README.md` / `README_zh.md` 的安装细则 —— 旧：安装器逐步动作、冲突插件表与"为什么只在本项目禁用"、全局安装行为、Codex 用户须知、撤销方式写在 README 的安装小节；新：移到仓库根 `INSTALL.md` / `INSTALL_zh.md`，README 只留安装命令、常用选项与指向它的链接；迁移：引用 README 这几段的链接改指 `INSTALL.md` / `INSTALL_zh.md`。
+
+### 新增
+- 本仓库以 MIT 许可证发布：仓库根新增 `LICENSE`，`package.json` 的 `license` 为 `MIT`，README 加许可证小节。
+
+### 变更
+- README 重排为快速上手在前：第一屏给出安装命令，附一段示例说明装完对 AI 说什么、改动会经过哪些阶段、你在哪一步参与；随项目变化的设置列成协作面、合并方式、代码图谱三项。
+
+### 修复
+- README 与实际行为不符的说法：首次唤起的初始化除了问有没有其他人一起开发，还在同一批里给出合并方式（本地合并还是走 PR）的建议请用户拍板；"独自开发自动合并"只在选了本地合并时成立；合并方式是独立设置，不由协作面决定；codegraph 接线范围的选项是 `--codegraph-location`；冲突插件默认写 `.claude/settings.local.json`，`--shared` 才写 `.claude/settings.json`；锁定版本示例更新到 `v3.5.0`；补上安装器每次检查并安装伴生 skill（`agentic-principle`、`skill-principle`）这一步及 `--no-companions`、`--companion-repo`。
+- 安装说明与需求真相源里和安装器实际行为不符的说法：交互安装在打印计划之前会先问 Codex 冲突技能怎么处理（传 `--no-plugins`、`--keep=superpowers@openai-api-curated`、`--codex-conflicts=` 或 `--yes` 时不问）与 `docs/` 是否入库（只在首次问），而不是只问一次确认；默认 tag 还没发布时告警并回退 `main`，不是"永远同一版本"；入口文件顶部提示块与标记块同步只在已有标记块时发生，首次写块由 skill 初始化完成；选全局卸载 Codex 冲突插件时，Codex CLI 不可用在打印计划前就中止，卸载失败在复制 skill 前中止。
+
 ## 3.5.0 — 2026-10-27
 
 ### 变更

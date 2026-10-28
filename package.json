@@ -18,5 +18,5 @@
     "type": "git",
     "url": "git+https://github.com/weidwonder/dw-system.git"
   },
-  "license": "UNLICENSED"
+  "license": "MIT"
 }
