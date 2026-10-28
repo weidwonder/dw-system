@@ -171,7 +171,7 @@ AI coding 落不了地，通常不是因为流程不够精细，而是因为 AI 
 
 ## 用户怎么用
 
-**装进一个已有项目**：在目标项目根跑 `npx --yes git+https://github.com/weidwonder/dw-system.git .`。交互安装时，安装器可能先问 Codex 冲突技能怎么处理与 `docs/` 是否入库，再打印计划请你确认（`--yes` 一律取默认值、跳过这些提问），随后复制 skill、处理冲突插件、链 `ctx`、装 codegraph 与伴生 skill。装完后 Claude Code / Codex 需**下次启动**才生效。想让本机所有项目共用一份，改跑 `npx --yes git+https://github.com/weidwonder/dw-system.git --global`。
+**装进一个已有项目**：在目标项目根跑 `npx --yes git+https://github.com/weidwonder/dw-system.git .`。交互安装时，安装器可能先问 Codex 冲突技能怎么处理与 `docs/` 是否入库，再打印计划请你确认（`--yes` 一律取默认值、跳过这些提问），随后复制 skill、处理冲突插件、装伴生 skill、链 `ctx`、装 codegraph。装完后 Claude Code / Codex 需**下次启动**才生效。想让本机所有项目共用一份，改跑 `npx --yes git+https://github.com/weidwonder/dw-system.git --global`。
 
 **第一次唤起 workflow**：在项目里描述一个需求，skill 走完路由发现没有标记块，于是问唯一那个问题——除你之外还有没有人一起开发——并给出一条待拍板的 merge-gate 建议。答完即写进两个入口的标记块，此后不再问。紧接着它建出独立 worktree，在里面跑 `ctx init` 建好 `engineering-context/` 骨架。
 

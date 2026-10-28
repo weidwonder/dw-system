@@ -19,7 +19,7 @@ npx --yes git+https://github.com/weidwonder/dw-system.git .
 
 ## Quick Start
 
-1. **Install** with the command above. An interactive install may first ask how to handle a conflicting Codex skill (when one is found) and, the first time, whether `docs/` and `engineering-context/` are committed to git; then it prints its plan and asks you to confirm before changing anything. Restart Claude Code / Codex afterwards — project settings and instructions take effect in the next session.
+1. **Install** with the command above. An interactive install may ask a question or two first ([which ones](./INSTALL.md#per-project-install)), then prints its plan and asks you to confirm before changing anything. Restart Claude Code / Codex afterwards — project settings and instructions take effect in the next session.
 2. **Describe a change** in Claude Code or Codex, for example:
 
    > Use dw-workflow: add an "order source" column to the order CSV export.

@@ -19,7 +19,7 @@ npx --yes git+https://github.com/weidwonder/dw-system.git .
 
 ## 快速上手
 
-1. **安装**：运行上面那条命令。交互安装时，安装器可能先问 Codex 冲突技能怎么处理（发现冲突时）、以及 `docs/` 与 `engineering-context/` 要不要提交进 git（首次时），然后打印计划，请你确认后才改动项目。装完重启 Claude Code / Codex——项目配置与指令在下一个会话才生效。
+1. **安装**：运行上面那条命令。交互安装时，安装器可能先问一两个问题（[问什么](./INSTALL_zh.md#项目级安装)），然后打印计划，请你确认后才改动项目。装完重启 Claude Code / Codex——项目配置与指令在下一个会话才生效。
 2. **在 Claude Code 或 Codex 里描述一个改动**，例如：
 
    > 用 dw-workflow：订单导出的 CSV 里加一列"下单来源"。
