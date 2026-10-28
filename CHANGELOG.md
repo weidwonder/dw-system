@@ -5,6 +5,18 @@
 
 ## 未发布
 
+### 不兼容
+- `README.md` / `README_zh.md` 的安装细则 —— 旧：安装器逐步动作、冲突插件表与"为什么只在本项目禁用"、全局安装行为、Codex 用户须知、撤销方式写在 README 的安装小节；新：移到仓库根 `INSTALL.md` / `INSTALL_zh.md`，README 只留安装命令、常用选项与指向它的链接；迁移：引用 README 这几段的链接改指 `INSTALL.md` / `INSTALL_zh.md`。
+
+### 新增
+- 本仓库以 MIT 许可证发布：仓库根新增 `LICENSE`，`package.json` 的 `license` 为 `MIT`，README 加许可证小节。
+
+### 变更
+- README 重排为快速上手在前：第一屏给出安装命令，附一段示例说明装完对 AI 说什么、改动会经过哪些阶段、你在哪一步参与；随项目变化的设置列成协作面、合并方式、代码图谱三项。
+
+### 修复
+- README 与实际行为不符的说法：首次唤起的初始化除了问有没有其他人一起开发，还在同一批里给出合并方式（本地合并还是走 PR）的建议请用户拍板；"独自开发自动合并"只在选了本地合并时成立；合并方式是独立设置，不由协作面决定；codegraph 接线范围的选项是 `--codegraph-location`；冲突插件默认写 `.claude/settings.local.json`，`--shared` 才写 `.claude/settings.json`；锁定版本示例更新到 `v3.5.0`；补上安装器每次检查并安装伴生 skill（`agentic-principle`、`skill-principle`）这一步及 `--no-companions`、`--companion-repo`。
+
 ## 3.5.0 — 2026-10-27
 
 ### 变更
