@@ -16,7 +16,7 @@
 npx --yes git+https://github.com/weidwonder/dw-system.git .
 ```
 
-安装器先从 GitHub 下载 `--repo` 仓库的 `--ref` 版本，校验其中至少有一个合法 skill；下载或校验失败时不修改目标项目，并以非零退出码结束（默认取哪个版本、对应 tag 不存在时怎么办，见 [README › 安装选项](./README_zh.md#安装选项)）。交互安装时随后问 Codex 冲突技能怎么处理（每次都问，传了 `--no-plugins`、`--keep=superpowers` 或 `--codex-conflicts=` 时不问）、以及 `docs/` 与 `engineering-context/` 要不要提交进 git（只在首次问，见第 2 步），再打印计划，请你确认后才改动任何东西。`--yes` 一律取默认值、跳过这些提问。确认之后按顺序：
+安装器先从 GitHub 下载 `--repo` 仓库的 `--ref` 版本，校验其中至少有一个合法 skill；下载或校验失败时不修改目标项目，并以非零退出码结束（默认取哪个版本、对应 tag 不存在时怎么办，见 [README › 安装选项](./README_zh.md#安装选项)）。交互安装时随后问 Codex 冲突技能怎么处理（每次都问，传了 `--no-plugins`、`--keep=superpowers@openai-api-curated` 或 `--codex-conflicts=` 时不问）、以及 `docs/` 与 `engineering-context/` 要不要提交进 git（只在首次问，见第 2 步），再打印计划，请你确认后才改动任何东西。`--yes` 一律取默认值、跳过这些提问。确认之后按顺序：
 
 1. **复制 skill。** 该版本的全部 skill——八个 `dw-*` skill，`ctx` CLI 随 `dw-code-facts`、原型工具随 `dw-prd`——连同版本戳复制到 `<项目>/.claude/skills/`（Claude Code）与 `<项目>/.agents/skills/`（Codex）。从 3.0 之前的安装升级时，先删除旧名字的 skill 目录与版本戳，并把旧标记块改写成新名字，你配置过的字段逐字带入。跨过需要手动动作的版本升级时，打印这些版本的迁移指南。
 2. **更新 `.gitignore`。** 追加一个幂等标记块，忽略已安装的 skill 目录、版本戳和本地 codegraph 索引 `.codegraph/`。`docs/` 与 `engineering-context/` 要不要提交进 git，就是打印计划之前那一问：
@@ -27,7 +27,7 @@ npx --yes git+https://github.com/weidwonder/dw-system.git .
    - `.gitignore` 里已经有你自己写的这两个目录的忽略规则时，既不发问，也不接管这些规则。
    - `--docs-in-git=yes|no` 优先于以上全部，也是事后改主意的入口。
 3. **只在本项目禁用冲突的 Claude Code 插件。** 把 `false` 合并进 `enabledPlugins`，不覆盖其他键。默认写 `.claude/settings.local.json`（gitignored，只影响你）；加 `--shared` 写 `.claude/settings.json`（提交进 git，影响所有克隆这个仓库的人）。见 [冲突插件](#冲突插件)。
-4. **处理冲突的 Codex skill。** 默认在项目的 `AGENTS.md` 写入 `dw-system:codex-conflicts` 约束块，阻止它在本项目自动触发。打印计划之前那一问可以改选通过 Codex CLI 全局卸载（自动化场景用 `--codex-conflicts=uninstall`）。全局卸载在你确认之后、第 1 步之前立即执行，Codex CLI 不可用或卸载失败时安装器中止，目标项目保持原样。
+4. **处理冲突的 Codex skill。** 默认在项目的 `AGENTS.md` 写入 `dw-system:codex-conflicts` 约束块，阻止它在本项目自动触发。打印计划之前那一问可以改选通过 Codex CLI 全局卸载（自动化场景用 `--codex-conflicts=uninstall`）。选了它时，安装器在打印计划之前先读取 Codex 插件清单，Codex CLI 不可用或读取失败就此中止；卸载本身在你确认之后、第 1 步之前执行，卸载失败同样中止。两种情况下目标项目都保持原样。
 5. **同步入口文件——只在 `CLAUDE.md` 或 `AGENTS.md` 已有 `dw-workflow` 标记块时执行。** 两个入口按该标记块对齐（以 `CLAUDE.md` 为准），并在**原本就存在**的入口文件最顶部写入一个幂等提示块（"动手前先加载 `dw-workflow`"）；由这一步新建的入口文件只写标记块。还没有标记块时这一步什么都不写，标记块由首次在项目里唤起 skill 时写入。
 6. **安装伴生 skill。** `agentic-principle` 与 `skill-principle` 装进用户级的 `~/.claude/skills/` 与 `~/.codex/skills/`，所有项目共用一份。每次运行都比对远端版本，本地更旧才更新。本地是符号链接或 git 工作区时只报告、不覆盖。拉取失败降级为警告。用 `--no-companions` 跳过；用 `--companion-repo=<name>=<url>` 把某个伴生 skill 指向别的仓库。
 7. **把 `ctx` 链接成全局命令。** 在 `<项目>/.claude/skills/dw-code-facts/scripts/ctx` 下执行 `npm link`，再实际运行 `ctx --help` 验证。链接失败——没有写权限、npm 全局 bin 不在 PATH、PATH 上已有别人的 `ctx`——只降级为警告，并打印兜底调用方式 `node <skill>/scripts/ctx/src/cli.js <命令>`。别人的 `ctx` 绝不覆盖。Windows 上换项目重装时，全局命令目录里还留着上次那份 `ctx`，`npm link` 会报 `EEXIST`；安装器先判断那个文件是不是本体系的，是就用 `npm link --force` 覆盖，判不出归属就什么都不动，只打印该文件路径与删除方式。用 `--no-ctx-link` 跳过。
