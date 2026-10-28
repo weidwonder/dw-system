@@ -1,13 +1,15 @@
 ---
-lifecycle: active
+lifecycle: merged
 superseded_by: ''
-archived: ''
+archived: '2026-10-28'
 last_confirmed: '2026-10-28'
 authority_refs:
   - '仓库根 README.md / README_zh.md：对外介绍、上手路径与安装命令'
   - '仓库根 INSTALL.md / INSTALL_zh.md：安装器对目标项目做了什么、冲突插件、撤销方式'
   - '仓库根 LICENSE 与 package.json 的 license 字段：本仓库的使用许可'
 ---
+
+> **已归档（2026-10-28）｜lifecycle: merged**：本文口径已归并至 `docs/REQUIREMENTS.md`（许可证与面向使用者文档的位置）以及仓库根 `README.md` / `INSTALL.md` 本身。与现行文档冲突时**以现行为准**，MUST NOT 据本文实施。
 
 # 变更 PRD — README 重排、安装细则独立成篇、以 MIT 许可证发布
 

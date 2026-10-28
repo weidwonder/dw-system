@@ -35,3 +35,4 @@
 | [Agentic 调试模式与切片回放](./spec/2026-09-02-agentic调试模式与切片回放-lean-change-spec.md) | merged | 已归并进 `REQUIREMENTS.md` §明确不做什么 第 1 条与 `AI-LLM-overlay.md`；判据本体在伴生 skill `agentic-principle` |
 | [dw 体系重组与两条总纲 PRD](./spec/2026-09-17-dw体系重组与两条总纲-PRD.md) | merged | 已归并进 `REQUIREMENTS.md`；来历与被否决的方案见 `decisions/0003`–`0006` |
 | [全局安装 Coding Plan](./plan/2026-09-18-全局安装-coding-plan.md) | merged | 任务已执行并合入；口径见 [同期 eng-spec](./spec/2026-09-18-dw-system-全局安装-eng-spec.md) 与 `REQUIREMENTS.md` §安装器 |
+| [README 重排与 MIT 许可证 PRD](./spec/2026-10-28-README重排与MIT许可证-PRD.md) | merged | 已归并进 `REQUIREMENTS.md`（许可证与面向使用者文档的位置）；对外说明本身在仓库根 `README.md` / `INSTALL.md` |

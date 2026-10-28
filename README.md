@@ -19,13 +19,13 @@ npx --yes git+https://github.com/weidwonder/dw-system.git .
 
 ## Quick Start
 
-1. **Install** with the command above. The installer prints its plan and asks once before it changes your project. Restart Claude Code / Codex afterwards — project settings and instructions take effect in the next session.
+1. **Install** with the command above. An interactive install may first ask how to handle a conflicting Codex skill (when one is found) and, the first time, whether `docs/` and `engineering-context/` are committed to git; then it prints its plan and asks you to confirm before changing anything. Restart Claude Code / Codex afterwards — project settings and instructions take effect in the next session.
 2. **Describe a change** in Claude Code or Codex, for example:
 
    > Use dw-workflow: add an "order source" column to the order CSV export.
 
    Mentioning "AI-assisted development", "dev workflow", "generate a spec" or "coding plan" triggers it too. No PRD yet? Say "write me a PRD for …" and `dw-prd` produces one, which then becomes the workflow's input.
-3. **Answer the one-time setup.** The first call asks one question — is anyone else developing this project with you — and, in the same batch, proposes how finished work goes back to main for you to confirm: merged locally, or pushed as a PR for the platform to merge. The answers are written into `CLAUDE.md` and `AGENTS.md`, and you are not asked again.
+3. **Answer the one-time setup.** The first call asks one question — is anyone else developing this project with you — and, in the same batch, proposes how finished work goes back to main for you to confirm: merged locally, or pushed as a PR for the platform to merge. If it finds rules, skills or agents that conflict with this workflow, you decide how to handle each one in the same batch. The answers are written into `CLAUDE.md` and `AGENTS.md`, and you are not asked again.
 
 What happens next, for that CSV example:
 
@@ -37,7 +37,7 @@ What happens next, for that CSV example:
 | Confirm | Lists every existing behavior the change alters, plus the spec's scope and acceptance criteria | You decide compatibility and approve the spec |
 | Build | Implements, deletes superseded logic, writes the CHANGELOG entry, runs the spec's checks | — |
 | Review | Sub-agents review the change axis by axis; P0/P1 findings get fixed | — |
-| Merge | Merges locally and removes the worktree — or opens a PR, depending on your setup answer | With PRs, you approve |
+| Merge | Merges locally and removes the worktree — or opens a PR, depending on your setup answer. If a gate or the merge fails, the worktree is kept, and PR, CI and branch-protection rules are never bypassed | With PRs, you approve |
 
 A larger or riskier change takes the full pipeline instead: PRD clarification → Overview (when the change spans several repos or modules) → engineering spec → coding plan → coding → review → test spec → test code → end-to-end tests, with the same gates.
 
@@ -71,7 +71,7 @@ The first invocation scaffolds it inside the task worktree (`ctx init`). A scaff
 
 The cost is honest: the first few tasks on an existing codebase are slower, because reading source and writing cards is real work. It gets faster from there, and remembering stops being your job.
 
-> **Why it is mandatory**: any "which tier does this project need" rule lags behind the project's real risk. A ten-thousand-file legacy system maintained by one person has no cards yet — exactly the project a tier rule would wave through with "just grep the old code", which is the failure mode this system exists to kill. Whether AI coding lands in production is decided less by the process (anyone can copy a process) than by **whether you can hand the AI a trustworthy layer of code facts**.
+> **Why it is mandatory**: any "which tier does this project need" rule lags behind the project's real risk. A 100,000-line legacy system maintained by one person has no cards yet — exactly the project a tier rule would wave through with "just grep the old code", which is the failure mode this system exists to kill. Whether AI coding lands in production is decided less by the process (anyone can copy a process) than by **whether you can hand the AI a trustworthy layer of code facts**.
 
 ### What varies per project
 
@@ -79,7 +79,7 @@ The cost is honest: the first few tasks on an existing codebase are slower, beca
 |---|---|---|
 | **Collaboration surface** — is anyone else developing with you | Asked once at setup, stored in `CLAUDE.md` / `AGENTS.md` | Whether to align with repo owners before touching their repos, hold review meetings for changes spanning ≥3 repos, and who decides compatibility trade-offs |
 | **Merge gate** — local merge or PR | Proposed at setup for you to confirm, stored in the same block | Local merge: the branch merges after all gates pass and you tag releases yourself. PR: the PR carries the version bump and CHANGELOG version section, so **a merge is a release** and the merge commit gets tagged |
-| **Code graph** — does the project have a local [codegraph](https://github.com/colbymchenry/codegraph) index | Detected on every run, never asked, never stored | Only how fast things are found (symbols, call chains, blast radius). It changes no process rule and never answers *which implementation to trust* — the cards do |
+| **Code graph** — does the project have a local [codegraph](https://github.com/colbymchenry/codegraph) index | Detected on every run, never asked, never stored | Only how fast things are found (symbols, call chains, blast radius). It changes no process rule and never answers *which implementation to trust* — the cards do. Without it, heavy code exploration is handed to a sub-agent |
 
 ---
 
@@ -142,8 +142,11 @@ npx --yes git+https://github.com/weidwonder/dw-system.git . --dry-run
 # Unattended — the leading --yes only skips npm's prompt; the one after the target skips the installer's
 npx --yes git+https://github.com/weidwonder/dw-system.git . --yes
 
-# Pin one release end to end — installer entry and skill source at the same tag
-npx --yes git+https://github.com/weidwonder/dw-system.git#v3.5.0 . --ref=v3.5.0
+# Pin one release end to end — installer entry and skill source at the same tag (versions: dw-system/VERSION, CHANGELOG.md)
+npx --yes git+https://github.com/weidwonder/dw-system.git#v<version> . --ref=v<version>
+
+# Follow the development branch instead
+npx --yes git+https://github.com/weidwonder/dw-system.git . --ref=main
 
 # Machine-wide: ~/.claude/skills/ and ~/.codex/skills/, shared by every project; touches no project file
 npx --yes git+https://github.com/weidwonder/dw-system.git --global
@@ -152,9 +155,9 @@ npx --yes git+https://github.com/weidwonder/dw-system.git --global
 npx --yes git+https://github.com/weidwonder/dw-system.git --help
 ```
 
-Use the `git+https://` form, not the `github:weidwonder/dw-system` shorthand: the shorthand makes npm download a tarball that returns 404 in some environments (known on Windows + npm 12).
+Use the `git+https://` form, not the `github:weidwonder/dw-system` shorthand: the shorthand makes npm download a tarball that returns 404 in some environments (known on Windows + npm 12), while `git+https://` goes through `git clone` and avoids that path.
 
-By default the installer fetches the tag matching its own `dw-system/VERSION`, so the installer and the skills it installs are always the same version. An explicit `--ref` that cannot be fetched fails with a non-zero exit code instead of installing something else. **To upgrade**, run the install command again; for versions that need manual steps, the installer prints the migration guide.
+By default the installer fetches the tag matching its own `dw-system/VERSION`, so the installer and the skills it installs are the same version. If that tag has not been published yet, it warns and falls back to `main`; pass `--ref` explicitly to pin a version strictly. An explicit `--ref` that cannot be fetched fails with a non-zero exit code instead of installing something else. **To upgrade**, run the install command again; for versions that need manual steps, the installer prints the migration guide.
 
 | Flag | Effect |
 |---|---|
@@ -169,7 +172,7 @@ By default the installer fetches the tag matching its own `dw-system/VERSION`, s
 | `--no-ctx-link` | Don't link `ctx` as a global command |
 | `--no-codegraph` / `--codegraph-location=global` | Skip codegraph entirely / wire it for every project instead of just this one |
 
-**What the installer changes in your project** — every step, the conflicting plugins it switches off for this project only (Claude Code `superpowers`, `everything-claude-code`, `oh-my-claudecode`, `general-task`; Codex `superpowers@openai-api-curated`), global mode, notes for Codex users, and how to undo it — is in [INSTALL.md](./INSTALL.md).
+**What the installer changes in your project** — every step, the conflicting plugins it switches off for this project only (four Claude Code plugins and Codex `superpowers@openai-api-curated`), global mode, notes for Codex users, and how to undo it — is in [INSTALL.md](./INSTALL.md).
 
 ---
 

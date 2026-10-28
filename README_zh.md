@@ -19,13 +19,13 @@ npx --yes git+https://github.com/weidwonder/dw-system.git .
 
 ## 快速上手
 
-1. **安装**：运行上面那条命令。安装器先打印计划，改动你的项目之前问你一次。装完重启 Claude Code / Codex——项目配置与指令在下一个会话才生效。
+1. **安装**：运行上面那条命令。交互安装时，安装器可能先问 Codex 冲突技能怎么处理（发现冲突时）、以及 `docs/` 与 `engineering-context/` 要不要提交进 git（首次时），然后打印计划，请你确认后才改动项目。装完重启 Claude Code / Codex——项目配置与指令在下一个会话才生效。
 2. **在 Claude Code 或 Codex 里描述一个改动**，例如：
 
    > 用 dw-workflow：订单导出的 CSV 里加一列"下单来源"。
 
    提到"AI 辅助开发""开发流程""生成 spec""coding plan"同样会触发。还没有 PRD？说"帮我把这个需求写成 PRD"，`dw-prd` 会产出一份，作为流程的输入。
-3. **回答一次性的初始化提问**。首次唤起时只问一个问题——这个项目除你之外还有没有人一起开发——并在同一批里给出做完的改动怎么回到主分支的建议请你拍板：本地直接合并，还是推 PR 由平台合并。结论写进 `CLAUDE.md` 与 `AGENTS.md`，之后不再询问。
+3. **回答一次性的初始化提问**。首次唤起时只问一个问题——这个项目除你之外还有没有人一起开发——并在同一批里给出做完的改动怎么回到主分支的建议请你拍板：本地直接合并，还是推 PR 由平台合并。扫描到与本流程冲突的规则、skill 或 agent 时，也在同一批里请你逐项决定怎么处理。结论写进 `CLAUDE.md` 与 `AGENTS.md`，之后不再询问。
 
 以上面的 CSV 需求为例，接下来会发生：
 
@@ -37,7 +37,7 @@ npx --yes git+https://github.com/weidwonder/dw-system.git .
 | 确认 | 列出这次改动会改变的每一条既有行为，以及 spec 的范围与验收标准 | 你拍板兼容取舍、确认 spec |
 | 实现 | 编码、当场删掉被取代的旧逻辑、写 CHANGELOG 条目、跑 spec 里的验证命令 | — |
 | 评审 | 子代理逐轴评审本次改动，P0 / P1 问题修完 | — |
-| 合并 | 按你初始化时的选择：本地合并并清理 worktree，或开 PR | 走 PR 时由你放行 |
+| 合并 | 按你初始化时的选择：本地合并并清理 worktree，或开 PR。门禁或合并失败时保留 worktree，不绕过 PR、CI 与保护分支 | 走 PR 时由你放行 |
 
 更大或风险更高的改动改走完整流程：PRD 澄清 → Overview（改动跨多个仓库或模块时）→ 技术 spec → coding plan → 编码 → 评审 → 测试 spec → 测试代码 → 端到端测试，门禁一道不少。
 
@@ -79,7 +79,7 @@ npx --yes git+https://github.com/weidwonder/dw-system.git .
 |---|---|---|
 | **协作面**——除你之外还有没有人一起开发 | 初始化时问一次，写进 `CLAUDE.md` / `AGENTS.md` | 改别人的仓库前要不要先对齐 owner、跨 ≥3 仓的改动要不要开评审会、兼容取舍由谁拍板 |
 | **合并方式**——本地合并还是走 PR | 初始化时给出建议由你拍板，写进同一个标记块 | 本地合并：全部门禁通过后合并，发版由你自己打 tag。走 PR：PR 带版本号升位与 CHANGELOG 版本节，**合并即发布**，合并提交打 tag |
-| **代码图谱**——项目有没有建本地 [codegraph](https://github.com/colbymchenry/codegraph) 索引 | 每次运行探测，不问也不写配置 | 只影响找东西的速度（符号、调用链、影响面），不改变任何流程判据，也回答不了"该信哪一个实现"——那是卡片的职责 |
+| **代码图谱**——项目有没有建本地 [codegraph](https://github.com/colbymchenry/codegraph) 索引 | 每次运行探测，不问也不写配置 | 只影响找东西的速度（符号、调用链、影响面），不改变任何流程判据，也回答不了"该信哪一个实现"——那是卡片的职责。没有它时，重的代码探索交给子代理 |
 
 ---
 
@@ -142,8 +142,11 @@ npx --yes git+https://github.com/weidwonder/dw-system.git . --dry-run
 # 无人值守：开头的 --yes 只跳过 npm 的下载提示，目标目录后面那个才跳过安装器自己的确认
 npx --yes git+https://github.com/weidwonder/dw-system.git . --yes
 
-# 端到端锁定一个版本：安装器入口与 skill 源取同一个 tag
-npx --yes git+https://github.com/weidwonder/dw-system.git#v3.5.0 . --ref=v3.5.0
+# 端到端锁定一个版本：安装器入口与 skill 源取同一个 tag（版本号见 dw-system/VERSION 与 CHANGELOG.md）
+npx --yes git+https://github.com/weidwonder/dw-system.git#v<版本> . --ref=v<版本>
+
+# 改为跟随开发分支
+npx --yes git+https://github.com/weidwonder/dw-system.git . --ref=main
 
 # 全机共用：装进 ~/.claude/skills/ 与 ~/.codex/skills/，所有项目共用，不碰任何项目文件
 npx --yes git+https://github.com/weidwonder/dw-system.git --global
@@ -152,9 +155,9 @@ npx --yes git+https://github.com/weidwonder/dw-system.git --global
 npx --yes git+https://github.com/weidwonder/dw-system.git --help
 ```
 
-请用 `git+https://` 形式，不要用 `github:weidwonder/dw-system` 简写：简写会让 npm 下载 tarball，在部分环境返回 404（已知 Windows + npm 12）。
+请用 `git+https://` 形式，不要用 `github:weidwonder/dw-system` 简写：简写会让 npm 下载 tarball，在部分环境返回 404（已知 Windows + npm 12）；`git+https://` 走 `git clone`，绕开了这条路。
 
-安装器默认取与自身 `dw-system/VERSION` 同名的 tag，所以安装器与它装出的 skill 永远是同一个版本。显式传的 `--ref` 取不到时以非零退出码失败，不会悄悄装成别的版本。**升级**就是再跑一次安装命令；需要手动动作的版本，安装器会打印它的迁移指南。
+安装器默认取与自身 `dw-system/VERSION` 同名的 tag，所以安装器与它装出的 skill 是同一个版本；该 tag 还没发布时告警并回退到 `main`，要严格锁定版本请显式传 `--ref`。显式传的 `--ref` 取不到时以非零退出码失败，不会悄悄装成别的版本。**升级**就是再跑一次安装命令；需要手动动作的版本，安装器会打印它的迁移指南。
 
 | 选项 | 作用 |
 |---|---|
@@ -169,7 +172,7 @@ npx --yes git+https://github.com/weidwonder/dw-system.git --help
 | `--no-ctx-link` | 不把 `ctx` 链接成全局命令 |
 | `--no-codegraph` / `--codegraph-location=global` | 整段跳过 codegraph / 接线到所有项目而不只是本项目 |
 
-**安装器会对你的项目做什么**——每一步动作、只在本项目禁用的冲突插件（Claude Code 的 `superpowers`、`everything-claude-code`、`oh-my-claudecode`、`general-task`；Codex 的 `superpowers@openai-api-curated`）、全局安装的行为、Codex 用户须知、如何撤销——见 [INSTALL_zh.md](./INSTALL_zh.md)。
+**安装器会对你的项目做什么**——每一步动作、只在本项目禁用的冲突插件（四个 Claude Code 插件与 Codex 的 `superpowers@openai-api-curated`）、全局安装的行为、Codex 用户须知、如何撤销——见 [INSTALL_zh.md](./INSTALL_zh.md)。
 
 ---
 
