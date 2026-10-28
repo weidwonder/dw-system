@@ -33,6 +33,7 @@
 
 ## 模板与解析器
 
+- 「已覆盖」的认定住在 `dw-workflow/references/测试资产纪律.md` §3，`test-spec.md` §6 与 `test-coverage.md` 的状态口径各就地写一句同一条件（模板会被照抄进目标项目，读者手边不一定有纪律）：改一处 MUST 三处同改，模板里只写条件，不写理由与例外。
 - `dw-code-facts/assets/context-layer/` 的模板与 `scripts/ctx/src/commands.js` 里的 init stub 是同一内容的两份，改一处 MUST 同步另一处。
 - 模板是使用者照抄的东西，`ctx` 会解析抄出来的结果：示例日期、说明行、注释里的引号都可能被解析成真数据（可信的 cite、废弃项、非空的 `authority_refs`）。改模板后 MUST 跑 `test/template-contract.test.mjs`——它把模板真喂给解析器。
 - 卡片的固定小节名与体积上限同时住在两份卡片模板、`代码事实纪律.md` 与 `lint.js`；改一处三处同改，`test/ctx-domain-cards.test.mjs` 守。
